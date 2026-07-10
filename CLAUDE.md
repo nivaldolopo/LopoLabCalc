@@ -72,15 +72,17 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
    git push
    ```
 
-> Observação: a integração Git nativa da Vercel está ativa, então o `git push` por si só
-> já dispararia um deploy de produção. Para atender à diretriz de **deployar via CLI**,
-> o passo 2 (`vercel --prod`) é o deploy oficial; o `push` serve para versionar no GitHub.
-> Se quiser evitar deploy duplicado no futuro, avaliar desconectar a integração Git nativa.
+> Observação: a integração Git nativa da Vercel está **desconectada** (feito de propósito
+> para evitar deploy duplicado). Portanto o `git push` **não** dispara deploy — o único
+> deploy é o `vercel --prod` (passo 2). O `push` serve apenas para versionar no GitHub.
+> Se algum dia quiser voltar ao deploy automático por push, rode `vercel git connect`.
 
 ## Infra / referência de deploy
 
 - **Projeto Vercel:** `lopo-lab/lopolabcalc` (time `lopo-lab`, plano Hobby).
 - **Vínculo:** já feito (`.vercel/repo.json` na raiz; pasta `.vercel` está no `.gitignore`).
+- **Integração Git nativa:** **desconectada** — deploy é só via `vercel --prod` (CLI).
+  Push no GitHub não gera deploy. Para reativar: `vercel git connect`.
 - **Framework:** fixado em `vercel.json` (`"framework": "nextjs"`) — necessário porque o
   projeto herdou uma config estática antiga (versão HTML única) que quebrava o build com
   *"No Output Directory named public"*.
