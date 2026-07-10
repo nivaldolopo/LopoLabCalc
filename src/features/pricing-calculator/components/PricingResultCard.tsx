@@ -50,6 +50,11 @@ export function PricingResultCard({
 
       <HorizontalBars result={result} />
 
+      <div className="breakdown-total">
+        <span>Custo total</span>
+        <span className="mono">{formatCurrency(result.totalCost)}</span>
+      </div>
+
       {result.pieces > 1 ? (
         <div className="per-piece-row">
           <div className="per-piece-label">
@@ -61,55 +66,11 @@ export function PricingResultCard({
         </div>
       ) : null}
 
-      <div className="breakdown">
-        <BreakdownRow label="Material" value={result.materialCost} />
-        <BreakdownRow label="Energia" value={result.energyCost} />
-        <BreakdownRow
-          label={`Desgaste (${result.machine.name})`}
-          value={result.depreciationCost}
-        />
-        <BreakdownRow label="Mão de obra" value={result.laborCost} />
-        {result.stagesCost > 0 ? (
-          <BreakdownRow label="🔗 Etapas extras" value={result.stagesCost} />
-        ) : null}
-        {result.accessoriesCost > 0 ? (
-          <BreakdownRow label="🧩 Acessórios" value={result.accessoriesCost} />
-        ) : null}
-        {fixedCosts.enabled ? (
-          <BreakdownRow
-            active
-            label="🏪 Custo fixo (aluguel etc.)"
-            value={result.fixedCost}
-          />
-        ) : null}
-        <div className="breakdown-total">
-          <span>Custo total</span>
-          <span className="mono">{formatCurrency(result.totalCost)}</span>
-        </div>
-      </div>
-
       <CapacityPanel
         settings={capacitySettings}
         result={capacityResult}
         onChange={onCapacityChange}
       />
-    </div>
-  );
-}
-
-function BreakdownRow({
-  label,
-  value,
-  active,
-}: {
-  label: string;
-  value: number;
-  active?: boolean;
-}) {
-  return (
-    <div className={`breakdown-row ${active ? "breakdown-fixed active" : ""}`}>
-      <span className="blabel">{label}</span>
-      <span className="mono">{formatCurrency(value)}</span>
     </div>
   );
 }
