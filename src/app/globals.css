@@ -1195,6 +1195,28 @@ td {
   margin-bottom: 12px;
 }
 
+.cd-capacity .capacity-grid {
+  gap: 10px;
+}
+
+.cd-capacity .capacity-grid > div {
+  min-width: 0;
+}
+
+.cd-capacity .capacity-val {
+  font-size: 19px;
+}
+
+.cd-capacity .capacity-profit {
+  font-size: 13px;
+}
+
+.cd-capacity .capacity-val,
+.cd-capacity .capacity-profit,
+.cd-capacity .capacity-sub {
+  overflow-wrap: anywhere;
+}
+
 .details-span {
   grid-column: 1 / -1;
   margin-top: 16px;
