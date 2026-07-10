@@ -48,7 +48,7 @@ src/
 - Trabalhe sempre mirando **produção**. Não mantemos os ambientes de **Preview** nem
   **Development** da Vercel (as variáveis do Firebase só estão em **Production**).
 - Ao lidar com variáveis de ambiente na Vercel, use somente o target `production`.
-- Deploys são sempre de produção (`--prod`).
+- Deploys são sempre de produção (push na `main` → deploy automático de produção).
 
 ### 2. Resumo para contexto
 - A seção **Resumo do projeto** acima existe para acelerar a obtenção de contexto.
@@ -63,26 +63,23 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
    git add -A
    git commit -m "<mensagem descritiva>"
    ```
-2. **Deploy de produção via Vercel CLI** (aguarde ficar *Ready*):
-   ```powershell
-   vercel --prod
-   ```
-3. **Push** para manter o GitHub em sincronia:
+2. **Push** — a integração Git nativa da Vercel deploya a produção automaticamente:
    ```powershell
    git push
    ```
 
-> Observação: a integração Git nativa da Vercel está **desconectada** (feito de propósito
-> para evitar deploy duplicado). Portanto o `git push` **não** dispara deploy — o único
-> deploy é o `vercel --prod` (passo 2). O `push` serve apenas para versionar no GitHub.
-> Se algum dia quiser voltar ao deploy automático por push, rode `vercel git connect`.
+> Observação: o deploy é feito pela **integração Git nativa da Vercel** (push na `main`
+> → deploy de produção automático, rodando na nuvem da Vercel). **Não** rode `vercel --prod`
+> no fluxo normal — isso criaria um deploy duplicado. Use o CLI só em casos pontuais
+> (ex.: deployar estado local sem commit). Para acompanhar: `vercel ls` ou o painel da Vercel.
 
 ## Infra / referência de deploy
 
 - **Projeto Vercel:** `lopo-lab/lopolabcalc` (time `lopo-lab`, plano Hobby).
 - **Vínculo:** já feito (`.vercel/repo.json` na raiz; pasta `.vercel` está no `.gitignore`).
-- **Integração Git nativa:** **desconectada** — deploy é só via `vercel --prod` (CLI).
-  Push no GitHub não gera deploy. Para reativar: `vercel git connect`.
+- **Integração Git nativa:** **conectada** — push na `main` faz deploy de produção
+  automático. Não use `vercel --prod` no fluxo normal (geraria deploy duplicado).
+  Para desconectar: `vercel git disconnect`.
 - **Framework:** fixado em `vercel.json` (`"framework": "nextjs"`) — necessário porque o
   projeto herdou uma config estática antiga (versão HTML única) que quebrava o build com
   *"No Output Directory named public"*.
@@ -104,5 +101,5 @@ pnpm dev            # rodar localmente (http://localhost:3000)
 pnpm build          # build de produção local
 pnpm lint           # eslint
 vercel ls           # listar deploys
-vercel --prod       # deploy de produção via CLI
+vercel --prod       # deploy manual via CLI (uso pontual; o normal é push na main)
 ```
