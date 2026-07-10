@@ -3,6 +3,20 @@
 > Este arquivo é lido automaticamente pelo Claude Code no início de cada conversa.
 > Leia as **Diretrizes de trabalho** antes de qualquer ação.
 
+## Status atual (contexto de continuidade)
+
+> Foto do **AGORA** para permitir abrir um chat novo por tarefa. Manter curto e atual —
+> não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
+
+- **Estado do site:** no ar e estável (produção `● Ready`).
+- **Últimas mudanças relevantes:** repositório GitHub criado e conectado; pipeline de deploy
+  configurado via **integração Git nativa da Vercel** (push na `main` → deploy de produção);
+  variáveis do Firebase cadastradas na Vercel (Production); `vercel.json` fixando o framework
+  Next.js (corrigiu erro de build herdado da versão HTML antiga).
+- **Em andamento / próximos passos:** nada pendente.
+- **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
+  cadastradas (por decisão — só mantemos Production; ver Diretriz 1). Nada quebrado.
+
 ## Resumo do projeto (contexto rápido)
 
 **O que é:** aplicação web de **calculadora de precificação para impressão 3D**
@@ -72,6 +86,13 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 > → deploy de produção automático, rodando na nuvem da Vercel). **Não** rode `vercel --prod`
 > no fluxo normal — isso criaria um deploy duplicado. Use o CLI só em casos pontuais
 > (ex.: deployar estado local sem commit). Para acompanhar: `vercel ls` ou o painel da Vercel.
+
+### 4. Manter o "Status atual" atualizado
+- Ao concluir uma mudança relevante (feature, correção, decisão de arquitetura/infra),
+  **atualize a seção "Status atual"** no topo deste arquivo.
+- Mantenha-a curta: é a foto do AGORA, não um histórico. Remova o que envelheceu.
+- Objetivo: permitir abrir um **chat novo por tarefa** e continuar sem perder contexto,
+  evitando um único chat com contexto gigante.
 
 ## Infra / referência de deploy
 
