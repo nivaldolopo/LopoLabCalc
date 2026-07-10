@@ -129,7 +129,7 @@ h1 span {
   color: var(--muted);
   font-size: 14px;
   margin: 10px 0 20px;
-  max-width: 620px;
+  max-width: 560px;
 }
 
 .cloud-status {
@@ -155,8 +155,7 @@ h1 span {
   color: #c4836b;
 }
 
-.cloud-status.importing,
-.cloud-status.connecting {
+.cloud-status.importing {
   color: var(--accent);
 }
 
@@ -231,6 +230,12 @@ h1 span {
   display: flex;
   align-items: center;
   gap: 5px;
+}
+
+.label-hint {
+  text-transform: none;
+  font-weight: 400;
+  color: var(--muted2);
 }
 
 .section-note {
@@ -592,7 +597,8 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .fc-body.disabled {
-  opacity: 0.45;
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .fc-grid {
@@ -1091,6 +1097,23 @@ td {
   font-family: var(--font-jetbrains-mono), monospace;
   font-weight: 500;
   color: var(--ink);
+}
+
+.db-val.accent {
+  color: var(--accent);
+}
+
+.db-val.green {
+  color: var(--green);
+}
+
+.db-val.purple {
+  color: #b57edc;
+}
+
+.db-val.price {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .details-span {

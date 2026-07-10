@@ -16,7 +16,9 @@ export function CapacityPanel({
 }: CapacityPanelProps) {
   return (
     <div className="capacity-box">
-      <div className="capacity-title">Capacidade produtiva deste produto</div>
+      <div className="capacity-title">
+        📊 Capacidade produtiva deste produto
+      </div>
       <div className="capacity-inputs">
         <div className="ci-item">
           <label>Horas de impressão/dia</label>
@@ -44,12 +46,14 @@ export function CapacityPanel({
       </div>
       <div className="capacity-grid">
         <div>
-          <div className="capacity-col-title">Diário</div>
+          <div className="capacity-col-title">☀️ Diário</div>
           <div className="capacity-val">
-            {result ? `${result.piecesDay} peças` : "-"}
+            {result ? `${result.piecesDay} peças` : "—"}
           </div>
           <div className="capacity-sub">
-            {result ? `${result.cyclesDay} impressões/dia` : "defina tempo"}
+            {result
+              ? `${result.cyclesDay} impressões/dia`
+              : "defina tempo de impressão"}
           </div>
           <div className="capacity-profit">
             {result ? `Fat. bruto: ${formatCurrency(result.grossDay)}` : ""}
@@ -59,9 +63,9 @@ export function CapacityPanel({
           </div>
         </div>
         <div>
-          <div className="capacity-col-title">Mensal (30d)</div>
+          <div className="capacity-col-title">📅 Mensal (30d)</div>
           <div className="capacity-val">
-            {result ? `${result.piecesMonth} peças` : "-"}
+            {result ? `${result.piecesMonth} peças` : "—"}
           </div>
           <div className="capacity-sub">
             {result ? `${result.cyclesMonth} impressões/mês` : ""}

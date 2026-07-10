@@ -18,7 +18,7 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lopo Lab - Calculadora de Preço",
+  title: "Lopo Lab — Calculadora de Preço",
   description: "Calculadora de preço para impressão 3D do Lopo Lab.",
 };
 

@@ -21,14 +21,19 @@ export function LinksSection({ product, onChange }: LinksSectionProps) {
         onClick={() => setOpen((current) => !current)}
       >
         <span className="collapse-title">
-          Links e referências
-          {hasLinks ? <span className="collapse-badge">1</span> : null}
+          🔗 Links e referências
+          {hasLinks ? <span className="collapse-badge">•</span> : null}
         </span>
         <ChevronDown className="collapse-chevron" size={14} />
       </button>
       <div className="collapse-body">
         <div className="field-block compact">
-          <label className="section-label">Fonte do modelo</label>
+          <label className="section-label">
+            Fonte do modelo{" "}
+            <span className="label-hint">
+              (MakerWorld, Printables, STLFlix...)
+            </span>
+          </label>
           <input
             className="field-input"
             type="url"
@@ -38,7 +43,10 @@ export function LinksSection({ product, onChange }: LinksSectionProps) {
           />
         </div>
         <div className="field-block compact">
-          <label className="section-label">Referência concorrente</label>
+          <label className="section-label">
+            Referência concorrente{" "}
+            <span className="label-hint">(Mercado Livre, Shopee...)</span>
+          </label>
           <input
             className="field-input"
             type="url"
@@ -50,7 +58,10 @@ export function LinksSection({ product, onChange }: LinksSectionProps) {
           />
         </div>
         <div className="field-block compact last">
-          <label className="section-label">Arquivo STL / gcode</label>
+          <label className="section-label">
+            Arquivo STL / gcode{" "}
+            <span className="label-hint">(link do Drive, Dropbox...)</span>
+          </label>
           <input
             className="field-input"
             type="url"

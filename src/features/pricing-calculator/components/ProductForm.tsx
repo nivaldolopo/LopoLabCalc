@@ -1,6 +1,6 @@
 "use client";
 
-import { CopyPlus, Save, X } from "lucide-react";
+import { Plus, Save, X } from "lucide-react";
 import type { Machine, PrintStage, ProductInput } from "../types";
 import { AccessoriesSection } from "./AccessoriesSection";
 import { ExtraStagesSection } from "./ExtraStagesSection";
@@ -64,7 +64,10 @@ export function ProductForm({
       />
 
       <div className="field-block">
-        <label className="section-label">Nome da etapa principal</label>
+        <label className="section-label">
+          🏷️ Nome da etapa principal{" "}
+          <span className="label-hint">(opcional)</span>
+        </label>
         <input
           className="field-input"
           value={product.mainStageName}
@@ -75,12 +78,12 @@ export function ProductForm({
 
       <div className="two-col">
         <NumberField
-          label="Peso da peça (g)"
+          label="📦 Peso da peça (g)"
           value={product.weightG}
           onChange={(weightG) => onChange({ weightG })}
         />
         <NumberField
-          label="Tempo de impressão (h)"
+          label="⏱ Tempo de impressão (h)"
           step="0.1"
           value={product.printHours}
           onChange={(printHours) => onChange({ printHours })}
@@ -91,7 +94,7 @@ export function ProductForm({
           onChange={(filamentPricePerKg) => onChange({ filamentPricePerKg })}
         />
         <NumberField
-          label="Tarifa energia (R$/kWh)"
+          label="⚡ Tarifa energia (R$/kWh)"
           step="0.01"
           value={product.energyTariff}
           onChange={(energyTariff) => onChange({ energyTariff })}
@@ -107,7 +110,7 @@ export function ProductForm({
           onChange={(laborRate) => onChange({ laborRate })}
         />
         <NumberField
-          label="Peças por impressão"
+          label="🔢 Peças por impressão"
           min={1}
           value={product.piecesCount}
           onChange={(piecesCount) =>
@@ -135,7 +138,7 @@ export function ProductForm({
 
       <div className="field-block">
         <label className="section-label markup-header">
-          <span>Markup sobre o custo</span>
+          <span>📈 Markup sobre o custo</span>
           <span className="markup-value">{product.markup.toFixed(1)}x</span>
         </label>
         <input
@@ -147,9 +150,9 @@ export function ProductForm({
           onChange={(event) => onChange({ markup: Number(event.target.value) })}
         />
         <div className="markup-labels">
-          <span>1.5x - apertado</span>
-          <span>3x - padrão varejo</span>
-          <span>6x - premium</span>
+          <span>1.5x — apertado</span>
+          <span>3x — padrão varejo</span>
+          <span>6x — premium</span>
         </div>
       </div>
 
@@ -161,7 +164,7 @@ export function ProductForm({
           onClick={onSave}
         >
           <Save size={16} />
-          {saved ? "Salvo!" : "Salvar"}
+          {saved ? "✓ Salvo!" : "Salvar"}
         </button>
         {editingProductId ? (
           <>
@@ -170,7 +173,7 @@ export function ProductForm({
               Cancelar
             </button>
             <button className="btn btn-secondary" type="button" onClick={onSaveAsNew}>
-              <CopyPlus size={16} />
+              <Plus size={16} />
               Salvar como novo
             </button>
           </>

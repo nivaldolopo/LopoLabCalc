@@ -1,6 +1,6 @@
 "use client";
 
-import { Moon, Printer, Sun } from "lucide-react";
+import { Printer } from "lucide-react";
 import type { CloudStatus } from "../types";
 
 type HeaderProps = {
@@ -13,7 +13,7 @@ const statusLabel: Record<CloudStatus, string> = {
   connecting: "Conectando nuvem...",
   synced: "Sincronizado",
   importing: "Importando...",
-  error: "Erro de conexão",
+  error: "Erro de Conexão",
 };
 
 export function Header({ theme, status, onToggleTheme }: HeaderProps) {
@@ -26,10 +26,10 @@ export function Header({ theme, status, onToggleTheme }: HeaderProps) {
           </div>
           <div>
             <h1 className="sg">
-              Lopo Lab <span>+</span>
+              Lopo Lab <span>✦</span>
             </h1>
             <div className="brand-meta">
-              <span>Calculadora de Preço - Impressão 3D</span>
+              <span>Calculadora de Preço — Impressão 3D</span>
               <span className={`cloud-status ${status}`}>
                 {statusLabel[status]}
               </span>
@@ -41,13 +41,13 @@ export function Header({ theme, status, onToggleTheme }: HeaderProps) {
           type="button"
           onClick={onToggleTheme}
         >
-          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
           {theme === "dark" ? "Claro" : "Escuro"}
         </button>
       </div>
       <p className="subtitle">
         Material, energia, desgaste de máquina, mão de obra e custos fixos do
-        quiosque em uma ferramenta única.
+        quiosque — tudo em uma única ferramenta.
       </p>
     </>
   );

@@ -29,10 +29,6 @@ export function PricingResultCard({
     totalFixedMonth > 0 && result.contributionMargin > 0
       ? Math.ceil(totalFixedMonth / result.contributionMargin)
       : null;
-  const fixedCostPct =
-    fixedCosts.enabled && result.totalCost > 0
-      ? (result.fixedCost / result.totalCost) * 100
-      : 0;
 
   return (
     <div className="result-card">
@@ -44,7 +40,7 @@ export function PricingResultCard({
 
       {breakEvenUnits ? (
         <div className="break-even-box visible">
-          <div className="break-even-title">Meta de Break-Even</div>
+          <div className="break-even-title">🎯 Meta de Break-Even</div>
           <div className="break-even-val">
             Vender <strong>{breakEvenUnits}</strong> peças/mês deste produto
             cobre o custo fixo e inicia o lucro.
@@ -74,15 +70,15 @@ export function PricingResultCard({
         />
         <BreakdownRow label="Mão de obra" value={result.laborCost} />
         {result.stagesCost > 0 ? (
-          <BreakdownRow label="Etapas extras" value={result.stagesCost} />
+          <BreakdownRow label="🔗 Etapas extras" value={result.stagesCost} />
         ) : null}
         {result.accessoriesCost > 0 ? (
-          <BreakdownRow label="Acessórios" value={result.accessoriesCost} />
+          <BreakdownRow label="🧩 Acessórios" value={result.accessoriesCost} />
         ) : null}
         {fixedCosts.enabled ? (
           <BreakdownRow
             active
-            label="Custo fixo (aluguel etc.)"
+            label="🏪 Custo fixo (aluguel etc.)"
             value={result.fixedCost}
           />
         ) : null}
@@ -91,12 +87,6 @@ export function PricingResultCard({
           <span className="mono">{formatCurrency(result.totalCost)}</span>
         </div>
       </div>
-
-      {fixedCostPct > 30 ? (
-        <div className="fc-warning visible">
-          Custo fixo representa {fixedCostPct.toFixed(0)}% do custo total.
-        </div>
-      ) : null}
 
       <CapacityPanel
         settings={capacitySettings}

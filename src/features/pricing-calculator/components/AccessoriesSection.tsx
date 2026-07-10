@@ -27,7 +27,7 @@ export function AccessoriesSection({
         onClick={() => setOpen((current) => !current)}
       >
         <span className="collapse-title">
-          Acessórios / itens extras
+          🧩 Acessórios / itens extras
           {accessories.length > 0 ? (
             <span className="collapse-badge">{accessories.length}</span>
           ) : null}
@@ -36,7 +36,8 @@ export function AccessoriesSection({
       </button>
       <div className="collapse-body">
         <div className="section-note">
-          Componentes que somam ao custo, como argolas, correntes ou teclas.
+          Componentes que somam ao custo (ex: corrente e argola de chaveiro,
+          teclas de teclado). Informe descrição, quantidade e preço unitário.
         </div>
         <div className="acc-header">
           <span>Descrição</span>

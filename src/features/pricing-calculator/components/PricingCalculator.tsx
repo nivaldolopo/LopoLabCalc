@@ -69,6 +69,11 @@ export function PricingCalculator() {
     [capacitySettings, form.product, pricingResult],
   );
 
+  const fixedCostShare =
+    fixedCosts.enabled && pricingResult.totalCost > 0
+      ? (pricingResult.fixedCost / pricingResult.totalCost) * 100
+      : 0;
+
   function updateFixedCosts(patch: Partial<FixedCostSettings>) {
     setFixedCosts((current) => ({ ...current, ...patch }));
     if (patch.enabled !== undefined) {
@@ -196,6 +201,7 @@ export function PricingCalculator() {
           <FixedCostsPanel
             fixedCosts={fixedCosts}
             summary={fixedSummary}
+            fixedCostShare={fixedCostShare}
             onChange={updateFixedCosts}
           />
         </div>

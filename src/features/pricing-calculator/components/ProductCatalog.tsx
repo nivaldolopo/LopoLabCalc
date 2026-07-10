@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Download,
-  Edit3,
-  ExternalLink,
-  Trash2,
-  Upload,
-} from "lucide-react";
+import { Download, Edit3, Trash2, Upload } from "lucide-react";
 import { Fragment } from "react";
 import { useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
@@ -97,7 +91,7 @@ export function ProductCatalog({
           )
         ) {
           await onImportProducts(importedProducts);
-          window.alert("Todos os produtos foram importados com sucesso.");
+          window.alert("✓ Todos os produtos foram importados com sucesso!");
         }
       } catch (error) {
         window.alert(error instanceof Error ? error.message : "CSV inválido.");
@@ -117,8 +111,8 @@ export function ProductCatalog({
           >
             <option value="recent">Mais recentes</option>
             <option value="oldest">Mais antigos</option>
-            <option value="az">Nome (A-Z)</option>
-            <option value="za">Nome (Z-A)</option>
+            <option value="az">Nome (A→Z)</option>
+            <option value="za">Nome (Z→A)</option>
             <option value="price-desc">Preço (maior)</option>
             <option value="price-asc">Preço (menor)</option>
           </select>
@@ -177,7 +171,7 @@ export function ProductCatalog({
                       }
                     >
                       <td className="col-name strong">
-                        <span className="arrow-icon">v</span>
+                        <span className="arrow-icon">▼</span>
                         {product.name}
                       </td>
                       <td className="col-price mono price-cell">
@@ -185,7 +179,7 @@ export function ProductCatalog({
                       </td>
                       <td>{result.machine.name}</td>
                       <td className="mono muted">
-                        {result.pieces > 1 ? `${result.pieces}x` : "-"}
+                        {result.pieces > 1 ? `${result.pieces}x` : "—"}
                       </td>
                       <td className="mono">{formatCurrency(result.totalCost)}</td>
                       <td className="mono muted">{result.margin.toFixed(0)}%</td>
@@ -242,9 +236,9 @@ function CatalogDetails({
   const stages = product.stages ?? [];
   const accessories = product.accessories ?? [];
   const links = [
-    ["Modelo original", product.linkModel],
-    ["Concorrente", product.linkCompetitor],
-    ["Arquivo STL/gcode", product.linkFile],
+    ["📦 Modelo original ↗", product.linkModel],
+    ["🏷️ Concorrente ↗", product.linkCompetitor],
+    ["📁 Arquivo STL/gcode ↗", product.linkFile],
   ].filter(([, href]) => Boolean(href));
 
   return (
@@ -252,32 +246,48 @@ function CatalogDetails({
       <DetailBox label="Material" value={formatCurrency(result.materialCost)} />
       <DetailBox label="Energia" value={formatCurrency(result.energyCost)} />
       <DetailBox label="Desgaste" value={formatCurrency(result.depreciationCost)} />
-      <DetailBox label="Mão de obra" value={formatCurrency(result.laborCost)} />
+      <DetailBox label="Mão de Obra" value={formatCurrency(result.laborCost)} />
       {result.stagesCost > 0 ? (
-        <DetailBox label="Etapas extras" value={formatCurrency(result.stagesCost)} />
+        <DetailBox
+          label="Etapas extras"
+          value={formatCurrency(result.stagesCost)}
+          valueClassName="accent"
+        />
       ) : null}
       {result.accessoriesCost > 0 ? (
-        <DetailBox label="Acessórios" value={formatCurrency(result.accessoriesCost)} />
+        <DetailBox
+          label="Acessórios"
+          value={formatCurrency(result.accessoriesCost)}
+          valueClassName="purple"
+        />
       ) : null}
-      <DetailBox label="Custo fixo" value={formatCurrency(result.fixedCost)} />
-      <DetailBox label="Markup" value={`${product.markup.toFixed(1)}x`} />
-      <DetailBox label="Preço/peça" value={formatCurrency(result.suggestedPrice)} />
+      <DetailBox label="Custo Fixo" value={formatCurrency(result.fixedCost)} />
+      <DetailBox
+        label="Markup"
+        value={`${product.markup.toFixed(1)}x`}
+        valueClassName="green"
+      />
+      <DetailBox
+        label="Preço/peça"
+        value={formatCurrency(result.suggestedPrice)}
+        valueClassName="price"
+      />
 
       {stages.length > 0 ? (
         <div className="details-span">
-          <div className="db-label">Etapas de impressão</div>
+          <div className="db-label">🔗 Etapas de impressão</div>
           <div className="details-tags">
             <span>
               1. {product.mainStageName || "Principal"}{" "}
               <em>
-                ({product.printHours}h - {product.weightG}g)
+                ({product.printHours}h · {product.weightG}g)
               </em>
             </span>
             {stages.map((stage, index) => (
               <span key={`${stage.name}-${index}`}>
                 {index + 2}. {stage.name || `Etapa ${index + 2}`}{" "}
                 <em>
-                  ({stage.printHours || 0}h - {stage.weightG || 0}g)
+                  ({stage.printHours || 0}h · {stage.weightG || 0}g)
                 </em>
               </span>
             ))}
@@ -287,13 +297,13 @@ function CatalogDetails({
 
       {accessories.length > 0 ? (
         <div className="details-span">
-          <div className="db-label">Acessórios</div>
+          <div className="db-label">🧩 Acessórios</div>
           <div className="details-tags">
             {accessories.map((accessory, index) => (
               <span key={`${accessory.desc}-${index}`}>
                 {accessory.desc || "item"}{" "}
                 <em>
-                  {accessory.qty}x {formatCurrency(accessory.unitPrice)}
+                  {accessory.qty}× {formatCurrency(accessory.unitPrice)}
                 </em>
               </span>
             ))}
@@ -303,12 +313,11 @@ function CatalogDetails({
 
       {links.length > 0 ? (
         <div className="details-span">
-          <div className="db-label">Links e referências</div>
+          <div className="db-label">🔗 Links e referências</div>
           <div className="details-links">
             {links.map(([label, href]) => (
               <a href={href} key={label} rel="noopener noreferrer" target="_blank">
                 {label}
-                <ExternalLink size={13} />
               </a>
             ))}
           </div>
@@ -318,11 +327,19 @@ function CatalogDetails({
   );
 }
 
-function DetailBox({ label, value }: { label: string; value: string }) {
+function DetailBox({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
   return (
     <div className="details-box">
       <span className="db-label">{label}</span>
-      <span className="db-val">{value}</span>
+      <span className={`db-val ${valueClassName ?? ""}`}>{value}</span>
     </div>
   );
 }

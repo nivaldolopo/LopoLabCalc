@@ -73,12 +73,13 @@ export function MachineManagerModal({
       <div className="modal-box" onMouseDown={(event) => event.stopPropagation()}>
         <h3 className="modal-title">Gerenciar Máquinas</h3>
         <p className="modal-sub">
-          Preço e vida útil calculam desgaste; watts calcula energia.
+          Adicione, edite ou remova impressoras. Preço e vida útil calculam a
+          depreciação; watts calcula a energia.
         </p>
         <div className="machine-edit-header">
           <span>Nome</span>
-          <span>Preço</span>
-          <span>Vida</span>
+          <span>Preço (R$)</span>
+          <span>Vida (h)</span>
           <span>Watts</span>
           <span />
         </div>

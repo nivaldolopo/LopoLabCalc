@@ -11,14 +11,14 @@ export function validateProduct(product: ProductInput): string | null {
   ];
 
   for (const [value, label] of checks) {
-    if (value < 0) return `"${label}" não pode ser negativo.`;
+    if (value < 0) return `⚠️ "${label}" não pode ser negativo.`;
   }
 
   if (product.weightG === 0 && product.printHours === 0) {
-    return "Informe pelo menos o peso ou o tempo de impressão.";
+    return "⚠️ Informe pelo menos o peso ou o tempo de impressão.";
   }
 
-  if (product.markup < 1) return "O markup deve ser no mínimo 1x.";
+  if (product.markup < 1) return "⚠️ O markup deve ser no mínimo 1x.";
 
   for (let index = 0; index < (product.stages ?? []).length; index += 1) {
     const stage = product.stages[index];
@@ -28,7 +28,7 @@ export function validateProduct(product: ProductInput): string | null {
       stage.filamentPricePerKg < 0 ||
       stage.laborMinutes < 0
     ) {
-      return `A etapa ${index + 2} contém valores negativos.`;
+      return `⚠️ A etapa ${index + 2} contém valores negativos.`;
     }
   }
 

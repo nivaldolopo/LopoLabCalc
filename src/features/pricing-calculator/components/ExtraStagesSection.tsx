@@ -21,14 +21,15 @@ export function ExtraStagesSection({
   return (
     <div className="field-block">
       <div className="section-head">
-        <label className="section-label">Etapas de impressão extras</label>
+        <label className="section-label">🔗 Etapas de impressão extras</label>
         <button className="link-button bordered" type="button" onClick={onAddStage}>
           <Plus size={15} />
           Adicionar etapa
         </button>
       </div>
       <div className="section-note">
-        Para peças com várias impressões, cada etapa soma no custo final.
+        Para peças que exigem várias impressões (ex: uma cor por vez). Cada etapa
+        soma no custo final do produto.
       </div>
       {stages.map((stage, index) => (
         <div className="stage-card" key={stage.id}>
@@ -44,7 +45,9 @@ export function ExtraStagesSection({
             </button>
           </div>
           <div className="field-block compact">
-            <label className="section-label">Nome da etapa</label>
+            <label className="section-label">
+              🏷️ Nome da etapa <span className="label-hint">(opcional)</span>
+            </label>
             <input
               className="field-input"
               type="text"
@@ -77,7 +80,7 @@ export function ExtraStagesSection({
           </div>
           <div className="two-col no-margin">
             <div>
-              <label className="section-label">Peso (g)</label>
+              <label className="section-label">📦 Peso (g)</label>
               <input
                 className="field-input"
                 type="number"
@@ -90,7 +93,7 @@ export function ExtraStagesSection({
               />
             </div>
             <div>
-              <label className="section-label">Tempo (h)</label>
+              <label className="section-label">⏱ Tempo (h)</label>
               <input
                 className="field-input"
                 step="0.1"

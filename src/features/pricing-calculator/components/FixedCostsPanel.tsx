@@ -6,18 +6,20 @@ import { formatCurrency } from "@/lib/formatting/currency";
 type FixedCostsPanelProps = {
   fixedCosts: FixedCostSettings;
   summary: FixedCostSummary;
+  fixedCostShare: number;
   onChange: (patch: Partial<FixedCostSettings>) => void;
 };
 
 export function FixedCostsPanel({
   fixedCosts,
   summary,
+  fixedCostShare,
   onChange,
 }: FixedCostsPanelProps) {
   return (
     <div className="fixed-costs-banner">
       <div className="fc-title">
-        <span>Custos fixos mensais do quiosque</span>
+        <span>🏪 Custos fixos mensais do quiosque</span>
         <button
           className="toggle-wrap"
           type="button"
@@ -30,7 +32,7 @@ export function FixedCostsPanel({
             <span className="toggle-desc">
               {fixedCosts.enabled
                 ? "O aluguel será embutido no custo de cada peça fabricada."
-                : "Precifique pelo custo de produção e monitore o aluguel separadamente."}
+                : "Precifique pelo custo de produção. Monitore o aluguel separadamente no faturamento mensal."}
             </span>
           </span>
           <span className={`toggle-track ${fixedCosts.enabled ? "on" : ""}`}>
@@ -114,6 +116,12 @@ export function FixedCostsPanel({
             </span>
           </div>
         </div>
+        {fixedCosts.enabled && fixedCostShare > 30 ? (
+          <div className="fc-warning">
+            ⚠️ Custo fixo representa {fixedCostShare.toFixed(0)}% do custo total —
+            considere desativar e monitorar separadamente.
+          </div>
+        ) : null}
         <button
           className="markup-fixed-row"
           type="button"
@@ -126,8 +134,8 @@ export function FixedCostsPanel({
             <span className="mf-label">Aplicar markup sobre custo fixo</span>
             <span className="mf-sub">
               {fixedCosts.markupOnFixed
-                ? "Ativado - markup multiplica também o custo fixo"
-                : "Desativado - custo fixo entra direto no preço"}
+                ? "Ativado — markup multiplica também o custo fixo"
+                : "Desativado — custo fixo entra direto no preço, sem multiplicar"}
             </span>
           </span>
         </button>
