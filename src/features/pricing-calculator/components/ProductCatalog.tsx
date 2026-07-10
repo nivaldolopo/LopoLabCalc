@@ -5,22 +5,26 @@ import { Fragment } from "react";
 import { useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import type {
+  CapacitySettings,
   FixedCostSettings,
   Machine,
   SavedProduct,
   SortMode,
 } from "../types";
 import { calculatePricing } from "../lib/calculatePricing";
+import { calculateCapacity } from "../lib/calculateCapacity";
 import {
   downloadCsv,
   exportProductsCsv,
   parseProductsCsv,
 } from "../lib/productCsv";
+import { CostBars } from "./CostBars";
 
 type ProductCatalogProps = {
   products: SavedProduct[];
   machines: Machine[];
   fixedCosts: FixedCostSettings;
+  capacitySettings: CapacitySettings;
   sortMode: SortMode;
   onSortModeChange: (sortMode: SortMode) => void;
   onLoadProduct: (product: SavedProduct) => void;
@@ -32,6 +36,7 @@ export function ProductCatalog({
   products,
   machines,
   fixedCosts,
+  capacitySettings,
   sortMode,
   onSortModeChange,
   onLoadProduct,
@@ -212,7 +217,12 @@ export function ProductCatalog({
                     </tr>
                     <tr className={`details-row ${isOpen ? "open" : ""}`}>
                       <td colSpan={7}>
-                        <CatalogDetails product={product} result={result} />
+                        <CatalogDetails
+                          product={product}
+                          result={result}
+                          fixedCosts={fixedCosts}
+                          capacitySettings={capacitySettings}
+                        />
                       </td>
                     </tr>
                   </Fragment>
@@ -229,9 +239,13 @@ export function ProductCatalog({
 function CatalogDetails({
   product,
   result,
+  fixedCosts,
+  capacitySettings,
 }: {
   product: SavedProduct;
   result: ReturnType<typeof calculatePricing>;
+  fixedCosts: FixedCostSettings;
+  capacitySettings: CapacitySettings;
 }) {
   const stages = product.stages ?? [];
   const accessories = product.accessories ?? [];
@@ -241,37 +255,131 @@ function CatalogDetails({
     ["📁 Arquivo STL/gcode ↗", product.linkFile],
   ].filter(([, href]) => Boolean(href));
 
+  const totalWeight =
+    product.weightG + stages.reduce((sum, stage) => sum + (stage.weightG || 0), 0);
+  const totalHours =
+    product.printHours +
+    stages.reduce((sum, stage) => sum + (stage.printHours || 0), 0);
+
+  const totalFixedMonth = fixedCosts.rent + fixedCosts.other;
+  const breakEvenUnits =
+    totalFixedMonth > 0 && result.contributionMargin > 0
+      ? Math.ceil(totalFixedMonth / result.contributionMargin)
+      : null;
+
+  const capacityResult = calculateCapacity(result, product, capacitySettings);
+
   return (
-    <div className="details-container">
-      <DetailBox label="Material" value={formatCurrency(result.materialCost)} />
-      <DetailBox label="Energia" value={formatCurrency(result.energyCost)} />
-      <DetailBox label="Desgaste" value={formatCurrency(result.depreciationCost)} />
-      <DetailBox label="Mão de Obra" value={formatCurrency(result.laborCost)} />
-      {result.stagesCost > 0 ? (
-        <DetailBox
-          label="Etapas extras"
-          value={formatCurrency(result.stagesCost)}
-          valueClassName="accent"
-        />
-      ) : null}
-      {result.accessoriesCost > 0 ? (
-        <DetailBox
-          label="Acessórios"
-          value={formatCurrency(result.accessoriesCost)}
-          valueClassName="purple"
-        />
-      ) : null}
-      <DetailBox label="Custo Fixo" value={formatCurrency(result.fixedCost)} />
-      <DetailBox
-        label="Markup"
-        value={`${product.markup.toFixed(1)}x`}
-        valueClassName="green"
-      />
-      <DetailBox
-        label="Preço/peça"
-        value={formatCurrency(result.suggestedPrice)}
-        valueClassName="price"
-      />
+    <div className="catalog-details">
+      <div className="cd-meta">
+        <span>
+          <span className="db-label">Máquina</span> {result.machine.name}
+        </span>
+        <span>
+          <span className="db-label">Markup</span> {product.markup.toFixed(1)}x
+        </span>
+        <span>
+          <span className="db-label">Peso total</span> {totalWeight}g
+        </span>
+        <span>
+          <span className="db-label">Impressão</span> {totalHours}h
+        </span>
+        <span>
+          <span className="db-label">Peças/impressão</span> {result.pieces}
+        </span>
+      </div>
+
+      <div className="cd-panels">
+        <div className="cd-panel cd-price-panel">
+          <div className="result-label">Preço sugerido / peça</div>
+          <div className="result-price sg cd-price-big">
+            {formatCurrency(result.suggestedPrice)}
+          </div>
+          <div className="result-margin cd-margin">
+            margem de {result.margin.toFixed(0)}% sobre o preço final
+          </div>
+          <div className="cd-total-row">
+            <span>Custo total</span>
+            <span className="mono">{formatCurrency(result.totalCost)}</span>
+          </div>
+          {result.pieces > 1 ? (
+            <div className="cd-total-row muted">
+              <span>Preço da impressão ({result.pieces} peças)</span>
+              <span className="mono">
+                {formatCurrency(result.suggestedPrice * result.pieces)}
+              </span>
+            </div>
+          ) : null}
+          {breakEvenUnits ? (
+            <div className="break-even-box visible cd-breakeven">
+              <div className="break-even-title">🎯 Meta de Break-Even</div>
+              <div className="break-even-val">
+                Vender <strong>{breakEvenUnits}</strong> peças/mês cobre o custo
+                fixo e inicia o lucro.
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="cd-panel">
+          <div className="result-label">Composição do custo</div>
+          <CostBars result={result} />
+        </div>
+
+        <div className="cd-panel">
+          <div className="capacity-box cd-capacity">
+            <div className="capacity-title">📊 Capacidade produtiva</div>
+            <div className="cd-capacity-note">
+              {capacitySettings.hoursDay}h/dia · {capacitySettings.machines}{" "}
+              máquina(s) dedicada(s)
+            </div>
+            <div className="capacity-grid">
+              <div>
+                <div className="capacity-col-title">☀️ Diário</div>
+                <div className="capacity-val">
+                  {capacityResult ? `${capacityResult.piecesDay} peças` : "—"}
+                </div>
+                <div className="capacity-sub">
+                  {capacityResult
+                    ? `${capacityResult.cyclesDay} impressões/dia`
+                    : "defina tempo de impressão"}
+                </div>
+                <div className="capacity-profit">
+                  {capacityResult
+                    ? `Fat. bruto: ${formatCurrency(capacityResult.grossDay)}`
+                    : ""}
+                </div>
+                <div className="capacity-sub">
+                  {capacityResult
+                    ? `Fat. líquido: ${formatCurrency(capacityResult.netDay)}`
+                    : ""}
+                </div>
+              </div>
+              <div>
+                <div className="capacity-col-title">📅 Mensal (30d)</div>
+                <div className="capacity-val">
+                  {capacityResult ? `${capacityResult.piecesMonth} peças` : "—"}
+                </div>
+                <div className="capacity-sub">
+                  {capacityResult
+                    ? `${capacityResult.cyclesMonth} impressões/mês`
+                    : ""}
+                </div>
+                <div className="capacity-profit">
+                  {capacityResult
+                    ? `Fat. bruto: ${formatCurrency(capacityResult.grossMonth)}`
+                    : ""}
+                </div>
+                <div className="capacity-sub">
+                  {capacityResult
+                    ? `Fat. líquido: ${formatCurrency(capacityResult.netMonth)}`
+                    : ""}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {stages.length > 0 ? (
         <div className="details-span">
@@ -323,23 +431,6 @@ function CatalogDetails({
           </div>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function DetailBox({
-  label,
-  value,
-  valueClassName,
-}: {
-  label: string;
-  value: string;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="details-box">
-      <span className="db-label">{label}</span>
-      <span className={`db-val ${valueClassName ?? ""}`}>{value}</span>
     </div>
   );
 }

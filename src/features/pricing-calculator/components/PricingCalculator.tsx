@@ -220,6 +220,7 @@ export function PricingCalculator() {
         products={productsApi.products}
         machines={machines}
         fixedCosts={fixedCosts}
+        capacitySettings={capacitySettings}
         sortMode={sortMode}
         onSortModeChange={setSortMode}
         onLoadProduct={loadProduct}

@@ -1116,9 +1116,88 @@ td {
   font-weight: 700;
 }
 
+/* --- Detalhes do catálogo (espelha o card "Preço sugerido") --- */
+.catalog-details {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.cd-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.cd-meta .db-label {
+  margin-right: 4px;
+}
+
+.cd-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.cd-panel {
+  min-width: 0;
+}
+
+.cd-panel .result-label {
+  margin-bottom: 4px;
+}
+
+.cd-price-big {
+  font-size: 30px;
+  margin-bottom: 4px;
+}
+
+.cd-margin {
+  margin-bottom: 12px;
+}
+
+.cd-total-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+  margin-top: 4px;
+}
+
+.cd-total-row.muted {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.cd-breakeven {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+.cd-panel .hbar-chart {
+  margin: 4px 0 0;
+}
+
+.cd-capacity {
+  margin-top: 0;
+}
+
+.cd-capacity-note {
+  font-size: 11px;
+  color: var(--muted2);
+  margin-bottom: 12px;
+}
+
 .details-span {
   grid-column: 1 / -1;
-  margin-top: 8px;
+  margin-top: 16px;
   border-top: 1px solid var(--border-soft);
   padding-top: 10px;
 }
