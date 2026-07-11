@@ -1387,6 +1387,119 @@ th.col-price {
   background: var(--bg);
 }
 
+/* --- Catálogo em cartões também no desktop (espelha o estilo mobile) --- */
+.catalog-card {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.table-scroll {
+  overflow-x: visible;
+}
+
+.catalog-card table,
+.catalog-card thead,
+.catalog-card tbody {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.catalog-card thead tr,
+.main-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) 1.1fr 0.6fr 1fr 0.7fr 1.2fr 76px;
+  align-items: center;
+  column-gap: 12px;
+}
+
+.catalog-card thead tr {
+  padding: 0 19px 8px;
+}
+
+.catalog-card th {
+  padding: 0;
+  background: transparent;
+  white-space: nowrap;
+}
+
+.main-row {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card-bg);
+  padding: 14px 18px;
+  margin-bottom: 10px;
+}
+
+.main-row.open {
+  border-color: var(--accent);
+  margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.main-row td {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* remove as colunas fixas (sticky): não há mais rolagem horizontal */
+th.col-name,
+td.col-name,
+th.col-price,
+td.col-price,
+th.col-actions,
+td.col-actions {
+  position: static;
+  background: transparent;
+  border: 0;
+  min-width: 0;
+  max-width: none;
+}
+
+.main-row:hover td.col-name,
+.main-row:hover td.col-price {
+  background: transparent;
+}
+
+td.col-name.strong {
+  font-size: 14px;
+}
+
+td.col-price.price-cell {
+  font-size: 15px;
+}
+
+th.col-actions,
+td.col-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.details-row td {
+  display: block;
+  padding: 0;
+  border: 0;
+}
+
+.details-row.open {
+  display: block;
+  border: 1px solid var(--accent);
+  border-top: 0;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+  background: var(--details-bg);
+  margin-bottom: 10px;
+}
+
 .strong {
   font-weight: 600;
 }

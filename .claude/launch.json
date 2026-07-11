@@ -5,7 +5,8 @@
       "name": "dev",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--config.verify-deps-before-run=false", "dev"],
-      "port": 3000
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }
