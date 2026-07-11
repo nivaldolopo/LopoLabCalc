@@ -11,6 +11,20 @@ export function CostBars({ result }: { result: PricingResult }) {
     { label: "Mão de obra", value: result.laborCost, color: "var(--green)" },
   ];
 
+  if (result.maintenanceCost > 0) {
+    items.push({
+      label: "Manutenção",
+      value: result.maintenanceCost,
+      color: "#5FA8A0",
+    });
+  }
+  if (result.failureReserve > 0) {
+    items.push({
+      label: "Reserva de falha",
+      value: result.failureReserve,
+      color: "#D2726B",
+    });
+  }
   if (result.accessoriesCost > 0) {
     items.push({
       label: "Acessórios",

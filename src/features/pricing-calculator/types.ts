@@ -8,6 +8,9 @@ export type Machine = {
   price: number;
   lifeHours: number;
   watts: number;
+  // Custo de manutenção por hora (bicos, hotend, placa, correias, graxa...).
+  // Separado da depreciação (price/lifeHours = compra da máquina).
+  maintenancePerHour: number;
 };
 
 export type PrintStage = {
@@ -40,6 +43,9 @@ export type ProductInput = {
   laborMinutes: number;
   laborRate: number;
   markup: number;
+  // Taxa de falha (%) — reserva embutida no preço para cobrir impressões
+  // perdidas (adesão, entupimento, queda de energia...). 0 = sem reserva.
+  failureRate: number;
   includeFixed: boolean;
   markupOnFixed: boolean;
   roundingMode: RoundingMode;
@@ -83,6 +89,7 @@ export type StageCost = {
   materialCost: number;
   energyCost: number;
   depreciationCost: number;
+  maintenanceCost: number;
   laborCost: number;
 };
 
@@ -91,8 +98,11 @@ export type PricingResult = {
   materialCost: number;
   energyCost: number;
   depreciationCost: number;
+  maintenanceCost: number;
   laborCost: number;
   accessoriesCost: number;
+  // Reserva de falha (valor absoluto embutido no custo variável).
+  failureReserve: number;
   fixedCost: number;
   stage2Cost: number;
   stagesCost: number;

@@ -7,9 +7,12 @@ import type {
 
 export const ACCENT = "#FF6B35";
 
+// Reserva de falha padrão (%) para produtos sem valor próprio (antigos/importados).
+export const DEFAULT_FAILURE_RATE = 5;
+
 export const DEFAULT_MACHINES: Machine[] = [
-  { id: "a1", name: "A1 Combo", price: 5299, lifeHours: 5000, watts: 95 },
-  { id: "x2d", name: "X2D Combo", price: 13999, lifeHours: 5000, watts: 150 },
+  { id: "a1", name: "A1 Combo", price: 5299, lifeHours: 5000, watts: 95, maintenancePerHour: 0.5 },
+  { id: "x2d", name: "X2D Combo", price: 13999, lifeHours: 5000, watts: 150, maintenancePerHour: 1 },
 ];
 
 export const DEFAULT_FIXED_COSTS: FixedCostSettings = {
@@ -38,6 +41,7 @@ export const DEFAULT_PRODUCT_INPUT: ProductInput = {
   laborMinutes: 10,
   laborRate: 30,
   markup: 3,
+  failureRate: DEFAULT_FAILURE_RATE,
   includeFixed: false,
   markupOnFixed: false,
   roundingMode: "exact",

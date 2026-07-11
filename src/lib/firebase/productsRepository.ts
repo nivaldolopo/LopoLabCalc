@@ -12,6 +12,7 @@ import type {
   ProductPayload,
   SavedProduct,
 } from "@/features/pricing-calculator/types";
+import { DEFAULT_FAILURE_RATE } from "@/features/pricing-calculator/constants";
 
 const productsCollection = collection(db, "products");
 
@@ -28,6 +29,10 @@ function toSavedProduct(id: string, data: DocumentData): SavedProduct {
     laborMinutes: Number(data.laborMinutes) || 0,
     laborRate: Number(data.laborRate) || 0,
     markup: Number(data.markup) || 3,
+    failureRate:
+      data.failureRate !== undefined && data.failureRate !== null
+        ? Number(data.failureRate)
+        : DEFAULT_FAILURE_RATE,
     includeFixed:
       data.includeFixed !== undefined && data.includeFixed !== null
         ? Boolean(data.includeFixed)

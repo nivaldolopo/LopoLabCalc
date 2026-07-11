@@ -7,6 +7,7 @@ import type {
   ProductInput,
   StageCost,
 } from "../types";
+import { DEFAULT_FAILURE_RATE } from "../constants";
 import { roundPrice } from "./roundPrice";
 
 function numberOrZero(value: number | undefined | null): number {
@@ -73,11 +74,20 @@ export function calculateStageCost(
       ? (numberOrZero(machine.price) / machine.lifeHours) *
         numberOrZero(stage.printHours)
       : 0;
+  const maintenanceCost =
+    numberOrZero(stage.printHours) * numberOrZero(machine.maintenancePerHour);
   const laborCost =
     (numberOrZero(stage.laborMinutes) / 60) *
     numberOrZero(stage.laborRate ?? fallbackLaborRate);
 
-  return { machine, materialCost, energyCost, depreciationCost, laborCost };
+  return {
+    machine,
+    materialCost,
+    energyCost,
+    depreciationCost,
+    maintenanceCost,
+    laborCost,
+  };
 }
 
 export function calculatePricing(
@@ -105,6 +115,7 @@ export function calculatePricing(
   let stagesMaterial = 0;
   let stagesEnergy = 0;
   let stagesDepreciation = 0;
+  let stagesMaintenance = 0;
   let stagesLabor = 0;
   let stagesHours = 0;
 
@@ -118,21 +129,29 @@ export function calculatePricing(
     stagesMaterial += cost.materialCost;
     stagesEnergy += cost.energyCost;
     stagesDepreciation += cost.depreciationCost;
+    stagesMaintenance += cost.maintenanceCost;
     stagesLabor += cost.laborCost;
     stagesHours += numberOrZero(stage.printHours);
   });
 
   // Os custos das etapas extras entram nas MESMAS categorias da etapa principal
-  // (filamento -> material, tempo -> energia/desgaste, mão de obra -> labor),
-  // em vez de ficarem num balde "Etapas" separado.
+  // (filamento -> material, tempo -> energia/desgaste/manutenção, mão de obra ->
+  // labor), em vez de ficarem num balde "Etapas" separado.
   const materialCost = (mainStage.materialCost + stagesMaterial) / pieces;
   const energyCost = (mainStage.energyCost + stagesEnergy) / pieces;
   const depreciationCost =
     (mainStage.depreciationCost + stagesDepreciation) / pieces;
+  const maintenanceCost =
+    (mainStage.maintenanceCost + stagesMaintenance) / pieces;
   const laborCost = (mainStage.laborCost + stagesLabor) / pieces;
   // Subtotal informativo: quanto do custo vem das etapas extras (usado no CSV).
   const stagesCost =
-    (stagesMaterial + stagesEnergy + stagesDepreciation + stagesLabor) / pieces;
+    (stagesMaterial +
+      stagesEnergy +
+      stagesDepreciation +
+      stagesMaintenance +
+      stagesLabor) /
+    pieces;
 
   const accessoriesCost = (product.accessories ?? []).reduce(
     (sum, accessory) =>
@@ -158,8 +177,20 @@ export function calculatePricing(
     (fixedCostPerHour * (numberOrZero(product.printHours) + stagesHours)) /
     pieces;
 
-  const variableCost =
-    materialCost + energyCost + depreciationCost + laborCost + accessoriesCost;
+  // Custo de impressão (o que se perde numa falha). Acessórios ficam de fora:
+  // ímãs/parafusos são montados depois e não se perdem se a peça falha.
+  const printingCost =
+    materialCost + energyCost + depreciationCost + maintenanceCost + laborCost;
+  // Reserva de falha: infla o custo para que as peças boas cubram as perdidas.
+  // custo por peça boa = custo / (1 - taxa). Clamp em 95% para não explodir.
+  const failureRatePct = numberOrZero(product.failureRate ?? DEFAULT_FAILURE_RATE);
+  const failureFraction = Math.min(0.95, Math.max(0, failureRatePct / 100));
+  const failureReserve =
+    failureFraction > 0
+      ? printingCost * (failureFraction / (1 - failureFraction))
+      : 0;
+
+  const variableCost = printingCost + failureReserve + accessoriesCost;
   const totalCost = variableCost + fixedCost;
   const markupOnFixed =
     product.markupOnFixed !== undefined
@@ -185,8 +216,10 @@ export function calculatePricing(
     materialCost,
     energyCost,
     depreciationCost,
+    maintenanceCost,
     laborCost,
     accessoriesCost,
+    failureReserve,
     fixedCost,
     stage2Cost: stagesCost,
     stagesCost,

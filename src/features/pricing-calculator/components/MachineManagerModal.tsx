@@ -38,6 +38,7 @@ export function MachineManagerModal({
         price: 0,
         lifeHours: 5000,
         watts: 100,
+        maintenancePerHour: 0,
       },
     ]);
   }
@@ -58,7 +59,12 @@ export function MachineManagerModal({
         window.alert("Toda máquina precisa de um nome.");
         return;
       }
-      if (machine.price < 0 || machine.lifeHours <= 0 || machine.watts < 0) {
+      if (
+        machine.price < 0 ||
+        machine.lifeHours <= 0 ||
+        machine.watts < 0 ||
+        machine.maintenancePerHour < 0
+      ) {
         window.alert(`Valores inválidos em "${machine.name}".`);
         return;
       }
@@ -74,13 +80,15 @@ export function MachineManagerModal({
         <h3 className="modal-title">Gerenciar Máquinas</h3>
         <p className="modal-sub">
           Adicione, edite ou remova impressoras. Preço e vida útil calculam a
-          depreciação; watts calcula a energia.
+          depreciação; watts calcula a energia; manutenção/hora cobre bicos,
+          placa, correias e demais consumíveis.
         </p>
         <div className="machine-edit-header">
           <span>Nome</span>
           <span>Preço (R$)</span>
           <span>Vida (h)</span>
           <span>Watts</span>
+          <span>Manut. (R$/h)</span>
           <span />
         </div>
         <div>
@@ -125,6 +133,21 @@ export function MachineManagerModal({
                 onChange={(event) =>
                   updateMachine(index, {
                     watts: Math.max(0, Number(event.target.value) || 0),
+                  })
+                }
+              />
+              <input
+                aria-label="Manutenção por hora"
+                min={0}
+                step="0.1"
+                type="number"
+                value={machine.maintenancePerHour}
+                onChange={(event) =>
+                  updateMachine(index, {
+                    maintenancePerHour: Math.max(
+                      0,
+                      Number(event.target.value) || 0,
+                    ),
                   })
                 }
               />

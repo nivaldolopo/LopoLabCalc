@@ -9,12 +9,18 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** o campo **"Tempo de impressão"** no `ProductForm`
-  agora é **um input + um select de unidade (horas/minutos)**. Digita o número e escolhe a
-  unidade; ao trocar a unidade o valor se converte sozinho. Continua gravando `printHours`
-  em horas decimais (minutos → `printHours = min/60`). Componente `PrintTimeField`
-  (ProductForm.tsx, usa `useState` p/ a unidade) + CSS `.time-inputs`/`.time-unit-select`.
-  Antes:
+- **Últimas mudanças relevantes:** adicionadas duas melhorias de precificação
+  (ideias do brainstorm com ChatGPT — as demais ficaram como backlog):
+  **(1) Reserva de manutenção** — novo campo `maintenancePerHour` por máquina (editável na
+  `MachineManagerModal`, compartilhado via Firestore como watts). Entra no custo como
+  `horas × R$/h`, **separado da depreciação** (que é só a compra da máquina). Nova barra
+  "Manutenção" no `CostBars`. **(2) Taxa de falha** — campo `failureRate` (%) por produto
+  (`ProductForm`, default **5%** via `DEFAULT_FAILURE_RATE`). Dentro de `calculatePricing`,
+  divide o custo de **impressão** (material+energia+desgaste+manutenção+mão de obra, **exceto
+  acessórios**) por `(1 − taxa)` — clamp em 95%. Nova barra "Reserva de falha". Ambos os
+  campos persistem (Firestore + colunas novas no CSV) e produtos antigos caem no default 5%.
+  Antes: o campo **"Tempo de impressão"** no `ProductForm` virou **um input + um select de
+  unidade (horas/minutos)** (`PrintTimeField`, grava `printHours` em horas decimais). Antes:
   o título **"Lopo Lab"** no `Header` virou um `<button>`
   (classe `.brand-reset`, estilizado p/ herdar a cara do `h1`) que chama
   `window.location.reload()` — recarrega a página e limpa os campos preenchidos. Antes:

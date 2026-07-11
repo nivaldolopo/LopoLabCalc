@@ -10,6 +10,7 @@ import type {
 } from "../types";
 import { calculatePricing } from "./calculatePricing";
 import { ROUNDING_OPTIONS } from "./roundPrice";
+import { DEFAULT_FAILURE_RATE } from "../constants";
 
 const VALID_ROUNDING_MODES = new Set(
   ROUNDING_OPTIONS.map((option) => option.value),
@@ -32,15 +33,18 @@ const CSV_HEADERS = [
   "Material (R$)",
   "Energia (R$)",
   "Desgaste (R$)",
+  "Manutencao (R$)",
   "Mao de obra (R$)",
   "Etapas (R$)",
   "Acessorios (R$)",
+  "Reserva Falha (R$)",
   "Custo Fixo (R$)",
   "Custo Total (R$)",
   "Preco Sugerido (R$)",
   "Arredondamento",
   "Margem (%)",
   "Markup",
+  "Taxa Falha (%)",
   "Filamento (R$/kg)",
   "Tarifa Energia",
   "Mao de obra (min)",
@@ -187,15 +191,18 @@ export function exportProductsCsv(
       formatDecimal(result.materialCost),
       formatDecimal(result.energyCost),
       formatDecimal(result.depreciationCost),
+      formatDecimal(result.maintenanceCost),
       formatDecimal(result.laborCost),
       formatDecimal(result.stagesCost),
       formatDecimal(result.accessoriesCost),
+      formatDecimal(result.failureReserve),
       formatDecimal(result.fixedCost),
       formatDecimal(result.totalCost),
       formatDecimal(result.suggestedPrice),
       product.roundingMode ?? "exact",
       result.margin.toFixed(1),
       `${product.markup}x`,
+      product.failureRate ?? DEFAULT_FAILURE_RATE,
       product.filamentPricePerKg,
       product.energyTariff,
       product.laborMinutes,
@@ -235,6 +242,7 @@ export function parseProductsCsv(
   const indexPieces = findColumn(headers, "pecas");
   const indexFilament = findColumn(headers, "filamento");
   const indexMarkup = findColumn(headers, "markup");
+  const indexFailure = findColumn(headers, "taxa falha");
   const indexLaborMinutes = findColumn(headers, "mao de obra (min)");
   const indexLaborRate = findColumn(headers, "valor-hora");
   const indexEnergy = findColumn(headers, "tarifa energia");
@@ -279,6 +287,10 @@ export function parseProductsCsv(
           indexLaborMinutes >= 0 ? parseNumber(columns[indexLaborMinutes]) : 15,
         laborRate: indexLaborRate >= 0 ? parseNumber(columns[indexLaborRate]) : 30,
         markup: Number.parseFloat(markupRaw) || 3,
+        failureRate:
+          indexFailure >= 0
+            ? Math.min(95, Math.max(0, parseNumber(columns[indexFailure])))
+            : DEFAULT_FAILURE_RATE,
         includeFixed:
           indexIncludeFixed >= 0 ? parseBool(columns[indexIncludeFixed]) : false,
         markupOnFixed:

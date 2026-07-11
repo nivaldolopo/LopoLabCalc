@@ -116,6 +116,15 @@ export function ProductForm({
             onChange({ piecesCount: Math.max(1, piecesCount || 1) })
           }
         />
+        <NumberField
+          label="🎲 Taxa de falha (%)"
+          max={95}
+          step="1"
+          value={product.failureRate}
+          onChange={(failureRate) =>
+            onChange({ failureRate: Math.min(95, Math.max(0, failureRate)) })
+          }
+        />
       </div>
 
       <ExtraStagesSection
@@ -225,12 +234,14 @@ function NumberField({
   value,
   onChange,
   min = 0,
+  max,
   step,
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
   min?: number;
+  max?: number;
   step?: string;
 }) {
   return (
@@ -239,6 +250,7 @@ function NumberField({
       <input
         className="field-input"
         min={min}
+        max={max}
         step={step}
         type="number"
         value={value}

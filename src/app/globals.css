@@ -1625,7 +1625,7 @@ td.col-actions {
 .machine-edit-row,
 .machine-edit-header {
   display: grid;
-  grid-template-columns: 1fr 90px 70px 70px 32px;
+  grid-template-columns: 1fr 82px 64px 60px 78px 32px;
   gap: 8px;
   align-items: center;
 }
@@ -1707,7 +1707,7 @@ td.col-actions {
 
   .machine-edit-row,
   .machine-edit-header {
-    grid-template-columns: 1fr 72px 62px 62px 32px;
+    grid-template-columns: 1fr 64px 54px 52px 66px 32px;
   }
 }
 

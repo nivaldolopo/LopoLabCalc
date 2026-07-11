@@ -17,6 +17,7 @@ function toMachine(data: DocumentData): Machine {
     price: Number(data.price) || 0,
     lifeHours: Number(data.lifeHours) || 0,
     watts: Number(data.watts) || 0,
+    maintenancePerHour: Number(data.maintenancePerHour) || 0,
   };
 }
 
@@ -51,6 +52,7 @@ export async function persistMachines(machines: Machine[]): Promise<void> {
       price: machine.price,
       lifeHours: machine.lifeHours,
       watts: machine.watts,
+      maintenancePerHour: machine.maintenancePerHour,
     })),
   });
 }
