@@ -1303,7 +1303,7 @@ td {
   border: 1px solid rgba(46, 125, 50, 0.22);
   background: rgba(46, 125, 50, 0.05);
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 16px 18px;
 }
 
 .cd-capacity-note {
@@ -1315,26 +1315,34 @@ td {
 .cd-cap-rows {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .cd-cap-row {
   display: grid;
   grid-template-columns: auto auto 1fr;
   align-items: baseline;
-  gap: 10px;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(46, 125, 50, 0.16);
+}
+
+.cd-cap-row:first-child {
+  border-top: 0;
+  padding-top: 6px;
 }
 
 .cd-cap-period {
   font-size: 12px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
   color: var(--muted);
   white-space: nowrap;
 }
 
 .cd-cap-pieces {
-  font-size: 16px;
+  font-size: 21px;
   font-weight: 700;
   color: var(--ink);
   font-family: var(--font-space-grotesk), sans-serif;
@@ -1345,8 +1353,8 @@ td {
   display: flex;
   flex-direction: column;
   text-align: right;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--green);
   min-width: 0;
   overflow-wrap: anywhere;
@@ -1363,6 +1371,54 @@ td {
   font-size: 12px;
   color: var(--muted2);
   margin-top: 8px;
+}
+
+.cd-profit-card {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+.cd-profit-rows {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+
+.cd-profit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+.cd-profit-row:first-child {
+  border-top: 0;
+  padding-top: 4px;
+}
+
+.cd-profit-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.cd-profit-value {
+  font-size: 17px;
+  font-weight: 700;
+  font-family: var(--font-space-grotesk), sans-serif;
+  white-space: nowrap;
+}
+
+.cd-profit-value em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted2);
 }
 
 /* "/peça" ao lado do preço — só aparece no layout de cartão (mobile) */
@@ -1845,7 +1901,27 @@ td.col-actions {
 
 .cd-register-sale {
   width: 100%;
-  margin: 12px 0 4px;
+  margin-top: 14px;
+  padding: 13px 16px;
+  gap: 10px;
+}
+
+.cd-rs-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.25;
+}
+
+.cd-rs-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.cd-rs-sub {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.9;
 }
 
 .sale-neg {
