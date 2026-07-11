@@ -121,6 +121,9 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 - Mantenha-a curta: é a foto do AGORA, não um histórico. Remova o que envelheceu.
 - Objetivo: permitir abrir um **chat novo por tarefa** e continuar sem perder contexto,
   evitando um único chat com contexto gigante.
+- **Quando atualizar o Status junto com uma alteração, faça tudo num único commit/push** —
+  edite o código e o "Status atual" juntos e mande de uma vez (não dois pushes seguidos).
+  Só vira commit separado quando a alteração já foi pushada e o ajuste do Status veio depois.
 
 ## Infra / referência de deploy
 
