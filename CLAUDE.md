@@ -40,10 +40,56 @@
   usam o mesmo preço automaticamente; o seletor fica no card (`PricingResultCard`) e grava no
   produto via `form.updateProduct`. Produtos antigos sem o campo caem em "exact". Antes:
   catálogo no desktop virou lista de cartões; campos sem negativos (clamp `Math.max`).
-- **Em andamento / próximos passos:** nada pendente. (Decidido: **não** é preciso reentrar os
-  produtos — eles guardam só as entradas brutas; os cálculos são refeitos ao vivo e estão corretos.)
+- **Em andamento / próximos passos:** nada em execução. **Backlog reavaliado (jul/2026)** logo
+  abaixo — negócio **já vendendo**, então a prioridade acordada é o **item 1 (captura de venda +
+  histórico, rota `/vendas`)**; ainda não iniciado. (Decidido: **não** é preciso reentrar os
+  produtos — eles guardam só as entradas brutas; os cálculos são refeitos ao vivo e corretos.)
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
   cadastradas (por decisão — só mantemos Production; ver Diretriz 1). Nada quebrado.
+
+## Backlog (ideias do brainstorm com ChatGPT, não implementadas)
+
+> Do brainstorm original, **já feitas**: taxa de falha e reserva de manutenção. As de baixo
+> ficaram pendentes. **Ordem reavaliada (jul/2026)** — não é mais a do ChatGPT; ver "Notas de
+> arquitetura" no fim. Contexto que pesa: **o negócio já está vendendo de verdade**, então a
+> captura de venda é urgente (histórico não se cria retroativamente). Reavaliar antes de pegar
+> — o dono decide o que entra.
+
+**Princípios que reordenam o backlog:**
+- **Separar captura de análise.** *Capturar* a venda é barato e destrava tudo → fazer já.
+  *Analisar* (dashboard) só vale com dado acumulado → adiar. Cada dia sem registrar = dado
+  perdido pra sempre.
+- **Venda = foto congelada.** O app hoje é calculadora ao vivo (produtos guardam só entradas
+  brutas e recalculam; editar watts de máquina muda o custo de todos retroativamente). Um
+  registro de venda **tem que congelar** custo/preço/margem no momento da venda — não pode ser
+  link pro produto vivo. Decisão de design mais crítica do conjunto.
+- **Páginas separadas (rotas).** A calculadora (`/`) já está densa; histórico/dashboard/estoque
+  entram como **rotas novas** do App Router (`/vendas`, `/painel`, `/estoque`), não empilhados
+  na tela atual. PDF **não** é página — é botão de exportar no card.
+- **Risco:** dashboard/estoque só pagam se o hábito de marcar cada venda pegar. Marcar tem que
+  custar ~5s, senão o dado fica furado e a ferramenta morre.
+
+**Ordem recomendada:**
+
+1. **Captura de venda + Histórico** *(rota `/vendas`)* — **prioridade, começar já.** Botão
+   "marcar como vendido" no card que **congela** um snapshot (data, cliente, produto, material,
+   máquina, horas, custo, preço, lucro, margem, status) numa coleção nova `vendas` no Firestore.
+   UI mínima: só o registro + uma lista/tabela. É a fundação dos itens 3 e 4. Transforma a
+   calculadora de "cotação efêmera" em ferramenta de gestão.
+2. **Geração de orçamento (PDF)** — **subiu na ordem** (ChatGPT punha por último). Independente
+   de tudo, ganho rápido, client-side. Botão "Gerar orçamento": nº, cliente, data, itens,
+   quantidade, tempo estimado, preço unitário/total, validade. Layout simples (nome + contato);
+   branding depois. Ganho: profissionalismo (clientes maiores, escolas, makerspaces).
+3. **Controle de estoque** *(rota `/estoque`)* — cadastrar spools de filamento, ímãs, parafusos,
+   rolamentos, chaveiros, embalagem. Como o app já sabe o que cada job consome, dar **baixa
+   automática** ao marcar a venda concluída — unindo custo + venda + estoque num fluxo só.
+   **Depende do item 1.** Alto valor no dia a dia, mas exige disciplina (estoque desatualizado
+   é pior que nenhum).
+4. **Dashboard do negócio** *(rota `/painel`)* — **desceu para último** (ChatGPT punha em 2º):
+   só vale depois de ~1-2 meses de vendas no banco, senão é gráfico vazio. Receita / custo de
+   produção / lucro bruto do mês; menos custos fixos (aluguel, energia, internet…) → **lucro
+   líquido**; **utilização das máquinas** (horas impressas ÷ disponíveis → sinaliza se precisa
+   comprar outra impressora); receita por máquina; lucro por material; produto mais lucrativo.
 
 ## Resumo do projeto (contexto rápido)
 
