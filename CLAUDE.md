@@ -9,11 +9,13 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** card de resultado não repete mais o preço por peça —
-  quando `pieces > 1`, rótulos ganham "(por peça)" e a linha duplicada virou **Total da
-  impressão (X peças)**; **máquinas sincronizam no Firestore** (`config/machines`, antes só
-  localStorage); UI do catálogo reformulada (tabela desktop + cartões no mobile); gráfico de
-  custo distribui as etapas nas categorias (sem balde "Etapas").
+- **Últimas mudanças relevantes:** **catálogo no desktop virou lista de cartões** (espelha o
+  mobile) — cada produto é um cartão em `grid` de 7 colunas alinhadas ao cabeçalho, expande com
+  borda de destaque conectando ao detalhe; removidas colunas sticky/rolagem horizontal (ver
+  bloco em `globals.css` "Catálogo em cartões também no desktop"). **Campos numéricos não
+  aceitam mais negativos** — clamp `Math.max` no `onChange` de todos os inputs (produto, etapas,
+  acessórios, custos fixos, capacidade, máquinas). Antes: card de resultado sem preço duplicado;
+  máquinas no Firestore (`config/machines`); gráfico de custo distribui etapas nas categorias.
 - **Em andamento / próximos passos:** nada pendente. (Decidido: **não** é preciso reentrar os
   produtos — eles guardam só as entradas brutas; os cálculos são refeitos ao vivo e estão corretos.)
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
