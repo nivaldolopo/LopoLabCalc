@@ -327,13 +327,6 @@ function CatalogDetails({
               margem de {result.margin.toFixed(0)}% sobre o preço final
             </span>
           </div>
-          <button
-            className="btn primary cd-register-sale"
-            type="button"
-            onClick={() => onRegisterSale(product, result)}
-          >
-            <Receipt size={16} /> Registrar venda
-          </button>
           <div className="result-label cd-comp-label">Composição do custo</div>
           <CostBars result={result} />
           <div className="cd-total-row">
@@ -397,6 +390,13 @@ function CatalogDetails({
               </div>
             )}
           </div>
+          <button
+            className="btn primary cd-register-sale"
+            type="button"
+            onClick={() => onRegisterSale(product, result)}
+          >
+            <Receipt size={16} /> Registrar venda
+          </button>
         </div>
       </div>
 
