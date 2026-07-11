@@ -210,6 +210,10 @@ export function PricingCalculator() {
           fixedCosts={fixedCosts}
           capacitySettings={capacitySettings}
           capacityResult={capacityResult}
+          roundingMode={form.product.roundingMode}
+          onRoundingModeChange={(mode) =>
+            form.updateProduct({ roundingMode: mode })
+          }
           onCapacityChange={(patch) =>
             setCapacitySettings((current) => ({ ...current, ...patch }))
           }

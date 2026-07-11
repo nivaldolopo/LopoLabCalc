@@ -7,6 +7,7 @@ import type {
   ProductInput,
   StageCost,
 } from "../types";
+import { roundPrice } from "./roundPrice";
 
 function numberOrZero(value: number | undefined | null): number {
   return Number.isFinite(value) ? Number(value) : 0;
@@ -164,9 +165,12 @@ export function calculatePricing(
     product.markupOnFixed !== undefined
       ? product.markupOnFixed
       : fixedCosts.markupOnFixed;
-  const suggestedPrice = markupOnFixed
+  // Preço exato (bruto do cálculo) e preço final arredondado para valor de
+  // mercado. Todo o resto (margem, lote, catálogo, capacidade) usa o final.
+  const exactPrice = markupOnFixed
     ? totalCost * product.markup
     : variableCost * product.markup + fixedCost;
+  const suggestedPrice = roundPrice(exactPrice, product.roundingMode ?? "exact");
   const contributionPrice = markupOnFixed
     ? variableCost * product.markup
     : suggestedPrice - fixedCost;
@@ -189,6 +193,7 @@ export function calculatePricing(
     variableCost,
     totalCost,
     suggestedPrice,
+    exactPrice,
     margin,
     pieces,
     stagesCount: stagesList.length,

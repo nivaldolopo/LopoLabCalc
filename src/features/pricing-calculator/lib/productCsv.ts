@@ -5,9 +5,22 @@ import type {
   Machine,
   ProductPayload,
   PrintStage,
+  RoundingMode,
   SavedProduct,
 } from "../types";
 import { calculatePricing } from "./calculatePricing";
+import { ROUNDING_OPTIONS } from "./roundPrice";
+
+const VALID_ROUNDING_MODES = new Set(
+  ROUNDING_OPTIONS.map((option) => option.value),
+);
+
+function parseRoundingMode(value: string | undefined): RoundingMode {
+  const normalized = String(value ?? "").trim();
+  return VALID_ROUNDING_MODES.has(normalized as RoundingMode)
+    ? (normalized as RoundingMode)
+    : "exact";
+}
 
 const CSV_HEADERS = [
   "Produto",
@@ -25,6 +38,7 @@ const CSV_HEADERS = [
   "Custo Fixo (R$)",
   "Custo Total (R$)",
   "Preco Sugerido (R$)",
+  "Arredondamento",
   "Margem (%)",
   "Markup",
   "Filamento (R$/kg)",
@@ -179,6 +193,7 @@ export function exportProductsCsv(
       formatDecimal(result.fixedCost),
       formatDecimal(result.totalCost),
       formatDecimal(result.suggestedPrice),
+      product.roundingMode ?? "exact",
       result.margin.toFixed(1),
       `${product.markup}x`,
       product.filamentPricePerKg,
@@ -225,6 +240,7 @@ export function parseProductsCsv(
   const indexEnergy = findColumn(headers, "tarifa energia");
   const indexIncludeFixed = findColumn(headers, "inclui fixo");
   const indexMarkupFixed = findColumn(headers, "markup no fixo");
+  const indexRounding = findColumn(headers, "arredondamento");
   const indexLinkModel = findColumn(headers, "link modelo");
   const indexLinkCompetitor = findColumn(headers, "link concorrente");
   const indexLinkFile = findColumn(headers, "link arquivo");
@@ -267,6 +283,10 @@ export function parseProductsCsv(
           indexIncludeFixed >= 0 ? parseBool(columns[indexIncludeFixed]) : false,
         markupOnFixed:
           indexMarkupFixed >= 0 ? parseBool(columns[indexMarkupFixed]) : false,
+        roundingMode:
+          indexRounding >= 0
+            ? parseRoundingMode(columns[indexRounding])
+            : "exact",
         linkModel: indexLinkModel >= 0 ? columns[indexLinkModel]?.trim() ?? "" : "",
         linkCompetitor:
           indexLinkCompetitor >= 0

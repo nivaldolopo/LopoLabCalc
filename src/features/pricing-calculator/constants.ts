@@ -40,6 +40,7 @@ export const DEFAULT_PRODUCT_INPUT: ProductInput = {
   markup: 3,
   includeFixed: false,
   markupOnFixed: false,
+  roundingMode: "exact",
   piecesCount: 1,
   stages: [],
   accessories: [],

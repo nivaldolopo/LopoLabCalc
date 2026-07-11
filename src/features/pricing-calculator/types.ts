@@ -1,3 +1,7 @@
+import type { RoundingMode } from "./lib/roundPrice";
+
+export type { RoundingMode };
+
 export type Machine = {
   id: string;
   name: string;
@@ -38,6 +42,7 @@ export type ProductInput = {
   markup: number;
   includeFixed: boolean;
   markupOnFixed: boolean;
+  roundingMode: RoundingMode;
   piecesCount: number;
   stages: PrintStage[];
   accessories: Accessory[];
@@ -94,6 +99,7 @@ export type PricingResult = {
   variableCost: number;
   totalCost: number;
   suggestedPrice: number;
+  exactPrice: number;
   margin: number;
   pieces: number;
   stagesCount: number;

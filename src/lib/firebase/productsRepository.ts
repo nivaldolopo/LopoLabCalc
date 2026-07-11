@@ -33,6 +33,7 @@ function toSavedProduct(id: string, data: DocumentData): SavedProduct {
         ? Boolean(data.includeFixed)
         : Number(data.fixedCostPerHour) > 0,
     markupOnFixed: Boolean(data.markupOnFixed),
+    roundingMode: data.roundingMode ?? "exact",
     piecesCount: Math.max(1, Number(data.piecesCount) || 1),
     stages: Array.isArray(data.stages) ? data.stages : [],
     accessories: Array.isArray(data.accessories) ? data.accessories : [],

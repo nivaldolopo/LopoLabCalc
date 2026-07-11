@@ -1,18 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import type {
   CapacityResult,
   CapacitySettings,
   FixedCostSettings,
   PricingResult,
+  RoundingMode,
 } from "../types";
-import {
-  ROUNDING_OPTIONS,
-  type RoundingMode,
-  roundPrice,
-} from "../lib/roundPrice";
+import { ROUNDING_OPTIONS } from "../lib/roundPrice";
 import { CapacityPanel } from "./CapacityPanel";
 import { CostBars } from "./CostBars";
 
@@ -21,6 +17,8 @@ type PricingResultCardProps = {
   fixedCosts: FixedCostSettings;
   capacitySettings: CapacitySettings;
   capacityResult: CapacityResult | null;
+  roundingMode: RoundingMode;
+  onRoundingModeChange: (mode: RoundingMode) => void;
   onCapacityChange: (patch: Partial<CapacitySettings>) => void;
 };
 
@@ -29,10 +27,10 @@ export function PricingResultCard({
   fixedCosts,
   capacitySettings,
   capacityResult,
+  roundingMode,
+  onRoundingModeChange,
   onCapacityChange,
 }: PricingResultCardProps) {
-  const [roundingMode, setRoundingMode] = useState<RoundingMode>("exact");
-
   const totalFixedMonth = fixedCosts.rent + fixedCosts.other;
   const breakEvenUnits =
     totalFixedMonth > 0 && result.contributionMargin > 0
@@ -40,27 +38,24 @@ export function PricingResultCard({
       : null;
   const multiPiece = result.pieces > 1;
 
-  const finalPrice = roundPrice(result.suggestedPrice, roundingMode);
-  const isRounded = finalPrice !== result.suggestedPrice;
-  const finalMargin =
-    finalPrice > 0
-      ? ((finalPrice - result.totalCost) / finalPrice) * 100
-      : 0;
-  const batchTotal = finalPrice * result.pieces;
+  const isRounded = result.suggestedPrice !== result.exactPrice;
+  const batchTotal = result.suggestedPrice * result.pieces;
 
   return (
     <div className="result-card">
       <div className="result-label">
         Preço sugerido{multiPiece ? " (por peça)" : ""}
       </div>
-      <div className="result-price sg">{formatCurrency(finalPrice)}</div>
+      <div className="result-price sg">
+        {formatCurrency(result.suggestedPrice)}
+      </div>
       {isRounded ? (
         <div className="result-exact">
-          exato: {formatCurrency(result.suggestedPrice)}
+          exato: {formatCurrency(result.exactPrice)}
         </div>
       ) : null}
       <div className="result-margin">
-        margem de {finalMargin.toFixed(0)}% sobre o preço final
+        margem de {result.margin.toFixed(0)}% sobre o preço final
       </div>
 
       <div className="rounding-control">
@@ -69,7 +64,7 @@ export function PricingResultCard({
           id="rounding-mode"
           value={roundingMode}
           onChange={(event) =>
-            setRoundingMode(event.target.value as RoundingMode)
+            onRoundingModeChange(event.target.value as RoundingMode)
           }
         >
           {ROUNDING_OPTIONS.map((option) => (
