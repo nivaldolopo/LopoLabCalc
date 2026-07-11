@@ -101,7 +101,10 @@ export function calculatePricing(
   );
 
   const stagesList = normalizeStages(product);
-  let stagesCost = 0;
+  let stagesMaterial = 0;
+  let stagesEnergy = 0;
+  let stagesDepreciation = 0;
+  let stagesLabor = 0;
   let stagesHours = 0;
 
   stagesList.forEach((stage) => {
@@ -111,19 +114,24 @@ export function calculatePricing(
       product.energyTariff,
       product.laborRate,
     );
-    stagesCost +=
-      (cost.materialCost +
-        cost.energyCost +
-        cost.depreciationCost +
-        cost.laborCost) /
-      pieces;
+    stagesMaterial += cost.materialCost;
+    stagesEnergy += cost.energyCost;
+    stagesDepreciation += cost.depreciationCost;
+    stagesLabor += cost.laborCost;
     stagesHours += numberOrZero(stage.printHours);
   });
 
-  const materialCost = mainStage.materialCost / pieces;
-  const energyCost = mainStage.energyCost / pieces;
-  const depreciationCost = mainStage.depreciationCost / pieces;
-  const laborCost = mainStage.laborCost / pieces;
+  // Os custos das etapas extras entram nas MESMAS categorias da etapa principal
+  // (filamento -> material, tempo -> energia/desgaste, mão de obra -> labor),
+  // em vez de ficarem num balde "Etapas" separado.
+  const materialCost = (mainStage.materialCost + stagesMaterial) / pieces;
+  const energyCost = (mainStage.energyCost + stagesEnergy) / pieces;
+  const depreciationCost =
+    (mainStage.depreciationCost + stagesDepreciation) / pieces;
+  const laborCost = (mainStage.laborCost + stagesLabor) / pieces;
+  // Subtotal informativo: quanto do custo vem das etapas extras (usado no CSV).
+  const stagesCost =
+    (stagesMaterial + stagesEnergy + stagesDepreciation + stagesLabor) / pieces;
 
   const accessoriesCost = (product.accessories ?? []).reduce(
     (sum, accessory) =>
@@ -150,12 +158,7 @@ export function calculatePricing(
     pieces;
 
   const variableCost =
-    materialCost +
-    energyCost +
-    depreciationCost +
-    laborCost +
-    stagesCost +
-    accessoriesCost;
+    materialCost + energyCost + depreciationCost + laborCost + accessoriesCost;
   const totalCost = variableCost + fixedCost;
   const markupOnFixed =
     product.markupOnFixed !== undefined

@@ -11,9 +11,6 @@ export function CostBars({ result }: { result: PricingResult }) {
     { label: "Mão de obra", value: result.laborCost, color: "var(--green)" },
   ];
 
-  if (result.stagesCost > 0) {
-    items.push({ label: "Etapas", value: result.stagesCost, color: "#9B97AA" });
-  }
   if (result.accessoriesCost > 0) {
     items.push({
       label: "Acessórios",
