@@ -9,14 +9,15 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** **arredondamento do preço sugerido** — seletor no card de
-  resultado (`PricingResultCard`) com modos "de mercado": final ,90 (psicológico), múltiplo de
-  R$ 0,50 / R$ 1 / R$ 5 / R$ 10, ou exato (padrão); lógica em `lib/roundPrice.ts` sempre
-  arredonda **para cima** (nunca abaixo do exato → margem preservada); o card recalcula margem e
-  total do lote a partir do valor arredondado e mostra o valor exato como referência (estado
-  local, não persiste). Antes: catálogo no desktop virou lista de cartões (espelha o mobile);
-  campos numéricos não aceitam negativos (clamp `Math.max`); card de resultado sem preço
-  duplicado; máquinas no Firestore (`config/machines`).
+- **Últimas mudanças relevantes:** **arredondamento do preço sugerido, salvo por produto** —
+  campo `roundingMode` no `ProductInput` (persistido no Firestore e no CSV, coluna
+  "Arredondamento"); modos "de mercado": final ,90 (psicológico), múltiplo de R$ 0,50 / R$ 1 /
+  R$ 5 / R$ 10, ou exato (padrão). Lógica central em `lib/roundPrice.ts`, aplicada **dentro de
+  `calculatePricing`**: `suggestedPrice` já sai arredondado (sempre p/ cima → margem preservada)
+  e o novo `exactPrice` guarda o bruto. Assim **card, catálogo, ordenação, capacidade e lote**
+  usam o mesmo preço automaticamente; o seletor fica no card (`PricingResultCard`) e grava no
+  produto via `form.updateProduct`. Produtos antigos sem o campo caem em "exact". Antes:
+  catálogo no desktop virou lista de cartões; campos sem negativos (clamp `Math.max`).
 - **Em andamento / próximos passos:** nada pendente. (Decidido: **não** é preciso reentrar os
   produtos — eles guardam só as entradas brutas; os cálculos são refeitos ao vivo e estão corretos.)
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
