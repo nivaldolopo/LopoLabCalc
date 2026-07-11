@@ -102,7 +102,14 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 > no fluxo normal — isso criaria um deploy duplicado. Use o CLI só em casos pontuais
 > (ex.: deployar estado local sem commit). Para acompanhar: `vercel ls` ou o painel da Vercel.
 
-### 4. Manter o "Status atual" atualizado
+### 4. Verificação visual só quando realmente necessária
+- **Não** subir servidor de dev nem abrir o navegador para "confirmar" toda alteração —
+  isso gasta tempo/tokens à toa. O **usuário testa visualmente** e confirma o funcionamento.
+- Para validar que o código está são, prefira o barato: `pnpm lint` (e `pnpm build` quando
+  fizer sentido). Reserve a verificação no navegador para casos em que ela é de fato útil —
+  ex.: lógica visual/interativa complexa que o lint/build não cobre, ou quando o usuário pedir.
+
+### 5. Manter o "Status atual" atualizado
 - Ao concluir uma mudança relevante (feature, correção, decisão de arquitetura/infra),
   **atualize a seção "Status atual"** no topo deste arquivo.
 - Mantenha-a curta: é a foto do AGORA, não um histórico. Remova o que envelheceu.
