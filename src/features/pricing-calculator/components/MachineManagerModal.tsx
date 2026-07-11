@@ -36,7 +36,7 @@ export function MachineManagerModal({
         id: `m_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
         name: "",
         price: 0,
-        lifeHours: 5000,
+        lifeHours: 10000,
         watts: 100,
         maintenancePerHour: 0,
       },

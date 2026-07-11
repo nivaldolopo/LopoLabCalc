@@ -9,7 +9,15 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** **Backlog item 1 — Captura de venda + Histórico
+- **Últimas mudanças relevantes:** **Vida útil (depreciação) recalibrada:
+  `lifeHours` default 5000 → 10000** nas duas máquinas (`DEFAULT_MACHINES` + default de
+  máquina nova na `MachineManagerModal`). Embasado em pesquisa (jul/2026): a referência que
+  faz o mesmo cálculo (preço ÷ horas) usa 10.000h; FDM dura 5.000–10.000h; consumíveis já
+  entram à parte em `maintenancePerHour`, então 5.000h dobrava a conta. **Atenção:** só afeta
+  seed novo / máquina nova — as máquinas já salvas no Firestore mantêm o valor persistido até
+  serem editadas na modal "Gerenciar impressoras". Também: rótulo dos acessórios agora diz
+  **"Qtd/peça"** (a quantidade é por peça, não o total da mesa). Antes: **Backlog item 1 —
+  Captura de venda + Histórico
   (Fase 1a).** Nova coleção Firestore `vendas` (foto CONGELADA no momento da venda —
   não referencia o produto vivo). `salesRepository.ts` (subscribe/create/update/remove),
   hook `useSales`, tipos `Sale`/`SalePayload`/`SaleCostBreakdown`/`PaymentMethod`/`SaleChannel`

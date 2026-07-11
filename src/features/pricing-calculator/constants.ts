@@ -36,9 +36,18 @@ export function defaultMaintenanceForId(id: string): number {
   return DEFAULT_MAINTENANCE_BY_ID[id] ?? DEFAULT_MAINTENANCE_PER_HOUR;
 }
 
+// Vida útil (horas) usada na DEPRECIAÇÃO (preço ÷ lifeHours = custo/hora da máquina).
+// É só a parte ESTRUTURAL/econômica — os consumíveis (bico, placa PEI, filtro) já
+// entram à parte em maintenancePerHour, então NÃO limitam este número.
+// Validado (jul/2026) com pesquisa: FDM de consumo dura ~5.000–10.000h antes de
+// revisão maior (profissional >15.000h); peças estruturais das Bambu vão além
+// (motores >10.000h, mainboard raramente falha). A referência que faz este MESMO
+// cálculo (preço ÷ horas = custo de desgaste) adota 10.000h como baseline. Os
+// 5.000h antigos eram conservadores demais (dobravam a conta, já que consumível é
+// separado) → 10.000h. Editável por máquina na "Gerenciar impressoras".
 export const DEFAULT_MACHINES: Machine[] = [
-  { id: "a1", name: "A1 Combo", price: 5299, lifeHours: 5000, watts: 95, maintenancePerHour: 0.12 },
-  { id: "x2d", name: "X2D Combo", price: 13999, lifeHours: 5000, watts: 150, maintenancePerHour: 0.2 },
+  { id: "a1", name: "A1 Combo", price: 5299, lifeHours: 10000, watts: 95, maintenancePerHour: 0.12 },
+  { id: "x2d", name: "X2D Combo", price: 13999, lifeHours: 10000, watts: 150, maintenancePerHour: 0.2 },
 ];
 
 export const DEFAULT_FIXED_COSTS: FixedCostSettings = {
