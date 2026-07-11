@@ -9,6 +9,12 @@ type CapacityPanelProps = {
   onChange: (patch: Partial<CapacitySettings>) => void;
 };
 
+// Diário pode ser fracionário (job que dura mais de um dia). Mostra até 1 casa
+// decimal, sem zeros à toa: 4 → "4", 0.25 → "0,3", 1.5 → "1,5".
+function formatCount(value: number): string {
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+}
+
 export function CapacityPanel({
   settings,
   result,
@@ -50,11 +56,11 @@ export function CapacityPanel({
         <div>
           <div className="capacity-col-title">☀️ Diário</div>
           <div className="capacity-val">
-            {result ? `${result.piecesDay} peças` : "—"}
+            {result ? `${formatCount(result.piecesDay)} peças` : "—"}
           </div>
           <div className="capacity-sub">
             {result
-              ? `${result.cyclesDay} impressões/dia`
+              ? `${formatCount(result.cyclesDay)} impressões/dia`
               : "defina tempo de impressão"}
           </div>
           <div className="capacity-profit">
