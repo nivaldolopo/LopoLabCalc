@@ -15,7 +15,9 @@ import type {
   SalePayload,
 } from "../types";
 
-type SaleModalProps = {
+// Dados de origem da venda — servem tanto para o formulário ao vivo quanto
+// para um produto vindo do catálogo. O modal só lê isto e congela.
+export type SaleModalContext = {
   defaultProductName: string;
   productId: string;
   machineId: string;
@@ -24,6 +26,9 @@ type SaleModalProps = {
   suggestedPrice: number;
   unitCost: number;
   costBreakdown: SaleCostBreakdown;
+};
+
+type SaleModalProps = SaleModalContext & {
   onClose: () => void;
   onConfirm: (payload: SalePayload) => Promise<void>;
 };

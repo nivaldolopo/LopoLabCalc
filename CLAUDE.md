@@ -22,7 +22,9 @@
   não referencia o produto vivo). `salesRepository.ts` (subscribe/create/update/remove),
   hook `useSales`, tipos `Sale`/`SalePayload`/`SaleCostBreakdown`/`PaymentMethod`/`SaleChannel`
   em `types.ts`, constantes `PAYMENT_METHODS`/`SALE_CHANNELS`. Botão **"Registrar venda"** no
-  `PricingResultCard` abre `SaleModal` (cliente, material, canal, forma de pagamento, qtd,
+  `PricingResultCard` **e no dropdown de cada item do catálogo** (`CatalogDetails`, via
+  `SaleModalContext` reaproveitável — vender direto do catálogo sem carregar o produto no
+  formulário) abre `SaleModal` (cliente, material, canal, forma de pagamento, qtd,
   data, preço editável pré-preenchido com o sugerido, obs; mostra receita/custo/lucro ao
   vivo). Grava snapshot com **preço sugerido + preço real** e o **detalhamento de custo
   inteiro** (pro dashboard futuro). Nova rota **`/vendas`** (`SalesPage`) com totais, tabela

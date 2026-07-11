@@ -9,6 +9,7 @@ import {
 import type {
   CapacitySettings,
   FixedCostSettings,
+  PricingResult,
   ProductPayload,
   SavedProduct,
   SortMode,
@@ -30,7 +31,7 @@ import { MachineManagerModal } from "./MachineManagerModal";
 import { PricingResultCard } from "./PricingResultCard";
 import { ProductCatalog } from "./ProductCatalog";
 import { ProductForm } from "./ProductForm";
-import { SaleModal } from "./SaleModal";
+import { SaleModal, type SaleModalContext } from "./SaleModal";
 
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
@@ -44,7 +45,7 @@ export function PricingCalculator() {
     useState<CapacitySettings>(DEFAULT_CAPACITY);
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [machineModalOpen, setMachineModalOpen] = useState(false);
-  const [saleModalOpen, setSaleModalOpen] = useState(false);
+  const [saleContext, setSaleContext] = useState<SaleModalContext | null>(null);
   const [saved, setSaved] = useState(false);
 
   const totalPrintHours = useMemo(
@@ -177,6 +178,61 @@ export function PricingCalculator() {
     }
   }
 
+  function saleContextFromResult(
+    productName: string,
+    productId: string,
+    result: PricingResult,
+    printHours: number,
+  ): SaleModalContext {
+    return {
+      defaultProductName: productName,
+      productId,
+      machineId: result.machine.id,
+      machineName: result.machine.name,
+      printHours,
+      suggestedPrice: result.suggestedPrice,
+      unitCost: result.totalCost,
+      costBreakdown: {
+        material: result.materialCost,
+        energy: result.energyCost,
+        depreciation: result.depreciationCost,
+        maintenance: result.maintenanceCost,
+        labor: result.laborCost,
+        accessories: result.accessoriesCost,
+        failureReserve: result.failureReserve,
+        fixed: result.fixedCost,
+      },
+    };
+  }
+
+  function openSaleFromForm() {
+    setSaleContext(
+      saleContextFromResult(
+        form.product.name || form.product.mainStageName || "",
+        form.editingProductId ?? "",
+        pricingResult,
+        totalPrintHours,
+      ),
+    );
+  }
+
+  function openSaleFromCatalog(product: SavedProduct, result: PricingResult) {
+    const hours =
+      product.printHours +
+      (product.stages ?? []).reduce(
+        (sum, stage) => sum + (stage.printHours || 0),
+        0,
+      );
+    setSaleContext(
+      saleContextFromResult(
+        product.name || product.mainStageName || "",
+        product.id,
+        result,
+        hours,
+      ),
+    );
+  }
+
   return (
     <main className="wrap">
       <Header theme={theme} status={productsApi.status} onToggleTheme={toggleTheme} />
@@ -220,7 +276,7 @@ export function PricingCalculator() {
           onCapacityChange={(patch) =>
             setCapacitySettings((current) => ({ ...current, ...patch }))
           }
-          onRegisterSale={() => setSaleModalOpen(true)}
+          onRegisterSale={openSaleFromForm}
         />
       </div>
 
@@ -234,6 +290,7 @@ export function PricingCalculator() {
         onLoadProduct={loadProduct}
         onDeleteProduct={productsApi.deleteProduct}
         onImportProducts={productsApi.importProducts}
+        onRegisterSale={openSaleFromCatalog}
       />
 
       {machineModalOpen ? (
@@ -245,28 +302,10 @@ export function PricingCalculator() {
         />
       ) : null}
 
-      {saleModalOpen ? (
+      {saleContext ? (
         <SaleModal
-          defaultProductName={
-            form.product.name || form.product.mainStageName || ""
-          }
-          productId={form.editingProductId ?? ""}
-          machineId={pricingResult.machine.id}
-          machineName={pricingResult.machine.name}
-          printHours={totalPrintHours}
-          suggestedPrice={pricingResult.suggestedPrice}
-          unitCost={pricingResult.totalCost}
-          costBreakdown={{
-            material: pricingResult.materialCost,
-            energy: pricingResult.energyCost,
-            depreciation: pricingResult.depreciationCost,
-            maintenance: pricingResult.maintenanceCost,
-            labor: pricingResult.laborCost,
-            accessories: pricingResult.accessoriesCost,
-            failureReserve: pricingResult.failureReserve,
-            fixed: pricingResult.fixedCost,
-          }}
-          onClose={() => setSaleModalOpen(false)}
+          {...saleContext}
+          onClose={() => setSaleContext(null)}
           onConfirm={createSale}
         />
       ) : null}

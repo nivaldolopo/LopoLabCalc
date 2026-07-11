@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Edit3, Trash2, Upload } from "lucide-react";
+import { Download, Edit3, Receipt, Trash2, Upload } from "lucide-react";
 import { Fragment } from "react";
 import { useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
@@ -8,6 +8,7 @@ import type {
   CapacitySettings,
   FixedCostSettings,
   Machine,
+  PricingResult,
   SavedProduct,
   SortMode,
 } from "../types";
@@ -36,6 +37,7 @@ type ProductCatalogProps = {
   onLoadProduct: (product: SavedProduct) => void;
   onDeleteProduct: (productId: string) => Promise<void>;
   onImportProducts: (products: ReturnType<typeof parseProductsCsv>) => Promise<void>;
+  onRegisterSale: (product: SavedProduct, result: PricingResult) => void;
 };
 
 export function ProductCatalog({
@@ -48,6 +50,7 @@ export function ProductCatalog({
   onLoadProduct,
   onDeleteProduct,
   onImportProducts,
+  onRegisterSale,
 }: ProductCatalogProps) {
   const [openProductId, setOpenProductId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -233,6 +236,7 @@ export function ProductCatalog({
                           result={result}
                           fixedCosts={fixedCosts}
                           capacitySettings={capacitySettings}
+                          onRegisterSale={onRegisterSale}
                         />
                       </td>
                     </tr>
@@ -252,11 +256,13 @@ function CatalogDetails({
   result,
   fixedCosts,
   capacitySettings,
+  onRegisterSale,
 }: {
   product: SavedProduct;
   result: ReturnType<typeof calculatePricing>;
   fixedCosts: FixedCostSettings;
   capacitySettings: CapacitySettings;
+  onRegisterSale: (product: SavedProduct, result: PricingResult) => void;
 }) {
   const stages = product.stages ?? [];
   const accessories = product.accessories ?? [];
@@ -321,6 +327,13 @@ function CatalogDetails({
               margem de {result.margin.toFixed(0)}% sobre o preço final
             </span>
           </div>
+          <button
+            className="btn primary cd-register-sale"
+            type="button"
+            onClick={() => onRegisterSale(product, result)}
+          >
+            <Receipt size={16} /> Registrar venda
+          </button>
           <div className="result-label cd-comp-label">Composição do custo</div>
           <CostBars result={result} />
           <div className="cd-total-row">
