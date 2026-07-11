@@ -21,10 +21,11 @@
   **Backfill**: máquina cujo doc não tem o campo assume o default por id ao ler
   (`toMachine`), então máquinas antigas já vêm com o valor sem reentrada; valor explícito
   (inclusive 0) é respeitado. **(2) Taxa de falha** — campo `failureRate` (%) por produto
-  (`ProductForm`, default **5%** via `DEFAULT_FAILURE_RATE`). Dentro de `calculatePricing`,
+  (`ProductForm`, default **3%** via `DEFAULT_FAILURE_RATE` — embasado em benchmarks reais:
+  Bambu bem calibrada ~2%, operador experiente <5%). Dentro de `calculatePricing`,
   divide o custo de **impressão** (material+energia+desgaste+manutenção+mão de obra, **exceto
   acessórios**) por `(1 − taxa)` — clamp em 95%. Nova barra "Reserva de falha". Ambos os
-  campos persistem (Firestore + colunas novas no CSV) e produtos antigos caem no default 5%.
+  campos persistem (Firestore + colunas novas no CSV) e produtos antigos caem no default 3%.
   Antes: o campo **"Tempo de impressão"** no `ProductForm` virou **um input + um select de
   unidade (horas/minutos)** (`PrintTimeField`, grava `printHours` em horas decimais). Antes:
   o título **"Lopo Lab"** no `Header` virou um `<button>`

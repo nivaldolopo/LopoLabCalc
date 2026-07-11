@@ -8,7 +8,12 @@ import type {
 export const ACCENT = "#FF6B35";
 
 // Reserva de falha padrão (%) para produtos sem valor próprio (antigos/importados).
-export const DEFAULT_FAILURE_RATE = 5;
+// Baseado em benchmarks reais: <5% = "excelente", 5-10% = hobbyista típico; Bambu
+// bem calibrada ~2%; operador experiente <5% (muitas vezes <1% em peças simples).
+// Caso aqui (Bambu + PLA + experiente): 3% central, com pequena folga p/ modelos
+// complexos/suporte. Editável por produto. O número exato só sai medindo o próprio
+// (peças falhas ÷ total).
+export const DEFAULT_FAILURE_RATE = 3;
 
 // Manutenção padrão (R$/hora) por consumíveis. Preços REAIS do Mercado Livre e
 // vida útil de relatos REAIS do fórum Bambu (uso PLA/ABS, NÃO-abrasivo):
