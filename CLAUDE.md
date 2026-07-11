@@ -14,8 +14,8 @@
   categorias (sem balde "Etapas"); produto padrão ajustado; nova etapa entra zerada;
   **máquinas agora sincronizam no Firestore** (`config/machines`) — antes eram só localStorage,
   o que causava watts/energia divergentes entre dispositivos.
-- **Em andamento / próximos passos:** pendente da lista do usuário — avaliar se vale **reentrar
-  os produtos** para garantir cálculos corretos após as mudanças.
+- **Em andamento / próximos passos:** nada pendente. (Decidido: **não** é preciso reentrar os
+  produtos — eles guardam só as entradas brutas; os cálculos são refeitos ao vivo e estão corretos.)
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
   cadastradas (por decisão — só mantemos Production; ver Diretriz 1). Nada quebrado.
 
