@@ -14,9 +14,9 @@
   **(1) Reserva de manutenção** — novo campo `maintenancePerHour` por máquina (editável na
   `MachineManagerModal`, compartilhado via Firestore como watts). Entra no custo como
   `horas × R$/h`, **separado da depreciação** (que é só a compra da máquina). Nova barra
-  "Manutenção" no `CostBars`. Defaults calibrados com **preços reais do Mercado Livre**
-  (jul/2026, genérico/importado — hotend A1 R$58-90, placa PEI 257mm R$68-180, filtro
-  carvão ~R$40-70): A1 R$0,20/h, X2D R$0,40/h
+  "Manutenção" no `CostBars`. Defaults calibrados com **preços reais (ML)** + **vida útil
+  de relatos reais do fórum Bambu** (uso PLA/ABS não-abrasivo: bico dura ~2000h, placa PEI
+  ~3000h dupla-face, filtro 1440h só na X2D): A1 R$0,12/h, X2D R$0,20/h
   (`DEFAULT_MAINTENANCE_BY_ID` + `defaultMaintenanceForId`).
   **Backfill**: máquina cujo doc não tem o campo assume o default por id ao ler
   (`toMachine`), então máquinas antigas já vêm com o valor sem reentrada; valor explícito

@@ -10,16 +10,17 @@ export const ACCENT = "#FF6B35";
 // Reserva de falha padrão (%) para produtos sem valor próprio (antigos/importados).
 export const DEFAULT_FAILURE_RATE = 5;
 
-// Manutenção padrão (R$/hora) por consumíveis, calibrado com preços REAIS do
-// Mercado Livre (jul/2026, cenário genérico/importado): hotend+bico A1 compatível
-// R$58-90; placa PEI texturizada 257mm R$68 (China) a ~R$180 (nacional); filtro
-// carvão Bambu 3D ~R$40-70/un (vida ~1440h). Com vida útil típica (bico ~1200h,
-// placa ~2000-2500h), dá:
-//   A1  (aberta, 1 bico):            ~R$0,20/h
-//   X2D (fechada, 2 bicos + filtro): ~R$0,40/h
+// Manutenção padrão (R$/hora) por consumíveis. Preços REAIS do Mercado Livre e
+// vida útil de relatos REAIS do fórum Bambu (uso PLA/ABS, NÃO-abrasivo):
+//   - bico/hotend A1 compatível R$58-90; relatos de 1000-1400h+ ainda ok → uso 2000h
+//   - placa PEI texturizada 257mm ~R$150; relatos de 1500-5000h → uso 3000h (dupla face)
+//   - filtro carvão (só X2D, fechada) ~R$60, vida 1440h (spec Bambu)
+// Resulta: A1 ~R$0,12/h; X2D (2 bicos + filtro) ~R$0,20/h. Inclui pequena folga p/
+// imprevistos (bico entupido, placa riscada em crash). Abrasivo (fibra de carbono)
+// encurtaria muito a vida do bico — não é o caso aqui.
 export const DEFAULT_MAINTENANCE_BY_ID: Record<string, number> = {
-  a1: 0.2,
-  x2d: 0.4,
+  a1: 0.12,
+  x2d: 0.2,
 };
 // Fallback para máquina sem valor próprio cujo id não está no mapa acima.
 export const DEFAULT_MAINTENANCE_PER_HOUR = 0.5;
@@ -29,8 +30,8 @@ export function defaultMaintenanceForId(id: string): number {
 }
 
 export const DEFAULT_MACHINES: Machine[] = [
-  { id: "a1", name: "A1 Combo", price: 5299, lifeHours: 5000, watts: 95, maintenancePerHour: 0.2 },
-  { id: "x2d", name: "X2D Combo", price: 13999, lifeHours: 5000, watts: 150, maintenancePerHour: 0.4 },
+  { id: "a1", name: "A1 Combo", price: 5299, lifeHours: 5000, watts: 95, maintenancePerHour: 0.12 },
+  { id: "x2d", name: "X2D Combo", price: 13999, lifeHours: 5000, watts: 150, maintenancePerHour: 0.2 },
 ];
 
 export const DEFAULT_FIXED_COSTS: FixedCostSettings = {
