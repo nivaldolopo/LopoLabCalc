@@ -1,4 +1,5 @@
 import { getApps, initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -24,3 +25,5 @@ export const db = getFirestore(
   app,
   process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID ?? "lopo-lab-calculadora",
 );
+
+export const auth = getAuth(app);

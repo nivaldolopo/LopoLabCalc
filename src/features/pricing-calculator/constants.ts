@@ -114,6 +114,14 @@ export const DEFAULT_PRODUCT_INPUT: ProductInput = {
 export const MACHINE_STORAGE_KEY = "calc3d-machines";
 export const THEME_STORAGE_KEY = "calc3d-theme";
 
+// E-mails Google autorizados a acessar o app. A tela de login barra os demais,
+// e as Regras do Firestore (no Console) devem repetir esta lista para valer de
+// verdade no banco. Tudo em minúsculo — a checagem normaliza o e-mail.
+export const ALLOWED_EMAILS = [
+  "nivaldo.lopo@gmail.com",
+  "lopolab3d@gmail.com",
+];
+
 // Opções de forma de pagamento e canal usadas no registro de venda.
 export const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "pix", label: "Pix" },

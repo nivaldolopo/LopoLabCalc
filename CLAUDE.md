@@ -9,7 +9,16 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** **Vida útil (depreciação) recalibrada:
+- **Últimas mudanças relevantes:** **Barreira de acesso (login Google restrito).**
+  Firebase Auth em `client.ts` (`auth`), hook `useAuth` (onAuthStateChanged + signInWithPopup
+  Google + signOut), `AuthGate` envolvendo TODAS as rotas no `layout.tsx` — só renderiza o app
+  para e-mail em `ALLOWED_EMAILS` (nivaldo.lopo@ / lopolab3d@); senão, tela de login /
+  "não autorizado". **PENDENTE do dono no Console Firebase (a barreira de UI NÃO protege o
+  banco sozinha):** (1) Authentication → ativar provedor **Google**; (2) **Authorized domains**
+  → adicionar o domínio de produção Vercel; (3) travar as **Regras do Firestore** (banco
+  `lopo-lab-calculadora`) para `request.auth.token.email in [os 2 e-mails]`. Sequência: ativar
+  Google + domínio → logar no site → SÓ ENTÃO colar as regras (senão o app quebra por falta de
+  permissão). Até as regras entrarem, os dados continuam abertos. **Antes:** **Vida útil (depreciação) recalibrada:
   `lifeHours` default 5000 → 10000** nas duas máquinas (`DEFAULT_MACHINES` + default de
   máquina nova na `MachineManagerModal`). Embasado em pesquisa (jul/2026): a referência que
   faz o mesmo cálculo (preço ÷ horas) usa 10.000h; FDM dura 5.000–10.000h; consumíveis já
@@ -138,8 +147,9 @@ src/
                             #     PricingResultCard, CapacityPanel, MachineSelector,
                             #     MachineManagerModal, FixedCostsPanel, AccessoriesSection,
                             #     ExtraStagesSection, LinksSection, Header,
-                            #     SaleModal (registrar venda), SalesPage (rota /vendas)
-    hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales
+                            #     SaleModal (registrar venda), SalesPage (rota /vendas),
+                            #     ProfitSummary (rentabilidade compartilhada), AuthGate (login)
+    hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales, useAuth
     lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv
     constants.ts, types.ts
   lib/

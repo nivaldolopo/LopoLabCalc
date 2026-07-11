@@ -1893,6 +1893,72 @@ td.col-actions {
   gap: 10px;
 }
 
+/* Tela de login / barreira de acesso */
+.auth-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.auth-box {
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px 28px;
+}
+
+.auth-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: white;
+  margin-bottom: 12px;
+}
+
+.auth-brand {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.auth-brand span {
+  color: var(--accent);
+}
+
+.auth-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 18px 0 8px;
+}
+
+.auth-sub {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+
+.auth-btn {
+  width: 100%;
+}
+
+.auth-error {
+  margin-top: 14px;
+  font-size: 13px;
+  color: #e05252;
+  word-break: break-word;
+}
+
 .register-sale-btn {
   width: 100%;
   margin-top: 6px;
