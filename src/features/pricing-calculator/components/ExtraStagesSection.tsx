@@ -83,11 +83,12 @@ export function ExtraStagesSection({
               <label className="section-label">📦 Peso (g)</label>
               <input
                 className="field-input"
+                min={0}
                 type="number"
                 value={stage.weightG}
                 onChange={(event) =>
                   onUpdateStage(stage.id ?? "", {
-                    weightG: Number(event.target.value) || 0,
+                    weightG: Math.max(0, Number(event.target.value) || 0),
                   })
                 }
               />
@@ -96,12 +97,13 @@ export function ExtraStagesSection({
               <label className="section-label">⏱ Tempo (h)</label>
               <input
                 className="field-input"
+                min={0}
                 step="0.1"
                 type="number"
                 value={stage.printHours}
                 onChange={(event) =>
                   onUpdateStage(stage.id ?? "", {
-                    printHours: Number(event.target.value) || 0,
+                    printHours: Math.max(0, Number(event.target.value) || 0),
                   })
                 }
               />
@@ -110,11 +112,12 @@ export function ExtraStagesSection({
               <label className="section-label">Filamento (R$/kg)</label>
               <input
                 className="field-input"
+                min={0}
                 type="number"
                 value={stage.filamentPricePerKg}
                 onChange={(event) =>
                   onUpdateStage(stage.id ?? "", {
-                    filamentPricePerKg: Number(event.target.value) || 0,
+                    filamentPricePerKg: Math.max(0, Number(event.target.value) || 0),
                   })
                 }
               />
@@ -123,11 +126,12 @@ export function ExtraStagesSection({
               <label className="section-label">Mão de obra (min)</label>
               <input
                 className="field-input"
+                min={0}
                 type="number"
                 value={stage.laborMinutes}
                 onChange={(event) =>
                   onUpdateStage(stage.id ?? "", {
-                    laborMinutes: Number(event.target.value) || 0,
+                    laborMinutes: Math.max(0, Number(event.target.value) || 0),
                   })
                 }
               />

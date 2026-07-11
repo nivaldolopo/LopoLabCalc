@@ -64,7 +64,7 @@ export function AccessoriesSection({
               value={accessory.qty}
               onChange={(event) =>
                 onUpdateAccessory(accessory.id ?? "", {
-                  qty: Number(event.target.value) || 0,
+                  qty: Math.max(0, Number(event.target.value) || 0),
                 })
               }
             />
@@ -75,7 +75,7 @@ export function AccessoriesSection({
               value={accessory.unitPrice}
               onChange={(event) =>
                 onUpdateAccessory(accessory.id ?? "", {
-                  unitPrice: Number(event.target.value) || 0,
+                  unitPrice: Math.max(0, Number(event.target.value) || 0),
                 })
               }
             />

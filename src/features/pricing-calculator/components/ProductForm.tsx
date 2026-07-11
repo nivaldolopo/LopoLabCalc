@@ -187,7 +187,7 @@ function NumberField({
   label,
   value,
   onChange,
-  min,
+  min = 0,
   step,
 }: {
   label: string;
@@ -205,7 +205,9 @@ function NumberField({
         step={step}
         type="number"
         value={value}
-        onChange={(event) => onChange(Number(event.target.value) || 0)}
+        onChange={(event) =>
+          onChange(Math.max(min, Number(event.target.value) || 0))
+        }
       />
     </div>
   );

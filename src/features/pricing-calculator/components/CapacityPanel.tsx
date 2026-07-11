@@ -28,7 +28,9 @@ export function CapacityPanel({
             type="number"
             value={settings.hoursDay}
             onChange={(event) =>
-              onChange({ hoursDay: Number(event.target.value) || 0 })
+              onChange({
+                hoursDay: Math.min(24, Math.max(0, Number(event.target.value) || 0)),
+              })
             }
           />
         </div>
@@ -39,7 +41,7 @@ export function CapacityPanel({
             type="number"
             value={settings.machines}
             onChange={(event) =>
-              onChange({ machines: Number(event.target.value) || 1 })
+              onChange({ machines: Math.max(1, Number(event.target.value) || 1) })
             }
           />
         </div>

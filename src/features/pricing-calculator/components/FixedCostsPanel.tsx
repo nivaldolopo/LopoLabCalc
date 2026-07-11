@@ -45,20 +45,22 @@ export function FixedCostsPanel({
           <div className="fc-item">
             <label>Aluguel (R$/mês)</label>
             <input
+              min={0}
               type="number"
               value={fixedCosts.rent}
               onChange={(event) =>
-                onChange({ rent: Number(event.target.value) || 0 })
+                onChange({ rent: Math.max(0, Number(event.target.value) || 0) })
               }
             />
           </div>
           <div className="fc-item">
             <label>Outros custos fixos (R$/mês)</label>
             <input
+              min={0}
               type="number"
               value={fixedCosts.other}
               onChange={(event) =>
-                onChange({ other: Number(event.target.value) || 0 })
+                onChange({ other: Math.max(0, Number(event.target.value) || 0) })
               }
               placeholder="contador, internet..."
             />
@@ -66,30 +68,33 @@ export function FixedCostsPanel({
           <div className="fc-item">
             <label>Máquinas operando</label>
             <input
+              min={0}
               type="number"
               value={fixedCosts.machines}
               onChange={(event) =>
-                onChange({ machines: Number(event.target.value) || 0 })
+                onChange({ machines: Math.max(0, Number(event.target.value) || 0) })
               }
             />
           </div>
           <div className="fc-item">
             <label>Horas de operação/dia</label>
             <input
+              min={0}
               type="number"
               value={fixedCosts.hoursDay}
               onChange={(event) =>
-                onChange({ hoursDay: Number(event.target.value) || 0 })
+                onChange({ hoursDay: Math.max(0, Number(event.target.value) || 0) })
               }
             />
           </div>
           <div className="fc-item">
             <label>Dias de operação/mês</label>
             <input
+              min={0}
               type="number"
               value={fixedCosts.daysMonth}
               onChange={(event) =>
-                onChange({ daysMonth: Number(event.target.value) || 0 })
+                onChange({ daysMonth: Math.max(0, Number(event.target.value) || 0) })
               }
             />
           </div>

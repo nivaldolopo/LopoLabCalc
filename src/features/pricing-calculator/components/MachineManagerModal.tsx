@@ -101,7 +101,9 @@ export function MachineManagerModal({
                 type="number"
                 value={machine.price}
                 onChange={(event) =>
-                  updateMachine(index, { price: Number(event.target.value) || 0 })
+                  updateMachine(index, {
+                    price: Math.max(0, Number(event.target.value) || 0),
+                  })
                 }
               />
               <input
@@ -111,7 +113,7 @@ export function MachineManagerModal({
                 value={machine.lifeHours}
                 onChange={(event) =>
                   updateMachine(index, {
-                    lifeHours: Number(event.target.value) || 0,
+                    lifeHours: Math.max(0, Number(event.target.value) || 0),
                   })
                 }
               />
@@ -121,7 +123,9 @@ export function MachineManagerModal({
                 type="number"
                 value={machine.watts}
                 onChange={(event) =>
-                  updateMachine(index, { watts: Number(event.target.value) || 0 })
+                  updateMachine(index, {
+                    watts: Math.max(0, Number(event.target.value) || 0),
+                  })
                 }
               />
               <button
