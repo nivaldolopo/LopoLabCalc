@@ -152,11 +152,11 @@ export function ProductCatalog({
             <thead>
               <tr>
                 <th className="col-name">Produto</th>
-                <th className="col-price">Preço</th>
-                <th>Máquina</th>
+                <th className="col-price">Preço/peça</th>
                 <th>Peças</th>
-                <th>Custo Total</th>
+                <th>Custo total</th>
                 <th>Margem</th>
+                <th>Máquina</th>
                 <th className="col-actions">Ações</th>
               </tr>
             </thead>
@@ -181,13 +181,18 @@ export function ProductCatalog({
                       </td>
                       <td className="col-price mono price-cell">
                         {formatCurrency(result.suggestedPrice)}
+                        <span className="per-unit-hint">/peça</span>
                       </td>
-                      <td>{result.machine.name}</td>
-                      <td className="mono muted">
+                      <td className="mono muted" data-label="Peças/impressão">
                         {result.pieces > 1 ? `${result.pieces}x` : "—"}
                       </td>
-                      <td className="mono">{formatCurrency(result.totalCost)}</td>
-                      <td className="mono muted">{result.margin.toFixed(0)}%</td>
+                      <td className="mono" data-label="Custo total">
+                        {formatCurrency(result.totalCost)}
+                      </td>
+                      <td className="mono muted" data-label="Margem">
+                        {result.margin.toFixed(0)}%
+                      </td>
+                      <td data-label="Máquina">{result.machine.name}</td>
                       <td className="col-actions">
                         <button
                           className="icon-button edit"
@@ -276,9 +281,6 @@ function CatalogDetails({
     <div className="catalog-details">
       <div className="cd-meta">
         <span>
-          <span className="db-label">Máquina</span> {result.machine.name}
-        </span>
-        <span>
           <span className="db-label">Markup</span> {product.markup.toFixed(1)}x
         </span>
         <span>
@@ -290,19 +292,27 @@ function CatalogDetails({
         <span>
           <span className="db-label">Peças/impressão</span> {result.pieces}
         </span>
+        <span>
+          <span className="db-label">Filamento</span>{" "}
+          {formatCurrency(product.filamentPricePerKg)}/kg
+        </span>
+        <span>
+          <span className="db-label">Mão de obra</span> {product.laborMinutes}min
+        </span>
       </div>
 
-      <div className="cd-panels">
-        <div className="cd-panel cd-price-panel">
-          <div className="result-label">Preço sugerido / peça</div>
-          <div className="result-price sg cd-price-big">
-            {formatCurrency(result.suggestedPrice)}
+      <div className="cd-main">
+        <div className="cd-cost">
+          <div className="cd-section-head">
+            <span className="result-label">Composição do custo</span>
+            <span className="cd-price-caption">
+              {formatCurrency(result.suggestedPrice)}/peça · margem{" "}
+              {result.margin.toFixed(0)}%
+            </span>
           </div>
-          <div className="result-margin cd-margin">
-            margem de {result.margin.toFixed(0)}% sobre o preço final
-          </div>
+          <CostBars result={result} />
           <div className="cd-total-row">
-            <span>Custo total</span>
+            <span>Custo total / peça</span>
             <span className="mono">{formatCurrency(result.totalCost)}</span>
           </div>
           {result.pieces > 1 ? (
@@ -317,69 +327,50 @@ function CatalogDetails({
             <div className="break-even-box visible cd-breakeven">
               <div className="break-even-title">🎯 Meta de Break-Even</div>
               <div className="break-even-val">
-                Vender <strong>{breakEvenUnits}</strong> peças/mês cobre o custo
-                fixo e inicia o lucro.
+                Vender <strong>{breakEvenUnits}</strong> peças/mês deste produto
+                cobre o aluguel + custos fixos e inicia o lucro.
               </div>
             </div>
           ) : null}
         </div>
 
-        <div className="cd-panel">
-          <div className="result-label">Composição do custo</div>
-          <CostBars result={result} />
-        </div>
-
-        <div className="cd-panel">
-          <div className="capacity-box cd-capacity">
-            <div className="capacity-title">📊 Capacidade produtiva</div>
-            <div className="cd-capacity-note">
-              {capacitySettings.hoursDay}h/dia · {capacitySettings.machines}{" "}
-              máquina(s) dedicada(s)
+        <div className="cd-side">
+          <div className="cd-capacity-lite">
+            <div className="cd-section-head">
+              <span className="result-label green">📊 Capacidade produtiva</span>
+              <span className="cd-capacity-note">
+                {capacitySettings.hoursDay}h/dia · {capacitySettings.machines}{" "}
+                máq.
+              </span>
             </div>
-            <div className="capacity-grid">
-              <div>
-                <div className="capacity-col-title">☀️ Diário</div>
-                <div className="capacity-val">
-                  {capacityResult ? `${capacityResult.piecesDay} peças` : "—"}
+            {capacityResult ? (
+              <div className="cd-cap-rows">
+                <div className="cd-cap-row">
+                  <span className="cd-cap-period">☀️ Diário</span>
+                  <span className="cd-cap-pieces">
+                    {capacityResult.piecesDay} pçs
+                  </span>
+                  <span className="cd-cap-money">
+                    líq. {formatCurrency(capacityResult.netDay)}
+                    <em>bruto {formatCurrency(capacityResult.grossDay)}</em>
+                  </span>
                 </div>
-                <div className="capacity-sub">
-                  {capacityResult
-                    ? `${capacityResult.cyclesDay} impressões/dia`
-                    : "defina tempo de impressão"}
-                </div>
-                <div className="capacity-profit">
-                  {capacityResult
-                    ? `Fat. bruto: ${formatCurrency(capacityResult.grossDay)}`
-                    : ""}
-                </div>
-                <div className="capacity-sub">
-                  {capacityResult
-                    ? `Fat. líquido: ${formatCurrency(capacityResult.netDay)}`
-                    : ""}
+                <div className="cd-cap-row">
+                  <span className="cd-cap-period">📅 Mensal</span>
+                  <span className="cd-cap-pieces">
+                    {capacityResult.piecesMonth} pçs
+                  </span>
+                  <span className="cd-cap-money">
+                    líq. {formatCurrency(capacityResult.netMonth)}
+                    <em>bruto {formatCurrency(capacityResult.grossMonth)}</em>
+                  </span>
                 </div>
               </div>
-              <div>
-                <div className="capacity-col-title">📅 Mensal (30d)</div>
-                <div className="capacity-val">
-                  {capacityResult ? `${capacityResult.piecesMonth} peças` : "—"}
-                </div>
-                <div className="capacity-sub">
-                  {capacityResult
-                    ? `${capacityResult.cyclesMonth} impressões/mês`
-                    : ""}
-                </div>
-                <div className="capacity-profit">
-                  {capacityResult
-                    ? `Fat. bruto: ${formatCurrency(capacityResult.grossMonth)}`
-                    : ""}
-                </div>
-                <div className="capacity-sub">
-                  {capacityResult
-                    ? `Fat. líquido: ${formatCurrency(capacityResult.netMonth)}`
-                    : ""}
-                </div>
+            ) : (
+              <div className="cd-capacity-empty">
+                Defina o tempo de impressão para estimar a capacidade.
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

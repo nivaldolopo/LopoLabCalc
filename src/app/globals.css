@@ -1136,28 +1136,36 @@ td {
   margin-right: 4px;
 }
 
-.cd-panels {
+.cd-main {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 20px;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
   align-items: start;
 }
 
-.cd-panel {
+.cd-cost,
+.cd-side {
   min-width: 0;
 }
 
-.cd-panel .result-label {
+.cd-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
   margin-bottom: 4px;
 }
 
-.cd-price-big {
-  font-size: 30px;
-  margin-bottom: 4px;
+.cd-section-head .result-label {
+  margin-bottom: 0;
 }
 
-.cd-margin {
-  margin-bottom: 12px;
+.cd-price-caption {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  font-family: var(--font-jetbrains-mono), monospace;
 }
 
 .cd-total-row {
@@ -1182,40 +1190,83 @@ td {
   margin-bottom: 0;
 }
 
-.cd-panel .hbar-chart {
+.cd-cost .hbar-chart {
   margin: 4px 0 0;
 }
 
-.cd-capacity {
-  margin-top: 0;
+.result-label.green {
+  color: var(--green);
+}
+
+.cd-capacity-lite {
+  border: 1px solid rgba(46, 125, 50, 0.22);
+  background: rgba(46, 125, 50, 0.05);
+  border-radius: 12px;
+  padding: 12px 14px;
 }
 
 .cd-capacity-note {
   font-size: 11px;
   color: var(--muted2);
-  margin-bottom: 12px;
+  white-space: nowrap;
 }
 
-.cd-capacity .capacity-grid {
+.cd-cap-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cd-cap-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
   gap: 10px;
 }
 
-.cd-capacity .capacity-grid > div {
-  min-width: 0;
+.cd-cap-period {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
-.cd-capacity .capacity-val {
-  font-size: 19px;
+.cd-cap-pieces {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  font-family: var(--font-space-grotesk), sans-serif;
+  white-space: nowrap;
 }
 
-.cd-capacity .capacity-profit {
+.cd-cap-money {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
   font-size: 13px;
+  font-weight: 600;
+  color: var(--green);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.cd-capacity .capacity-val,
-.cd-capacity .capacity-profit,
-.cd-capacity .capacity-sub {
-  overflow-wrap: anywhere;
+.cd-cap-money em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted2);
+}
+
+.cd-capacity-empty {
+  font-size: 12px;
+  color: var(--muted2);
+  margin-top: 8px;
+}
+
+/* "/peça" ao lado do preço — só aparece no layout de cartão (mobile) */
+.per-unit-hint {
+  display: none;
 }
 
 .details-span {
@@ -1441,5 +1492,129 @@ th.col-price {
   .machine-edit-row,
   .machine-edit-header {
     grid-template-columns: 1fr 72px 62px 62px 32px;
+  }
+}
+
+/* --- Catálogo vira lista de cartões no celular --- */
+@media (max-width: 640px) {
+  .catalog-card {
+    border: none;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .table-scroll {
+    overflow-x: visible;
+  }
+
+  .catalog-card table,
+  .catalog-card tbody,
+  .catalog-card tr,
+  .catalog-card td {
+    display: block;
+    width: auto;
+    min-width: 0;
+  }
+
+  .catalog-card thead {
+    display: none;
+  }
+
+  .main-row {
+    position: relative;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--card-bg);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .main-row.open {
+    border-color: var(--accent);
+    margin-bottom: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  /* reset dos estilos de célula de tabela / sticky */
+  .main-row td,
+  .details-row td {
+    position: static;
+    border: 0;
+    background: transparent;
+    min-width: 0;
+    max-width: none;
+    padding: 0;
+    white-space: normal;
+  }
+
+  .main-row td.col-name {
+    font-size: 15px;
+    font-weight: 600;
+    padding-right: 26px;
+    margin-bottom: 2px;
+  }
+
+  .main-row td.col-price {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .per-unit-hint {
+    display: inline;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  .main-row td.col-name .arrow-icon {
+    position: absolute;
+    top: 16px;
+    right: 14px;
+    margin: 0;
+  }
+
+  .main-row td[data-label] {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    font-size: 13px;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .main-row td[data-label]::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .main-row td.col-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .details-row.open {
+    display: block;
+    border: 1px solid var(--accent);
+    border-top: 0;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    background: var(--details-bg);
+    margin-bottom: 10px;
+  }
+
+  .catalog-details {
+    padding: 12px 14px;
+  }
+
+  .cd-main {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
 }
