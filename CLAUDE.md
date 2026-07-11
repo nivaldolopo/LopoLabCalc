@@ -9,7 +9,10 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** **arredondamento do preço sugerido, salvo por produto** —
+- **Últimas mudanças relevantes:** o título **"Lopo Lab"** no `Header` virou um `<button>`
+  (classe `.brand-reset`, estilizado p/ herdar a cara do `h1`) que chama
+  `window.location.reload()` — recarrega a página e limpa os campos preenchidos. Antes:
+  **arredondamento do preço sugerido, salvo por produto** —
   campo `roundingMode` no `ProductInput` (persistido no Firestore e no CSV, coluna
   "Arredondamento"); modos "de mercado": final ,90 (psicológico), múltiplo de R$ 0,50 / R$ 1 /
   R$ 5 / R$ 10, ou exato (padrão). Lógica central em `lib/roundPrice.ts`, aplicada **dentro de
