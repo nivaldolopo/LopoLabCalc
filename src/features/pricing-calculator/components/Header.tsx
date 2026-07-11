@@ -26,7 +26,14 @@ export function Header({ theme, status, onToggleTheme }: HeaderProps) {
           </div>
           <div>
             <h1 className="sg">
-              Lopo Lab <span>✦</span>
+              <button
+                type="button"
+                className="brand-reset"
+                onClick={() => window.location.reload()}
+                title="Recarregar e limpar os campos"
+              >
+                Lopo Lab <span>✦</span>
+              </button>
             </h1>
             <div className="brand-meta">
               <span>Calculadora de Preço — Impressão 3D</span>
