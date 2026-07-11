@@ -9,13 +9,14 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** **catálogo no desktop virou lista de cartões** (espelha o
-  mobile) — cada produto é um cartão em `grid` de 7 colunas alinhadas ao cabeçalho, expande com
-  borda de destaque conectando ao detalhe; removidas colunas sticky/rolagem horizontal (ver
-  bloco em `globals.css` "Catálogo em cartões também no desktop"). **Campos numéricos não
-  aceitam mais negativos** — clamp `Math.max` no `onChange` de todos os inputs (produto, etapas,
-  acessórios, custos fixos, capacidade, máquinas). Antes: card de resultado sem preço duplicado;
-  máquinas no Firestore (`config/machines`); gráfico de custo distribui etapas nas categorias.
+- **Últimas mudanças relevantes:** **arredondamento do preço sugerido** — seletor no card de
+  resultado (`PricingResultCard`) com modos "de mercado": final ,90 (psicológico), múltiplo de
+  R$ 0,50 / R$ 1 / R$ 5 / R$ 10, ou exato (padrão); lógica em `lib/roundPrice.ts` sempre
+  arredonda **para cima** (nunca abaixo do exato → margem preservada); o card recalcula margem e
+  total do lote a partir do valor arredondado e mostra o valor exato como referência (estado
+  local, não persiste). Antes: catálogo no desktop virou lista de cartões (espelha o mobile);
+  campos numéricos não aceitam negativos (clamp `Math.max`); card de resultado sem preço
+  duplicado; máquinas no Firestore (`config/machines`).
 - **Em andamento / próximos passos:** nada pendente. (Decidido: **não** é preciso reentrar os
   produtos — eles guardam só as entradas brutas; os cálculos são refeitos ao vivo e estão corretos.)
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
