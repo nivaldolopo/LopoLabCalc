@@ -82,9 +82,7 @@ export function ProductForm({
           value={product.weightG}
           onChange={(weightG) => onChange({ weightG })}
         />
-        <NumberField
-          label="⏱ Tempo de impressão (h)"
-          step="0.1"
+        <PrintTimeField
           value={product.printHours}
           onChange={(printHours) => onChange({ printHours })}
         />
@@ -178,6 +176,49 @@ export function ProductForm({
             </button>
           </>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+function PrintTimeField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const minutes = Math.round(value * 60);
+  return (
+    <div>
+      <label className="section-label">⏱ Tempo de impressão</label>
+      <div className="time-inputs">
+        <div className="time-input-part">
+          <input
+            className="field-input"
+            min={0}
+            step="0.1"
+            type="number"
+            value={value}
+            onChange={(event) =>
+              onChange(Math.max(0, Number(event.target.value) || 0))
+            }
+          />
+          <span className="time-unit">h</span>
+        </div>
+        <div className="time-input-part">
+          <input
+            className="field-input"
+            min={0}
+            step="1"
+            type="number"
+            value={minutes}
+            onChange={(event) =>
+              onChange(Math.max(0, (Number(event.target.value) || 0) / 60))
+            }
+          />
+          <span className="time-unit">min</span>
+        </div>
       </div>
     </div>
   );
