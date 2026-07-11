@@ -20,6 +20,12 @@ import {
 } from "../lib/productCsv";
 import { CostBars } from "./CostBars";
 
+// Diário pode ser fracionário (mesa que dura mais de um dia). Até 1 casa, sem
+// zeros à toa: 4 → "4", 0.25 → "0,3".
+function formatCount(value: number): string {
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+}
+
 type ProductCatalogProps = {
   products: SavedProduct[];
   machines: Machine[];
@@ -354,7 +360,7 @@ function CatalogDetails({
                 <div className="cd-cap-row">
                   <span className="cd-cap-period">☀️ Diário</span>
                   <span className="cd-cap-pieces">
-                    {capacityResult.piecesDay} pçs
+                    {formatCount(capacityResult.piecesDay)} pçs
                   </span>
                   <span className="cd-cap-money">
                     líq. {formatCurrency(capacityResult.netDay)}
