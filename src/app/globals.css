@@ -1161,11 +1161,40 @@ td {
   margin-bottom: 0;
 }
 
-.cd-price-caption {
-  font-size: 13px;
-  font-weight: 600;
+.cd-price-highlight {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(255, 107, 53, 0.08);
+  border: 1px solid rgba(255, 107, 53, 0.22);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.cd-ph-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   color: var(--accent);
-  font-family: var(--font-jetbrains-mono), monospace;
+}
+
+.cd-ph-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.1;
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
+.cd-ph-margin {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cd-comp-label {
+  margin-bottom: 4px;
 }
 
 .cd-total-row {
@@ -1520,13 +1549,17 @@ th.col-price {
     display: none;
   }
 
+  /* cartão colapsado = só Nome + Preço/peça (tipo dropdown) */
   .main-row {
-    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 10px;
     border: 1px solid var(--border-soft);
     border-radius: 12px;
     background: var(--card-bg);
-    padding: 14px 16px;
-    margin-bottom: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
   }
 
   .main-row.open {
@@ -1549,36 +1582,43 @@ th.col-price {
   }
 
   .main-row td.col-name {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
     font-size: 15px;
     font-weight: 600;
-    padding-right: 26px;
-    margin-bottom: 2px;
   }
 
   .main-row td.col-price {
-    font-size: 24px;
+    flex: 0 0 auto;
+    font-size: 18px;
     font-weight: 700;
     color: var(--accent);
-    margin-bottom: 10px;
+    text-align: right;
   }
 
   .per-unit-hint {
     display: inline;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--muted);
-    margin-left: 4px;
+    margin-left: 3px;
   }
 
   .main-row td.col-name .arrow-icon {
-    position: absolute;
-    top: 16px;
-    right: 14px;
     margin: 0;
   }
 
-  .main-row td[data-label] {
+  /* campos e ações só aparecem ao expandir → lista curta com muitos produtos */
+  .main-row td[data-label],
+  .main-row td.col-actions {
+    display: none;
+  }
+
+  .main-row.open td[data-label] {
     display: flex;
+    flex-basis: 100%;
     justify-content: space-between;
     gap: 12px;
     padding: 6px 0;
@@ -1586,14 +1626,19 @@ th.col-price {
     border-top: 1px solid var(--border-soft);
   }
 
-  .main-row td[data-label]::before {
+  .main-row.open td.col-price {
+    margin-bottom: 8px;
+  }
+
+  .main-row.open td[data-label]::before {
     content: attr(data-label);
     color: var(--muted);
     font-weight: 500;
   }
 
-  .main-row td.col-actions {
+  .main-row.open td.col-actions {
     display: flex;
+    flex-basis: 100%;
     justify-content: flex-end;
     gap: 8px;
     margin-top: 12px;

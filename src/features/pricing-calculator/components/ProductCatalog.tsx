@@ -303,13 +303,16 @@ function CatalogDetails({
 
       <div className="cd-main">
         <div className="cd-cost">
-          <div className="cd-section-head">
-            <span className="result-label">Composição do custo</span>
-            <span className="cd-price-caption">
-              {formatCurrency(result.suggestedPrice)}/peça · margem{" "}
-              {result.margin.toFixed(0)}%
+          <div className="cd-price-highlight">
+            <span className="cd-ph-label">💰 Preço sugerido / peça</span>
+            <span className="cd-ph-value">
+              {formatCurrency(result.suggestedPrice)}
+            </span>
+            <span className="cd-ph-margin">
+              margem de {result.margin.toFixed(0)}% sobre o preço final
             </span>
           </div>
+          <div className="result-label cd-comp-label">Composição do custo</div>
           <CostBars result={result} />
           <div className="cd-total-row">
             <span>Custo total / peça</span>
