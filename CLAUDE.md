@@ -9,11 +9,13 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** repositório GitHub criado e conectado; pipeline de deploy
-  configurado via **integração Git nativa da Vercel** (push na `main` → deploy de produção);
-  variáveis do Firebase cadastradas na Vercel (Production); `vercel.json` fixando o framework
-  Next.js (corrigiu erro de build herdado da versão HTML antiga).
-- **Em andamento / próximos passos:** nada pendente.
+- **Últimas mudanças relevantes:** UI do catálogo reformulada (tabela desktop + cartões no
+  mobile; expansão espelha a aba "Preço sugerido"); gráfico de custo distribui as etapas nas
+  categorias (sem balde "Etapas"); produto padrão ajustado; nova etapa entra zerada;
+  **máquinas agora sincronizam no Firestore** (`config/machines`) — antes eram só localStorage,
+  o que causava watts/energia divergentes entre dispositivos.
+- **Em andamento / próximos passos:** pendente da lista do usuário — avaliar se vale **reentrar
+  os produtos** para garantir cálculos corretos após as mudanças.
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
   cadastradas (por decisão — só mantemos Production; ver Diretriz 1). Nada quebrado.
 
@@ -45,7 +47,8 @@ src/
     lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv
     constants.ts, types.ts
   lib/
-    firebase/               # client.ts (init + db), productsRepository.ts (CRUD + subscribe)
+    firebase/               # client.ts (init + db), productsRepository.ts (CRUD + subscribe),
+                            #   machinesRepository.ts (doc config/machines, realtime)
     formatting/currency.ts
 ```
 
@@ -54,6 +57,11 @@ src/
   variáveis `NEXT_PUBLIC_FIREBASE_*` (com fallback embutido para os valores reais).
 - `src/lib/firebase/productsRepository.ts` — coleção `products` no Firestore;
   `subscribeProducts` (realtime via `onSnapshot`), `createProduct`, `saveProduct`, `removeProduct`.
+- `src/lib/firebase/machinesRepository.ts` — documento único `config/machines` (campo `items`);
+  `subscribeMachines` (realtime; retorna `null` se o doc não existe, p/ o hook semear/migrar) e
+  `persistMachines`. O hook `useMachines` semeia do localStorage/`DEFAULT_MACHINES` na 1ª vez e
+  cai pra fallback local em caso de erro. **Máquinas são compartilhadas entre dispositivos** —
+  editar watts recalcula energia/desgaste de todos os produtos (que guardam só `machineId`).
 - Toda a lógica de cálculo vive em `features/pricing-calculator/lib/`.
 
 ## Diretrizes de trabalho
