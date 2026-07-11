@@ -270,6 +270,7 @@ export function PricingCalculator() {
           capacitySettings={capacitySettings}
           capacityResult={capacityResult}
           roundingMode={form.product.roundingMode}
+          printHours={totalPrintHours}
           onRoundingModeChange={(mode) =>
             form.updateProduct({ roundingMode: mode })
           }

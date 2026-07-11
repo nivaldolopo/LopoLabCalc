@@ -20,6 +20,7 @@ import {
   parseProductsCsv,
 } from "../lib/productCsv";
 import { CostBars } from "./CostBars";
+import { ProfitSummary } from "./ProfitSummary";
 
 // Diário pode ser fracionário (mesa que dura mais de um dia). Até 1 casa, sem
 // zeros à toa: 4 → "4", 0.25 → "0,3".
@@ -281,13 +282,6 @@ function CatalogDetails({
       stages.reduce((sum, stage) => sum + (stage.printHours || 0), 0),
   );
 
-  // Rentabilidade: lucro por peça, pelo lote inteiro e por hora de máquina
-  // (esta última diz qual produto "rende mais" ocupando a impressora).
-  const profitPerPiece = result.suggestedPrice - result.totalCost;
-  const profitBatch = profitPerPiece * result.pieces;
-  const profitPerHour = totalHours > 0 ? profitBatch / totalHours : 0;
-  const profitClass = profitPerPiece < 0 ? "sale-neg" : "sale-pos";
-
   const totalFixedMonth = fixedCosts.rent + fixedCosts.other;
   const breakEvenUnits =
     totalFixedMonth > 0 && result.contributionMargin > 0
@@ -397,46 +391,13 @@ function CatalogDetails({
               </div>
             )}
           </div>
-          <div className="cd-profit-card">
-            <div className="cd-section-head">
-              <span className="result-label">💵 Rentabilidade</span>
-            </div>
-            <div className="cd-profit-rows">
-              <div className="cd-profit-row">
-                <span className="cd-profit-label">Lucro / peça</span>
-                <span className={`cd-profit-value ${profitClass}`}>
-                  {formatCurrency(profitPerPiece)}
-                </span>
-              </div>
-              <div className="cd-profit-row">
-                <span className="cd-profit-label">Lucro / hora de máquina</span>
-                <span className={`cd-profit-value ${profitClass}`}>
-                  {formatCurrency(profitPerHour)}
-                  <em>/h</em>
-                </span>
-              </div>
-              {result.pieces > 1 ? (
-                <div className="cd-profit-row">
-                  <span className="cd-profit-label">
-                    Lucro do lote ({result.pieces} pçs)
-                  </span>
-                  <span className={`cd-profit-value ${profitClass}`}>
-                    {formatCurrency(profitBatch)}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <ProfitSummary result={result} printHours={totalHours} />
           <button
             className="btn primary cd-register-sale"
             type="button"
             onClick={() => onRegisterSale(product, result)}
           >
-            <Receipt size={18} />
-            <span className="cd-rs-text">
-              <span className="cd-rs-title">Registrar venda</span>
-              <span className="cd-rs-sub">Congela custo e preço agora</span>
-            </span>
+            <Receipt size={16} /> Registrar venda
           </button>
         </div>
       </div>

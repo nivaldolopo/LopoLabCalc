@@ -11,6 +11,7 @@ import type {
 import { ROUNDING_OPTIONS } from "../lib/roundPrice";
 import { CapacityPanel } from "./CapacityPanel";
 import { CostBars } from "./CostBars";
+import { ProfitSummary } from "./ProfitSummary";
 
 type PricingResultCardProps = {
   result: PricingResult;
@@ -18,6 +19,7 @@ type PricingResultCardProps = {
   capacitySettings: CapacitySettings;
   capacityResult: CapacityResult | null;
   roundingMode: RoundingMode;
+  printHours: number;
   onRoundingModeChange: (mode: RoundingMode) => void;
   onCapacityChange: (patch: Partial<CapacitySettings>) => void;
   onRegisterSale: () => void;
@@ -29,6 +31,7 @@ export function PricingResultCard({
   capacitySettings,
   capacityResult,
   roundingMode,
+  printHours,
   onRoundingModeChange,
   onCapacityChange,
   onRegisterSale,
@@ -112,6 +115,8 @@ export function PricingResultCard({
           </div>
         </div>
       ) : null}
+
+      <ProfitSummary result={result} printHours={printHours} />
 
       <CapacityPanel
         settings={capacitySettings}

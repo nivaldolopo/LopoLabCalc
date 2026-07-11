@@ -1376,7 +1376,6 @@ td {
 .cd-profit-card {
   margin-top: 14px;
   border: 1px solid var(--border);
-  background: var(--card-bg);
   border-radius: 12px;
   padding: 16px 18px;
 }
@@ -1902,26 +1901,6 @@ td.col-actions {
 .cd-register-sale {
   width: 100%;
   margin-top: 14px;
-  padding: 13px 16px;
-  gap: 10px;
-}
-
-.cd-rs-text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.25;
-}
-
-.cd-rs-title {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.cd-rs-sub {
-  font-size: 11px;
-  font-weight: 500;
-  opacity: 0.9;
 }
 
 .sale-neg {
