@@ -36,15 +36,26 @@ export function defaultMaintenanceForId(id: string): number {
   return DEFAULT_MAINTENANCE_BY_ID[id] ?? DEFAULT_MAINTENANCE_PER_HOUR;
 }
 
-// Vida útil (horas) usada na DEPRECIAÇÃO (preço ÷ lifeHours = custo/hora da máquina).
-// É só a parte ESTRUTURAL/econômica — os consumíveis (bico, placa PEI, filtro) já
-// entram à parte em maintenancePerHour, então NÃO limitam este número.
-// Validado (jul/2026) com pesquisa: FDM de consumo dura ~5.000–10.000h antes de
-// revisão maior (profissional >15.000h); peças estruturais das Bambu vão além
-// (motores >10.000h, mainboard raramente falha). A referência que faz este MESMO
-// cálculo (preço ÷ horas = custo de desgaste) adota 10.000h como baseline. Os
-// 5.000h antigos eram conservadores demais (dobravam a conta, já que consumível é
-// separado) → 10.000h. Editável por máquina na "Gerenciar impressoras".
+// Máquinas padrão. Todos os campos abaixo foram AUDITADOS por pesquisa (jul/2026):
+//
+// • price (depreciação) — preço REAL de tabela no Brasil: A1 Combo R$5.299 (lojas
+//   oficiais; ~R$4.769 no Pix) e X2D Combo R$13.999 (3D Fila/GTMax/ML). Batem.
+//
+// • lifeHours (depreciação: preço ÷ lifeHours = custo/hora) — só a parte ESTRUTURAL/
+//   econômica; consumíveis (bico, placa PEI, filtro) entram à parte em
+//   maintenancePerHour, então NÃO limitam este número. FDM de consumo dura
+//   ~5.000–10.000h antes de revisão maior (profissional >15.000h); peças estruturais
+//   das Bambu vão além (motores >10.000h). A referência que faz este MESMO cálculo
+//   adota 10.000h. Os 5.000h antigos eram conservadores demais (dobravam a conta) →
+//   corrigido p/ 10.000h.
+//
+// • watts (energia: horas × watts/1000 × tarifa) — MÉDIA durante a impressão de PLA,
+//   NÃO o pico de aquecimento (rótulo do X2D diz 1600W, mas isso é rajada de 3-5 min
+//   de mesa/câmara). Média medida real: A1 ~70-95W (câmara aberta, PLA); classe
+//   fechada (P1/X2D com câmara DESLIGADA p/ PLA) ~100-150W. Os 95W/150W ficam no
+//   TOPO da faixa → levemente conservadores (superestimam pouco a energia; nunca
+//   subprecificam). Energia é componente pequeno do custo, então o impacto é de
+//   centavos. Câmara aquecida (ABS/PC) puxaria muito mais — não é o caso (quase só PLA).
 export const DEFAULT_MACHINES: Machine[] = [
   { id: "a1", name: "A1 Combo", price: 5299, lifeHours: 10000, watts: 95, maintenancePerHour: 0.12 },
   { id: "x2d", name: "X2D Combo", price: 13999, lifeHours: 10000, watts: 150, maintenancePerHour: 0.2 },
@@ -65,6 +76,15 @@ export const DEFAULT_CAPACITY: CapacitySettings = {
   machines: 1,
 };
 
+// Valores iniciais de um produto novo. weightG/printHours/laborMinutes são só
+// placeholders (o usuário informa por produto). Os defaults abaixo foram auditados:
+// • filamentPricePerKg 110 — PLA no Brasil (jul/2026) custa R$80–130/kg; premium
+//   (Voolt/Slim/3DFila) ~R$105–128. R$110 é o centro do mercado. ✓
+// • energyTariff 0,80 R$/kWh — média nacional residencial ~R$0,68 (faixa R$0,41 a
+//   >R$1,40 por região). R$0,80 é levemente conservador (conta com ICMS/PIS-COFINS +
+//   bandeira chega lá). Ideal: o usuário põe o valor da PRÓPRIA conta de luz.
+// • markup 3 (3×) e laborRate 30 R$/h são DECISÕES de negócio, não "fatos" — 2–4× é
+//   a faixa típica de markup em impressão 3D; ambos editáveis.
 export const DEFAULT_PRODUCT_INPUT: ProductInput = {
   name: "",
   mainStageName: "",
