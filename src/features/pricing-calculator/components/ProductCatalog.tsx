@@ -154,7 +154,7 @@ export function ProductCatalog({
                 <th className="col-name">Produto</th>
                 <th className="col-price">Preço/peça</th>
                 <th>Peças</th>
-                <th>Custo total</th>
+                <th>Custo/peça</th>
                 <th>Margem</th>
                 <th>Máquina</th>
                 <th className="col-actions">Ações</th>
@@ -186,7 +186,7 @@ export function ProductCatalog({
                       <td className="mono muted" data-label="Peças/impressão">
                         {result.pieces > 1 ? `${result.pieces}x` : "—"}
                       </td>
-                      <td className="mono" data-label="Custo total">
+                      <td className="mono" data-label="Custo/peça">
                         {formatCurrency(result.totalCost)}
                       </td>
                       <td className="mono muted" data-label="Margem">
@@ -280,6 +280,9 @@ function CatalogDetails({
   return (
     <div className="catalog-details">
       <div className="cd-meta">
+        <span>
+          <span className="db-label">Máquina</span> {result.machine.name}
+        </span>
         <span>
           <span className="db-label">Markup</span> {product.markup.toFixed(1)}x
         </span>

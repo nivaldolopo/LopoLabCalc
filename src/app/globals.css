@@ -1537,9 +1537,7 @@ th.col-price {
   }
 
   .catalog-card table,
-  .catalog-card tbody,
-  .catalog-card tr,
-  .catalog-card td {
+  .catalog-card tbody {
     display: block;
     width: auto;
     min-width: 0;
@@ -1572,6 +1570,7 @@ th.col-price {
   /* reset dos estilos de célula de tabela / sticky */
   .main-row td,
   .details-row td {
+    display: block;
     position: static;
     border: 0;
     background: transparent;
@@ -1582,20 +1581,24 @@ th.col-price {
   }
 
   .main-row td.col-name {
-    flex: 1 1 auto;
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
+    flex: 1 1 0;
+    min-width: 0;
     font-size: 15px;
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .main-row td.col-name .arrow-icon {
+    margin: 0 4px 0 0;
   }
 
   .main-row td.col-price {
     flex: 0 0 auto;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
     color: var(--accent);
-    text-align: right;
   }
 
   .per-unit-hint {
@@ -1606,34 +1609,10 @@ th.col-price {
     margin-left: 3px;
   }
 
-  .main-row td.col-name .arrow-icon {
-    margin: 0;
-  }
-
-  /* campos e ações só aparecem ao expandir → lista curta com muitos produtos */
+  /* fechado = só nome + preço/peça numa linha; o resto aparece ao expandir */
   .main-row td[data-label],
   .main-row td.col-actions {
     display: none;
-  }
-
-  .main-row.open td[data-label] {
-    display: flex;
-    flex-basis: 100%;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 6px 0;
-    font-size: 13px;
-    border-top: 1px solid var(--border-soft);
-  }
-
-  .main-row.open td.col-price {
-    margin-bottom: 8px;
-  }
-
-  .main-row.open td[data-label]::before {
-    content: attr(data-label);
-    color: var(--muted);
-    font-weight: 500;
   }
 
   .main-row.open td.col-actions {
