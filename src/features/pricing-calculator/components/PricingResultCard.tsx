@@ -30,10 +30,14 @@ export function PricingResultCard({
     totalFixedMonth > 0 && result.contributionMargin > 0
       ? Math.ceil(totalFixedMonth / result.contributionMargin)
       : null;
+  const multiPiece = result.pieces > 1;
+  const batchTotal = result.suggestedPrice * result.pieces;
 
   return (
     <div className="result-card">
-      <div className="result-label">Preço sugerido</div>
+      <div className="result-label">
+        Preço sugerido{multiPiece ? " (por peça)" : ""}
+      </div>
       <div className="result-price sg">{formatCurrency(result.suggestedPrice)}</div>
       <div className="result-margin">
         margem de {result.margin.toFixed(0)}% sobre o preço final
@@ -52,17 +56,17 @@ export function PricingResultCard({
       <CostBars result={result} />
 
       <div className="breakdown-total">
-        <span>Custo total</span>
+        <span>Custo total{multiPiece ? " (por peça)" : ""}</span>
         <span className="mono">{formatCurrency(result.totalCost)}</span>
       </div>
 
-      {result.pieces > 1 ? (
+      {multiPiece ? (
         <div className="per-piece-row">
           <div className="per-piece-label">
-            Por peça ({result.pieces} peças/impressão)
+            Total da impressão ({result.pieces} peças)
           </div>
           <div className="result-price sg small">
-            {formatCurrency(result.suggestedPrice)}
+            {formatCurrency(batchTotal)}
           </div>
         </div>
       ) : null}
