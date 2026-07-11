@@ -882,7 +882,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 .hbar-row {
   display: grid;
-  grid-template-columns: 90px 1fr 70px;
+  grid-template-columns: 104px 1fr 70px;
   gap: 8px;
   align-items: center;
   font-size: 12px;
@@ -891,9 +891,7 @@ input[type="range"]::-webkit-slider-thumb {
 .hbar-label {
   color: var(--muted);
   text-align: right;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .hbar-track {
