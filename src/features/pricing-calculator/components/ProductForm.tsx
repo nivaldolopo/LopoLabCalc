@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Save, X } from "lucide-react";
+import { useState } from "react";
 import type { Machine, PrintStage, ProductInput } from "../types";
 import { AccessoriesSection } from "./AccessoriesSection";
 import { ExtraStagesSection } from "./ExtraStagesSection";
@@ -188,37 +189,32 @@ function PrintTimeField({
   value: number;
   onChange: (value: number) => void;
 }) {
-  const minutes = Math.round(value * 60);
+  const [unit, setUnit] = useState<"h" | "min">("h");
+  const displayValue = unit === "h" ? value : Math.round(value * 60);
+
   return (
     <div>
       <label className="section-label">⏱ Tempo de impressão</label>
       <div className="time-inputs">
-        <div className="time-input-part">
-          <input
-            className="field-input"
-            min={0}
-            step="0.1"
-            type="number"
-            value={value}
-            onChange={(event) =>
-              onChange(Math.max(0, Number(event.target.value) || 0))
-            }
-          />
-          <span className="time-unit">h</span>
-        </div>
-        <div className="time-input-part">
-          <input
-            className="field-input"
-            min={0}
-            step="1"
-            type="number"
-            value={minutes}
-            onChange={(event) =>
-              onChange(Math.max(0, (Number(event.target.value) || 0) / 60))
-            }
-          />
-          <span className="time-unit">min</span>
-        </div>
+        <input
+          className="field-input"
+          min={0}
+          step={unit === "h" ? "0.1" : "1"}
+          type="number"
+          value={displayValue}
+          onChange={(event) => {
+            const raw = Math.max(0, Number(event.target.value) || 0);
+            onChange(unit === "h" ? raw : raw / 60);
+          }}
+        />
+        <select
+          className="field-input time-unit-select"
+          value={unit}
+          onChange={(event) => setUnit(event.target.value as "h" | "min")}
+        >
+          <option value="h">horas</option>
+          <option value="min">minutos</option>
+        </select>
       </div>
     </div>
   );

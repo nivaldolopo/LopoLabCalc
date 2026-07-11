@@ -311,27 +311,13 @@ h1 span {
 
 .time-inputs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr auto;
   gap: 8px;
 }
 
-.time-input-part {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.time-input-part .field-input {
-  padding-right: 36px;
-}
-
-.time-unit {
-  position: absolute;
-  right: 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  pointer-events: none;
+.time-unit-select {
+  width: auto;
+  cursor: pointer;
 }
 
 .machine-row {
