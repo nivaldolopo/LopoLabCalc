@@ -38,10 +38,12 @@ export function AccessoriesSection({
         <div className="section-note">
           Componentes que somam ao custo (ex: corrente e argola de chaveiro,
           teclas de teclado). Informe descrição, quantidade e preço unitário.
+          A <strong>quantidade é por peça</strong> (não o total da mesa): se cada
+          peça leva 1 argola, informe 1 — mesmo imprimindo várias por mesa.
         </div>
         <div className="acc-header">
           <span>Descrição</span>
-          <span>Qtd</span>
+          <span>Qtd/peça</span>
           <span>R$/un</span>
           <span />
         </div>
