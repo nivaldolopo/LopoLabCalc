@@ -1120,6 +1120,7 @@ td {
 .catalog-details {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-soft);
+  white-space: normal;
 }
 
 .cd-meta {
