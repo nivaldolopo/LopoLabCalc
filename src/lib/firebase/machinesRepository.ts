@@ -6,18 +6,27 @@ import {
 } from "firebase/firestore";
 import { db } from "./client";
 import type { Machine } from "@/features/pricing-calculator/types";
+import { defaultMaintenanceForId } from "@/features/pricing-calculator/constants";
 
 // As máquinas ficam num único documento (a lista é editada como um todo na modal).
 const machinesDoc = doc(db, "config", "machines");
 
 function toMachine(data: DocumentData): Machine {
+  const id = String(data.id ?? "");
+  // Docs anteriores ao recurso não têm o campo → semeia o default pesquisado.
+  // Valor explícito (inclusive 0) é respeitado.
+  const maintenancePerHour =
+    data.maintenancePerHour === undefined || data.maintenancePerHour === null
+      ? defaultMaintenanceForId(id)
+      : Number(data.maintenancePerHour) || 0;
+
   return {
-    id: String(data.id ?? ""),
+    id,
     name: data.name ?? "",
     price: Number(data.price) || 0,
     lifeHours: Number(data.lifeHours) || 0,
     watts: Number(data.watts) || 0,
-    maintenancePerHour: Number(data.maintenancePerHour) || 0,
+    maintenancePerHour,
   };
 }
 

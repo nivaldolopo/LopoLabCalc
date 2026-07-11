@@ -14,7 +14,11 @@
   **(1) Reserva de manutenção** — novo campo `maintenancePerHour` por máquina (editável na
   `MachineManagerModal`, compartilhado via Firestore como watts). Entra no custo como
   `horas × R$/h`, **separado da depreciação** (que é só a compra da máquina). Nova barra
-  "Manutenção" no `CostBars`. **(2) Taxa de falha** — campo `failureRate` (%) por produto
+  "Manutenção" no `CostBars`. Defaults **pesquisados** (preços reais BR + vida útil): A1
+  R$0,50/h, X2D R$0,85/h (`DEFAULT_MAINTENANCE_BY_ID` + `defaultMaintenanceForId`).
+  **Backfill**: máquina cujo doc não tem o campo assume o default por id ao ler
+  (`toMachine`), então máquinas antigas já vêm com o valor sem reentrada; valor explícito
+  (inclusive 0) é respeitado. **(2) Taxa de falha** — campo `failureRate` (%) por produto
   (`ProductForm`, default **5%** via `DEFAULT_FAILURE_RATE`). Dentro de `calculatePricing`,
   divide o custo de **impressão** (material+energia+desgaste+manutenção+mão de obra, **exceto
   acessórios**) por `(1 − taxa)` — clamp em 95%. Nova barra "Reserva de falha". Ambos os

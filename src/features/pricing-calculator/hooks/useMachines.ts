@@ -5,7 +5,11 @@ import {
   persistMachines,
   subscribeMachines,
 } from "@/lib/firebase/machinesRepository";
-import { DEFAULT_MACHINES, MACHINE_STORAGE_KEY } from "../constants";
+import {
+  DEFAULT_MACHINES,
+  MACHINE_STORAGE_KEY,
+  defaultMaintenanceForId,
+} from "../constants";
 import type { Machine } from "../types";
 
 function cloneMachines(machines: Machine[]): Machine[] {
@@ -17,7 +21,15 @@ function readLocalMachines(): Machine[] | null {
     const raw = window.localStorage.getItem(MACHINE_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed as Machine[];
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return (parsed as Machine[]).map((machine) => ({
+        ...machine,
+        maintenancePerHour:
+          typeof machine.maintenancePerHour === "number"
+            ? machine.maintenancePerHour
+            : defaultMaintenanceForId(machine.id),
+      }));
+    }
   } catch {
     // ignora cache inválido
   }
