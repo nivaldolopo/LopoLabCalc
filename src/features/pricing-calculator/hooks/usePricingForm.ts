@@ -25,7 +25,7 @@ function createStage(index: number, data?: Partial<PrintStage>): PrintStage {
     machineId: data?.machineId ?? "a1",
     weightG: data?.weightG ?? 20,
     printHours: data?.printHours ?? 1,
-    filamentPricePerKg: data?.filamentPricePerKg ?? 100,
+    filamentPricePerKg: data?.filamentPricePerKg ?? 110,
     laborMinutes: data?.laborMinutes ?? 5,
     energyTariff: data?.energyTariff,
     laborRate: data?.laborRate,
