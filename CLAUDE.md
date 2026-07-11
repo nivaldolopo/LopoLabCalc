@@ -10,10 +10,11 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
 - **Últimas mudanças relevantes:** o campo **"Tempo de impressão"** no `ProductForm`
-  agora tem **dois inputs (h e min)** que são duas vistas do mesmo `printHours` (decimal):
-  editar min grava `printHours = min/60`; editar h grava direto. Permite digitar em minutos
-  impressões curtas e manter a hora decimal para impressões de `x.y` horas. Componente
-  `PrintTimeField` (ProductForm.tsx) + CSS `.time-inputs`/`.time-unit`. Antes:
+  agora é **um input + um select de unidade (horas/minutos)**. Digita o número e escolhe a
+  unidade; ao trocar a unidade o valor se converte sozinho. Continua gravando `printHours`
+  em horas decimais (minutos → `printHours = min/60`). Componente `PrintTimeField`
+  (ProductForm.tsx, usa `useState` p/ a unidade) + CSS `.time-inputs`/`.time-unit-select`.
+  Antes:
   o título **"Lopo Lab"** no `Header` virou um `<button>`
   (classe `.brand-reset`, estilizado p/ herdar a cara do `h1`) que chama
   `window.location.reload()` — recarrega a página e limpa os campos preenchidos. Antes:
