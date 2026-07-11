@@ -9,7 +9,12 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** o título **"Lopo Lab"** no `Header` virou um `<button>`
+- **Últimas mudanças relevantes:** o campo **"Tempo de impressão"** no `ProductForm`
+  agora tem **dois inputs (h e min)** que são duas vistas do mesmo `printHours` (decimal):
+  editar min grava `printHours = min/60`; editar h grava direto. Permite digitar em minutos
+  impressões curtas e manter a hora decimal para impressões de `x.y` horas. Componente
+  `PrintTimeField` (ProductForm.tsx) + CSS `.time-inputs`/`.time-unit`. Antes:
+  o título **"Lopo Lab"** no `Header` virou um `<button>`
   (classe `.brand-reset`, estilizado p/ herdar a cara do `h1`) que chama
   `window.location.reload()` — recarrega a página e limpa os campos preenchidos. Antes:
   **arredondamento do preço sugerido, salvo por produto** —
