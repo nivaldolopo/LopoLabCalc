@@ -9,8 +9,19 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** adicionadas duas melhorias de precificação
-  (ideias do brainstorm com ChatGPT — as demais ficaram como backlog):
+- **Últimas mudanças relevantes:** **Backlog item 1 — Captura de venda + Histórico
+  (Fase 1a).** Nova coleção Firestore `vendas` (foto CONGELADA no momento da venda —
+  não referencia o produto vivo). `salesRepository.ts` (subscribe/create/update/remove),
+  hook `useSales`, tipos `Sale`/`SalePayload`/`SaleCostBreakdown`/`PaymentMethod`/`SaleChannel`
+  em `types.ts`, constantes `PAYMENT_METHODS`/`SALE_CHANNELS`. Botão **"Registrar venda"** no
+  `PricingResultCard` abre `SaleModal` (cliente, material, canal, forma de pagamento, qtd,
+  data, preço editável pré-preenchido com o sugerido, obs; mostra receita/custo/lucro ao
+  vivo). Grava snapshot com **preço sugerido + preço real** e o **detalhamento de custo
+  inteiro** (pro dashboard futuro). Nova rota **`/vendas`** (`SalesPage`) com totais, tabela
+  do histórico, excluir e export CSV; link no `Header` (`.header-actions`). A calculadora e
+  o catálogo continuam **intocados** (recálculo ao vivo é proposital — ferramenta de aferição).
+  `reciboId` por venda já preparado pra Fase 1b (cesta/recibo). **Antes:** adicionadas duas
+  melhorias de precificação (ideias do brainstorm com ChatGPT — as demais no backlog):
   **(1) Reserva de manutenção** — novo campo `maintenancePerHour` por máquina (editável na
   `MachineManagerModal`, compartilhado via Firestore como watts). Entra no custo como
   `horas × R$/h`, **separado da depreciação** (que é só a compra da máquina). Nova barra
@@ -40,10 +51,11 @@
   usam o mesmo preço automaticamente; o seletor fica no card (`PricingResultCard`) e grava no
   produto via `form.updateProduct`. Produtos antigos sem o campo caem em "exact". Antes:
   catálogo no desktop virou lista de cartões; campos sem negativos (clamp `Math.max`).
-- **Em andamento / próximos passos:** nada em execução. **Backlog reavaliado (jul/2026)** logo
-  abaixo — negócio **já vendendo**, então a prioridade acordada é o **item 1 (captura de venda +
-  histórico, rota `/vendas`)**; ainda não iniciado. (Decidido: **não** é preciso reentrar os
-  produtos — eles guardam só as entradas brutas; os cálculos são refeitos ao vivo e corretos.)
+- **Em andamento / próximos passos:** **item 1 Fase 1a concluída** (captura de venda +
+  histórico). Próximo: **Fase 1b — cesta/recibo** (vários produtos num mesmo `reciboId`),
+  que encosta no item 2 (PDF). Também pendente na 1a, se quiser: editar cliente/obs de uma
+  venda já registrada (hoje só exclui). (Decidido: **não** é preciso reentrar os produtos —
+  eles guardam só as entradas brutas; os cálculos são refeitos ao vivo e corretos.)
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
   cadastradas (por decisão — só mantemos Production; ver Diretriz 1). Nada quebrado.
 
@@ -71,11 +83,11 @@
 
 **Ordem recomendada:**
 
-1. **Captura de venda + Histórico** *(rota `/vendas`)* — **prioridade, começar já.** Botão
-   "marcar como vendido" no card que **congela** um snapshot (data, cliente, produto, material,
-   máquina, horas, custo, preço, lucro, margem, status) numa coleção nova `vendas` no Firestore.
-   UI mínima: só o registro + uma lista/tabela. É a fundação dos itens 3 e 4. Transforma a
-   calculadora de "cotação efêmera" em ferramenta de gestão.
+1. **Captura de venda + Histórico** *(rota `/vendas`)* — **Fase 1a ✅ FEITA.** Botão
+   "Registrar venda" no card → `SaleModal` congela snapshot em `vendas` (Firestore); rota
+   `/vendas` com totais, tabela, excluir e CSV. Fundação dos itens 3 e 4.
+   **Fase 1b (pendente): cesta/recibo** — juntar vários produtos num mesmo `reciboId`
+   (schema já preparado) e, opcionalmente, editar cliente/obs de venda já registrada.
 2. **Geração de orçamento (PDF)** — **subiu na ordem** (ChatGPT punha por último). Independente
    de tudo, ganho rápido, client-side. Botão "Gerar orçamento": nº, cliente, data, itens,
    quantidade, tempo estimado, preço unitário/total, validade. Layout simples (nome + contato);
@@ -109,18 +121,21 @@ sincronizados em tempo real.
 **Estrutura:**
 ```
 src/
-  app/                      # App Router: layout.tsx, page.tsx, globals.css
+  app/                      # App Router: layout.tsx, page.tsx (calculadora),
+                            #   vendas/page.tsx (histórico), globals.css
   features/pricing-calculator/
     components/             # UI: PricingCalculator (raiz), ProductForm, ProductCatalog,
                             #     PricingResultCard, CapacityPanel, MachineSelector,
                             #     MachineManagerModal, FixedCostsPanel, AccessoriesSection,
-                            #     ExtraStagesSection, LinksSection, Header
-    hooks/                  # useProducts, usePricingForm, useMachines, useTheme
+                            #     ExtraStagesSection, LinksSection, Header,
+                            #     SaleModal (registrar venda), SalesPage (rota /vendas)
+    hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales
     lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv
     constants.ts, types.ts
   lib/
     firebase/               # client.ts (init + db), productsRepository.ts (CRUD + subscribe),
-                            #   machinesRepository.ts (doc config/machines, realtime)
+                            #   machinesRepository.ts (doc config/machines, realtime),
+                            #   salesRepository.ts (coleção `vendas`, snapshots congelados)
     formatting/currency.ts
 ```
 

@@ -20,6 +20,7 @@ type PricingResultCardProps = {
   roundingMode: RoundingMode;
   onRoundingModeChange: (mode: RoundingMode) => void;
   onCapacityChange: (patch: Partial<CapacitySettings>) => void;
+  onRegisterSale: () => void;
 };
 
 export function PricingResultCard({
@@ -30,6 +31,7 @@ export function PricingResultCard({
   roundingMode,
   onRoundingModeChange,
   onCapacityChange,
+  onRegisterSale,
 }: PricingResultCardProps) {
   const totalFixedMonth = fixedCosts.rent + fixedCosts.other;
   const breakEvenUnits =
@@ -74,6 +76,14 @@ export function PricingResultCard({
           ))}
         </select>
       </div>
+
+      <button
+        className="btn primary register-sale-btn"
+        type="button"
+        onClick={onRegisterSale}
+      >
+        🧾 Registrar venda
+      </button>
 
       {breakEvenUnits ? (
         <div className="break-even-box visible">

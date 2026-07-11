@@ -23,12 +23,14 @@ import {
 } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { validateProduct } from "../lib/validateProduct";
+import { createSale } from "@/lib/firebase/salesRepository";
 import { FixedCostsPanel } from "./FixedCostsPanel";
 import { Header } from "./Header";
 import { MachineManagerModal } from "./MachineManagerModal";
 import { PricingResultCard } from "./PricingResultCard";
 import { ProductCatalog } from "./ProductCatalog";
 import { ProductForm } from "./ProductForm";
+import { SaleModal } from "./SaleModal";
 
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
@@ -42,6 +44,7 @@ export function PricingCalculator() {
     useState<CapacitySettings>(DEFAULT_CAPACITY);
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [machineModalOpen, setMachineModalOpen] = useState(false);
+  const [saleModalOpen, setSaleModalOpen] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const totalPrintHours = useMemo(
@@ -217,6 +220,7 @@ export function PricingCalculator() {
           onCapacityChange={(patch) =>
             setCapacitySettings((current) => ({ ...current, ...patch }))
           }
+          onRegisterSale={() => setSaleModalOpen(true)}
         />
       </div>
 
@@ -238,6 +242,32 @@ export function PricingCalculator() {
           machines={machines}
           onClose={() => setMachineModalOpen(false)}
           onSave={handleSaveMachines}
+        />
+      ) : null}
+
+      {saleModalOpen ? (
+        <SaleModal
+          defaultProductName={
+            form.product.name || form.product.mainStageName || ""
+          }
+          productId={form.editingProductId ?? ""}
+          machineId={pricingResult.machine.id}
+          machineName={pricingResult.machine.name}
+          printHours={totalPrintHours}
+          suggestedPrice={pricingResult.suggestedPrice}
+          unitCost={pricingResult.totalCost}
+          costBreakdown={{
+            material: pricingResult.materialCost,
+            energy: pricingResult.energyCost,
+            depreciation: pricingResult.depreciationCost,
+            maintenance: pricingResult.maintenanceCost,
+            labor: pricingResult.laborCost,
+            accessories: pricingResult.accessoriesCost,
+            failureReserve: pricingResult.failureReserve,
+            fixed: pricingResult.fixedCost,
+          }}
+          onClose={() => setSaleModalOpen(false)}
+          onConfirm={createSale}
         />
       ) : null}
     </main>

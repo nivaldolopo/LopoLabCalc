@@ -2,7 +2,9 @@ import type {
   CapacitySettings,
   FixedCostSettings,
   Machine,
+  PaymentMethod,
   ProductInput,
+  SaleChannel,
 } from "./types";
 
 export const ACCENT = "#FF6B35";
@@ -82,3 +84,22 @@ export const DEFAULT_PRODUCT_INPUT: ProductInput = {
 
 export const MACHINE_STORAGE_KEY = "calc3d-machines";
 export const THEME_STORAGE_KEY = "calc3d-theme";
+
+// Opções de forma de pagamento e canal usadas no registro de venda.
+export const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: "pix", label: "Pix" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "debito", label: "Cartão de débito" },
+  { value: "credito", label: "Cartão de crédito" },
+  { value: "outro", label: "Outro" },
+];
+
+export const SALE_CHANNELS: { value: SaleChannel; label: string }[] = [
+  { value: "quiosque", label: "Quiosque" },
+  { value: "online", label: "Online" },
+  { value: "encomenda", label: "Encomenda" },
+  { value: "outro", label: "Outro" },
+];
+
+export const DEFAULT_PAYMENT_METHOD: PaymentMethod = "pix";
+export const DEFAULT_SALE_CHANNEL: SaleChannel = "quiosque";

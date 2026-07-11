@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Printer } from "lucide-react";
 import type { CloudStatus } from "../types";
 
@@ -43,14 +44,23 @@ export function Header({ theme, status, onToggleTheme }: HeaderProps) {
             </div>
           </div>
         </div>
-        <button
-          className="icon-label-button"
-          type="button"
-          onClick={onToggleTheme}
-        >
-          <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
-          {theme === "dark" ? "Claro" : "Escuro"}
-        </button>
+        <div className="header-actions">
+          <Link
+            className="icon-label-button"
+            href="/vendas"
+            title="Histórico de vendas"
+          >
+            <span aria-hidden="true">🧾</span> Vendas
+          </Link>
+          <button
+            className="icon-label-button"
+            type="button"
+            onClick={onToggleTheme}
+          >
+            <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
+            {theme === "dark" ? "Claro" : "Escuro"}
+          </button>
+        </div>
       </div>
       <p className="subtitle">
         Material, energia, desgaste de máquina, mão de obra e custos fixos do

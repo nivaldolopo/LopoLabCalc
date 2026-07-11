@@ -143,3 +143,58 @@ export type SortMode =
   | "za"
   | "price-desc"
   | "price-asc";
+
+// ---------------------------------------------------------------------------
+// Vendas (histórico) — cada registro é uma FOTO CONGELADA no momento da venda.
+// Não referencia o produto vivo: se um valor mudar depois na calculadora, o
+// registro da venda continua com o custo/preço que valiam quando foi vendido.
+// ---------------------------------------------------------------------------
+
+export type PaymentMethod = "dinheiro" | "pix" | "debito" | "credito" | "outro";
+
+export type SaleChannel = "quiosque" | "online" | "encomenda" | "outro";
+
+// Detalhamento do custo (por unidade), congelado. Guardado inteiro para o
+// dashboard futuro (lucro por material, custo por categoria) já nascer pronto.
+export type SaleCostBreakdown = {
+  material: number;
+  energy: number;
+  depreciation: number;
+  maintenance: number;
+  labor: number;
+  accessories: number;
+  failureReserve: number;
+  fixed: number;
+};
+
+export type SaleInput = {
+  // Agrupa itens de uma mesma compra/recibo. Na fase 1a cada venda tem o seu;
+  // a fase 1b (cesta) reaproveita este campo para juntar vários produtos.
+  reciboId: string;
+  saleDate: number; // timestamp (ms) da venda, editável
+  customer: string;
+  material: string;
+  paymentMethod: PaymentMethod;
+  channel: SaleChannel;
+  notes: string;
+  status: "concluida";
+  // Snapshot congelado do produto/precificação:
+  productId: string; // referência (informativa) ao produto do catálogo
+  productName: string;
+  machineId: string;
+  machineName: string;
+  printHours: number;
+  quantity: number;
+  suggestedPrice: number; // unitário, o que a calculadora sugeria
+  salePrice: number; // unitário, o preço real cobrado (editável no registro)
+  unitCost: number; // custo total por peça
+  costBreakdown: SaleCostBreakdown; // por unidade
+  totalCost: number; // unitCost × quantity
+  totalRevenue: number; // salePrice × quantity
+  profit: number;
+  margin: number;
+};
+
+export type SalePayload = SaleInput & { createdAt: number };
+
+export type Sale = SaleInput & { id: string; createdAt: number };
