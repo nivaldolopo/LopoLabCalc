@@ -34,10 +34,13 @@
   `NEXT_PUBLIC_FIREBASE_*`) — as envs da Vercel estavam salvas com a `apiKey` **mascarada com
   "•"** (colada oculta da UI), o que mandava chave inválida só pro Auth (`auth/api-key-not-valid`)
   enquanto o Firestore tolerava. **NÃO reintroduzir leitura dessas envs.** As 7 envs podem ser
-  excluídas na Vercel (ignoradas hoje). (b) **Popup, não redirect:** `signInWithRedirect` entrava
-  em **loop** (volta deslogado) porque o handler fica em `lopo-lab.firebaseapp.com` (domínio ≠ do
-  site) e o estado não sobrevive ao bloqueio de armazenamento de terceiro dos navegadores; popup
-  completa o handshake na própria janela. **Antes:** **Vida útil (depreciação) recalibrada:
+  excluídas na Vercel (ignoradas hoje). (b) **Login híbrido popup→redirect:** o `signIn` tenta
+  `signInWithPopup` (desktop OK); se o popup falhar (`auth/cancelled-popup-request` /
+  `popup-blocked` / etc. — comum no **mobile**), cai para `signInWithRedirect`
+  (com `getRedirectResult` no efeito). O "loop" antigo do redirect era artefato da chave
+  inválida, não do redirect em si. Também há **fallback de 8s** no `useAuth`: se o Auth não
+  resolver o estado inicial, mostra a tela de login em vez de "Carregando…" eterno (trava vista
+  em navegador mobile). **Antes:** **Vida útil (depreciação) recalibrada:
   `lifeHours` default 5000 → 10000** nas duas máquinas (`DEFAULT_MACHINES` + default de
   máquina nova na `MachineManagerModal`). Embasado em pesquisa (jul/2026): a referência que
   faz o mesmo cálculo (preço ÷ horas) usa 10.000h; FDM dura 5.000–10.000h; consumíveis já
