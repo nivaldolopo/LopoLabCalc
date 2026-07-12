@@ -10,10 +10,11 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **perf do catálogo** — cada produto é precificado **uma vez** num
-  `Map` memoizado no `PricingCalculator` (só recalcula quando produtos/máquinas/custos fixos
-  mudam), reusado pela tabela do catálogo e pela cesta de venda; antes o `calculatePricing`
-  rodava repetido por linha/lugar a cada render. Comportamento na tela idêntico.
+- **Última mudança:** **error boundaries** do App Router — `app/error.tsx` (erros de página)
+  e `app/global-error.tsx` (erros do layout raiz) mostram fallback amigável ("Tentar
+  novamente"/"Recarregar") em vez de tela branca. Antes disso, na mesma rodada: **perf do
+  catálogo** (`calculatePricing` memoizado num `Map` no `PricingCalculator`, reusado pela
+  tabela e pela cesta — sem recálculo repetido a cada render) e enxugamento deste CLAUDE.md.
 - **Concluído (macro):** itens 1 e 2 do backlog — **captura de venda + histórico**
   (`/vendas`: cesta/recibo com N itens por `reciboId`, editar recibo, CSV, snapshot congelado)
   e **orçamento em PDF** (`/orcamento`: itens de catálogo/livres, `generateQuotePdf`, histórico
