@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Printer } from "lucide-react";
 import type { CloudStatus } from "../types";
+import { LogoutButton } from "./LogoutButton";
 
 type HeaderProps = {
   theme: "dark" | "light";
@@ -60,6 +61,7 @@ export function Header({ theme, status, onToggleTheme }: HeaderProps) {
             <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
             {theme === "dark" ? "Claro" : "Escuro"}
           </button>
+          <LogoutButton />
         </div>
       </div>
       <p className="subtitle">

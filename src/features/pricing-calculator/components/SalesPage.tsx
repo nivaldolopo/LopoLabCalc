@@ -8,6 +8,7 @@ import { PAYMENT_METHODS, SALE_CHANNELS } from "../constants";
 import { useSales } from "../hooks/useSales";
 import { useTheme } from "../hooks/useTheme";
 import type { CloudStatus, Sale } from "../types";
+import { LogoutButton } from "./LogoutButton";
 
 const statusLabel: Record<CloudStatus, string> = {
   connecting: "Conectando nuvem...",
@@ -177,6 +178,7 @@ export function SalesPage() {
             <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
             {theme === "dark" ? "Claro" : "Escuro"}
           </button>
+          <LogoutButton />
         </div>
       </div>
 
