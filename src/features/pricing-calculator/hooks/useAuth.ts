@@ -19,7 +19,16 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (nextUser) => {
+    // Rede de segurança: se o Firebase Auth não resolver o estado inicial em
+    // alguns segundos (ex.: IndexedDB/armazenamento travado em certos
+    // navegadores mobile), cai para a tela de login em vez de ficar em
+    // "Carregando…" eterno. O onAuthStateChanged, quando dispara, cancela isto.
+    const fallback = window.setTimeout(() => {
+      setState((current) => (current === "loading" ? "signed-out" : current));
+    }, 8000);
+
+    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      window.clearTimeout(fallback);
       setUser(nextUser);
       if (!nextUser) {
         setState("signed-out");
@@ -28,6 +37,11 @@ export function useAuth() {
       const email = (nextUser.email ?? "").toLowerCase();
       setState(ALLOWED_EMAILS.includes(email) ? "authorized" : "unauthorized");
     });
+
+    return () => {
+      window.clearTimeout(fallback);
+      unsubscribe();
+    };
   }, []);
 
   async function signIn() {
