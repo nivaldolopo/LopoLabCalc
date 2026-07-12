@@ -74,6 +74,7 @@ export function QuotePage() {
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [notes, setNotes] = useState("");
   const [addPick, setAddPick] = useState("");
+  const [openQuoteId, setOpenQuoteId] = useState<string | null>(null);
   const businessSeeded = useRef(false);
   const numberEdited = useRef(false);
 
@@ -511,38 +512,90 @@ export function QuotePage() {
             Histórico de orçamentos ({orderedQuotes.length})
           </div>
           <div className="quote-history-list">
-            {orderedQuotes.map((quote) => (
-              <div className="quote-history-row" key={quote.id}>
-                <div className="qh-main">
-                  <span className="qh-number">Nº {quote.number}</span>
-                  <span className="qh-customer">
-                    {quote.customer || "Sem cliente"}
-                  </span>
-                  <span className="qh-date">{formatDate(quote.date)}</span>
-                </div>
-                <div className="qh-side">
-                  <span className="qh-total mono">
-                    {formatCurrency(quote.total)}
-                  </span>
-                  <button
-                    className="icon-button"
-                    type="button"
-                    onClick={() => reDownload(quote)}
-                    title="Baixar PDF novamente"
+            {orderedQuotes.map((quote) => {
+              const isOpen = openQuoteId === quote.id;
+              return (
+                <div className="quote-history-row" key={quote.id}>
+                  <div
+                    className="qh-header"
+                    onClick={() =>
+                      setOpenQuoteId((current) =>
+                        current === quote.id ? null : quote.id,
+                      )
+                    }
                   >
-                    <Download size={15} />
-                  </button>
-                  <button
-                    className="icon-button danger"
-                    type="button"
-                    onClick={() => handleDeleteQuote(quote)}
-                    title="Excluir orçamento"
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                    <div className="qh-main">
+                      <span className="qh-arrow">{isOpen ? "▼" : "▶"}</span>
+                      <span className="qh-number">Nº {quote.number}</span>
+                      <span className="qh-customer">
+                        {quote.customer || "Sem cliente"}
+                      </span>
+                      <span className="qh-date">{formatDate(quote.date)}</span>
+                    </div>
+                    <div className="qh-side">
+                      <span className="qh-total mono">
+                        {formatCurrency(quote.total)}
+                      </span>
+                      <button
+                        className="icon-button"
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          reDownload(quote);
+                        }}
+                        title="Baixar PDF novamente"
+                      >
+                        <Download size={15} />
+                      </button>
+                      <button
+                        className="icon-button danger"
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleDeleteQuote(quote);
+                        }}
+                        title="Excluir orçamento"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {isOpen ? (
+                    <div className="qh-details">
+                      <table className="qh-items">
+                        <thead>
+                          <tr>
+                            <th>Descrição</th>
+                            <th className="num">Qtd</th>
+                            <th className="num">Preço unit.</th>
+                            <th className="num">Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {quote.items.map((item, index) => (
+                            <tr key={index}>
+                              <td>{item.description}</td>
+                              <td className="num mono">{item.quantity}</td>
+                              <td className="num mono">
+                                {formatCurrency(item.unitPrice)}
+                              </td>
+                              <td className="num mono">
+                                {formatCurrency(item.unitPrice * item.quantity)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="qh-extra">
+                        Validade: {quote.validityDays} dias
+                        {quote.notes ? ` · Obs.: ${quote.notes}` : ""}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : null}

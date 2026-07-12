@@ -2476,15 +2476,24 @@ td.col-actions {
 }
 
 .quote-history-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--details-bg);
+  overflow: hidden;
+}
+
+.qh-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--details-bg);
+  cursor: pointer;
+}
+
+.qh-header:hover {
+  background: var(--th-bg);
 }
 
 .qh-main {
@@ -2493,6 +2502,55 @@ td.col-actions {
   gap: 12px;
   flex-wrap: wrap;
   font-size: 13px;
+}
+
+.qh-arrow {
+  font-size: 10px;
+  color: var(--muted2);
+}
+
+.qh-details {
+  padding: 4px 12px 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.qh-items {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.qh-items th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--muted2);
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.qh-items td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--ink);
+}
+
+.qh-items tr:last-child td {
+  border-bottom: 0;
+}
+
+.qh-items th.num,
+.qh-items td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.qh-extra {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .qh-number {
