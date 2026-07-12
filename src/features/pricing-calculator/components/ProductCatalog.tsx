@@ -2,7 +2,7 @@
 
 import { Download, Edit3, Receipt, Trash2, Upload } from "lucide-react";
 import { Fragment } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import type {
   CapacitySettings,
@@ -32,6 +32,7 @@ type ProductCatalogProps = {
   products: SavedProduct[];
   machines: Machine[];
   fixedCosts: FixedCostSettings;
+  pricingByProduct: Map<string, PricingResult>;
   capacitySettings: CapacitySettings;
   sortMode: SortMode;
   onSortModeChange: (sortMode: SortMode) => void;
@@ -46,6 +47,7 @@ export function ProductCatalog({
   products,
   machines,
   fixedCosts,
+  pricingByProduct,
   capacitySettings,
   sortMode,
   onSortModeChange,
@@ -58,10 +60,18 @@ export function ProductCatalog({
   const [openProductId, setOpenProductId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Lê a precificação já memoizada no pai; fallback defensivo se algum produto
+  // ainda não estiver no map.
+  const resultFor = useCallback(
+    (product: SavedProduct) =>
+      pricingByProduct.get(product.id) ??
+      calculatePricing(product, machines, fixedCosts),
+    [pricingByProduct, machines, fixedCosts],
+  );
+
   const sortedProducts = useMemo(() => {
     const nextProducts = [...products];
-    const priceOf = (product: SavedProduct) =>
-      calculatePricing(product, machines, fixedCosts).suggestedPrice;
+    const priceOf = (product: SavedProduct) => resultFor(product).suggestedPrice;
 
     switch (sortMode) {
       case "oldest":
@@ -82,7 +92,7 @@ export function ProductCatalog({
       default:
         return nextProducts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     }
-  }, [fixedCosts, machines, products, sortMode]);
+  }, [products, resultFor, sortMode]);
 
   if (products.length === 0) return null;
 
@@ -181,7 +191,7 @@ export function ProductCatalog({
             </thead>
             <tbody>
               {sortedProducts.map((product) => {
-                const result = calculatePricing(product, machines, fixedCosts);
+                const result = resultFor(product);
                 const isOpen = openProductId === product.id;
 
                 return (

@@ -81,6 +81,18 @@ export function PricingCalculator() {
     [capacitySettings, form.product, pricingResult],
   );
 
+  // Precifica cada produto do catálogo UMA vez, memoizado (só recalcula quando
+  // produtos/máquinas/custos fixos mudam — não a cada tecla no formulário).
+  // Reusado pela tabela do catálogo e pela cesta de venda, evitando recalcular
+  // o mesmo produto em vários lugares.
+  const pricingByProduct = useMemo(() => {
+    const map = new Map<string, PricingResult>();
+    productsApi.products.forEach((product) => {
+      map.set(product.id, calculatePricing(product, machines, fixedCosts));
+    });
+    return map;
+  }, [productsApi.products, machines, fixedCosts]);
+
   const fixedCostShare =
     fixedCosts.enabled && pricingResult.totalCost > 0
       ? (pricingResult.fixedCost / pricingResult.totalCost) * 100
@@ -195,14 +207,15 @@ export function PricingCalculator() {
           saleContextFromResult(
             product.name || product.mainStageName || "",
             product.id,
-            calculatePricing(product, machines, fixedCosts),
+            pricingByProduct.get(product.id) ??
+              calculatePricing(product, machines, fixedCosts),
             productPrintHours(product),
           ),
         )
         .sort((a, b) =>
           a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),
-    [productsApi.products, machines, fixedCosts],
+    [productsApi.products, pricingByProduct, machines, fixedCosts],
   );
 
   function openSaleFromForm() {
@@ -286,6 +299,7 @@ export function PricingCalculator() {
         products={productsApi.products}
         machines={machines}
         fixedCosts={fixedCosts}
+        pricingByProduct={pricingByProduct}
         capacitySettings={capacitySettings}
         sortMode={sortMode}
         onSortModeChange={setSortMode}
