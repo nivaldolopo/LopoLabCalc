@@ -2,6 +2,7 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import type { Machine, PrintStage } from "../types";
+import { PrintTimeField } from "./ProductForm";
 
 type ExtraStagesSectionProps = {
   stages: PrintStage[];
@@ -93,21 +94,13 @@ export function ExtraStagesSection({
                 }
               />
             </div>
-            <div>
-              <label className="section-label">⏱ Tempo (h)</label>
-              <input
-                className="field-input"
-                min={0}
-                step="0.1"
-                type="number"
-                value={stage.printHours}
-                onChange={(event) =>
-                  onUpdateStage(stage.id ?? "", {
-                    printHours: Math.max(0, Number(event.target.value) || 0),
-                  })
-                }
-              />
-            </div>
+            <PrintTimeField
+              label="⏱ Tempo"
+              value={stage.printHours}
+              onChange={(printHours) =>
+                onUpdateStage(stage.id ?? "", { printHours })
+              }
+            />
             <div>
               <label className="section-label">Filamento (R$/kg)</label>
               <input

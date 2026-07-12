@@ -191,19 +191,21 @@ export function ProductForm({
   );
 }
 
-function PrintTimeField({
+export function PrintTimeField({
   value,
   onChange,
+  label = "⏱ Tempo de impressão",
 }: {
   value: number;
   onChange: (value: number) => void;
+  label?: string;
 }) {
   const [unit, setUnit] = useState<"h" | "min">("h");
   const displayValue = unit === "h" ? value : Math.round(value * 60);
 
   return (
     <div>
-      <label className="section-label">⏱ Tempo de impressão</label>
+      <label className="section-label">{label}</label>
       <div className="time-inputs">
         <input
           className="field-input"
