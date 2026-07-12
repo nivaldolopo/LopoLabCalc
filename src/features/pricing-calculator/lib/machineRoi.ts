@@ -1,4 +1,4 @@
-import type { Machine, Sale } from "../types";
+import type { Machine, MachineUsage, Sale } from "../types";
 
 // Milissegundos em um mês médio (365,25 / 12 dias). Usado para projetar o ritmo
 // de lucro e o payback em "meses".
@@ -11,10 +11,12 @@ const MIN_HISTORY_MS = 14 * 24 * 60 * 60 * 1000;
 
 export type MachineRoi = {
   machine: Machine;
-  // Atribuição: vendas cujo `machineId` bate com o da máquina. O snapshot da
-  // venda guarda só a máquina PRINCIPAL e o `printHours` TOTAL (soma das etapas),
-  // então produto com 2ª etapa em outra máquina joga todas as horas na principal.
-  salesCount: number; // nº de itens de venda atribuídos
+  // Atribuição por `machineUsage` (repartição por máquina congelada na venda):
+  // cada impressora recebe as HORAS e a DEPRECIAÇÃO exatas que rodou, e uma fatia
+  // proporcional às horas do LUCRO e da RECEITA do produto. Um produto que usou 2
+  // máquinas conta como venda nas duas. Vendas antigas (sem `machineUsage`) caem
+  // no fallback: tudo na máquina principal (`machineId`).
+  salesCount: number; // nº de vendas em que a máquina participou
   units: number; // Σ quantity
   printedHours: number; // Σ printHours × quantity
   revenue: number; // Σ totalRevenue
@@ -43,6 +45,23 @@ function num(value: unknown): number {
   return Number.isFinite(Number(value)) ? Number(value) : 0;
 }
 
+// Repartição de uso da venda por máquina. Vendas novas trazem `machineUsage`;
+// as antigas caem no fallback (uma entrada: máquina principal com o total de
+// horas e a depreciação congeladas).
+function saleShares(sale: Sale): MachineUsage[] {
+  if (sale.machineUsage && sale.machineUsage.length > 0) {
+    return sale.machineUsage;
+  }
+  return [
+    {
+      machineId: sale.machineId,
+      machineName: sale.machineName,
+      hours: num(sale.printHours),
+      depreciation: num(sale.costBreakdown?.depreciation),
+    },
+  ];
+}
+
 // Cruza as máquinas com o histórico de vendas e devolve o ROI/payback de cada uma.
 // Máquina sem venda ainda aparece (zerada), para o dono ver que ela existe.
 export function computeMachineRoi(
@@ -51,10 +70,10 @@ export function computeMachineRoi(
   now: number = Date.now(),
 ): MachineRoi[] {
   return machines.map((machine) => {
-    const own = sales.filter((sale) => sale.machineId === machine.id);
     const price = Math.max(0, num(machine.price));
     const lifeHours = Math.max(0, num(machine.lifeHours));
 
+    let salesCount = 0;
     let units = 0;
     let printedHours = 0;
     let revenue = 0;
@@ -63,13 +82,25 @@ export function computeMachineRoi(
     let firstSaleDate: number | null = null;
     let lastSaleDate: number | null = null;
 
-    for (const sale of own) {
+    for (const sale of sales) {
+      const shares = saleShares(sale);
+      const share = shares.find((s) => s.machineId === machine.id);
+      if (!share) continue;
+
       const qty = Math.max(1, num(sale.quantity) || 1);
+      const totalHours = shares.reduce((sum, s) => sum + num(s.hours), 0);
+      // Fatia do lucro/receita: proporcional às horas desta máquina no produto.
+      // Sem horas (produto de 0h), reparte igualmente entre as máquinas da venda.
+      const fraction =
+        totalHours > 0 ? num(share.hours) / totalHours : 1 / shares.length;
+
+      salesCount += 1;
       units += qty;
-      printedHours += num(sale.printHours) * qty;
-      revenue += num(sale.totalRevenue);
-      profit += num(sale.profit);
-      depreciationRecovered += num(sale.costBreakdown?.depreciation) * qty;
+      printedHours += num(share.hours) * qty;
+      depreciationRecovered += num(share.depreciation) * qty;
+      revenue += num(sale.totalRevenue) * fraction;
+      profit += num(sale.profit) * fraction;
+
       const when = num(sale.saleDate);
       if (when > 0) {
         firstSaleDate =
@@ -102,7 +133,7 @@ export function computeMachineRoi(
 
     return {
       machine,
-      salesCount: own.length,
+      salesCount,
       units,
       printedHours,
       revenue,

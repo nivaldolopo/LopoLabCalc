@@ -2,6 +2,7 @@ import type {
   FixedCostSettings,
   FixedCostSummary,
   Machine,
+  MachineUsage,
   PricingResult,
   PrintStage,
   ProductInput,
@@ -111,6 +112,30 @@ export function calculatePricing(
     product.laborRate,
   );
 
+  // Repartição de uso por máquina (agregada por máquina, somando as etapas que
+  // caem na mesma impressora). Vira `machineUsage` no resultado, dividido por
+  // peça. É o que permite ao ROI atribuir horas/vida/lucro à máquina certa.
+  const usageMap = new Map<string, MachineUsage>();
+  function addUsage(machine: Machine, hours: number, depreciation: number) {
+    const prev = usageMap.get(machine.id);
+    if (prev) {
+      prev.hours += hours;
+      prev.depreciation += depreciation;
+    } else {
+      usageMap.set(machine.id, {
+        machineId: machine.id,
+        machineName: machine.name,
+        hours,
+        depreciation,
+      });
+    }
+  }
+  addUsage(
+    mainStage.machine,
+    numberOrZero(product.printHours),
+    mainStage.depreciationCost,
+  );
+
   const stagesList = normalizeStages(product);
   let stagesMaterial = 0;
   let stagesEnergy = 0;
@@ -132,7 +157,16 @@ export function calculatePricing(
     stagesMaintenance += cost.maintenanceCost;
     stagesLabor += cost.laborCost;
     stagesHours += numberOrZero(stage.printHours);
+    addUsage(cost.machine, numberOrZero(stage.printHours), cost.depreciationCost);
   });
+
+  const machineUsage: MachineUsage[] = Array.from(usageMap.values()).map(
+    (usage) => ({
+      ...usage,
+      hours: usage.hours / pieces,
+      depreciation: usage.depreciation / pieces,
+    }),
+  );
 
   // Os custos das etapas extras entram nas MESMAS categorias da etapa principal
   // (filamento -> material, tempo -> energia/desgaste/manutenção, mão de obra ->
@@ -231,5 +265,6 @@ export function calculatePricing(
     pieces,
     stagesCount: stagesList.length,
     contributionMargin,
+    machineUsage,
   };
 }

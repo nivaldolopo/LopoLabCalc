@@ -93,6 +93,17 @@ export type StageCost = {
   laborCost: number;
 };
 
+// Repartição do uso de impressora de um produto (valores POR UNIDADE). Uma
+// entrada por máquina que participou (etapa principal + etapas extras, somadas
+// por máquina). É o que permite atribuir horas, vida útil e lucro à impressora
+// certa quando um produto usa mais de uma máquina em partes diferentes.
+export type MachineUsage = {
+  machineId: string;
+  machineName: string;
+  hours: number; // horas de impressão nesta máquina (por unidade)
+  depreciation: number; // depreciação embutida desta máquina (R$, por unidade)
+};
+
 export type PricingResult = {
   machine: Machine;
   materialCost: number;
@@ -114,6 +125,9 @@ export type PricingResult = {
   pieces: number;
   stagesCount: number;
   contributionMargin: number;
+  // Repartição por máquina (por unidade), para atribuir horas/vida/lucro à
+  // impressora certa quando o produto usa mais de uma.
+  machineUsage: MachineUsage[];
 };
 
 export type FixedCostSummary = {
@@ -188,9 +202,12 @@ export type SaleInput = {
   // Snapshot congelado do produto/precificação:
   productId: string; // referência (informativa) ao produto do catálogo
   productName: string;
-  machineId: string;
+  machineId: string; // máquina PRINCIPAL (informativa/compat)
   machineName: string;
-  printHours: number;
+  printHours: number; // horas TOTAIS (principal + etapas), por unidade
+  // Repartição por máquina (por unidade). Presente nas vendas novas; ausente
+  // nas antigas (o ROI cai no fallback: tudo na máquina principal acima).
+  machineUsage?: MachineUsage[];
   quantity: number;
   suggestedPrice: number; // unitário, o que a calculadora sugeria
   salePrice: number; // unitário, o preço real cobrado ao cliente (editável)

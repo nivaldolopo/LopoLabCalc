@@ -10,15 +10,18 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **ROI/payback das impressoras** (comparação com Pea3D, item 2 de 3).
-  Nova rota **`/maquinas`** (`MachinesPage`, linkada no header): cruza `price`/`lifeHours` de
-  cada máquina com o histórico de vendas. Só **leitura** — não mexe em `calculatePricing`, nem
-  no snapshot de venda, nem nas máquinas. Duas barras por cartão: **payback do investimento**
+- **Última mudança:** **atribuição de ROI por máquina** quando o produto usa mais de uma
+  impressora (etapas em máquinas diferentes). `calculatePricing` agora expõe `machineUsage`
+  (horas + depreciação por máquina, por unidade); o snapshot da venda congela esse array
+  (`SaleInput.machineUsage`, opcional). Em `/maquinas`, `computeMachineRoi` reparte **horas e
+  depreciação exatas** por máquina e **lucro/receita proporcional às horas** de cada uma (soma
+  pela frota preserva o total). Vendas antigas (sem `machineUsage`) caem no fallback: tudo na
+  máquina principal. Testes novos em `machineRoi.test.ts` (`pnpm test` = 20 no total).
+- **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
+  `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
   ritmo de lucro desde a 1ª venda — só projeta com ≥14 dias de histórico e lucro > 0) e **vida
-  útil consumida** (`horas impressas / lifeHours`). Atribuição por `sale.machineId` (máquina
-  principal; nota na UI de que 2ª etapa joga horas na principal). Matemática pura e testada em
-  `lib/machineRoi.ts` (vitest: 7 casos; `pnpm test` = 18 no total).
+  útil consumida** (`horas impressas / lifeHours`). Matemática pura em `lib/machineRoi.ts`.
 - **Concluído (macro):** itens 1 e 2 do backlog — **captura de venda + histórico**
   (`/vendas`: cesta/recibo com N itens por `reciboId`, editar recibo, CSV, snapshot congelado)
   e **orçamento em PDF** (`/orcamento`: itens de catálogo/livres, `generateQuotePdf`, histórico

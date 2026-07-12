@@ -148,9 +148,10 @@ export function MachinesPage() {
 
       <p className="roi-note">
         O payback cruza o preço de compra de cada máquina com o lucro que ela já
-        gerou nas vendas. A atribuição usa a máquina principal de cada venda — se
-        um produto tem uma 2ª etapa em outra impressora, as horas ficam todas na
-        principal.
+        gerou nas vendas. Produtos que usam mais de uma impressora repartem horas
+        e depreciação pela máquina certa, e o lucro/receita proporcional às horas
+        de cada uma. Vendas antigas (antes desta mudança) seguem com tudo na
+        máquina principal.
       </p>
 
       <div className="roi-list">

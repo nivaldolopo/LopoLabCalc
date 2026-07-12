@@ -161,4 +161,74 @@ describe("computeMachineRoi", () => {
     expect(roi.profitPerMonth).toBeNull();
     expect(roi.monthsToPayback).toBeNull();
   });
+
+  it("reparte horas/depreciação por máquina e lucro/receita proporcional às horas", () => {
+    const roi = computeMachineRoi(
+      [machine({ id: "a1", name: "A1" }), machine({ id: "x2d", name: "X2D" })],
+      [
+        sale({
+          id: "s1",
+          machineId: "a1", // principal (informativa/compat)
+          printHours: 4, // total (3 na A1 + 1 na X2D)
+          quantity: 1,
+          totalRevenue: 100,
+          profit: 40,
+          machineUsage: [
+            { machineId: "a1", machineName: "A1", hours: 3, depreciation: 3 },
+            { machineId: "x2d", machineName: "X2D", hours: 1, depreciation: 0.5 },
+          ],
+        }),
+      ],
+    );
+    const a1 = roi.find((r) => r.machine.id === "a1")!;
+    const x2d = roi.find((r) => r.machine.id === "x2d")!;
+
+    // A máquina participou da venda nas duas.
+    expect(a1.salesCount).toBe(1);
+    expect(x2d.salesCount).toBe(1);
+    // Horas e depreciação: exatas de cada máquina.
+    expect(a1.printedHours).toBe(3);
+    expect(x2d.printedHours).toBe(1);
+    expect(a1.depreciationRecovered).toBeCloseTo(3, 6);
+    expect(x2d.depreciationRecovered).toBeCloseTo(0.5, 6);
+    // Lucro/receita: proporcional às horas (3/4 e 1/4).
+    expect(a1.profit).toBeCloseTo(30, 6);
+    expect(x2d.profit).toBeCloseTo(10, 6);
+    expect(a1.revenue).toBeCloseTo(75, 6);
+    expect(x2d.revenue).toBeCloseTo(25, 6);
+    // A soma pela frota preserva o total da venda.
+    expect(a1.profit + x2d.profit).toBeCloseTo(40, 6);
+    expect(a1.revenue + x2d.revenue).toBeCloseTo(100, 6);
+  });
+
+  it("pondera a repartição pela quantidade", () => {
+    const roi = computeMachineRoi(
+      [machine({ id: "a1" }), machine({ id: "x2d", name: "X2D" })],
+      [
+        sale({
+          id: "s1",
+          printHours: 3,
+          quantity: 5,
+          totalRevenue: 500,
+          profit: 200,
+          machineUsage: [
+            { machineId: "a1", machineName: "A1", hours: 2, depreciation: 2 },
+            { machineId: "x2d", machineName: "X2D", hours: 1, depreciation: 1 },
+          ],
+        }),
+      ],
+    );
+    const a1 = roi.find((r) => r.machine.id === "a1")!;
+    const x2d = roi.find((r) => r.machine.id === "x2d")!;
+    // Horas/depreciação × quantidade.
+    expect(a1.printedHours).toBe(2 * 5); // 10
+    expect(x2d.printedHours).toBe(1 * 5); // 5
+    expect(a1.depreciationRecovered).toBeCloseTo(2 * 5, 6);
+    expect(x2d.depreciationRecovered).toBeCloseTo(1 * 5, 6);
+    expect(a1.units).toBe(5);
+    expect(x2d.units).toBe(5);
+    // Lucro proporcional às horas (2/3 e 1/3), independente da quantidade.
+    expect(a1.profit).toBeCloseTo((200 * 2) / 3, 6);
+    expect(x2d.profit).toBeCloseTo((200 * 1) / 3, 6);
+  });
 });

@@ -36,6 +36,18 @@ function num(value: unknown): number {
 
 function toSale(id: string, data: DocumentData): Sale {
   const breakdown = data.costBreakdown ?? {};
+  // Repartição por máquina (vendas novas). Ausente nas antigas → deixa undefined
+  // e o ROI cai no fallback (tudo na máquina principal). Filtra entradas inválidas.
+  const machineUsage = Array.isArray(data.machineUsage)
+    ? data.machineUsage
+        .filter((usage: DocumentData) => usage && usage.machineId)
+        .map((usage: DocumentData) => ({
+          machineId: String(usage.machineId),
+          machineName: usage.machineName ?? "",
+          hours: num(usage.hours),
+          depreciation: num(usage.depreciation),
+        }))
+    : undefined;
   return {
     id,
     reciboId: data.reciboId ?? id,
@@ -53,6 +65,7 @@ function toSale(id: string, data: DocumentData): Sale {
     machineId: data.machineId ?? "",
     machineName: data.machineName ?? "",
     printHours: num(data.printHours),
+    ...(machineUsage ? { machineUsage } : {}),
     quantity: Math.max(1, num(data.quantity) || 1),
     suggestedPrice: num(data.suggestedPrice),
     salePrice: num(data.salePrice),

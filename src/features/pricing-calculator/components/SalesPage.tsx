@@ -79,6 +79,19 @@ function contextFromSale(
     machineId: sale.machineId,
     machineName: sale.machineName,
     printHours: sale.printHours,
+    // Vendas antigas não têm a repartição → reconstrói uma entrada única com a
+    // máquina principal (mantém o snapshot congelado ao reabrir para editar).
+    machineUsage:
+      sale.machineUsage && sale.machineUsage.length > 0
+        ? sale.machineUsage
+        : [
+            {
+              machineId: sale.machineId,
+              machineName: sale.machineName,
+              hours: sale.printHours,
+              depreciation: sale.costBreakdown.depreciation,
+            },
+          ],
     suggestedPrice: sale.suggestedPrice,
     roundingMode,
     unitCost: sale.unitCost,

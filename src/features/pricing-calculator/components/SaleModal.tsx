@@ -16,6 +16,7 @@ import {
 } from "../lib/paymentFees";
 import { roundPrice } from "../lib/roundPrice";
 import type {
+  MachineUsage,
   PaymentFeeSettings,
   PaymentMethod,
   PricingResult,
@@ -35,6 +36,10 @@ export type SaleModalContext = {
   machineId: string;
   machineName: string;
   printHours: number;
+  // Repartição de horas/depreciação por máquina (por unidade). Congelada no
+  // snapshot para o ROI atribuir corretamente produtos com 2ª etapa em outra
+  // impressora.
+  machineUsage: MachineUsage[];
   suggestedPrice: number;
   // Critério de arredondamento do produto — reaplicado ao preço inflado quando
   // a taxa é repassada ao cliente, pra não expor centavo quebrado.
@@ -58,6 +63,7 @@ export function saleContextFromResult(
     machineId: result.machine.id,
     machineName: result.machine.name,
     printHours,
+    machineUsage: result.machineUsage,
     suggestedPrice: result.suggestedPrice,
     roundingMode,
     unitCost: result.totalCost,
@@ -360,6 +366,7 @@ export function SaleModal({
         machineId: item.source.machineId,
         machineName: item.source.machineName,
         printHours: item.source.printHours,
+        machineUsage: item.source.machineUsage,
         quantity: qty,
         suggestedPrice: item.source.suggestedPrice,
         salePrice: unitPrice,
