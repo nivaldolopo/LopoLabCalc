@@ -9,16 +9,22 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** **Barreira de acesso (login Google restrito).**
-  Firebase Auth em `client.ts` (`auth`), hook `useAuth` (onAuthStateChanged + signInWithPopup
-  Google + signOut), `AuthGate` envolvendo TODAS as rotas no `layout.tsx` — só renderiza o app
-  para e-mail em `ALLOWED_EMAILS` (nivaldo.lopo@ / lopolab3d@); senão, tela de login /
-  "não autorizado". **PENDENTE do dono no Console Firebase (a barreira de UI NÃO protege o
-  banco sozinha):** (1) Authentication → ativar provedor **Google**; (2) **Authorized domains**
-  → adicionar o domínio de produção Vercel; (3) travar as **Regras do Firestore** (banco
-  `lopo-lab-calculadora`) para `request.auth.token.email in [os 2 e-mails]`. Sequência: ativar
-  Google + domínio → logar no site → SÓ ENTÃO colar as regras (senão o app quebra por falta de
-  permissão). Até as regras entrarem, os dados continuam abertos. **Antes:** **Vida útil (depreciação) recalibrada:
+- **Últimas mudanças relevantes:** **Barreira de acesso COMPLETA (login Google restrito +
+  banco travado).** Firebase Auth em `client.ts` (`auth`), hook `useAuth` (onAuthStateChanged +
+  **signInWithPopup** Google + signOut), `AuthGate` envolvendo TODAS as rotas no `layout.tsx` —
+  só renderiza o app para e-mail em `ALLOWED_EMAILS` (nivaldo.lopo@ / lopolab3d@); senão, tela
+  de login / "não autorizado". **Feito no Console Firebase:** provedor Google ativo, domínios
+  Vercel autorizados, e **Regras do Firestore travadas** (banco `lopo-lab-calculadora`:
+  `read, write` só se `request.auth.token.email_verified` **e** `email in [os 2 e-mails]`).
+  Verificado por fora: GET REST sem auth → **403 PERMISSION_DENIED**. **Dois aprendizados de
+  infra importantes:** (a) `client.ts` agora usa **config Firebase FIXA no código** (não lê mais
+  `NEXT_PUBLIC_FIREBASE_*`) — as envs da Vercel estavam salvas com a `apiKey` **mascarada com
+  "•"** (colada oculta da UI), o que mandava chave inválida só pro Auth (`auth/api-key-not-valid`)
+  enquanto o Firestore tolerava. **NÃO reintroduzir leitura dessas envs.** As 7 envs podem ser
+  excluídas na Vercel (ignoradas hoje). (b) **Popup, não redirect:** `signInWithRedirect` entrava
+  em **loop** (volta deslogado) porque o handler fica em `lopo-lab.firebaseapp.com` (domínio ≠ do
+  site) e o estado não sobrevive ao bloqueio de armazenamento de terceiro dos navegadores; popup
+  completa o handshake na própria janela. **Antes:** **Vida útil (depreciação) recalibrada:
   `lifeHours` default 5000 → 10000** nas duas máquinas (`DEFAULT_MACHINES` + default de
   máquina nova na `MachineManagerModal`). Embasado em pesquisa (jul/2026): a referência que
   faz o mesmo cálculo (preço ÷ horas) usa 10.000h; FDM dura 5.000–10.000h; consumíveis já
