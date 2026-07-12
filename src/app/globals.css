@@ -2140,6 +2140,34 @@ td.col-actions {
   margin-bottom: 8px;
 }
 
+/* Respiro do modal de venda: os rótulos ficavam colados nos campos e as
+   seções muito próximas. Escopado a .sale-modal para não afetar o resto. */
+.sale-modal .section-label {
+  margin-bottom: 7px;
+}
+
+.sale-modal .two-col {
+  margin-bottom: 18px;
+}
+
+.sale-modal .cesta-label {
+  margin-top: 14px;
+  margin-bottom: 10px;
+}
+
+.sale-modal .cesta-item-grid .field-block {
+  margin-bottom: 0;
+}
+
+.sale-modal .cesta-add {
+  margin-top: 12px;
+  margin-bottom: 18px;
+}
+
+.sale-modal .modal-sub {
+  margin-bottom: 22px;
+}
+
 .cesta-list {
   display: flex;
   flex-direction: column;

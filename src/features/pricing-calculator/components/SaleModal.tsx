@@ -201,7 +201,10 @@ export function SaleModal({
 
   return (
     <div className="modal-overlay open" onMouseDown={onClose}>
-      <div className="modal-box" onMouseDown={(event) => event.stopPropagation()}>
+      <div
+        className="modal-box sale-modal"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <h3 className="modal-title">Registrar venda</h3>
         <p className="modal-sub">
           Congela uma foto do custo e do preço no momento da venda. Adicione um
