@@ -13,8 +13,9 @@
 - **Última mudança:** **taxa por forma de pagamento na venda** (comparação com Pea3D, item 1
   de 3). A taxa é da **transação**, não do produto — o `calculatePricing`/`ProductInput` NÃO
   mudaram. No `SaleModal`: ao escolher a forma de pagamento, mostra a taxa e um **toggle
-  repassar-ao-cliente/absorver** (repasse infla o preço via `preço/(1−f)`; absorver desconta da
-  margem). Congela `feeRate`/`feeAmount`/`feePassedToCustomer` no snapshot; `profit`/`margin` da
+  repassar-ao-cliente/absorver** (repasse infla o preço via `preço/(1−f)` e **reaplica o
+  arredondamento do produto** via `roundPrice`, pra não expor centavo quebrado; absorver desconta
+  da margem). Congela `feeRate`/`feeAmount`/`feePassedToCustomer` no snapshot; `profit`/`margin` da
   venda agora são **líquidos da taxa**. Config global em `config/taxas` (`useFees`), editável num
   `<details>` dentro do modal. `/vendas` mostra taxa/líquido + colunas no CSV. Matemática pura e
   testada em `lib/paymentFees.ts` (vitest: `pnpm test`, 11 casos). Pix/dinheiro = 0%.

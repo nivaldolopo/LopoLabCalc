@@ -14,11 +14,13 @@ import {
   grossUpForFee,
   saleItemFinancials,
 } from "../lib/paymentFees";
+import { roundPrice } from "../lib/roundPrice";
 import type {
   PaymentFeeSettings,
   PaymentMethod,
   PricingResult,
   ReciboUpsert,
+  RoundingMode,
   SaleChannel,
   SaleCostBreakdown,
   SalePayload,
@@ -34,6 +36,9 @@ export type SaleModalContext = {
   machineName: string;
   printHours: number;
   suggestedPrice: number;
+  // Critério de arredondamento do produto — reaplicado ao preço inflado quando
+  // a taxa é repassada ao cliente, pra não expor centavo quebrado.
+  roundingMode: RoundingMode;
   unitCost: number;
   costBreakdown: SaleCostBreakdown;
 };
@@ -45,6 +50,7 @@ export function saleContextFromResult(
   productId: string,
   result: PricingResult,
   printHours: number,
+  roundingMode: RoundingMode,
 ): SaleModalContext {
   return {
     defaultProductName: productName,
@@ -53,6 +59,7 @@ export function saleContextFromResult(
     machineName: result.machine.name,
     printHours,
     suggestedPrice: result.suggestedPrice,
+    roundingMode,
     unitCost: result.totalCost,
     costBreakdown: {
       material: result.materialCost,
@@ -159,6 +166,15 @@ function formatDecimalPct(value: number): string {
   });
 }
 
+// Preço cobrado com a taxa repassada: infla (preço/(1−f)) e reaplica o mesmo
+// arredondamento do produto, pra o cliente ver um valor redondo (nunca abaixo do
+// exato, já que roundPrice arredonda pra cima).
+function chargedWithFee(source: SaleModalContext, ratePct: number): number {
+  return round2(
+    roundPrice(grossUpForFee(source.suggestedPrice, ratePct), source.roundingMode),
+  );
+}
+
 let itemSeq = 0;
 function itemFromContext(source: SaleModalContext): CestaItem {
   itemSeq += 1;
@@ -227,11 +243,9 @@ export function SaleModal({
     setItems((current) =>
       current.map((item) => ({
         ...item,
-        salePrice: round2(
-          passed
-            ? grossUpForFee(item.source.suggestedPrice, ratePct)
-            : item.source.suggestedPrice,
-        ),
+        salePrice: passed
+          ? chargedWithFee(item.source, ratePct)
+          : round2(item.source.suggestedPrice),
       })),
     );
   }
@@ -272,9 +286,9 @@ export function SaleModal({
     const source = catalogItems[index];
     if (!source) return;
     const item = itemFromContext(source);
-    // Se o repasse está ligado, o item novo já nasce com o preço inflado.
+    // Se o repasse está ligado, o item novo já nasce com o preço inflado e redondo.
     if (feePassedToCustomer && hasFee) {
-      item.salePrice = round2(grossUpForFee(source.suggestedPrice, feeRatePct));
+      item.salePrice = chargedWithFee(source, feeRatePct);
     }
     setItems((current) => [...current, item]);
     setAddPick("");

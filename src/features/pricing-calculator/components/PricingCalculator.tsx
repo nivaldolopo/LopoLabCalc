@@ -212,6 +212,7 @@ export function PricingCalculator() {
             pricingByProduct.get(product.id) ??
               calculatePricing(product, machines, fixedCosts),
             productPrintHours(product),
+            product.roundingMode,
           ),
         )
         .sort((a, b) =>
@@ -227,6 +228,7 @@ export function PricingCalculator() {
         form.editingProductId ?? "",
         pricingResult,
         totalPrintHours,
+        form.product.roundingMode,
       ),
     );
     setSaleOpen(true);
@@ -239,6 +241,7 @@ export function PricingCalculator() {
         product.id,
         result,
         productPrintHours(product),
+        product.roundingMode,
       ),
     );
     setSaleOpen(true);

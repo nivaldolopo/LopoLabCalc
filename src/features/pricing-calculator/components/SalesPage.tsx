@@ -15,7 +15,7 @@ import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
 import { useSales } from "../hooks/useSales";
 import { useTheme } from "../hooks/useTheme";
-import type { CloudStatus, Sale } from "../types";
+import type { CloudStatus, RoundingMode, Sale } from "../types";
 import { saveRecibo } from "@/lib/firebase/salesRepository";
 import { LogoutButton } from "./LogoutButton";
 import {
@@ -56,7 +56,10 @@ function formatDate(ms: number): string {
 
 // Reconstrói a foto congelada (SaleModalContext) a partir de uma venda salva,
 // para reabrir o item no modal em modo edição sem recalcular custo/preço.
-function contextFromSale(sale: Sale): SaleModalContext {
+function contextFromSale(
+  sale: Sale,
+  roundingMode: RoundingMode,
+): SaleModalContext {
   return {
     defaultProductName: sale.productName,
     productId: sale.productId,
@@ -64,6 +67,7 @@ function contextFromSale(sale: Sale): SaleModalContext {
     machineName: sale.machineName,
     printHours: sale.printHours,
     suggestedPrice: sale.suggestedPrice,
+    roundingMode,
     unitCost: sale.unitCost,
     costBreakdown: sale.costBreakdown,
   };
@@ -141,6 +145,7 @@ export function SalesPage() {
             product.id,
             calculatePricing(product, machines, DEFAULT_FIXED_COSTS),
             productPrintHours(product),
+            product.roundingMode,
           ),
         )
         .sort((a, b) =>
@@ -230,7 +235,13 @@ export function SalesPage() {
       notes: recibo.items.find((item) => item.notes)?.notes ?? "",
       items: recibo.items.map((sale) => ({
         id: sale.id,
-        source: contextFromSale(sale),
+        // O snapshot da venda não guarda o modo de arredondamento; usa o do
+        // produto atual (se ainda existe) ou um fallback redondo (R$ 0,50).
+        source: contextFromSale(
+          sale,
+          products.find((product) => product.id === sale.productId)
+            ?.roundingMode ?? "0.5",
+        ),
         productName: sale.productName,
         material: sale.material,
         quantity: sale.quantity,
