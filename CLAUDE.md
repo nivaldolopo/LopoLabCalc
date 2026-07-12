@@ -186,6 +186,15 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
   edite o código e o "Status atual" juntos e mande de uma vez (não dois pushes seguidos).
   Só vira commit separado quando a alteração já foi pushada e o ajuste do Status veio depois.
 
+### 6. Sinalizar hora de trocar de chat
+- Ao **concluir uma tarefa** (feature/correção fechada, commitada e pushada),
+  lembre que aquele é um bom ponto de corte: sugira encerrar este chat e abrir
+  um novo pra próxima tarefa (o "Status atual" já carrega o contexto).
+- Se a conversa estiver visivelmente longa (muitos turnos/leituras) e ainda no
+  meio de algo, avise que o contexto está grande e que pode valer finalizar um
+  passo lógico e continuar em chat novo — mas **sem prometer precisão de tokens**
+  (não há medidor ao vivo; o gatilho confiável é "tarefa concluída", não contagem).
+
 ## Infra / referência de deploy
 
 - **Projeto Vercel:** `lopo-lab/lopolabcalc` (time `lopo-lab`, plano Hobby).
