@@ -10,12 +10,11 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **rótulo dinâmico Lucro/Contribuição em TODO lugar** que mostra
-  `preço − custo total`. Segue o toggle de custo fixo: **"Lucro"** quando o fixo entra no
-  `totalCost` e **"Contribuição"** quando não. Aplicado no card "Rentabilidade" (`ProfitSummary`,
-  usado no preço sugerido e no catálogo), na **aba de capacidade** (`CapacityPanel`) e nas
-  **linhas de capacidade do card do catálogo** (`ProductCatalog`). Sinal propagado via novo campo
-  `fixedIncluded` no `CapacityResult` (`calculateCapacity`). Sem mudança na matemática.
+- **Última mudança:** **defaults de custos fixos mais reais** em `DEFAULT_FIXED_COSTS`
+  (`constants.ts`): `other` 0→150 e `hoursDay` 8→20 (20h/dia **por máquina**, alinhado com a
+  aba de Capacidade). Toggle "Incluído no preço" segue **desligado** por padrão. Também **alinhei
+  os campos** da aba (`.fc-grid`/`.fc-item` em `globals.css`: inputs alinham pela base, sem
+  desnível quando o label quebra em 2 linhas). Sem mudança na matemática.
 - **Concluído (macro):** itens 1 e 2 do backlog — **captura de venda + histórico**
   (`/vendas`: cesta/recibo com N itens por `reciboId`, editar recibo, CSV, snapshot congelado)
   e **orçamento em PDF** (`/orcamento`: itens de catálogo/livres, `generateQuotePdf`, histórico
