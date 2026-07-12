@@ -317,6 +317,9 @@ export function SalesPage() {
           <Link className="icon-label-button" href="/orcamento">
             <span aria-hidden="true">📄</span> Orçamento
           </Link>
+          <Link className="icon-label-button" href="/maquinas">
+            <span aria-hidden="true">🖨️</span> Impressoras
+          </Link>
           <button
             className="icon-label-button"
             type="button"

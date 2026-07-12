@@ -60,6 +60,13 @@ export function Header({ theme, status, onToggleTheme }: HeaderProps) {
           >
             <span aria-hidden="true">📄</span> Orçamento
           </Link>
+          <Link
+            className="icon-label-button"
+            href="/maquinas"
+            title="ROI e payback das impressoras"
+          >
+            <span aria-hidden="true">🖨️</span> Impressoras
+          </Link>
           <button
             className="icon-label-button"
             type="button"

@@ -10,15 +10,15 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **taxa por forma de pagamento na venda** (comparação com Pea3D, item 1
-  de 3). A taxa é da **transação**, não do produto — o `calculatePricing`/`ProductInput` NÃO
-  mudaram. No `SaleModal`: ao escolher a forma de pagamento, mostra a taxa e um **toggle
-  repassar-ao-cliente/absorver** (repasse infla o preço via `preço/(1−f)` e **reaplica o
-  arredondamento do produto** via `roundPrice`, pra não expor centavo quebrado; absorver desconta
-  da margem). Congela `feeRate`/`feeAmount`/`feePassedToCustomer` no snapshot; `profit`/`margin` da
-  venda agora são **líquidos da taxa**. Config global em `config/taxas` (`useFees`), editável num
-  `<details>` dentro do modal. `/vendas` mostra taxa/líquido + colunas no CSV. Matemática pura e
-  testada em `lib/paymentFees.ts` (vitest: `pnpm test`, 11 casos). Pix/dinheiro = 0%.
+- **Última mudança:** **ROI/payback das impressoras** (comparação com Pea3D, item 2 de 3).
+  Nova rota **`/maquinas`** (`MachinesPage`, linkada no header): cruza `price`/`lifeHours` de
+  cada máquina com o histórico de vendas. Só **leitura** — não mexe em `calculatePricing`, nem
+  no snapshot de venda, nem nas máquinas. Duas barras por cartão: **payback do investimento**
+  (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
+  ritmo de lucro desde a 1ª venda — só projeta com ≥14 dias de histórico e lucro > 0) e **vida
+  útil consumida** (`horas impressas / lifeHours`). Atribuição por `sale.machineId` (máquina
+  principal; nota na UI de que 2ª etapa joga horas na principal). Matemática pura e testada em
+  `lib/machineRoi.ts` (vitest: 7 casos; `pnpm test` = 18 no total).
 - **Concluído (macro):** itens 1 e 2 do backlog — **captura de venda + histórico**
   (`/vendas`: cesta/recibo com N itens por `reciboId`, editar recibo, CSV, snapshot congelado)
   e **orçamento em PDF** (`/orcamento`: itens de catálogo/livres, `generateQuotePdf`, histórico
@@ -28,9 +28,9 @@
   Cloudflare + SSL Let's Encrypt + Authorized domain no Firebase). **E-mail `@lopolab.com.br`
   configurado** (DNS no Cloudflare; contexto no chat "abertura da loja", fora do repo).
 - **Próximo passo:** plano de 3 itens da **comparação com o Pea3D** (o dono aprova cada um por
-  vez): (1) taxa de pagamento ✅ FEITO; **(2) ROI/payback da máquina** (cruzar `price`/`lifeHours`
-  com histórico de vendas); (3) conversão peso↔metragem de filamento. Em paralelo segue o backlog
-  antigo (**item 3 — Estoque** `/estoque`, já desbloqueado).
+  vez): (1) taxa de pagamento ✅ FEITO; (2) ROI/payback da máquina ✅ FEITO (`/maquinas`);
+  **(3) conversão peso↔metragem de filamento**. Em paralelo segue o backlog antigo
+  (**item 3 — Estoque** `/estoque`, já desbloqueado).
 - **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`); (b) item 4 — **Dashboard**
   (`/painel`, só vale com ~1-2 meses de vendas); (c) **logo real** no PDF do orçamento (hoje
   placeholder de impressora — há comentário no `generateQuotePdf` de onde trocar).

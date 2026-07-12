@@ -2802,3 +2802,147 @@ td.col-actions {
     display: none;
   }
 }
+
+/* Página de impressoras (ROI / payback) */
+
+.roi-totals {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.roi-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.roi-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.roi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+}
+
+.roi-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.roi-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.roi-price {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.roi-block {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.roi-block-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted2);
+}
+
+.roi-block-label strong {
+  font-size: 14px;
+  color: var(--fg, inherit);
+}
+
+.roi-bar {
+  height: 9px;
+  border-radius: 6px;
+  background: var(--th-bg);
+  overflow: hidden;
+}
+
+.roi-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.roi-bar-fill.payback {
+  background: var(--accent);
+}
+
+.roi-bar-fill.payback.done {
+  background: var(--green);
+}
+
+.roi-bar-fill.life {
+  background: #5b8def;
+}
+
+.roi-status {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.roi-status.pos {
+  color: var(--green);
+}
+
+.roi-status.neg {
+  color: #e05252;
+}
+
+.roi-status.muted {
+  color: var(--muted);
+}
+
+.roi-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.roi-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.roi-metric > span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted2);
+}
+
+.roi-metric strong {
+  font-size: 14px;
+}
+
+@media (max-width: 620px) {
+  .roi-totals {
+    grid-template-columns: 1fr;
+  }
+
+  .roi-list {
+    grid-template-columns: 1fr;
+  }
+}
