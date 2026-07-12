@@ -4,7 +4,6 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-  updateDoc,
   writeBatch,
   type DocumentData,
 } from "firebase/firestore";
@@ -90,13 +89,10 @@ export function subscribeSales(
   );
 }
 
-export async function createSale(payload: SalePayload): Promise<void> {
-  await addDoc(salesCollection, payload);
-}
-
-// Fase 1b (cesta/recibo): grava vários itens de uma mesma venda de uma vez.
+// Grava uma venda (cesta/recibo): vários itens de uma mesma compra de uma vez.
 // Todos compartilham o mesmo reciboId (definido pelo chamador) e vão juntos
-// num writeBatch — ou entram todos, ou nenhum (atômico).
+// num writeBatch — ou entram todos, ou nenhum (atômico). Um único item cai no
+// caminho simples do addDoc.
 export async function createSales(payloads: SalePayload[]): Promise<void> {
   if (payloads.length === 0) return;
   if (payloads.length === 1) {
@@ -108,13 +104,6 @@ export async function createSales(payloads: SalePayload[]): Promise<void> {
     batch.set(doc(salesCollection), payload);
   }
   await batch.commit();
-}
-
-export async function updateSale(
-  saleId: string,
-  patch: Partial<SalePayload>,
-): Promise<void> {
-  await updateDoc(doc(db, "vendas", saleId), { ...patch });
 }
 
 export async function removeSale(saleId: string): Promise<void> {

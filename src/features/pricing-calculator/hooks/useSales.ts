@@ -1,13 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  createSale,
-  removeSale,
-  subscribeSales,
-  updateSale,
-} from "@/lib/firebase/salesRepository";
-import type { CloudStatus, Sale, SalePayload } from "../types";
+import { removeSale, subscribeSales } from "@/lib/firebase/salesRepository";
+import type { CloudStatus, Sale } from "../types";
 
 export function useSales() {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -30,17 +25,9 @@ export function useSales() {
     return unsubscribe;
   }, []);
 
-  async function addSale(payload: SalePayload) {
-    await createSale(payload);
-  }
-
-  async function editSale(saleId: string, patch: Partial<SalePayload>) {
-    await updateSale(saleId, patch);
-  }
-
   async function deleteSale(saleId: string) {
     await removeSale(saleId);
   }
 
-  return { sales, status, error, addSale, editSale, deleteSale };
+  return { sales, status, error, deleteSale };
 }

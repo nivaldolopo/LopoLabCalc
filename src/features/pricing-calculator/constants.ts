@@ -8,8 +8,6 @@ import type {
   SaleChannel,
 } from "./types";
 
-export const ACCENT = "#FF6B35";
-
 // Reserva de falha padrão (%) para produtos sem valor próprio (antigos/importados).
 // Baseado em benchmarks reais: <5% = "excelente", 5-10% = hobbyista típico; Bambu
 // bem calibrada ~2%; operador experiente <5% (muitas vezes <1% em peças simples).
