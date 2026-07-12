@@ -110,12 +110,16 @@
   produto via `form.updateProduct`. Produtos antigos sem o campo caem em "exact". Antes:
   catálogo no desktop virou lista de cartões; campos sem negativos (clamp `Math.max`).
 - **Em andamento / próximos passos:** **itens 1 e 2 CONCLUÍDOS** (captura/histórico +
-  cesta/recibo + orçamento PDF). Próximo natural: **item 3 — Estoque** (`/estoque`) ou o
-  **item 4 — Dashboard** (`/painel`, só vale com ~1-2 meses de vendas). **Pendências
-  opcionais:** conectar o subdomínio **`calculadora.lopolab.com.br`** (registro.br em transição
-  na última sessão — falta criar o CNAME e adicionar o domínio nos Authorized domains do
-  Firebase); **editar** um recibo já registrado; **histórico de orçamentos** (hoje o PDF é
-  avulso, não fica salvo).
+  cesta/recibo + orçamento PDF **com histórico**). Próximo natural: **item 3 — Estoque**
+  (`/estoque`) ou o **item 4 — Dashboard** (`/painel`, só vale com ~1-2 meses de vendas).
+  **Subdomínio `calculadora.lopolab.com.br` (EM ANDAMENTO):** o dono migrou a gestão de DNS do
+  registro.br para o **Cloudflare** (motivo: e-mail no domínio). **Aguardando propagação dos
+  nameservers** do Cloudflare. Quando propagar: no DNS do Cloudflare criar **CNAME `calculadora`
+  → `e5d09afaf3e58d32.vercel-dns-017.com`** obrigatoriamente como **"DNS only" (nuvem CINZA, não
+  proxied)** — o proxy laranja quebra o SSL/verificação da Vercel; depois adicionar
+  `calculadora.lopolab.com.br` nos **Authorized domains** do Firebase. O domínio já está
+  adicionado no projeto Vercel `lopolabcalc`. **Pendências opcionais:** **editar** um recibo de
+  venda já registrado; **logo real** no PDF do orçamento (hoje é placeholder de impressora).
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
   cadastradas (por decisão — só mantemos Production; ver Diretriz 1). Nada quebrado.
 
@@ -278,7 +282,15 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 - **Framework:** fixado em `vercel.json` (`"framework": "nextjs"`) — necessário porque o
   projeto herdou uma config estática antiga (versão HTML única) que quebrava o build com
   *"No Output Directory named public"*.
-- **Variáveis do Firebase** (`NEXT_PUBLIC_FIREBASE_*`): cadastradas na Vercel em **Production**.
+- **Variáveis do Firebase** (`NEXT_PUBLIC_FIREBASE_*`): cadastradas na Vercel em **Production**
+  — mas **ignoradas** hoje (a config do Firebase é FIXA no `client.ts`; ver Status). Podem ser
+  excluídas.
+- **Domínio `lopolab.com.br`:** registrado no **registro.br**, mas a **gestão de DNS foi migrada
+  para o Cloudflare** (nameservers do registro.br apontando pro Cloudflare; motivo: e-mail no
+  domínio). **NÃO gerenciar DNS pelo registro.br** — todos os registros (CNAME do `calculadora`,
+  MX/e-mail, etc.) vão no painel do **Cloudflare**. Para o subdomínio da calculadora apontando
+  pra Vercel, o CNAME tem que ficar **"DNS only" (nuvem cinza)**, nunca proxied. O contexto do
+  domínio/e-mail vive em outro projeto de chat do dono ("abertura da loja"), fora deste repo.
 
 ### Ambiente Windows (evita retrabalho de PATH)
 - **Node:** `C:\Program Files\nodejs` (v24). **pnpm** e **vercel** instalados globalmente.
