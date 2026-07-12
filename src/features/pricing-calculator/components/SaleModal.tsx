@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import {
   DEFAULT_PAYMENT_METHOD,
@@ -15,7 +16,7 @@ import type {
   SalePayload,
 } from "../types";
 
-// Dados de origem da venda — servem tanto para o formulário ao vivo quanto
+// Dados de origem de UM produto — servem tanto para o formulário ao vivo quanto
 // para um produto vindo do catálogo. O modal só lê isto e congela.
 export type SaleModalContext = {
   defaultProductName: string;
@@ -28,9 +29,23 @@ export type SaleModalContext = {
   costBreakdown: SaleCostBreakdown;
 };
 
-type SaleModalProps = SaleModalContext & {
+// Um item da cesta: a foto (source) congelada + o que o usuário edita na venda.
+type CestaItem = {
+  key: string;
+  source: SaleModalContext;
+  productName: string;
+  material: string;
+  quantity: number;
+  salePrice: number;
+};
+
+type SaleModalProps = {
+  // Produto que abriu o modal (do card ou do catálogo) — vira o 1º item.
+  seed: SaleModalContext;
+  // Demais produtos do catálogo, para adicionar mais itens ao mesmo recibo.
+  catalogItems: SaleModalContext[];
   onClose: () => void;
-  onConfirm: (payload: SalePayload) => Promise<void>;
+  onConfirm: (payloads: SalePayload[]) => Promise<void>;
 };
 
 function todayInputValue(): string {
@@ -44,79 +59,124 @@ function toTimestamp(dateStr: string): number {
   return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
+let itemSeq = 0;
+function itemFromContext(source: SaleModalContext): CestaItem {
+  itemSeq += 1;
+  return {
+    key: `item_${Date.now()}_${itemSeq}`,
+    source,
+    productName: source.defaultProductName,
+    material: "",
+    quantity: 1,
+    salePrice: source.suggestedPrice,
+  };
+}
+
 export function SaleModal({
-  defaultProductName,
-  productId,
-  machineId,
-  machineName,
-  printHours,
-  suggestedPrice,
-  unitCost,
-  costBreakdown,
+  seed,
+  catalogItems,
   onClose,
   onConfirm,
 }: SaleModalProps) {
-  const [productName, setProductName] = useState(defaultProductName);
+  const [items, setItems] = useState<CestaItem[]>(() => [itemFromContext(seed)]);
   const [customer, setCustomer] = useState("");
-  const [material, setMaterial] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [salePrice, setSalePrice] = useState(suggestedPrice);
   const [dateStr, setDateStr] = useState(todayInputValue());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
     DEFAULT_PAYMENT_METHOD,
   );
   const [channel, setChannel] = useState<SaleChannel>(DEFAULT_SALE_CHANNEL);
   const [notes, setNotes] = useState("");
+  const [addPick, setAddPick] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const qty = Math.max(1, Number(quantity) || 1);
-  const unitPrice = Math.max(0, Number(salePrice) || 0);
-  const totalRevenue = unitPrice * qty;
-  const totalCost = unitCost * qty;
-  const profit = totalRevenue - totalCost;
-  const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
-  const priceDelta = unitPrice - suggestedPrice;
+  function updateItem(key: string, patch: Partial<CestaItem>) {
+    setItems((current) =>
+      current.map((item) => (item.key === key ? { ...item, ...patch } : item)),
+    );
+  }
+
+  function removeItem(key: string) {
+    setItems((current) =>
+      current.length > 1 ? current.filter((item) => item.key !== key) : current,
+    );
+  }
+
+  function addFromCatalog(indexStr: string) {
+    const index = Number(indexStr);
+    const source = catalogItems[index];
+    if (!source) return;
+    setItems((current) => [...current, itemFromContext(source)]);
+    setAddPick("");
+  }
+
+  const totals = useMemo(() => {
+    return items.reduce(
+      (acc, item) => {
+        const qty = Math.max(1, Number(item.quantity) || 1);
+        const unitPrice = Math.max(0, Number(item.salePrice) || 0);
+        acc.revenue += unitPrice * qty;
+        acc.cost += item.source.unitCost * qty;
+        return acc;
+      },
+      { revenue: 0, cost: 0 },
+    );
+  }, [items]);
+
+  const profit = totals.revenue - totals.cost;
+  const margin = totals.revenue > 0 ? (profit / totals.revenue) * 100 : 0;
 
   async function confirm() {
-    if (!productName.trim()) {
-      window.alert("Dê um nome ao produto vendido.");
-      return;
-    }
-    if (unitPrice <= 0) {
-      window.alert("Informe o preço de venda.");
-      return;
+    for (const item of items) {
+      if (!item.productName.trim()) {
+        window.alert("Dê um nome a todos os produtos da venda.");
+        return;
+      }
+      if (Math.max(0, Number(item.salePrice) || 0) <= 0) {
+        window.alert(`Informe o preço de venda de "${item.productName}".`);
+        return;
+      }
     }
 
     setSaving(true);
     const now = Date.now();
-    const payload: SalePayload = {
-      reciboId: `r_${now}_${Math.floor(Math.random() * 1000)}`,
-      saleDate: toTimestamp(dateStr),
-      customer: customer.trim(),
-      material: material.trim(),
-      paymentMethod,
-      channel,
-      notes: notes.trim(),
-      status: "concluida",
-      productId,
-      productName: productName.trim(),
-      machineId,
-      machineName,
-      printHours,
-      quantity: qty,
-      suggestedPrice,
-      salePrice: unitPrice,
-      unitCost,
-      costBreakdown,
-      totalCost,
-      totalRevenue,
-      profit,
-      margin,
-      createdAt: now,
-    };
+    const reciboId = `r_${now}_${Math.floor(Math.random() * 1000)}`;
+    const saleDate = toTimestamp(dateStr);
+
+    const payloads: SalePayload[] = items.map((item) => {
+      const qty = Math.max(1, Number(item.quantity) || 1);
+      const unitPrice = Math.max(0, Number(item.salePrice) || 0);
+      const totalRevenue = unitPrice * qty;
+      const totalCost = item.source.unitCost * qty;
+      const itemProfit = totalRevenue - totalCost;
+      return {
+        reciboId,
+        saleDate,
+        customer: customer.trim(),
+        material: item.material.trim(),
+        paymentMethod,
+        channel,
+        notes: notes.trim(),
+        status: "concluida",
+        productId: item.source.productId,
+        productName: item.productName.trim(),
+        machineId: item.source.machineId,
+        machineName: item.source.machineName,
+        printHours: item.source.printHours,
+        quantity: qty,
+        suggestedPrice: item.source.suggestedPrice,
+        salePrice: unitPrice,
+        unitCost: item.source.unitCost,
+        costBreakdown: item.source.costBreakdown,
+        totalCost,
+        totalRevenue,
+        profit: itemProfit,
+        margin: totalRevenue > 0 ? (itemProfit / totalRevenue) * 100 : 0,
+        createdAt: now,
+      };
+    });
 
     try {
-      await onConfirm(payload);
+      await onConfirm(payloads);
       onClose();
     } catch (error) {
       window.alert(`Erro ao registrar venda: ${(error as Error).message}`);
@@ -124,25 +184,17 @@ export function SaleModal({
     }
   }
 
+  const multiItem = items.length > 1;
+
   return (
     <div className="modal-overlay open" onMouseDown={onClose}>
       <div className="modal-box" onMouseDown={(event) => event.stopPropagation()}>
         <h3 className="modal-title">Registrar venda</h3>
         <p className="modal-sub">
-          Congela uma foto do custo e do preço no momento da venda. Editar
-          valores na calculadora depois não altera este registro.
+          Congela uma foto do custo e do preço no momento da venda. Adicione um
+          ou mais produtos ao mesmo recibo. Editar valores na calculadora depois
+          não altera este registro.
         </p>
-
-        <div className="field-block compact">
-          <div className="section-label">Produto</div>
-          <input
-            className="field-input"
-            type="text"
-            value={productName}
-            onChange={(event) => setProductName(event.target.value)}
-            placeholder="Nome do produto vendido"
-          />
-        </div>
 
         <div className="two-col">
           <div className="field-block compact">
@@ -158,15 +210,12 @@ export function SaleModal({
             />
           </div>
           <div className="field-block compact">
-            <div className="section-label">
-              Material <span className="label-hint">(opcional)</span>
-            </div>
+            <div className="section-label">Data</div>
             <input
               className="field-input"
-              type="text"
-              value={material}
-              onChange={(event) => setMaterial(event.target.value)}
-              placeholder="Ex.: PLA Silk Rainbow"
+              type="date"
+              value={dateStr}
+              onChange={(event) => setDateStr(event.target.value)}
             />
           </div>
         </div>
@@ -206,53 +255,130 @@ export function SaleModal({
           </div>
         </div>
 
-        <div className="two-col">
-          <div className="field-block compact">
-            <div className="section-label">Quantidade</div>
-            <input
-              className="field-input"
-              type="number"
-              min={1}
-              value={quantity}
-              onChange={(event) =>
-                setQuantity(Math.max(1, Number(event.target.value) || 1))
-              }
-            />
-          </div>
-          <div className="field-block compact">
-            <div className="section-label">Data</div>
-            <input
-              className="field-input"
-              type="date"
-              value={dateStr}
-              onChange={(event) => setDateStr(event.target.value)}
-            />
-          </div>
+        <div className="section-label cesta-label">
+          {multiItem ? `Itens da venda (${items.length})` : "Item da venda"}
         </div>
 
-        <div className="field-block compact">
-          <div className="section-label">Preço de venda (unitário)</div>
-          <input
-            className="field-input"
-            type="number"
-            min={0}
-            step="0.01"
-            value={salePrice}
-            onChange={(event) =>
-              setSalePrice(Math.max(0, Number(event.target.value) || 0))
-            }
-          />
-          <div className="sale-price-hint">
-            sugerido: {formatCurrency(suggestedPrice)}
-            {priceDelta !== 0 ? (
-              <span className={priceDelta < 0 ? "sale-neg" : "sale-pos"}>
-                {" "}
-                ({priceDelta < 0 ? "−" : "+"}
-                {formatCurrency(Math.abs(priceDelta))})
-              </span>
-            ) : null}
-          </div>
+        <div className="cesta-list">
+          {items.map((item) => {
+            const qty = Math.max(1, Number(item.quantity) || 1);
+            const unitPrice = Math.max(0, Number(item.salePrice) || 0);
+            const itemRevenue = unitPrice * qty;
+            const itemCost = item.source.unitCost * qty;
+            const itemProfit = itemRevenue - itemCost;
+            const priceDelta = unitPrice - item.source.suggestedPrice;
+
+            return (
+              <div className="cesta-item" key={item.key}>
+                <div className="cesta-item-head">
+                  <input
+                    className="field-input"
+                    type="text"
+                    value={item.productName}
+                    onChange={(event) =>
+                      updateItem(item.key, { productName: event.target.value })
+                    }
+                    placeholder="Nome do produto vendido"
+                  />
+                  {multiItem ? (
+                    <button
+                      className="icon-button danger"
+                      type="button"
+                      onClick={() => removeItem(item.key)}
+                      title="Remover item"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="cesta-item-grid">
+                  <div className="field-block compact">
+                    <div className="section-label">
+                      Material <span className="label-hint">(opcional)</span>
+                    </div>
+                    <input
+                      className="field-input"
+                      type="text"
+                      value={item.material}
+                      onChange={(event) =>
+                        updateItem(item.key, { material: event.target.value })
+                      }
+                      placeholder="Ex.: PLA Silk"
+                    />
+                  </div>
+                  <div className="field-block compact">
+                    <div className="section-label">Qtd</div>
+                    <input
+                      className="field-input"
+                      type="number"
+                      min={1}
+                      value={item.quantity}
+                      onChange={(event) =>
+                        updateItem(item.key, {
+                          quantity: Math.max(1, Number(event.target.value) || 1),
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="field-block compact">
+                    <div className="section-label">Preço unit.</div>
+                    <input
+                      className="field-input"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={item.salePrice}
+                      onChange={(event) =>
+                        updateItem(item.key, {
+                          salePrice: Math.max(0, Number(event.target.value) || 0),
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="cesta-item-foot">
+                  <span>
+                    sugerido: {formatCurrency(item.source.suggestedPrice)}
+                    {priceDelta !== 0 ? (
+                      <span className={priceDelta < 0 ? "sale-neg" : "sale-pos"}>
+                        {" "}
+                        ({priceDelta < 0 ? "−" : "+"}
+                        {formatCurrency(Math.abs(priceDelta))})
+                      </span>
+                    ) : null}
+                  </span>
+                  <span>
+                    lucro{" "}
+                    <strong className={itemProfit < 0 ? "sale-neg" : "sale-pos"}>
+                      {formatCurrency(itemProfit)}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
+
+        {catalogItems.length > 0 ? (
+          <div className="cesta-add">
+            <Plus size={15} />
+            <select
+              className="field-input"
+              value={addPick}
+              onChange={(event) => addFromCatalog(event.target.value)}
+            >
+              <option value="">Adicionar outro produto do catálogo…</option>
+              {catalogItems.map((option, index) => (
+                <option key={`${option.productId}-${index}`} value={index}>
+                  {option.defaultProductName} —{" "}
+                  {formatCurrency(option.suggestedPrice)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         <div className="field-block compact">
           <div className="section-label">
@@ -270,21 +396,17 @@ export function SaleModal({
         <div className="sale-summary">
           <div className="sale-summary-item">
             <span>Receita</span>
-            <strong className="mono">{formatCurrency(totalRevenue)}</strong>
+            <strong className="mono">{formatCurrency(totals.revenue)}</strong>
           </div>
           <div className="sale-summary-item">
             <span>Custo</span>
-            <strong className="mono">{formatCurrency(totalCost)}</strong>
+            <strong className="mono">{formatCurrency(totals.cost)}</strong>
           </div>
           <div className="sale-summary-item">
             <span>Lucro</span>
-            <strong
-              className={`mono ${profit < 0 ? "sale-neg" : "sale-pos"}`}
-            >
+            <strong className={`mono ${profit < 0 ? "sale-neg" : "sale-pos"}`}>
               {formatCurrency(profit)}{" "}
-              <span className="sale-summary-margin">
-                ({margin.toFixed(0)}%)
-              </span>
+              <span className="sale-summary-margin">({margin.toFixed(0)}%)</span>
             </strong>
           </div>
         </div>
@@ -296,7 +418,11 @@ export function SaleModal({
             onClick={confirm}
             disabled={saving}
           >
-            {saving ? "Registrando..." : "Registrar venda"}
+            {saving
+              ? "Registrando..."
+              : multiItem
+                ? `Registrar venda (${items.length} itens)`
+                : "Registrar venda"}
           </button>
           <button
             className="btn btn-secondary"

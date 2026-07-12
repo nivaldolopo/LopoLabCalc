@@ -9,7 +9,20 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** **Barreira de acesso COMPLETA (login Google restrito +
+- **Últimas mudanças relevantes:** **Fase 1b — cesta/recibo (vários produtos numa mesma
+  venda).** O `SaleModal` virou uma **cesta**: cliente / canal / forma de pagamento / data /
+  obs são **compartilhados** do recibo; abaixo, **N itens** (cada um com produto, **material
+  por item**, qtd e preço unitário — o material saiu do compartilhado). Um `<select>`
+  **"Adicionar produto do catálogo"** injeta mais itens (lista `catalogSaleItems`, memo no
+  `PricingCalculator` = todos os produtos já precificados). Ao confirmar, grava **N docs** na
+  coleção `vendas` compartilhando um mesmo **`reciboId`** via novo `createSales` (writeBatch
+  **atômico** no `salesRepository`; cada item continua uma **foto congelada** própria). A rota
+  **`/vendas`** agora **agrupa por `reciboId`** em **cartões de recibo** (cabeçalho: data,
+  cliente, canal, pagamento, nº de itens + totais receita/lucro/margem do recibo; itens
+  listados abaixo; **excluir por item** — apagar o último item some com o recibo). CSV ganhou
+  coluna **"Recibo"**. Helpers `saleContextFromResult`/`productPrintHours` movidos p/ escopo de
+  módulo. Props do `SaleModal` mudaram: agora `seed` + `catalogItems` + `onConfirm(payloads[])`.
+  **Antes:** **Barreira de acesso COMPLETA (login Google restrito +
   banco travado).** Firebase Auth em `client.ts` (`auth`), hook `useAuth` (onAuthStateChanged +
   **signInWithPopup** Google + signOut), `AuthGate` envolvendo TODAS as rotas no `layout.tsx` —
   só renderiza o app para e-mail em `ALLOWED_EMAILS` (nivaldo.lopo@ / lopolab3d@); senão, tela
@@ -76,11 +89,11 @@
   usam o mesmo preço automaticamente; o seletor fica no card (`PricingResultCard`) e grava no
   produto via `form.updateProduct`. Produtos antigos sem o campo caem em "exact". Antes:
   catálogo no desktop virou lista de cartões; campos sem negativos (clamp `Math.max`).
-- **Em andamento / próximos passos:** **item 1 Fase 1a concluída** (captura de venda +
-  histórico). Próximo: **Fase 1b — cesta/recibo** (vários produtos num mesmo `reciboId`),
-  que encosta no item 2 (PDF). Também pendente na 1a, se quiser: editar cliente/obs de uma
-  venda já registrada (hoje só exclui). (Decidido: **não** é preciso reentrar os produtos —
-  eles guardam só as entradas brutas; os cálculos são refeitos ao vivo e corretos.)
+- **Em andamento / próximos passos:** **item 1 CONCLUÍDO** (Fase 1a captura + histórico e
+  Fase 1b cesta/recibo). Próximo natural: **item 2 — Orçamento em PDF** (botão no card,
+  client-side) ou **item 3 — Estoque**. Pendências opcionais menores: **editar** um recibo já
+  registrado (hoje só exclui item a item); hoje o cabeçalho do recibo mostra a obs do 1º item
+  que tiver — se quiser obs por item no histórico, dá pra evoluir.
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
   cadastradas (por decisão — só mantemos Production; ver Diretriz 1). Nada quebrado.
 
@@ -111,8 +124,9 @@
 1. **Captura de venda + Histórico** *(rota `/vendas`)* — **Fase 1a ✅ FEITA.** Botão
    "Registrar venda" no card → `SaleModal` congela snapshot em `vendas` (Firestore); rota
    `/vendas` com totais, tabela, excluir e CSV. Fundação dos itens 3 e 4.
-   **Fase 1b (pendente): cesta/recibo** — juntar vários produtos num mesmo `reciboId`
-   (schema já preparado) e, opcionalmente, editar cliente/obs de venda já registrada.
+   **Fase 1b ✅ FEITA: cesta/recibo** — modal virou cesta (N itens, `createSales` em batch
+   compartilhando `reciboId`), `/vendas` agrupa por recibo em cartões. Opcional que sobrou:
+   **editar** um recibo já registrado (hoje só exclui item a item).
 2. **Geração de orçamento (PDF)** — **subiu na ordem** (ChatGPT punha por último). Independente
    de tudo, ganho rápido, client-side. Botão "Gerar orçamento": nº, cliente, data, itens,
    quantidade, tempo estimado, preço unitário/total, validade. Layout simples (nome + contato);

@@ -24,7 +24,7 @@ import {
 } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { validateProduct } from "../lib/validateProduct";
-import { createSale } from "@/lib/firebase/salesRepository";
+import { createSales } from "@/lib/firebase/salesRepository";
 import { FixedCostsPanel } from "./FixedCostsPanel";
 import { Header } from "./Header";
 import { MachineManagerModal } from "./MachineManagerModal";
@@ -32,6 +32,43 @@ import { PricingResultCard } from "./PricingResultCard";
 import { ProductCatalog } from "./ProductCatalog";
 import { ProductForm } from "./ProductForm";
 import { SaleModal, type SaleModalContext } from "./SaleModal";
+
+// Monta a foto congelada de UM produto a partir do resultado de precificação.
+// Pura (sem estado) para servir tanto o item que abre o modal quanto a lista
+// do catálogo (cesta).
+function saleContextFromResult(
+  productName: string,
+  productId: string,
+  result: PricingResult,
+  printHours: number,
+): SaleModalContext {
+  return {
+    defaultProductName: productName,
+    productId,
+    machineId: result.machine.id,
+    machineName: result.machine.name,
+    printHours,
+    suggestedPrice: result.suggestedPrice,
+    unitCost: result.totalCost,
+    costBreakdown: {
+      material: result.materialCost,
+      energy: result.energyCost,
+      depreciation: result.depreciationCost,
+      maintenance: result.maintenanceCost,
+      labor: result.laborCost,
+      accessories: result.accessoriesCost,
+      failureReserve: result.failureReserve,
+      fixed: result.fixedCost,
+    },
+  };
+}
+
+function productPrintHours(product: SavedProduct): number {
+  return (
+    product.printHours +
+    (product.stages ?? []).reduce((sum, stage) => sum + (stage.printHours || 0), 0)
+  );
+}
 
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
@@ -178,32 +215,20 @@ export function PricingCalculator() {
     }
   }
 
-  function saleContextFromResult(
-    productName: string,
-    productId: string,
-    result: PricingResult,
-    printHours: number,
-  ): SaleModalContext {
-    return {
-      defaultProductName: productName,
-      productId,
-      machineId: result.machine.id,
-      machineName: result.machine.name,
-      printHours,
-      suggestedPrice: result.suggestedPrice,
-      unitCost: result.totalCost,
-      costBreakdown: {
-        material: result.materialCost,
-        energy: result.energyCost,
-        depreciation: result.depreciationCost,
-        maintenance: result.maintenanceCost,
-        labor: result.laborCost,
-        accessories: result.accessoriesCost,
-        failureReserve: result.failureReserve,
-        fixed: result.fixedCost,
-      },
-    };
-  }
+  // Produtos do catálogo prontos como itens de cesta (para adicionar mais de um
+  // produto ao mesmo recibo dentro do modal de venda).
+  const catalogSaleItems = useMemo(
+    () =>
+      productsApi.products.map((product) =>
+        saleContextFromResult(
+          product.name || product.mainStageName || "",
+          product.id,
+          calculatePricing(product, machines, fixedCosts),
+          productPrintHours(product),
+        ),
+      ),
+    [productsApi.products, machines, fixedCosts],
+  );
 
   function openSaleFromForm() {
     setSaleContext(
@@ -217,18 +242,12 @@ export function PricingCalculator() {
   }
 
   function openSaleFromCatalog(product: SavedProduct, result: PricingResult) {
-    const hours =
-      product.printHours +
-      (product.stages ?? []).reduce(
-        (sum, stage) => sum + (stage.printHours || 0),
-        0,
-      );
     setSaleContext(
       saleContextFromResult(
         product.name || product.mainStageName || "",
         product.id,
         result,
-        hours,
+        productPrintHours(product),
       ),
     );
   }
@@ -305,9 +324,10 @@ export function PricingCalculator() {
 
       {saleContext ? (
         <SaleModal
-          {...saleContext}
+          seed={saleContext}
+          catalogItems={catalogSaleItems}
           onClose={() => setSaleContext(null)}
-          onConfirm={createSale}
+          onConfirm={createSales}
         />
       ) : null}
     </main>
