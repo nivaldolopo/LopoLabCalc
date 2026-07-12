@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
@@ -19,6 +20,12 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Ao voltar do redirect do Google, captura erros (o login em si é refletido
+    // pelo onAuthStateChanged abaixo).
+    getRedirectResult(auth).catch((caught) =>
+      setError((caught as Error).message),
+    );
+
     return onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);
       if (!nextUser) {
@@ -33,16 +40,11 @@ export function useAuth() {
   async function signIn() {
     setError(null);
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
+      // Redirect em vez de popup: a página vai ao Google e volta logada. Evita
+      // o iframe/cookies de terceiros do popup (que quebra em vários navegadores
+      // e no mobile).
+      await signInWithRedirect(auth, new GoogleAuthProvider());
     } catch (caught) {
-      const code = (caught as { code?: string }).code ?? "";
-      // Fechar o popup não é erro para mostrar em vermelho.
-      if (
-        code === "auth/popup-closed-by-user" ||
-        code === "auth/cancelled-popup-request"
-      ) {
-        return;
-      }
       setError((caught as Error).message);
     }
   }
