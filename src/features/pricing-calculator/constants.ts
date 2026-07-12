@@ -2,6 +2,7 @@ import type {
   CapacitySettings,
   FixedCostSettings,
   Machine,
+  PaymentFeeSettings,
   PaymentMethod,
   ProductInput,
   QuoteBusiness,
@@ -139,6 +140,18 @@ export const SALE_CHANNELS: { value: SaleChannel; label: string }[] = [
 
 export const DEFAULT_PAYMENT_METHOD: PaymentMethod = "pix";
 export const DEFAULT_SALE_CHANNEL: SaleChannel = "quiosque";
+
+// Taxas padrão (%) por forma de pagamento — editáveis no app (doc config/taxas).
+// Pix/dinheiro não têm taxa; débito ~2% e crédito ~4,5% são a faixa típica de
+// maquininha no Brasil (varia por adquirente/plano). Servem só de ponto de
+// partida — o dono ajusta com os números da própria maquininha.
+export const DEFAULT_PAYMENT_FEES: PaymentFeeSettings = {
+  pix: 0,
+  dinheiro: 0,
+  debito: 2,
+  credito: 4.5,
+  outro: 0,
+};
 
 // Orçamento (PDF). Dados do negócio começam com o nome e vazios no contato —
 // o usuário preenche uma vez e fica salvo no Firestore (portátil entre aparelhos).

@@ -9,7 +9,13 @@ import {
   PAYMENT_METHODS,
   SALE_CHANNELS,
 } from "../constants";
+import {
+  feeRateForMethod,
+  grossUpForFee,
+  saleItemFinancials,
+} from "../lib/paymentFees";
 import type {
+  PaymentFeeSettings,
   PaymentMethod,
   PricingResult,
   ReciboUpsert,
@@ -91,6 +97,7 @@ export type EditReciboSeed = {
   saleDate: number;
   paymentMethod: PaymentMethod;
   channel: SaleChannel;
+  feePassedToCustomer: boolean;
   notes: string;
   items: SaleModalEditItem[];
 };
@@ -118,6 +125,9 @@ type SaleModalProps = {
   editRecibo?: EditReciboSeed | null;
   // Demais produtos do catálogo, para adicionar mais itens ao mesmo recibo.
   catalogItems: SaleModalContext[];
+  // Taxas por forma de pagamento (config global) + callback para editá-las ali.
+  fees: PaymentFeeSettings;
+  onFeesChange?: (fees: PaymentFeeSettings) => void;
   onClose: () => void;
   onConfirm: (upserts: ReciboUpsert[], removedIds: string[]) => Promise<void>;
 };
@@ -142,6 +152,13 @@ function round2(value: number): number {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
+// Percentual enxuto (4.5 → "4,5", 2 → "2") para rótulos de taxa.
+function formatDecimalPct(value: number): string {
+  return (Number(value) || 0).toLocaleString("pt-BR", {
+    maximumFractionDigits: 2,
+  });
+}
+
 let itemSeq = 0;
 function itemFromContext(source: SaleModalContext): CestaItem {
   itemSeq += 1;
@@ -159,6 +176,8 @@ export function SaleModal({
   seed,
   editRecibo,
   catalogItems,
+  fees,
+  onFeesChange,
   onClose,
   onConfirm,
 }: SaleModalProps) {
@@ -188,9 +207,53 @@ export function SaleModal({
   const [channel, setChannel] = useState<SaleChannel>(
     editRecibo?.channel ?? DEFAULT_SALE_CHANNEL,
   );
+  // Repassar a taxa ao cliente (infla o preço) ou absorver (desconta da margem).
+  const [feePassedToCustomer, setFeePassedToCustomer] = useState(
+    editRecibo?.feePassedToCustomer ?? false,
+  );
   const [notes, setNotes] = useState(editRecibo?.notes ?? "");
   const [addPick, setAddPick] = useState("");
+  const [showFeesEditor, setShowFeesEditor] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const feeRatePct = feeRateForMethod(fees, paymentMethod);
+  const hasFee = feeRatePct > 0;
+
+  // Ao mudar a forma de pagamento OU ligar/desligar o repasse, recalcula o preço
+  // cobrado de cada item a partir do sugerido (gross-up se repassa; sugerido puro
+  // se absorve). Sem taxa, cai no sugerido. Isso reescreve edições manuais de
+  // preço — o usuário pode reajustar depois se quiser.
+  function repriceItems(passed: boolean, ratePct: number) {
+    setItems((current) =>
+      current.map((item) => ({
+        ...item,
+        salePrice: round2(
+          passed
+            ? grossUpForFee(item.source.suggestedPrice, ratePct)
+            : item.source.suggestedPrice,
+        ),
+      })),
+    );
+  }
+
+  function changePaymentMethod(method: PaymentMethod) {
+    setPaymentMethod(method);
+    if (feePassedToCustomer) {
+      repriceItems(true, feeRateForMethod(fees, method));
+    }
+  }
+
+  function toggleFeePassed() {
+    const next = !feePassedToCustomer;
+    setFeePassedToCustomer(next);
+    repriceItems(next, feeRatePct);
+  }
+
+  function updateFee(method: PaymentMethod, valueStr: string) {
+    if (!onFeesChange) return;
+    const value = Math.max(0, Number(valueStr) || 0);
+    onFeesChange({ ...fees, [method]: value });
+  }
 
   function updateItem(key: string, patch: Partial<CestaItem>) {
     setItems((current) =>
@@ -208,24 +271,34 @@ export function SaleModal({
     const index = Number(indexStr);
     const source = catalogItems[index];
     if (!source) return;
-    setItems((current) => [...current, itemFromContext(source)]);
+    const item = itemFromContext(source);
+    // Se o repasse está ligado, o item novo já nasce com o preço inflado.
+    if (feePassedToCustomer && hasFee) {
+      item.salePrice = round2(grossUpForFee(source.suggestedPrice, feeRatePct));
+    }
+    setItems((current) => [...current, item]);
     setAddPick("");
   }
 
   const totals = useMemo(() => {
     return items.reduce(
       (acc, item) => {
-        const qty = Math.max(1, Number(item.quantity) || 1);
-        const unitPrice = Math.max(0, Number(item.salePrice) || 0);
-        acc.revenue += unitPrice * qty;
-        acc.cost += item.source.unitCost * qty;
+        const fin = saleItemFinancials({
+          chargedUnitPrice: item.salePrice,
+          quantity: item.quantity,
+          unitCost: item.source.unitCost,
+          feeRatePct,
+        });
+        acc.revenue += fin.totalRevenue;
+        acc.cost += fin.totalCost;
+        acc.fee += fin.feeAmount;
         return acc;
       },
-      { revenue: 0, cost: 0 },
+      { revenue: 0, cost: 0, fee: 0 },
     );
-  }, [items]);
+  }, [items, feeRatePct]);
 
-  const profit = totals.revenue - totals.cost;
+  const profit = totals.revenue - totals.cost - totals.fee;
   const margin = totals.revenue > 0 ? (profit / totals.revenue) * 100 : 0;
 
   async function confirm() {
@@ -253,9 +326,12 @@ export function SaleModal({
     const upserts: ReciboUpsert[] = items.map((item) => {
       const qty = Math.max(1, Number(item.quantity) || 1);
       const unitPrice = Math.max(0, Number(item.salePrice) || 0);
-      const totalRevenue = unitPrice * qty;
-      const totalCost = item.source.unitCost * qty;
-      const itemProfit = totalRevenue - totalCost;
+      const fin = saleItemFinancials({
+        chargedUnitPrice: unitPrice,
+        quantity: qty,
+        unitCost: item.source.unitCost,
+        feeRatePct,
+      });
       const payload: SalePayload = {
         reciboId,
         saleDate,
@@ -275,10 +351,13 @@ export function SaleModal({
         salePrice: unitPrice,
         unitCost: item.source.unitCost,
         costBreakdown: item.source.costBreakdown,
-        totalCost,
-        totalRevenue,
-        profit: itemProfit,
-        margin: totalRevenue > 0 ? (itemProfit / totalRevenue) * 100 : 0,
+        totalCost: fin.totalCost,
+        totalRevenue: fin.totalRevenue,
+        feeRate: feeRatePct,
+        feeAmount: fin.feeAmount,
+        feePassedToCustomer,
+        profit: fin.profit,
+        margin: fin.margin,
         // Preserva o createdAt de itens já salvos (mantém a ordem no recibo);
         // itens novos nascem agora.
         createdAt: item.createdAt ?? now,
@@ -373,17 +452,88 @@ export function SaleModal({
               className="field-input"
               value={paymentMethod}
               onChange={(event) =>
-                setPaymentMethod(event.target.value as PaymentMethod)
+                changePaymentMethod(event.target.value as PaymentMethod)
               }
             >
-              {PAYMENT_METHODS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              {PAYMENT_METHODS.map((option) => {
+                const rate = feeRateForMethod(fees, option.value);
+                return (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                    {rate > 0 ? ` (${formatDecimalPct(rate)}%)` : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>
+
+        <div className={`fee-row ${hasFee ? "" : "fee-row-muted"}`}>
+          <button
+            className="fee-toggle"
+            type="button"
+            onClick={toggleFeePassed}
+            disabled={!hasFee}
+            title={
+              hasFee
+                ? undefined
+                : "Sem taxa nesta forma de pagamento (Pix/dinheiro)"
+            }
+          >
+            <span className={`toggle-track ${feePassedToCustomer ? "on" : ""}`}>
+              <span className="toggle-thumb" />
+            </span>
+            <span>
+              <span className="fee-toggle-label">
+                {feePassedToCustomer
+                  ? "Repassar a taxa ao cliente"
+                  : "Absorver a taxa"}
+              </span>
+              <span className="fee-toggle-desc">
+                {hasFee
+                  ? feePassedToCustomer
+                    ? `Preço sobe para cobrir a taxa de ${formatDecimalPct(feeRatePct)}% — você recebe o valor cheio.`
+                    : `A taxa de ${formatDecimalPct(feeRatePct)}% desconta da sua margem.`
+                  : "Pix e dinheiro não têm taxa."}
+              </span>
+            </span>
+          </button>
+          {onFeesChange ? (
+            <button
+              className="fee-edit-link"
+              type="button"
+              onClick={() => setShowFeesEditor((v) => !v)}
+            >
+              {showFeesEditor ? "Fechar taxas" : "Ajustar taxas"}
+            </button>
+          ) : null}
+        </div>
+
+        {showFeesEditor && onFeesChange ? (
+          <div className="fee-editor">
+            <div className="fee-editor-title">Taxas por forma de pagamento (%)</div>
+            <div className="fee-editor-grid">
+              {PAYMENT_METHODS.map((option) => (
+                <div className="fee-editor-item" key={option.value}>
+                  <label>{option.label}</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.1"
+                    value={fees[option.value] ?? 0}
+                    onChange={(event) =>
+                      updateFee(option.value, event.target.value)
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="fee-editor-hint">
+              Use os valores da sua maquininha. Salvo na nuvem e compartilhado
+              entre aparelhos.
+            </div>
+          </div>
+        ) : null}
 
         <div className="section-label cesta-label">
           {items.length > 1
@@ -400,9 +550,13 @@ export function SaleModal({
           {items.map((item) => {
             const qty = Math.max(1, Number(item.quantity) || 1);
             const unitPrice = Math.max(0, Number(item.salePrice) || 0);
-            const itemRevenue = unitPrice * qty;
-            const itemCost = item.source.unitCost * qty;
-            const itemProfit = itemRevenue - itemCost;
+            const fin = saleItemFinancials({
+              chargedUnitPrice: unitPrice,
+              quantity: qty,
+              unitCost: item.source.unitCost,
+              feeRatePct,
+            });
+            const itemProfit = fin.profit;
             const priceDelta = unitPrice - item.source.suggestedPrice;
 
             return (
@@ -539,6 +693,14 @@ export function SaleModal({
             <span>Custo</span>
             <strong className="mono">{formatCurrency(totals.cost)}</strong>
           </div>
+          {totals.fee > 0 ? (
+            <div className="sale-summary-item">
+              <span>Taxa ({formatDecimalPct(feeRatePct)}%)</span>
+              <strong className="mono sale-neg">
+                −{formatCurrency(totals.fee)}
+              </strong>
+            </div>
+          ) : null}
           <div className="sale-summary-item">
             <span>Lucro</span>
             <strong className={`mono ${profit < 0 ? "sale-neg" : "sale-pos"}`}>

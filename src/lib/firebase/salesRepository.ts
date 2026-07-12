@@ -69,6 +69,11 @@ function toSale(id: string, data: DocumentData): Sale {
     },
     totalCost: num(data.totalCost),
     totalRevenue: num(data.totalRevenue),
+    // Vendas anteriores ao recurso de taxa não têm estes campos → 0/false, e o
+    // `profit` gravado já era receita − custo (sem taxa). Fica consistente.
+    feeRate: num(data.feeRate),
+    feeAmount: num(data.feeAmount),
+    feePassedToCustomer: Boolean(data.feePassedToCustomer),
     profit: num(data.profit),
     margin: num(data.margin),
     createdAt: num(data.createdAt),

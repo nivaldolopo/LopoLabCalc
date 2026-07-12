@@ -14,6 +14,7 @@ import type {
   SavedProduct,
   SortMode,
 } from "../types";
+import { useFees } from "../hooks/useFees";
 import { useMachines } from "../hooks/useMachines";
 import { usePricingForm } from "../hooks/usePricingForm";
 import { useProducts } from "../hooks/useProducts";
@@ -41,6 +42,7 @@ import {
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
   const { machines, saveMachines } = useMachines();
+  const { fees, saveFees } = useFees();
   const productsApi = useProducts();
   const form = usePricingForm();
 
@@ -323,6 +325,8 @@ export function PricingCalculator() {
         <SaleModal
           seed={saleSeed}
           catalogItems={catalogSaleItems}
+          fees={fees}
+          onFeesChange={saveFees}
           onClose={() => setSaleOpen(false)}
           onConfirm={saveRecibo}
         />

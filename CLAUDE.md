@@ -10,11 +10,14 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **defaults de custos fixos mais reais** em `DEFAULT_FIXED_COSTS`
-  (`constants.ts`): `other` 0→150 e `hoursDay` 8→20 (20h/dia **por máquina**, alinhado com a
-  aba de Capacidade). Toggle "Incluído no preço" segue **desligado** por padrão. Também **alinhei
-  os campos** da aba (`.fc-grid`/`.fc-item` em `globals.css`: inputs alinham pela base, sem
-  desnível quando o label quebra em 2 linhas). Sem mudança na matemática.
+- **Última mudança:** **taxa por forma de pagamento na venda** (comparação com Pea3D, item 1
+  de 3). A taxa é da **transação**, não do produto — o `calculatePricing`/`ProductInput` NÃO
+  mudaram. No `SaleModal`: ao escolher a forma de pagamento, mostra a taxa e um **toggle
+  repassar-ao-cliente/absorver** (repasse infla o preço via `preço/(1−f)`; absorver desconta da
+  margem). Congela `feeRate`/`feeAmount`/`feePassedToCustomer` no snapshot; `profit`/`margin` da
+  venda agora são **líquidos da taxa**. Config global em `config/taxas` (`useFees`), editável num
+  `<details>` dentro do modal. `/vendas` mostra taxa/líquido + colunas no CSV. Matemática pura e
+  testada em `lib/paymentFees.ts` (vitest: `pnpm test`, 11 casos). Pix/dinheiro = 0%.
 - **Concluído (macro):** itens 1 e 2 do backlog — **captura de venda + histórico**
   (`/vendas`: cesta/recibo com N itens por `reciboId`, editar recibo, CSV, snapshot congelado)
   e **orçamento em PDF** (`/orcamento`: itens de catálogo/livres, `generateQuotePdf`, histórico
@@ -23,8 +26,10 @@
 - **Infra pronta:** subdomínio `calculadora.lopolab.com.br` **NO AR** (CNAME "DNS only" no
   Cloudflare + SSL Let's Encrypt + Authorized domain no Firebase). **E-mail `@lopolab.com.br`
   configurado** (DNS no Cloudflare; contexto no chat "abertura da loja", fora do repo).
-- **Próximo passo:** **item 3 — Estoque** (`/estoque`), primeiro item não iniciado e já
-  desbloqueado (depende do item 1, feito).
+- **Próximo passo:** plano de 3 itens da **comparação com o Pea3D** (o dono aprova cada um por
+  vez): (1) taxa de pagamento ✅ FEITO; **(2) ROI/payback da máquina** (cruzar `price`/`lifeHours`
+  com histórico de vendas); (3) conversão peso↔metragem de filamento. Em paralelo segue o backlog
+  antigo (**item 3 — Estoque** `/estoque`, já desbloqueado).
 - **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`); (b) item 4 — **Dashboard**
   (`/painel`, só vale com ~1-2 meses de vendas); (c) **logo real** no PDF do orçamento (hoje
   placeholder de impressora — há comentário no `generateQuotePdf` de onde trocar).
@@ -108,16 +113,19 @@ src/
                             #     SaleModal (registrar venda), SalesPage (rota /vendas),
                             #     ProfitSummary (rentabilidade compartilhada), AuthGate (login)
     hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
-                            #     useAuth, useQuoteConfig (negócio), useQuotes (histórico)
+                            #     useAuth, useQuoteConfig (negócio), useQuotes (histórico),
+                            #     useFees (taxas de pagamento)
     lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv,
-                            #     generateQuotePdf (orçamento)
+                            #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento,
+                            #     testado em paymentFees.test.ts via vitest)
     constants.ts, types.ts
   lib/
     firebase/               # client.ts (init + db), productsRepository.ts (CRUD + subscribe),
                             #   machinesRepository.ts (doc config/machines, realtime),
                             #   salesRepository.ts (coleção `vendas`, snapshots congelados),
                             #   quoteConfigRepository.ts (doc config/orcamento: dados do negócio),
-                            #   quotesRepository.ts (coleção `orcamentos`: histórico de orçamentos)
+                            #   quotesRepository.ts (coleção `orcamentos`: histórico de orçamentos),
+                            #   feesRepository.ts (doc config/taxas: taxa % por forma de pagamento)
     formatting/currency.ts
 ```
 
@@ -231,6 +239,7 @@ pnpm install        # instalar dependências
 pnpm dev            # rodar localmente (http://localhost:3000)
 pnpm build          # build de produção local
 pnpm lint           # eslint
+pnpm test           # vitest (testes da matemática pura, ex.: paymentFees)
 vercel ls           # listar deploys
 vercel --prod       # deploy manual via CLI (uso pontual; o normal é push na main)
 ```

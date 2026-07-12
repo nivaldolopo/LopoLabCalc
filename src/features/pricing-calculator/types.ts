@@ -157,6 +157,10 @@ export type PaymentMethod = "dinheiro" | "pix" | "debito" | "credito" | "outro";
 
 export type SaleChannel = "quiosque" | "online" | "encomenda" | "outro";
 
+// Taxa (%) cobrada por forma de pagamento (maquininha/gateway). Ex.: crédito
+// come ~4,5%, Pix/dinheiro 0%. Config global, guardada em `config/taxas`.
+export type PaymentFeeSettings = Record<PaymentMethod, number>;
+
 // Detalhamento do custo (por unidade), congelado. Guardado inteiro para o
 // dashboard futuro (lucro por material, custo por categoria) já nascer pronto.
 export type SaleCostBreakdown = {
@@ -189,13 +193,20 @@ export type SaleInput = {
   printHours: number;
   quantity: number;
   suggestedPrice: number; // unitário, o que a calculadora sugeria
-  salePrice: number; // unitário, o preço real cobrado (editável no registro)
+  salePrice: number; // unitário, o preço real cobrado ao cliente (editável)
   unitCost: number; // custo total por peça
   costBreakdown: SaleCostBreakdown; // por unidade
   totalCost: number; // unitCost × quantity
-  totalRevenue: number; // salePrice × quantity
-  profit: number;
-  margin: number;
+  totalRevenue: number; // salePrice × quantity (o que o cliente paga)
+  // Taxa da forma de pagamento congelada no momento da venda. `feeRate` é o
+  // percentual (ex.: 4.5); `feeAmount` é o valor absoluto descontado (R$) no
+  // total do item; `feePassedToCustomer` indica se o preço já foi inflado para
+  // repassar a taxa ao cliente (true) ou se você a absorveu (false).
+  feeRate: number;
+  feeAmount: number;
+  feePassedToCustomer: boolean;
+  profit: number; // LÍQUIDO da taxa: totalRevenue − totalCost − feeAmount
+  margin: number; // profit / totalRevenue (%)
 };
 
 export type SalePayload = SaleInput & { createdAt: number };

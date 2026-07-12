@@ -10,6 +10,7 @@ import {
   SALE_CHANNELS,
 } from "../constants";
 import { calculatePricing } from "../lib/calculatePricing";
+import { useFees } from "../hooks/useFees";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
 import { useSales } from "../hooks/useSales";
@@ -44,6 +45,7 @@ type Recibo = {
   paymentMethod: Sale["paymentMethod"];
   revenue: number;
   cost: number;
+  fee: number;
   profit: number;
   margin: number;
 };
@@ -84,6 +86,9 @@ function buildCsv(sales: Sale[]): string {
     "Custo Unit (R$)",
     "Custo Total (R$)",
     "Receita (R$)",
+    "Taxa (%)",
+    "Taxa (R$)",
+    "Repassada",
     "Lucro (R$)",
     "Margem (%)",
     "Observacoes",
@@ -106,6 +111,9 @@ function buildCsv(sales: Sale[]): string {
       formatDecimal(sale.unitCost),
       formatDecimal(sale.totalCost),
       formatDecimal(sale.totalRevenue),
+      formatDecimal(sale.feeRate),
+      formatDecimal(sale.feeAmount),
+      sale.feePassedToCustomer ? "Sim" : "Nao",
       formatDecimal(sale.profit),
       sale.margin.toFixed(0),
       escape(sale.notes),
@@ -119,6 +127,7 @@ export function SalesPage() {
   const { sales, status, error, deleteSale } = useSales();
   const { products } = useProducts();
   const { machines } = useMachines();
+  const { fees, saveFees } = useFees();
   const [editRecibo, setEditRecibo] = useState<EditReciboSeed | null>(null);
 
   // Produtos do catálogo como itens prontos, para adicionar mais linhas a um
@@ -152,7 +161,9 @@ export function SalesPage() {
     const groups: Recibo[] = [...map.entries()].map(([reciboId, items]) => {
       const revenue = items.reduce((sum, item) => sum + item.totalRevenue, 0);
       const cost = items.reduce((sum, item) => sum + item.totalCost, 0);
-      const profit = revenue - cost;
+      const fee = items.reduce((sum, item) => sum + item.feeAmount, 0);
+      // Lucro do recibo = soma do lucro (já LÍQUIDO de taxa) de cada item.
+      const profit = items.reduce((sum, item) => sum + item.profit, 0);
       const first = items[0];
       return {
         reciboId,
@@ -163,6 +174,7 @@ export function SalesPage() {
         paymentMethod: first.paymentMethod,
         revenue,
         cost,
+        fee,
         profit,
         margin: revenue > 0 ? (profit / revenue) * 100 : 0,
       };
@@ -174,10 +186,12 @@ export function SalesPage() {
   const totals = useMemo(() => {
     const revenue = sales.reduce((sum, sale) => sum + sale.totalRevenue, 0);
     const cost = sales.reduce((sum, sale) => sum + sale.totalCost, 0);
-    const profit = revenue - cost;
+    const fee = sales.reduce((sum, sale) => sum + sale.feeAmount, 0);
+    const profit = sales.reduce((sum, sale) => sum + sale.profit, 0);
     return {
       revenue,
       cost,
+      fee,
       profit,
       margin: revenue > 0 ? (profit / revenue) * 100 : 0,
     };
@@ -211,6 +225,7 @@ export function SalesPage() {
       saleDate: recibo.saleDate,
       paymentMethod: recibo.paymentMethod,
       channel: recibo.channel,
+      feePassedToCustomer: recibo.items[0]?.feePassedToCustomer ?? false,
       // notes é compartilhado no recibo — pega o primeiro item que tiver.
       notes: recibo.items.find((item) => item.notes)?.notes ?? "",
       items: recibo.items.map((sale) => ({
@@ -342,6 +357,14 @@ export function SalesPage() {
                         {formatCurrency(recibo.revenue)}
                       </strong>
                     </span>
+                    {recibo.fee > 0 ? (
+                      <span>
+                        Taxa{" "}
+                        <strong className="mono sale-neg">
+                          −{formatCurrency(recibo.fee)}
+                        </strong>
+                      </span>
+                    ) : null}
                     <span>
                       Lucro{" "}
                       <strong
@@ -419,6 +442,8 @@ export function SalesPage() {
         <SaleModal
           editRecibo={editRecibo}
           catalogItems={catalogItems}
+          fees={fees}
+          onFeesChange={saveFees}
           onClose={() => setEditRecibo(null)}
           onConfirm={saveRecibo}
         />
