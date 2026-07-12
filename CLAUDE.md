@@ -8,7 +8,8 @@
 > Foto do **AGORA** para permitir abrir um chat novo por tarefa. Manter curto e atual —
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
-- **Estado do site:** no ar e estável (produção `● Ready`).
+- **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
+  **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
 - **Últimas mudanças relevantes:** **Editar recibo de venda.** A `/vendas` ganhou botão
   **editar** em cada recibo — reabre o `SaleModal` em **modo edição** (campos compartilhados +
   itens): dá pra mudar produto/qtd/preço/material, remover itens e **adicionar** do catálogo. O
@@ -121,14 +122,12 @@
 - **Em andamento / próximos passos:** **itens 1 e 2 CONCLUÍDOS** (captura/histórico +
   cesta/recibo + orçamento PDF **com histórico**). Próximo natural: **item 3 — Estoque**
   (`/estoque`) ou o **item 4 — Dashboard** (`/painel`, só vale com ~1-2 meses de vendas).
-  **Subdomínio `calculadora.lopolab.com.br` (EM ANDAMENTO):** o dono migrou a gestão de DNS do
-  registro.br para o **Cloudflare** (motivo: e-mail no domínio). **Aguardando propagação dos
-  nameservers** do Cloudflare. Quando propagar: no DNS do Cloudflare criar **CNAME `calculadora`
-  → `e5d09afaf3e58d32.vercel-dns-017.com`** obrigatoriamente como **"DNS only" (nuvem CINZA, não
-  proxied)** — o proxy laranja quebra o SSL/verificação da Vercel; depois adicionar
-  `calculadora.lopolab.com.br` nos **Authorized domains** do Firebase. O domínio já está
-  adicionado no projeto Vercel `lopolabcalc`. **Pendências opcionais:** **logo real** no PDF do
-  orçamento (hoje é placeholder de impressora).
+  **Subdomínio `calculadora.lopolab.com.br` ✅ NO AR:** nameservers do Cloudflare propagados;
+  **CNAME `calculadora` → `e5d09afaf3e58d32.vercel-dns-017.com` como "DNS only" (nuvem cinza)**
+  criado no Cloudflare; domínio anexado ao projeto Vercel `lopolabcalc`; **SSL Let's Encrypt
+  emitido** (auto-renova) e `calculadora.lopolab.com.br` adicionado nos **Authorized domains** do
+  Firebase (pro login Google). O `lopolabcalc.vercel.app` segue funcionando (mesmo app).
+  **Pendências opcionais:** **logo real** no PDF do orçamento (hoje é placeholder de impressora).
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
   cadastradas (por decisão — só mantemos Production; ver Diretriz 1). Nada quebrado.
 
@@ -298,8 +297,9 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 - **Domínio `lopolab.com.br`:** registrado no **registro.br**, mas a **gestão de DNS foi migrada
   para o Cloudflare** (nameservers do registro.br apontando pro Cloudflare; motivo: e-mail no
   domínio). **NÃO gerenciar DNS pelo registro.br** — todos os registros (CNAME do `calculadora`,
-  MX/e-mail, etc.) vão no painel do **Cloudflare**. Para o subdomínio da calculadora apontando
-  pra Vercel, o CNAME tem que ficar **"DNS only" (nuvem cinza)**, nunca proxied. O contexto do
+  MX/e-mail, etc.) vão no painel do **Cloudflare**. **`calculadora.lopolab.com.br` já está NO AR**
+  (CNAME → `e5d09afaf3e58d32.vercel-dns-017.com`, **"DNS only" / nuvem cinza**, nunca proxied; SSL
+  Let's Encrypt emitido pela Vercel; domínio nos Authorized domains do Firebase). O contexto do
   domínio/e-mail vive em outro projeto de chat do dono ("abertura da loja"), fora deste repo.
 
 ### Ambiente Windows (evita retrabalho de PATH)
