@@ -10,11 +10,12 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **error boundaries** do App Router — `app/error.tsx` (erros de página)
-  e `app/global-error.tsx` (erros do layout raiz) mostram fallback amigável ("Tentar
-  novamente"/"Recarregar") em vez de tela branca. Antes disso, na mesma rodada: **perf do
-  catálogo** (`calculatePricing` memoizado num `Map` no `PricingCalculator`, reusado pela
-  tabela e pela cesta — sem recálculo repetido a cada render) e enxugamento deste CLAUDE.md.
+- **Última mudança:** **break-even com contexto de capacidade** — a caixa "Meta de
+  Break-Even" (no `PricingResultCard` e no `ProductCatalog`) agora mostra a meta como % da
+  capacidade mensal ("≈ 32% da capacidade") ou alerta se a meta passa da capacidade. E o
+  rótulo "Fat. líquido" da capacidade virou **"Contribuição"** (era enganoso: não descontava
+  o fixo, sobretudo com o toggle de custo fixo off). Sem mudança na matemática do preço —
+  reforço da filosofia de custeio por contribuição (não inflar preço embutindo aluguel/peça).
 - **Concluído (macro):** itens 1 e 2 do backlog — **captura de venda + histórico**
   (`/vendas`: cesta/recibo com N itens por `reciboId`, editar recibo, CSV, snapshot congelado)
   e **orçamento em PDF** (`/orcamento`: itens de catálogo/livres, `generateQuotePdf`, histórico

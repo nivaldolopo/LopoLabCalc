@@ -858,6 +858,18 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 16px;
 }
 
+.break-even-context {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.break-even-context.warn {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .per-piece-row {
   background: rgba(255, 107, 53, 0.12);
   border-radius: 8px;

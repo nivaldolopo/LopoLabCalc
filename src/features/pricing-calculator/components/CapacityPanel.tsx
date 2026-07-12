@@ -67,7 +67,7 @@ export function CapacityPanel({
             {result ? `Fat. bruto: ${formatCurrency(result.grossDay)}` : ""}
           </div>
           <div className="capacity-sub">
-            {result ? `Fat. líquido: ${formatCurrency(result.netDay)}` : ""}
+            {result ? `Contribuição: ${formatCurrency(result.netDay)}` : ""}
           </div>
         </div>
         <div>
@@ -82,7 +82,7 @@ export function CapacityPanel({
             {result ? `Fat. bruto: ${formatCurrency(result.grossMonth)}` : ""}
           </div>
           <div className="capacity-sub">
-            {result ? `Fat. líquido: ${formatCurrency(result.netMonth)}` : ""}
+            {result ? `Contribuição: ${formatCurrency(result.netMonth)}` : ""}
           </div>
         </div>
       </div>

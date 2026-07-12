@@ -41,6 +41,15 @@ export function PricingResultCard({
     totalFixedMonth > 0 && result.contributionMargin > 0
       ? Math.ceil(totalFixedMonth / result.contributionMargin)
       : null;
+  // Contextualiza a meta contra a capacidade produtiva: a meta é fácil (usa
+  // pouco da capacidade) ou impossível (acima do que dá pra produzir)?
+  const capacityMonth = capacityResult?.piecesMonth ?? 0;
+  const breakEvenPct =
+    breakEvenUnits && capacityMonth > 0
+      ? Math.round((breakEvenUnits / capacityMonth) * 100)
+      : null;
+  const breakEvenOverCapacity =
+    breakEvenUnits != null && capacityMonth > 0 && breakEvenUnits > capacityMonth;
   const multiPiece = result.pieces > 1;
 
   const isRounded = result.suggestedPrice !== result.exactPrice;
@@ -93,8 +102,21 @@ export function PricingResultCard({
           <div className="break-even-title">🎯 Meta de Break-Even</div>
           <div className="break-even-val">
             Vender <strong>{breakEvenUnits}</strong> peças/mês deste produto
-            cobre o custo fixo e inicia o lucro.
+            cobre o aluguel + custos fixos e inicia o lucro.
           </div>
+          {capacityMonth > 0 ? (
+            breakEvenOverCapacity ? (
+              <div className="break-even-context warn">
+                ⚠️ Acima da capacidade ({capacityMonth} pçs/mês) — reveja preço
+                ou volume.
+              </div>
+            ) : (
+              <div className="break-even-context">
+                ≈ {breakEvenPct}% da sua capacidade mensal ({breakEvenUnits} de{" "}
+                {capacityMonth} peças).
+              </div>
+            )
+          ) : null}
         </div>
       ) : null}
 

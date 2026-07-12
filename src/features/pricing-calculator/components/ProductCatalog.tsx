@@ -308,6 +308,14 @@ function CatalogDetails({
       : null;
 
   const capacityResult = calculateCapacity(result, product, capacitySettings);
+  // Contextualiza a meta contra a capacidade produtiva (espelha o card de preço).
+  const capacityMonth = capacityResult?.piecesMonth ?? 0;
+  const breakEvenPct =
+    breakEvenUnits && capacityMonth > 0
+      ? Math.round((breakEvenUnits / capacityMonth) * 100)
+      : null;
+  const breakEvenOverCapacity =
+    breakEvenUnits != null && capacityMonth > 0 && breakEvenUnits > capacityMonth;
 
   return (
     <div className="catalog-details">
@@ -368,6 +376,19 @@ function CatalogDetails({
                 Vender <strong>{breakEvenUnits}</strong> peças/mês deste produto
                 cobre o aluguel + custos fixos e inicia o lucro.
               </div>
+              {capacityMonth > 0 ? (
+                breakEvenOverCapacity ? (
+                  <div className="break-even-context warn">
+                    ⚠️ Acima da capacidade ({capacityMonth} pçs/mês) — reveja
+                    preço ou volume.
+                  </div>
+                ) : (
+                  <div className="break-even-context">
+                    ≈ {breakEvenPct}% da sua capacidade mensal ({breakEvenUnits}{" "}
+                    de {capacityMonth} peças).
+                  </div>
+                )
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -389,7 +410,7 @@ function CatalogDetails({
                     {formatCount(capacityResult.piecesDay)} pçs
                   </span>
                   <span className="cd-cap-money">
-                    líq. {formatCurrency(capacityResult.netDay)}
+                    contrib. {formatCurrency(capacityResult.netDay)}
                     <em>bruto {formatCurrency(capacityResult.grossDay)}</em>
                   </span>
                 </div>
@@ -399,7 +420,7 @@ function CatalogDetails({
                     {capacityResult.piecesMonth} pçs
                   </span>
                   <span className="cd-cap-money">
-                    líq. {formatCurrency(capacityResult.netMonth)}
+                    contrib. {formatCurrency(capacityResult.netMonth)}
                     <em>bruto {formatCurrency(capacityResult.grossMonth)}</em>
                   </span>
                 </div>
