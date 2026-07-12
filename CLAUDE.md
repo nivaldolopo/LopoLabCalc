@@ -9,7 +9,14 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** **Item 2 — Orçamento avulso em PDF.** Nova rota
+- **Últimas mudanças relevantes:** **Histórico de orçamentos.** Cada PDF gerado agora
+  **também salva** um registro na coleção **`orcamentos`** (nº, cliente, itens, total, dados do
+  negócio **congelados**); seção **Histórico** na `/orcamento` com **re-baixar** (regenera o PDF)
+  e **excluir**. Novos: `quotesRepository` + `useQuotes`. A **numeração perdeu o contador**
+  (`config/orcamento` agora só guarda o negócio, via `subscribeQuoteBusiness`): o **próximo
+  nº = maior do histórico + 1** (ou 0001 se vazio) — **zera sozinho** ao esvaziar o histórico. O
+  campo Número segue o histórico até o usuário digitar um valor. **Antes:**
+  **Item 2 — Orçamento avulso em PDF.** Nova rota
   **`/orcamento`** (`QuotePage`) — monta itens **só pra cotação** (NÃO registra venda).
   Adiciona itens do **catálogo** (com preço sugerido, editável) ou **itens livres**;
   qtd/preço/subtotal por item; observações; validade em dias. Botão **Gerar PDF** client-side
@@ -144,9 +151,10 @@
    **editar** um recibo já registrado (hoje só exclui item a item).
 2. **Geração de orçamento (PDF)** — **✅ FEITA (avulso).** Rota `/orcamento` (`QuotePage`):
    monta itens só pra cotação (catálogo ou livre), sem registrar venda; `generateQuotePdf`
-   (jspdf) baixa o PDF com nº, cliente, data, itens, total, validade. Dados do negócio +
-   numeração no Firestore (`config/orcamento`). Opcional que sobrou: **histórico** de orçamentos
-   e **branding** (logo) no PDF.
+   (jspdf) baixa o PDF com nº, cliente, data, itens, total, validade + **logo placeholder**
+   (impressora). **Histórico** já FEITO (coleção `orcamentos`, re-baixar/excluir na `/orcamento`;
+   numeração derivada do histórico). Dados do negócio no Firestore (`config/orcamento`). Opcional
+   que sobrou: **branding** real (trocar o placeholder pela logo — já há comentário no código).
 3. **Controle de estoque** *(rota `/estoque`)* — cadastrar spools de filamento, ímãs, parafusos,
    rolamentos, chaveiros, embalagem. Como o app já sabe o que cada job consome, dar **baixa
    automática** ao marcar a venda concluída — unindo custo + venda + estoque num fluxo só.
@@ -187,7 +195,7 @@ src/
                             #     SaleModal (registrar venda), SalesPage (rota /vendas),
                             #     ProfitSummary (rentabilidade compartilhada), AuthGate (login)
     hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
-                            #     useAuth, useQuoteConfig
+                            #     useAuth, useQuoteConfig (negócio), useQuotes (histórico)
     lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv,
                             #     generateQuotePdf (orçamento)
     constants.ts, types.ts
@@ -195,7 +203,8 @@ src/
     firebase/               # client.ts (init + db), productsRepository.ts (CRUD + subscribe),
                             #   machinesRepository.ts (doc config/machines, realtime),
                             #   salesRepository.ts (coleção `vendas`, snapshots congelados),
-                            #   quoteConfigRepository.ts (doc config/orcamento: negócio + numeração)
+                            #   quoteConfigRepository.ts (doc config/orcamento: dados do negócio),
+                            #   quotesRepository.ts (coleção `orcamentos`: histórico de orçamentos)
     formatting/currency.ts
 ```
 

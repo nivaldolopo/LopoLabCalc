@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, FileText, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, FileText, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import {
   DEFAULT_FIXED_COSTS,
@@ -14,8 +14,9 @@ import { generateQuotePdf } from "../lib/generateQuotePdf";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
 import { useQuoteConfig } from "../hooks/useQuoteConfig";
+import { useQuotes } from "../hooks/useQuotes";
 import { useTheme } from "../hooks/useTheme";
-import type { QuoteBusiness } from "../types";
+import type { QuoteBusiness, QuoteRecord, QuoteRecordPayload } from "../types";
 import { LogoutButton } from "./LogoutButton";
 
 type QuoteItem = {
@@ -40,6 +41,10 @@ function toTimestamp(dateStr: string): number {
   return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
+function formatDate(ms: number): string {
+  return new Date(ms).toLocaleDateString("pt-BR");
+}
+
 let itemSeq = 0;
 function newItem(partial: Partial<QuoteItem>): QuoteItem {
   itemSeq += 1;
@@ -56,13 +61,8 @@ export function QuotePage() {
   const { theme, toggleTheme } = useTheme();
   const { products } = useProducts();
   const { machines } = useMachines();
-  const {
-    business: cfgBusiness,
-    lastNumber,
-    loaded,
-    saveBusiness,
-    commitNumber,
-  } = useQuoteConfig();
+  const { business: cfgBusiness, loaded, saveBusiness } = useQuoteConfig();
+  const { quotes, addQuote, deleteQuote } = useQuotes();
 
   const [business, setBusiness] = useState<QuoteBusiness>(
     DEFAULT_QUOTE_BUSINESS,
@@ -74,16 +74,31 @@ export function QuotePage() {
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [notes, setNotes] = useState("");
   const [addPick, setAddPick] = useState("");
-  const seeded = useRef(false);
+  const businessSeeded = useRef(false);
+  const numberEdited = useRef(false);
 
-  // Semeia os dados do negócio e o próximo número quando o config chega (1x).
+  // Próximo número = maior do histórico + 1 (ou 1 se vazio). Assim a numeração
+  // zera sozinha quando o histórico esvazia — sem contador separado no banco.
+  const nextNumber = useMemo(
+    () =>
+      quotes.length
+        ? Math.max(...quotes.map((quote) => quote.numberValue)) + 1
+        : 1,
+    [quotes],
+  );
+
+  // Semeia os dados do negócio quando o config chega (1x).
   useEffect(() => {
-    if (loaded && !seeded.current) {
-      seeded.current = true;
+    if (loaded && !businessSeeded.current) {
+      businessSeeded.current = true;
       setBusiness(cfgBusiness);
-      setQuoteNumber(lastNumber + 1);
     }
-  }, [loaded, cfgBusiness, lastNumber]);
+  }, [loaded, cfgBusiness]);
+
+  // O campo Número segue o histórico, a menos que o usuário digite um valor.
+  useEffect(() => {
+    if (!numberEdited.current) setQuoteNumber(nextNumber);
+  }, [nextNumber]);
 
   // Produtos do catálogo como opções (com preço sugerido), em ordem alfabética.
   const catalogOptions = useMemo(
@@ -139,6 +154,11 @@ export function QuotePage() {
     setItems((current) => [...current, newItem({})]);
   }
 
+  const orderedQuotes = useMemo(
+    () => [...quotes].sort((a, b) => b.createdAt - a.createdAt),
+    [quotes],
+  );
+
   function handleGenerate() {
     if (items.length === 0) {
       window.alert("Adicione ao menos um item ao orçamento.");
@@ -152,24 +172,65 @@ export function QuotePage() {
     }
 
     const numberStr = String(quoteNumber).padStart(4, "0");
+    const cleanItems = items.map((item) => ({
+      description: item.description.trim(),
+      quantity: Math.max(1, item.quantity || 1),
+      unitPrice: Math.max(0, item.unitPrice || 0),
+    }));
+    const cleanTotal = cleanItems.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice,
+      0,
+    );
+    const date = toTimestamp(dateStr);
+    const days = Math.max(1, validityDays || 1);
+
     generateQuotePdf({
       business,
       number: numberStr,
       customer: customer.trim(),
-      date: toTimestamp(dateStr),
-      validityDays: Math.max(1, validityDays || 1),
-      items: items.map((item) => ({
-        description: item.description.trim(),
-        quantity: Math.max(1, item.quantity || 1),
-        unitPrice: Math.max(0, item.unitPrice || 0),
-      })),
+      date,
+      validityDays: days,
+      items: cleanItems,
       notes: notes.trim(),
     });
 
-    // Persiste dados do negócio + fixa a numeração (próximo parte de +1).
+    // Salva no histórico (congela o orçamento) + persiste os dados do negócio.
+    const payload: QuoteRecordPayload = {
+      number: numberStr,
+      numberValue: quoteNumber,
+      customer: customer.trim(),
+      date,
+      validityDays: days,
+      items: cleanItems,
+      notes: notes.trim(),
+      business,
+      total: cleanTotal,
+      createdAt: Date.now(),
+    };
+    void addQuote(payload);
     void saveBusiness(business);
-    void commitNumber(quoteNumber);
-    setQuoteNumber((current) => current + 1);
+    // Volta a numeração a seguir o histórico (o novo registro puxa o próximo nº).
+    numberEdited.current = false;
+  }
+
+  function reDownload(quote: QuoteRecord) {
+    generateQuotePdf({
+      business: quote.business,
+      number: quote.number,
+      customer: quote.customer,
+      date: quote.date,
+      validityDays: quote.validityDays,
+      items: quote.items,
+      notes: quote.notes,
+    });
+  }
+
+  async function handleDeleteQuote(quote: QuoteRecord) {
+    const ok = window.confirm(
+      `Excluir o orçamento nº ${quote.number}${quote.customer ? ` (${quote.customer})` : ""}? Isso não pode ser desfeito.`,
+    );
+    if (!ok) return;
+    await deleteQuote(quote.id);
   }
 
   return (
@@ -268,9 +329,10 @@ export function QuotePage() {
                 type="number"
                 min={1}
                 value={quoteNumber}
-                onChange={(event) =>
-                  setQuoteNumber(Math.max(1, Number(event.target.value) || 1))
-                }
+                onChange={(event) => {
+                  numberEdited.current = true;
+                  setQuoteNumber(Math.max(1, Number(event.target.value) || 1));
+                }}
               />
             </div>
             <div className="field-block compact">
@@ -442,6 +504,48 @@ export function QuotePage() {
           </button>
         </div>
       </div>
+
+      {orderedQuotes.length > 0 ? (
+        <div className="card quote-history">
+          <div className="section-label">
+            Histórico de orçamentos ({orderedQuotes.length})
+          </div>
+          <div className="quote-history-list">
+            {orderedQuotes.map((quote) => (
+              <div className="quote-history-row" key={quote.id}>
+                <div className="qh-main">
+                  <span className="qh-number">Nº {quote.number}</span>
+                  <span className="qh-customer">
+                    {quote.customer || "Sem cliente"}
+                  </span>
+                  <span className="qh-date">{formatDate(quote.date)}</span>
+                </div>
+                <div className="qh-side">
+                  <span className="qh-total mono">
+                    {formatCurrency(quote.total)}
+                  </span>
+                  <button
+                    className="icon-button"
+                    type="button"
+                    onClick={() => reDownload(quote)}
+                    title="Baixar PDF novamente"
+                  >
+                    <Download size={15} />
+                  </button>
+                  <button
+                    className="icon-button danger"
+                    type="button"
+                    onClick={() => handleDeleteQuote(quote)}
+                    title="Excluir orçamento"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -212,7 +212,27 @@ export type QuoteBusiness = {
   instagram: string;
 };
 
-export type QuoteConfig = {
-  business: QuoteBusiness;
-  lastNumber: number;
+// Um item do orçamento, congelado no registro do histórico.
+export type QuoteItemSnapshot = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
 };
+
+// Orçamento salvo no histórico (coleção `orcamentos`). Guarda também os dados do
+// negócio no momento da emissão, para o PDF ser re-baixado idêntico depois.
+export type QuoteRecordInput = {
+  number: string; // número exibido, ex.: "0001"
+  numberValue: number; // numérico, para ordenar e calcular o próximo
+  customer: string;
+  date: number; // timestamp (ms) do orçamento
+  validityDays: number;
+  items: QuoteItemSnapshot[];
+  notes: string;
+  business: QuoteBusiness;
+  total: number;
+};
+
+export type QuoteRecordPayload = QuoteRecordInput & { createdAt: number };
+
+export type QuoteRecord = QuoteRecordInput & { id: string; createdAt: number };

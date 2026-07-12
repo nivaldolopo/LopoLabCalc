@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   persistQuoteBusiness,
-  persistQuoteNumber,
-  subscribeQuoteConfig,
+  subscribeQuoteBusiness,
 } from "@/lib/firebase/quoteConfigRepository";
 import { DEFAULT_QUOTE_BUSINESS } from "../constants";
 import type { QuoteBusiness } from "../types";
@@ -13,16 +12,12 @@ export function useQuoteConfig() {
   const [business, setBusiness] = useState<QuoteBusiness>(
     DEFAULT_QUOTE_BUSINESS,
   );
-  const [lastNumber, setLastNumber] = useState(0);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = subscribeQuoteConfig(
-      (config) => {
-        if (config) {
-          setBusiness(config.business);
-          setLastNumber(config.lastNumber);
-        }
+    const unsubscribe = subscribeQuoteBusiness(
+      (next) => {
+        if (next) setBusiness(next);
         setLoaded(true);
       },
       () => setLoaded(true),
@@ -35,11 +30,5 @@ export function useQuoteConfig() {
     await persistQuoteBusiness(next);
   }
 
-  // Grava o número usado como "último" (a próxima geração parte de +1).
-  async function commitNumber(used: number) {
-    setLastNumber(used);
-    await persistQuoteNumber(used);
-  }
-
-  return { business, lastNumber, loaded, saveBusiness, commitNumber };
+  return { business, loaded, saveBusiness };
 }

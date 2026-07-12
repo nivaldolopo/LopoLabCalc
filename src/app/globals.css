@@ -2464,6 +2464,63 @@ td.col-actions {
   padding: 12px 22px;
 }
 
+.quote-history {
+  margin-top: 16px;
+}
+
+.quote-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quote-history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--details-bg);
+}
+
+.qh-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.qh-number {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.qh-customer {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.qh-date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.qh-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qh-total {
+  font-weight: 600;
+  color: var(--ink);
+}
+
 @media (max-width: 760px) {
   .quote-grid {
     grid-template-columns: 1fr;
