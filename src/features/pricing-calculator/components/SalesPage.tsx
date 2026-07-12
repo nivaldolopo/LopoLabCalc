@@ -36,6 +36,19 @@ const statusLabel: Record<CloudStatus, string> = {
 const paymentLabel = new Map(PAYMENT_METHODS.map((p) => [p.value, p.label]));
 const channelLabel = new Map(SALE_CHANNELS.map((c) => [c.value, c.label]));
 
+// Ordenação da lista de vendas (espelha o catálogo, mas sobre recibos).
+type SalesSortMode =
+  | "recent"
+  | "oldest"
+  | "customer-az"
+  | "customer-za"
+  | "revenue-desc"
+  | "revenue-asc"
+  | "profit-desc"
+  | "profit-asc"
+  | "margin-desc"
+  | "margin-asc";
+
 type Recibo = {
   reciboId: string;
   items: Sale[];
@@ -133,6 +146,7 @@ export function SalesPage() {
   const { machines } = useMachines();
   const { fees, saveFees } = useFees();
   const [editRecibo, setEditRecibo] = useState<EditReciboSeed | null>(null);
+  const [sortMode, setSortMode] = useState<SalesSortMode>("recent");
 
   // Produtos do catálogo como itens prontos, para adicionar mais linhas a um
   // recibo durante a edição (mesma lista alfabética do modal de venda).
@@ -187,6 +201,37 @@ export function SalesPage() {
 
     return groups.sort((a, b) => b.saleDate - a.saleDate);
   }, [sales]);
+
+  const sortedRecibos = useMemo<Recibo[]>(() => {
+    const next = [...recibos];
+    switch (sortMode) {
+      case "oldest":
+        return next.sort((a, b) => a.saleDate - b.saleDate);
+      case "customer-az":
+        return next.sort((a, b) =>
+          (a.customer || "").localeCompare(b.customer || "", "pt-BR"),
+        );
+      case "customer-za":
+        return next.sort((a, b) =>
+          (b.customer || "").localeCompare(a.customer || "", "pt-BR"),
+        );
+      case "revenue-desc":
+        return next.sort((a, b) => b.revenue - a.revenue);
+      case "revenue-asc":
+        return next.sort((a, b) => a.revenue - b.revenue);
+      case "profit-desc":
+        return next.sort((a, b) => b.profit - a.profit);
+      case "profit-asc":
+        return next.sort((a, b) => a.profit - b.profit);
+      case "margin-desc":
+        return next.sort((a, b) => b.margin - a.margin);
+      case "margin-asc":
+        return next.sort((a, b) => a.margin - b.margin);
+      case "recent":
+      default:
+        return next.sort((a, b) => b.saleDate - a.saleDate);
+    }
+  }, [recibos, sortMode]);
 
   const totals = useMemo(() => {
     const revenue = sales.reduce((sum, sale) => sum + sale.totalRevenue, 0);
@@ -316,6 +361,23 @@ export function SalesPage() {
       <div className="catalog-header">
         <div className="catalog-title">Histórico</div>
         <div className="catalog-actions">
+          <select
+            value={sortMode}
+            onChange={(event) =>
+              setSortMode(event.target.value as SalesSortMode)
+            }
+          >
+            <option value="recent">Mais recentes</option>
+            <option value="oldest">Mais antigas</option>
+            <option value="customer-az">Cliente (A→Z)</option>
+            <option value="customer-za">Cliente (Z→A)</option>
+            <option value="revenue-desc">Receita (maior)</option>
+            <option value="revenue-asc">Receita (menor)</option>
+            <option value="profit-desc">Lucro (maior)</option>
+            <option value="profit-asc">Lucro (menor)</option>
+            <option value="margin-desc">Margem (maior)</option>
+            <option value="margin-asc">Margem (menor)</option>
+          </select>
           <button
             className="icon-label-button"
             type="button"
@@ -337,7 +399,7 @@ export function SalesPage() {
         </div>
       ) : (
         <div className="recibo-list">
-          {recibos.map((recibo) => (
+          {sortedRecibos.map((recibo) => (
             <div className="recibo-card" key={recibo.reciboId}>
               <div className="recibo-head">
                 <div className="recibo-head-main">
