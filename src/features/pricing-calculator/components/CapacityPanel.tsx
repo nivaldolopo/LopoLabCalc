@@ -20,6 +20,10 @@ export function CapacityPanel({
   result,
   onChange,
 }: CapacityPanelProps) {
+  // Mesmo critério do card "Rentabilidade": só é "Lucro" quando o custo fixo
+  // entra no totalCost; sem o fixo, o líquido é apenas "Contribuição".
+  const term = result?.fixedIncluded ? "Lucro" : "Contribuição";
+
   return (
     <div className="capacity-box">
       <div className="capacity-title">
@@ -67,7 +71,7 @@ export function CapacityPanel({
             {result ? `Fat. bruto: ${formatCurrency(result.grossDay)}` : ""}
           </div>
           <div className="capacity-sub">
-            {result ? `Contribuição: ${formatCurrency(result.netDay)}` : ""}
+            {result ? `${term}: ${formatCurrency(result.netDay)}` : ""}
           </div>
         </div>
         <div>
@@ -82,7 +86,7 @@ export function CapacityPanel({
             {result ? `Fat. bruto: ${formatCurrency(result.grossMonth)}` : ""}
           </div>
           <div className="capacity-sub">
-            {result ? `Contribuição: ${formatCurrency(result.netMonth)}` : ""}
+            {result ? `${term}: ${formatCurrency(result.netMonth)}` : ""}
           </div>
         </div>
       </div>

@@ -132,6 +132,9 @@ export type CapacityResult = {
   cyclesMonth: number;
   grossMonth: number;
   netMonth: number;
+  // Se o custo fixo entrou no totalCost (toggle ligado). Define se o "líquido"
+  // é lucro de verdade ("Lucro") ou apenas contribuição ("Contribuição").
+  fixedIncluded: boolean;
 };
 
 export type CloudStatus = "connecting" | "synced" | "importing" | "error";

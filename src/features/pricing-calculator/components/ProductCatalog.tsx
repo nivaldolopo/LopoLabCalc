@@ -410,7 +410,8 @@ function CatalogDetails({
                     {formatCount(capacityResult.piecesDay)} pçs
                   </span>
                   <span className="cd-cap-money">
-                    contrib. {formatCurrency(capacityResult.netDay)}
+                    {capacityResult.fixedIncluded ? "lucro" : "contrib."}{" "}
+                    {formatCurrency(capacityResult.netDay)}
                     <em>bruto {formatCurrency(capacityResult.grossDay)}</em>
                   </span>
                 </div>
@@ -420,7 +421,8 @@ function CatalogDetails({
                     {capacityResult.piecesMonth} pçs
                   </span>
                   <span className="cd-cap-money">
-                    contrib. {formatCurrency(capacityResult.netMonth)}
+                    {capacityResult.fixedIncluded ? "lucro" : "contrib."}{" "}
+                    {formatCurrency(capacityResult.netMonth)}
                     <em>bruto {formatCurrency(capacityResult.grossMonth)}</em>
                   </span>
                 </div>

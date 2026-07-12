@@ -40,5 +40,6 @@ export function calculateCapacity(
     cyclesMonth,
     grossMonth: grossPerPiece * piecesMonth,
     netMonth: netPerPiece * piecesMonth,
+    fixedIncluded: result.fixedCost > 0,
   };
 }
