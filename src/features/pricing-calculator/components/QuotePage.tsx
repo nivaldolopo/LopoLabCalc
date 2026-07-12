@@ -563,33 +563,30 @@ export function QuotePage() {
 
                   {isOpen ? (
                     <div className="qh-details">
-                      <table className="qh-items">
-                        <thead>
-                          <tr>
-                            <th>Descrição</th>
-                            <th className="num">Qtd</th>
-                            <th className="num">Preço unit.</th>
-                            <th className="num">Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {quote.items.map((item, index) => (
-                            <tr key={index}>
-                              <td>{item.description}</td>
-                              <td className="num mono">{item.quantity}</td>
-                              <td className="num mono">
-                                {formatCurrency(item.unitPrice)}
-                              </td>
-                              <td className="num mono">
-                                {formatCurrency(item.unitPrice * item.quantity)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <div className="qh-items">
+                        {quote.items.map((item, index) => (
+                          <div className="qh-item" key={index}>
+                            <span className="qh-item-desc">
+                              {item.description}
+                            </span>
+                            <span className="qh-item-calc mono">
+                              {item.quantity} × {formatCurrency(item.unitPrice)}
+                            </span>
+                            <span className="qh-item-sub mono">
+                              {formatCurrency(item.unitPrice * item.quantity)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="qh-total-row">
+                        <span>Total</span>
+                        <strong className="mono">
+                          {formatCurrency(quote.total)}
+                        </strong>
+                      </div>
                       <div className="qh-extra">
-                        Validade: {quote.validityDays} dias
-                        {quote.notes ? ` · Obs.: ${quote.notes}` : ""}
+                        <span>Validade: {quote.validityDays} dias</span>
+                        {quote.notes ? <span>Obs.: {quote.notes}</span> : null}
                       </div>
                     </div>
                   ) : null}
