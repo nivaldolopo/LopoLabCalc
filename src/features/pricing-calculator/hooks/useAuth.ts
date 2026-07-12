@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import {
-  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithRedirect,
+  signInWithPopup,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
@@ -20,12 +19,6 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Ao voltar do redirect do Google, captura erros (o login em si é refletido
-    // pelo onAuthStateChanged abaixo).
-    getRedirectResult(auth).catch((caught) =>
-      setError((caught as Error).message),
-    );
-
     return onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);
       if (!nextUser) {
@@ -40,10 +33,12 @@ export function useAuth() {
   async function signIn() {
     setError(null);
     try {
-      // Redirect em vez de popup: a página vai ao Google e volta logada. Evita
-      // o iframe/cookies de terceiros do popup (que quebra em vários navegadores
-      // e no mobile).
-      await signInWithRedirect(auth, new GoogleAuthProvider());
+      // Popup em vez de redirect: o handshake acontece na própria janela do
+      // popup e o resultado volta por postMessage. Não depende de armazenamento
+      // de terceiro (que os navegadores bloqueiam) — o redirect quebrava porque
+      // o handler fica em lopo-lab.firebaseapp.com (domínio diferente do site)
+      // e o estado não sobrevivia à volta, gerando loop de login.
+      await signInWithPopup(auth, new GoogleAuthProvider());
     } catch (caught) {
       setError((caught as Error).message);
     }
