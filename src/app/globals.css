@@ -2607,8 +2607,18 @@ td.col-actions {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  /* Ações do cabeçalho viram uma grade de 2 colunas: botões do mesmo tamanho,
+     preenchendo a largura (barra de ferramentas). Um botão sozinho na última
+     linha (contagem ímpar — ex.: futuro "Estoque") ocupa as duas colunas. */
   .header-actions {
     width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .header-actions > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 
   .recibo-head-totals {
