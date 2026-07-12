@@ -136,12 +136,11 @@
   criado no Cloudflare; domínio anexado ao projeto Vercel `lopolabcalc`; **SSL Let's Encrypt
   emitido** (auto-renova) e `calculadora.lopolab.com.br` adicionado nos **Authorized domains** do
   Firebase (pro login Google). O `lopolabcalc.vercel.app` segue funcionando (mesmo app).
+  **E-mail no domínio `@lopolab.com.br` ✅ CONFIGURADO** (feito fora deste repo — DNS no
+  Cloudflare; contexto vive no projeto de chat "abertura da loja").
   **TO-DO em aberto (ver Backlog para detalhe):** (a) **item 3 — Estoque** (`/estoque`);
   (b) **item 4 — Dashboard** (`/painel`, só com ~1-2 meses de vendas); (c) **logo real** no PDF do
-  orçamento (hoje placeholder de impressora — já há comentário no `generateQuotePdf` de onde trocar);
-  (d) **e-mail no domínio** (`@lopolab.com.br`) — decidir Cloudflare Email Routing vs Workspace/Zoho
-  e cadastrar MX/SPF/DKIM no Cloudflare; contexto vive no projeto de chat "abertura da loja", fora
-  deste repo.
+  orçamento (hoje placeholder de impressora — já há comentário no `generateQuotePdf` de onde trocar).
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
   cadastradas (por decisão — só mantemos Production; ver Diretriz 1). Nada quebrado.
 
