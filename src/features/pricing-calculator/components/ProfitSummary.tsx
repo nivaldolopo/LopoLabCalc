@@ -16,6 +16,10 @@ export function ProfitSummary({
   const profitBatch = profitPerPiece * result.pieces;
   const profitPerHour = printHours > 0 ? profitBatch / printHours : 0;
   const cls = profitPerPiece < 0 ? "sale-neg" : "sale-pos";
+  // Só é "lucro" de verdade quando o custo fixo entra no totalCost (toggle
+  // ligado, rateio > 0). Sem o fixo, o número é a MESMA "Contribuição" da
+  // capacidade — chamar de lucro superestimaria. Rótulo segue o custeio.
+  const term = result.fixedCost > 0 ? "Lucro" : "Contribuição";
 
   return (
     <div className="cd-profit-card">
@@ -24,13 +28,13 @@ export function ProfitSummary({
       </div>
       <div className="cd-profit-rows">
         <div className="cd-profit-row">
-          <span className="cd-profit-label">Lucro / peça</span>
+          <span className="cd-profit-label">{term} / peça</span>
           <span className={`cd-profit-value ${cls}`}>
             {formatCurrency(profitPerPiece)}
           </span>
         </div>
         <div className="cd-profit-row">
-          <span className="cd-profit-label">Lucro / hora de máquina</span>
+          <span className="cd-profit-label">{term} / hora de máquina</span>
           <span className={`cd-profit-value ${cls}`}>
             {formatCurrency(profitPerHour)}
             <em>/h</em>
@@ -39,7 +43,7 @@ export function ProfitSummary({
         {result.pieces > 1 ? (
           <div className="cd-profit-row">
             <span className="cd-profit-label">
-              Lucro do lote ({result.pieces} pçs)
+              {term} do lote ({result.pieces} pçs)
             </span>
             <span className={`cd-profit-value ${cls}`}>
               {formatCurrency(profitBatch)}
