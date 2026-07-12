@@ -53,6 +53,13 @@ export function Header({ theme, status, onToggleTheme }: HeaderProps) {
           >
             <span aria-hidden="true">🧾</span> Vendas
           </Link>
+          <Link
+            className="icon-label-button"
+            href="/orcamento"
+            title="Gerar orçamento em PDF"
+          >
+            <span aria-hidden="true">📄</span> Orçamento
+          </Link>
           <button
             className="icon-label-button"
             type="button"

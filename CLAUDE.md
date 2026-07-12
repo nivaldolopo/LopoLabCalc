@@ -9,7 +9,17 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** **Fase 1b — cesta/recibo (vários produtos numa mesma
+- **Últimas mudanças relevantes:** **Item 2 — Orçamento avulso em PDF.** Nova rota
+  **`/orcamento`** (`QuotePage`) — monta itens **só pra cotação** (NÃO registra venda).
+  Adiciona itens do **catálogo** (com preço sugerido, editável) ou **itens livres**;
+  qtd/preço/subtotal por item; observações; validade em dias. Botão **Gerar PDF** client-side
+  (`jspdf` + `jspdf-autotable`, `lib/generateQuotePdf.ts`) baixa `orcamento-<nº>-<cliente>.pdf`.
+  **Dados do negócio** (nome, telefone/WhatsApp, e-mail/Instagram) + **numeração sequencial**
+  ficam no **Firestore** (doc `config/orcamento` via `quoteConfigRepository`/`useQuoteConfig`) —
+  **portáteis entre aparelhos, nada em localStorage**. Link **📄 Orçamento** no Header e no
+  `/vendas`. O preço sugerido prefilado usa `DEFAULT_FIXED_COSTS` (e é editável de todo jeito).
+  Verificado por smoke test headless: jsPDF gera `%PDF-` válido, acentos pt-BR OK. **Antes:**
+  **Fase 1b — cesta/recibo (vários produtos numa mesma
   venda).** O `SaleModal` virou uma **cesta**: cliente / canal / forma de pagamento / data /
   obs são **compartilhados** do recibo; abaixo, **N itens** (cada um com produto, **material
   por item**, qtd e preço unitário — o material saiu do compartilhado). Um `<select>`
@@ -92,11 +102,13 @@
   usam o mesmo preço automaticamente; o seletor fica no card (`PricingResultCard`) e grava no
   produto via `form.updateProduct`. Produtos antigos sem o campo caem em "exact". Antes:
   catálogo no desktop virou lista de cartões; campos sem negativos (clamp `Math.max`).
-- **Em andamento / próximos passos:** **item 1 CONCLUÍDO** (Fase 1a captura + histórico e
-  Fase 1b cesta/recibo). Próximo natural: **item 2 — Orçamento em PDF** (botão no card,
-  client-side) ou **item 3 — Estoque**. Pendências opcionais menores: **editar** um recibo já
-  registrado (hoje só exclui item a item); hoje o cabeçalho do recibo mostra a obs do 1º item
-  que tiver — se quiser obs por item no histórico, dá pra evoluir.
+- **Em andamento / próximos passos:** **itens 1 e 2 CONCLUÍDOS** (captura/histórico +
+  cesta/recibo + orçamento PDF). Próximo natural: **item 3 — Estoque** (`/estoque`) ou o
+  **item 4 — Dashboard** (`/painel`, só vale com ~1-2 meses de vendas). **Pendências
+  opcionais:** conectar o subdomínio **`calculadora.lopolab.com.br`** (registro.br em transição
+  na última sessão — falta criar o CNAME e adicionar o domínio nos Authorized domains do
+  Firebase); **editar** um recibo já registrado; **histórico de orçamentos** (hoje o PDF é
+  avulso, não fica salvo).
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
   cadastradas (por decisão — só mantemos Production; ver Diretriz 1). Nada quebrado.
 
@@ -130,10 +142,11 @@
    **Fase 1b ✅ FEITA: cesta/recibo** — modal virou cesta (N itens, `createSales` em batch
    compartilhando `reciboId`), `/vendas` agrupa por recibo em cartões. Opcional que sobrou:
    **editar** um recibo já registrado (hoje só exclui item a item).
-2. **Geração de orçamento (PDF)** — **subiu na ordem** (ChatGPT punha por último). Independente
-   de tudo, ganho rápido, client-side. Botão "Gerar orçamento": nº, cliente, data, itens,
-   quantidade, tempo estimado, preço unitário/total, validade. Layout simples (nome + contato);
-   branding depois. Ganho: profissionalismo (clientes maiores, escolas, makerspaces).
+2. **Geração de orçamento (PDF)** — **✅ FEITA (avulso).** Rota `/orcamento` (`QuotePage`):
+   monta itens só pra cotação (catálogo ou livre), sem registrar venda; `generateQuotePdf`
+   (jspdf) baixa o PDF com nº, cliente, data, itens, total, validade. Dados do negócio +
+   numeração no Firestore (`config/orcamento`). Opcional que sobrou: **histórico** de orçamentos
+   e **branding** (logo) no PDF.
 3. **Controle de estoque** *(rota `/estoque`)* — cadastrar spools de filamento, ímãs, parafusos,
    rolamentos, chaveiros, embalagem. Como o app já sabe o que cada job consome, dar **baixa
    automática** ao marcar a venda concluída — unindo custo + venda + estoque num fluxo só.
@@ -158,13 +171,14 @@ sincronizados em tempo real.
 - **Tailwind CSS 4** (via `@tailwindcss/postcss`)
 - **Firebase 12** → **Firestore** (banco nomeado `lopo-lab-calculadora`)
 - Ícones: `lucide-react`
+- PDF (orçamento): `jspdf` + `jspdf-autotable` (client-side)
 - Gerenciador de pacotes: **pnpm**
 
 **Estrutura:**
 ```
 src/
   app/                      # App Router: layout.tsx, page.tsx (calculadora),
-                            #   vendas/page.tsx (histórico), globals.css
+                            #   vendas/page.tsx (histórico), orcamento/page.tsx (PDF), globals.css
   features/pricing-calculator/
     components/             # UI: PricingCalculator (raiz), ProductForm, ProductCatalog,
                             #     PricingResultCard, CapacityPanel, MachineSelector,
@@ -172,13 +186,16 @@ src/
                             #     ExtraStagesSection, LinksSection, Header,
                             #     SaleModal (registrar venda), SalesPage (rota /vendas),
                             #     ProfitSummary (rentabilidade compartilhada), AuthGate (login)
-    hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales, useAuth
-    lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv
+    hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
+                            #     useAuth, useQuoteConfig
+    lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv,
+                            #     generateQuotePdf (orçamento)
     constants.ts, types.ts
   lib/
     firebase/               # client.ts (init + db), productsRepository.ts (CRUD + subscribe),
                             #   machinesRepository.ts (doc config/machines, realtime),
-                            #   salesRepository.ts (coleção `vendas`, snapshots congelados)
+                            #   salesRepository.ts (coleção `vendas`, snapshots congelados),
+                            #   quoteConfigRepository.ts (doc config/orcamento: negócio + numeração)
     formatting/currency.ts
 ```
 

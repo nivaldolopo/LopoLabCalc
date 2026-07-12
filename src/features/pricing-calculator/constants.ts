@@ -4,6 +4,7 @@ import type {
   Machine,
   PaymentMethod,
   ProductInput,
+  QuoteBusiness,
   SaleChannel,
 } from "./types";
 
@@ -140,3 +141,13 @@ export const SALE_CHANNELS: { value: SaleChannel; label: string }[] = [
 
 export const DEFAULT_PAYMENT_METHOD: PaymentMethod = "pix";
 export const DEFAULT_SALE_CHANNEL: SaleChannel = "quiosque";
+
+// Orçamento (PDF). Dados do negócio começam com o nome e vazios no contato —
+// o usuário preenche uma vez e fica salvo no Firestore (portátil entre aparelhos).
+export const DEFAULT_QUOTE_BUSINESS: QuoteBusiness = {
+  name: "Lopo Lab",
+  phone: "",
+  contact: "",
+};
+
+export const DEFAULT_QUOTE_VALIDITY_DAYS = 7;

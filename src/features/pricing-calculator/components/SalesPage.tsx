@@ -170,6 +170,9 @@ export function SalesPage() {
           <Link className="icon-label-button" href="/">
             <ArrowLeft size={15} /> Calculadora
           </Link>
+          <Link className="icon-label-button" href="/orcamento">
+            <span aria-hidden="true">📄</span> Orçamento
+          </Link>
           <button
             className="icon-label-button"
             type="button"

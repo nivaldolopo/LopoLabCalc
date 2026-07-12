@@ -198,3 +198,20 @@ export type SaleInput = {
 export type SalePayload = SaleInput & { createdAt: number };
 
 export type Sale = SaleInput & { id: string; createdAt: number };
+
+// ---------------------------------------------------------------------------
+// Orçamento (item 2) — geração de PDF avulso. Só os AJUSTES (dados do negócio +
+// numeração) ficam no Firestore (doc config/orcamento), compartilhados entre
+// dispositivos. O orçamento em si não é persistido: é um PDF que se baixa.
+// ---------------------------------------------------------------------------
+
+export type QuoteBusiness = {
+  name: string;
+  phone: string; // telefone / WhatsApp
+  contact: string; // e-mail / Instagram / site
+};
+
+export type QuoteConfig = {
+  business: QuoteBusiness;
+  lastNumber: number;
+};

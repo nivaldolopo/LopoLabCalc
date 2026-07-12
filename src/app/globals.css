@@ -2352,6 +2352,134 @@ td.col-actions {
   background: var(--details-bg);
 }
 
+/* --- Página de orçamento (PDF) --- */
+
+.quote-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.quote-card > .section-label,
+.quote-items-card > .section-label {
+  margin-bottom: 12px;
+}
+
+.quote-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quote-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--details-bg);
+}
+
+.quote-item-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.quote-item-head .field-input {
+  flex: 1;
+}
+
+.quote-item-grid {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.quote-item-grid .field-block {
+  margin-bottom: 0;
+}
+
+.quote-subtotal {
+  padding: 8px 10px;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--field-bg);
+}
+
+.quote-add {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 14px 0 4px;
+}
+
+.quote-add-catalog {
+  flex: 1;
+  min-width: 220px;
+  margin: 0;
+}
+
+.quote-notes {
+  margin-top: 16px;
+}
+
+.quote-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.quote-total {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quote-total span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted2);
+}
+
+.quote-total strong {
+  font-size: 24px;
+}
+
+.quote-generate {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  padding: 12px 22px;
+}
+
+@media (max-width: 760px) {
+  .quote-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .quote-generate {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 760px) {
   .sales-totals {
     grid-template-columns: repeat(2, 1fr);
