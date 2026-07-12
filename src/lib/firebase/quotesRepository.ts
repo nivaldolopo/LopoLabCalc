@@ -14,12 +14,9 @@ import type {
   QuoteRecordPayload,
 } from "@/features/pricing-calculator/types";
 import { DEFAULT_QUOTE_BUSINESS } from "@/features/pricing-calculator/constants";
+import { num } from "@/lib/number";
 
 const quotesCollection = collection(db, "orcamentos");
-
-function num(value: unknown): number {
-  return Number.isFinite(Number(value)) ? Number(value) : 0;
-}
 
 function toBusiness(data: DocumentData | undefined): QuoteBusiness {
   const business = data ?? {};

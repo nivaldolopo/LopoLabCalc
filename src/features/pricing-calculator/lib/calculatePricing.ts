@@ -10,10 +10,7 @@ import type {
 } from "../types";
 import { DEFAULT_FAILURE_RATE } from "../constants";
 import { roundPrice } from "./roundPrice";
-
-function numberOrZero(value: number | undefined | null): number {
-  return Number.isFinite(value) ? Number(value) : 0;
-}
+import { num } from "@/lib/number";
 
 function findMachine(machines: Machine[], machineId: string): Machine {
   return machines.find((machine) => machine.id === machineId) ?? machines[0];
@@ -21,16 +18,18 @@ function findMachine(machines: Machine[], machineId: string): Machine {
 
 export function normalizeStages(product: ProductInput): PrintStage[] {
   if (product.stages?.length) return product.stages;
+  // LEGADO: produtos antigos guardavam a 2ª etapa em combineEnabled/stage2 antes
+  // do array `stages`. Migração só-leitura — produtos novos nunca chegam aqui.
   if (product.combineEnabled && product.stage2) return [product.stage2];
   return [];
 }
 
 export function calculateFixedCostPerHour(settings: FixedCostSettings): number {
-  const totalFixed = numberOrZero(settings.rent) + numberOrZero(settings.other);
-  const machinesCount = Math.max(1, numberOrZero(settings.machines) || 1);
+  const totalFixed = num(settings.rent) + num(settings.other);
+  const machinesCount = Math.max(1, num(settings.machines) || 1);
   const hoursMonth =
-    numberOrZero(settings.hoursDay) *
-    numberOrZero(settings.daysMonth) *
+    num(settings.hoursDay) *
+    num(settings.daysMonth) *
     machinesCount;
 
   return hoursMonth > 0 ? totalFixed / hoursMonth : 0;
@@ -40,11 +39,11 @@ export function calculateFixedCostSummary(
   settings: FixedCostSettings,
   printHours: number,
 ): FixedCostSummary {
-  const totalFixed = numberOrZero(settings.rent) + numberOrZero(settings.other);
-  const machinesCount = Math.max(1, numberOrZero(settings.machines) || 1);
+  const totalFixed = num(settings.rent) + num(settings.other);
+  const machinesCount = Math.max(1, num(settings.machines) || 1);
   const hoursMonth =
-    numberOrZero(settings.hoursDay) *
-    numberOrZero(settings.daysMonth) *
+    num(settings.hoursDay) *
+    num(settings.daysMonth) *
     machinesCount;
   const perHour = hoursMonth > 0 ? totalFixed / hoursMonth : 0;
 
@@ -52,7 +51,7 @@ export function calculateFixedCostSummary(
     totalFixed,
     hoursMonth,
     perHour,
-    perPrint: perHour * numberOrZero(printHours),
+    perPrint: perHour * num(printHours),
   };
 }
 
@@ -64,22 +63,22 @@ export function calculateStageCost(
 ): StageCost {
   const machine = findMachine(machines, stage.machineId);
   const materialCost =
-    (numberOrZero(stage.weightG) / 1000) *
-    numberOrZero(stage.filamentPricePerKg);
+    (num(stage.weightG) / 1000) *
+    num(stage.filamentPricePerKg);
   const energyCost =
-    numberOrZero(stage.printHours) *
-    (numberOrZero(machine.watts) / 1000) *
-    numberOrZero(stage.energyTariff ?? fallbackEnergyTariff);
+    num(stage.printHours) *
+    (num(machine.watts) / 1000) *
+    num(stage.energyTariff ?? fallbackEnergyTariff);
   const depreciationCost =
     machine.lifeHours > 0
-      ? (numberOrZero(machine.price) / machine.lifeHours) *
-        numberOrZero(stage.printHours)
+      ? (num(machine.price) / machine.lifeHours) *
+        num(stage.printHours)
       : 0;
   const maintenanceCost =
-    numberOrZero(stage.printHours) * numberOrZero(machine.maintenancePerHour);
+    num(stage.printHours) * num(machine.maintenancePerHour);
   const laborCost =
-    (numberOrZero(stage.laborMinutes) / 60) *
-    numberOrZero(stage.laborRate ?? fallbackLaborRate);
+    (num(stage.laborMinutes) / 60) *
+    num(stage.laborRate ?? fallbackLaborRate);
 
   return {
     machine,
@@ -96,7 +95,7 @@ export function calculatePricing(
   machines: Machine[],
   fixedCosts: FixedCostSettings,
 ): PricingResult {
-  const pieces = Math.max(1, numberOrZero(product.piecesCount) || 1);
+  const pieces = Math.max(1, num(product.piecesCount) || 1);
   const mainStage = calculateStageCost(
     {
       machineId: product.machineId,
@@ -132,7 +131,7 @@ export function calculatePricing(
   }
   addUsage(
     mainStage.machine,
-    numberOrZero(product.printHours),
+    num(product.printHours),
     mainStage.depreciationCost,
   );
 
@@ -156,8 +155,8 @@ export function calculatePricing(
     stagesDepreciation += cost.depreciationCost;
     stagesMaintenance += cost.maintenanceCost;
     stagesLabor += cost.laborCost;
-    stagesHours += numberOrZero(stage.printHours);
-    addUsage(cost.machine, numberOrZero(stage.printHours), cost.depreciationCost);
+    stagesHours += num(stage.printHours);
+    addUsage(cost.machine, num(stage.printHours), cost.depreciationCost);
   });
 
   const machineUsage: MachineUsage[] = Array.from(usageMap.values()).map(
@@ -190,7 +189,7 @@ export function calculatePricing(
   const accessoriesCost = (product.accessories ?? []).reduce(
     (sum, accessory) =>
       sum +
-      numberOrZero(accessory.qty) * numberOrZero(accessory.unitPrice),
+      num(accessory.qty) * num(accessory.unitPrice),
     0,
   );
 
@@ -208,7 +207,7 @@ export function calculatePricing(
     ? calculateFixedCostPerHour(fixedCosts)
     : 0;
   const fixedCost =
-    (fixedCostPerHour * (numberOrZero(product.printHours) + stagesHours)) /
+    (fixedCostPerHour * (num(product.printHours) + stagesHours)) /
     pieces;
 
   // Custo de impressão (o que se perde numa falha). Acessórios ficam de fora:
@@ -217,7 +216,7 @@ export function calculatePricing(
     materialCost + energyCost + depreciationCost + maintenanceCost + laborCost;
   // Reserva de falha: infla o custo para que as peças boas cubram as perdidas.
   // custo por peça boa = custo / (1 - taxa). Clamp em 95% para não explodir.
-  const failureRatePct = numberOrZero(product.failureRate ?? DEFAULT_FAILURE_RATE);
+  const failureRatePct = num(product.failureRate ?? DEFAULT_FAILURE_RATE);
   const failureFraction = Math.min(0.95, Math.max(0, failureRatePct / 100));
   const failureReserve =
     failureFraction > 0
@@ -255,7 +254,6 @@ export function calculatePricing(
     accessoriesCost,
     failureReserve,
     fixedCost,
-    stage2Cost: stagesCost,
     stagesCost,
     variableCost,
     totalCost,

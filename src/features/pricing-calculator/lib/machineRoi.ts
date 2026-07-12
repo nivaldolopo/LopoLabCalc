@@ -1,4 +1,5 @@
 import type { Machine, MachineUsage, Sale } from "../types";
+import { num } from "@/lib/number";
 
 // Milissegundos em um mês médio (365,25 / 12 dias). Usado para projetar o ritmo
 // de lucro e o payback em "meses".
@@ -40,10 +41,6 @@ export type MachineRoi = {
   monthsToPayback: number | null; // remaining / profitPerMonth
   projectedPaybackDate: number | null; // now + monthsToPayback (timestamp ms)
 };
-
-function num(value: unknown): number {
-  return Number.isFinite(Number(value)) ? Number(value) : 0;
-}
 
 // Repartição de uso da venda por máquina. Vendas novas trazem `machineUsage`;
 // as antigas caem no fallback (uma entrada: máquina principal com o total de

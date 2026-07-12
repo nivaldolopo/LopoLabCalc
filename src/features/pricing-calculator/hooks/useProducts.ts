@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   createProduct,
+  createProductsBatch,
   removeProduct,
   saveProduct,
   subscribeProducts,
@@ -44,9 +45,9 @@ export function useProducts() {
 
   async function importProducts(payloads: ProductPayload[]) {
     setStatus("importing");
-    for (const payload of payloads) {
-      await createProduct(payload);
-    }
+    // Atômico e em um só round-trip (por lote de 500), em vez de N gravações
+    // sequenciais. O onSnapshot atualiza a lista e devolve o status a "synced".
+    await createProductsBatch(payloads);
     setStatus("synced");
   }
 

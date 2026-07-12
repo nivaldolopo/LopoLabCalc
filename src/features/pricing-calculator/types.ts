@@ -55,6 +55,9 @@ export type ProductInput = {
   linkModel: string;
   linkCompetitor: string;
   linkFile: string;
+  // LEGADO: hoje sempre gravados como null. Só são LIDOS para migrar produtos
+  // antigos no Firestore (fixedCostPerHour → includeFixed; combineEnabled/stage2
+  // → array de etapas, em normalizeStages). Não usar em código novo.
   fixedCostPerHour?: number | null;
   combineEnabled?: boolean | null;
   stage2?: PrintStage | null;
@@ -115,7 +118,6 @@ export type PricingResult = {
   // Reserva de falha (valor absoluto embutido no custo variável).
   failureReserve: number;
   fixedCost: number;
-  stage2Cost: number;
   stagesCost: number;
   variableCost: number;
   totalCost: number;

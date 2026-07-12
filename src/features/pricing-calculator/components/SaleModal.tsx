@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
+import { round2 } from "@/lib/number";
 import {
   DEFAULT_PAYMENT_METHOD,
   DEFAULT_SALE_CHANNEL,
@@ -158,11 +159,6 @@ function todayInputValue(): string {
 function toTimestamp(dateStr: string): number {
   const parsed = new Date(`${dateStr}T12:00:00`).getTime();
   return Number.isFinite(parsed) ? parsed : Date.now();
-}
-
-// Arredonda para centavos (o preço sugerido no modo "exato" vem com muitas casas).
-function round2(value: number): number {
-  return Math.round((Number(value) || 0) * 100) / 100;
 }
 
 // Percentual enxuto (4.5 → "4,5", 2 → "2") para rótulos de taxa.

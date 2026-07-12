@@ -4,6 +4,7 @@ import { Download, Edit3, Receipt, Trash2, Upload } from "lucide-react";
 import { Fragment } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
+import { round2 } from "@/lib/number";
 import type {
   CapacitySettings,
   FixedCostSettings,
@@ -292,7 +293,6 @@ function CatalogDetails({
     ["📁 Arquivo STL/gcode ↗", product.linkFile],
   ].filter(([, href]) => Boolean(href));
 
-  const round2 = (value: number) => Math.round(value * 100) / 100;
   const totalWeight = round2(
     product.weightG + stages.reduce((sum, stage) => sum + (stage.weightG || 0), 0),
   );

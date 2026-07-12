@@ -5,6 +5,7 @@ import {
   doc,
   onSnapshot,
   updateDoc,
+  writeBatch,
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
@@ -70,6 +71,24 @@ export function subscribeProducts(
 
 export async function createProduct(payload: ProductPayload): Promise<void> {
   await addDoc(productsCollection, payload);
+}
+
+// Cria vários produtos de uma vez (importação de CSV). Grava em lotes atômicos —
+// ou entra o lote inteiro, ou nada. Fatiado em blocos de 500 porque esse é o
+// teto de operações de um writeBatch do Firestore.
+const BATCH_LIMIT = 500;
+
+export async function createProductsBatch(
+  payloads: ProductPayload[],
+): Promise<void> {
+  for (let start = 0; start < payloads.length; start += BATCH_LIMIT) {
+    const chunk = payloads.slice(start, start + BATCH_LIMIT);
+    const batch = writeBatch(db);
+    for (const payload of chunk) {
+      batch.set(doc(productsCollection), payload);
+    }
+    await batch.commit();
+  }
 }
 
 export async function saveProduct(

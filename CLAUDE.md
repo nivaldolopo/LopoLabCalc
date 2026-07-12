@@ -10,13 +10,12 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **atribuição de ROI por máquina** quando o produto usa mais de uma
-  impressora (etapas em máquinas diferentes). `calculatePricing` agora expõe `machineUsage`
-  (horas + depreciação por máquina, por unidade); o snapshot da venda congela esse array
-  (`SaleInput.machineUsage`, opcional). Em `/maquinas`, `computeMachineRoi` reparte **horas e
-  depreciação exatas** por máquina e **lucro/receita proporcional às horas** de cada uma (soma
-  pela frota preserva o total). Vendas antigas (sem `machineUsage`) caem no fallback: tudo na
-  máquina principal. Testes novos em `machineRoi.test.ts` (`pnpm test` = 20 no total).
+- **Última mudança:** **faxina de código** (sem mudança funcional). Utils numéricos unificados
+  em `src/lib/number.ts` (`num`/`round2`) — antes duplicados em 4+ arquivos. Import de produtos
+  (CSV) virou `createProductsBatch` (writeBatch atômico, fatiado em 500). Removido campo morto
+  `stage2Cost` do `PricingResult`. Campos legados (`combineEnabled`/`stage2`/`fixedCostPerHour`)
+  comentados como só-leitura de migração. `.gitignore`/`.env.example` limpos. Novo
+  `vitest.config.ts` resolve o alias `@/` nos testes (`pnpm test` = 20, `pnpm build` ok).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
@@ -87,6 +86,17 @@
    produção / lucro bruto do mês; menos custos fixos (aluguel, energia, internet…) → **lucro
    líquido**; **utilização das máquinas** (horas impressas ÷ disponíveis → sinaliza se precisa
    comprar outra impressora); receita por máquina; lucro por material; produto mais lucrativo.
+
+**Dívida técnica / faxina (não urgente — saíram de uma análise em jul/2026):**
+- **Mover helpers puros do `SaleModal` para `lib/`** — `saleContextFromResult`, `productPrintHours`,
+  `chargedWithFee` são lógica pura, mas moram no componente do modal e são importados por
+  `PricingCalculator` **e** `SalesPage`. Passar para um `lib/saleContext.ts`. Refactor de imports
+  em 3 arquivos; commit próprio.
+- **`globals.css` (~2.9k linhas num arquivo só) + Tailwind subutilizado** — a UI usa classes
+  artesanais; o Tailwind 4 está instalado mas quase não é usado. Decidir: (a) quebrar o CSS por
+  área e **remover o Tailwind**, ou (b) adotar Tailwind de verdade e migrar aos poucos. Não mistura.
+- **Validação e avisos de UI** — `validateProduct` não cobre acessórios negativos nem markup das
+  etapas; erros usam `window.alert` (destoa da UI caprichada). Trocar por aviso inline.
 
 ## Resumo do projeto (contexto rápido)
 

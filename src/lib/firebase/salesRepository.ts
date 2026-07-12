@@ -13,6 +13,7 @@ import type {
   Sale,
   SaleChannel,
 } from "@/features/pricing-calculator/types";
+import { num } from "@/lib/number";
 
 const salesCollection = collection(db, "vendas");
 
@@ -29,10 +30,6 @@ const CHANNEL_VALUES: SaleChannel[] = [
   "encomenda",
   "outro",
 ];
-
-function num(value: unknown): number {
-  return Number.isFinite(Number(value)) ? Number(value) : 0;
-}
 
 function toSale(id: string, data: DocumentData): Sale {
   const breakdown = data.costBreakdown ?? {};
