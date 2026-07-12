@@ -2146,6 +2146,15 @@ td.col-actions {
   gap: 10px;
 }
 
+.cesta-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
 .cesta-item {
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -2189,6 +2198,16 @@ td.col-actions {
 
 .cesta-add .field-input {
   flex: 1;
+}
+
+/* Botão "Nova venda" no cabeçalho do catálogo — primário mas compacto e inline. */
+.catalog-new-sale {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  padding: 8px 14px;
+  font-size: 13px;
 }
 
 /* --- Recibos (histórico agrupado por venda) --- */

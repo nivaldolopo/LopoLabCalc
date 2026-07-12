@@ -39,6 +39,7 @@ type ProductCatalogProps = {
   onDeleteProduct: (productId: string) => Promise<void>;
   onImportProducts: (products: ReturnType<typeof parseProductsCsv>) => Promise<void>;
   onRegisterSale: (product: SavedProduct, result: PricingResult) => void;
+  onNewSale: () => void;
 };
 
 export function ProductCatalog({
@@ -52,6 +53,7 @@ export function ProductCatalog({
   onDeleteProduct,
   onImportProducts,
   onRegisterSale,
+  onNewSale,
 }: ProductCatalogProps) {
   const [openProductId, setOpenProductId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -120,6 +122,13 @@ export function ProductCatalog({
       <div className="catalog-header">
         <h2 className="catalog-title sg">Catálogo ({products.length})</h2>
         <div className="catalog-actions">
+          <button
+            className="btn primary catalog-new-sale"
+            type="button"
+            onClick={onNewSale}
+          >
+            <Receipt size={15} /> Nova venda
+          </button>
           <select
             value={sortMode}
             onChange={(event) => onSortModeChange(event.target.value as SortMode)}

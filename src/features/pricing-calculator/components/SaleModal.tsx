@@ -41,7 +41,9 @@ type CestaItem = {
 
 type SaleModalProps = {
   // Produto que abriu o modal (do card ou do catálogo) — vira o 1º item.
-  seed: SaleModalContext;
+  // null quando o recibo começa vazio ("Nova venda"): usuário adiciona itens
+  // pelo seletor do catálogo.
+  seed: SaleModalContext | null;
   // Demais produtos do catálogo, para adicionar mais itens ao mesmo recibo.
   catalogItems: SaleModalContext[];
   onClose: () => void;
@@ -59,6 +61,11 @@ function toTimestamp(dateStr: string): number {
   return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
+// Arredonda para centavos (o preço sugerido no modo "exato" vem com muitas casas).
+function round2(value: number): number {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
 let itemSeq = 0;
 function itemFromContext(source: SaleModalContext): CestaItem {
   itemSeq += 1;
@@ -68,7 +75,7 @@ function itemFromContext(source: SaleModalContext): CestaItem {
     productName: source.defaultProductName,
     material: "",
     quantity: 1,
-    salePrice: source.suggestedPrice,
+    salePrice: round2(source.suggestedPrice),
   };
 }
 
@@ -78,7 +85,9 @@ export function SaleModal({
   onClose,
   onConfirm,
 }: SaleModalProps) {
-  const [items, setItems] = useState<CestaItem[]>(() => [itemFromContext(seed)]);
+  const [items, setItems] = useState<CestaItem[]>(() =>
+    seed ? [itemFromContext(seed)] : [],
+  );
   const [customer, setCustomer] = useState("");
   const [dateStr, setDateStr] = useState(todayInputValue());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
@@ -126,6 +135,10 @@ export function SaleModal({
   const margin = totals.revenue > 0 ? (profit / totals.revenue) * 100 : 0;
 
   async function confirm() {
+    if (items.length === 0) {
+      window.alert("Adicione ao menos um produto à venda.");
+      return;
+    }
     for (const item of items) {
       if (!item.productName.trim()) {
         window.alert("Dê um nome a todos os produtos da venda.");
@@ -256,10 +269,17 @@ export function SaleModal({
         </div>
 
         <div className="section-label cesta-label">
-          {multiItem ? `Itens da venda (${items.length})` : "Item da venda"}
+          {items.length > 1
+            ? `Itens da venda (${items.length})`
+            : "Item da venda"}
         </div>
 
         <div className="cesta-list">
+          {items.length === 0 ? (
+            <div className="cesta-empty">
+              Nenhum produto ainda. Adicione pelo seletor abaixo.
+            </div>
+          ) : null}
           {items.map((item) => {
             const qty = Math.max(1, Number(item.quantity) || 1);
             const unitPrice = Math.max(0, Number(item.salePrice) || 0);
@@ -416,7 +436,7 @@ export function SaleModal({
             className="btn primary"
             type="button"
             onClick={confirm}
-            disabled={saving}
+            disabled={saving || items.length === 0}
           >
             {saving
               ? "Registrando..."

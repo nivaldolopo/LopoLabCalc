@@ -82,7 +82,10 @@ export function PricingCalculator() {
     useState<CapacitySettings>(DEFAULT_CAPACITY);
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [machineModalOpen, setMachineModalOpen] = useState(false);
-  const [saleContext, setSaleContext] = useState<SaleModalContext | null>(null);
+  // Modal de venda: aberto/fechado + a semente (produto que abriu). Semente null
+  // = recibo vazio ("Nova venda"), preenchido só pelo seletor do catálogo.
+  const [saleOpen, setSaleOpen] = useState(false);
+  const [saleSeed, setSaleSeed] = useState<SaleModalContext | null>(null);
   const [saved, setSaved] = useState(false);
 
   const totalPrintHours = useMemo(
@@ -219,19 +222,23 @@ export function PricingCalculator() {
   // produto ao mesmo recibo dentro do modal de venda).
   const catalogSaleItems = useMemo(
     () =>
-      productsApi.products.map((product) =>
-        saleContextFromResult(
-          product.name || product.mainStageName || "",
-          product.id,
-          calculatePricing(product, machines, fixedCosts),
-          productPrintHours(product),
+      productsApi.products
+        .map((product) =>
+          saleContextFromResult(
+            product.name || product.mainStageName || "",
+            product.id,
+            calculatePricing(product, machines, fixedCosts),
+            productPrintHours(product),
+          ),
+        )
+        .sort((a, b) =>
+          a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),
-      ),
     [productsApi.products, machines, fixedCosts],
   );
 
   function openSaleFromForm() {
-    setSaleContext(
+    setSaleSeed(
       saleContextFromResult(
         form.product.name || form.product.mainStageName || "",
         form.editingProductId ?? "",
@@ -239,10 +246,11 @@ export function PricingCalculator() {
         totalPrintHours,
       ),
     );
+    setSaleOpen(true);
   }
 
   function openSaleFromCatalog(product: SavedProduct, result: PricingResult) {
-    setSaleContext(
+    setSaleSeed(
       saleContextFromResult(
         product.name || product.mainStageName || "",
         product.id,
@@ -250,6 +258,12 @@ export function PricingCalculator() {
         productPrintHours(product),
       ),
     );
+    setSaleOpen(true);
+  }
+
+  function openNewSale() {
+    setSaleSeed(null);
+    setSaleOpen(true);
   }
 
   return (
@@ -311,6 +325,7 @@ export function PricingCalculator() {
         onDeleteProduct={productsApi.deleteProduct}
         onImportProducts={productsApi.importProducts}
         onRegisterSale={openSaleFromCatalog}
+        onNewSale={openNewSale}
       />
 
       {machineModalOpen ? (
@@ -322,11 +337,11 @@ export function PricingCalculator() {
         />
       ) : null}
 
-      {saleContext ? (
+      {saleOpen ? (
         <SaleModal
-          seed={saleContext}
+          seed={saleSeed}
           catalogItems={catalogSaleItems}
-          onClose={() => setSaleContext(null)}
+          onClose={() => setSaleOpen(false)}
           onConfirm={createSales}
         />
       ) : null}
