@@ -199,6 +199,10 @@ export type SalePayload = SaleInput & { createdAt: number };
 
 export type Sale = SaleInput & { id: string; createdAt: number };
 
+// Upsert de um item de recibo: sem `id` = criar um doc novo; com `id` = atualizar
+// o doc existente. Usado ao gravar/editar um recibo inteiro de uma vez (batch).
+export type ReciboUpsert = { id?: string; payload: SalePayload };
+
 // ---------------------------------------------------------------------------
 // Orçamento (item 2) — geração de PDF avulso. Os dados do negócio ficam no
 // Firestore (doc config/orcamento), compartilhados entre dispositivos. Cada

@@ -2297,6 +2297,12 @@ td.col-actions {
   color: var(--muted);
 }
 
+.recibo-head-side {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .recibo-head-totals {
   display: flex;
   gap: 16px;

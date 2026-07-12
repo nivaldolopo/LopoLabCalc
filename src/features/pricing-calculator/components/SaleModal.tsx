@@ -11,9 +11,12 @@ import {
 } from "../constants";
 import type {
   PaymentMethod,
+  PricingResult,
+  ReciboUpsert,
   SaleChannel,
   SaleCostBreakdown,
   SalePayload,
+  SavedProduct,
 } from "../types";
 
 // Dados de origem de UM produto — servem tanto para o formulário ao vivo quanto
@@ -29,9 +32,75 @@ export type SaleModalContext = {
   costBreakdown: SaleCostBreakdown;
 };
 
+// Monta a foto congelada de UM produto a partir do resultado de precificação.
+// Pura (sem estado): serve o item que abre o modal e a lista do catálogo.
+export function saleContextFromResult(
+  productName: string,
+  productId: string,
+  result: PricingResult,
+  printHours: number,
+): SaleModalContext {
+  return {
+    defaultProductName: productName,
+    productId,
+    machineId: result.machine.id,
+    machineName: result.machine.name,
+    printHours,
+    suggestedPrice: result.suggestedPrice,
+    unitCost: result.totalCost,
+    costBreakdown: {
+      material: result.materialCost,
+      energy: result.energyCost,
+      depreciation: result.depreciationCost,
+      maintenance: result.maintenanceCost,
+      labor: result.laborCost,
+      accessories: result.accessoriesCost,
+      failureReserve: result.failureReserve,
+      fixed: result.fixedCost,
+    },
+  };
+}
+
+// Horas totais de impressão de um produto (etapa principal + etapas extras).
+export function productPrintHours(product: SavedProduct): number {
+  return (
+    product.printHours +
+    (product.stages ?? []).reduce(
+      (sum, stage) => sum + (stage.printHours || 0),
+      0,
+    )
+  );
+}
+
+// Um item já salvo de um recibo, para o modo edição. `source` é reconstruído a
+// partir do snapshot congelado da venda (custo/preço não mudam ao editar).
+export type SaleModalEditItem = {
+  id: string;
+  source: SaleModalContext;
+  productName: string;
+  material: string;
+  quantity: number;
+  salePrice: number;
+  createdAt: number;
+};
+
+// Recibo existente aberto para edição (campos compartilhados + itens salvos).
+export type EditReciboSeed = {
+  reciboId: string;
+  customer: string;
+  saleDate: number;
+  paymentMethod: PaymentMethod;
+  channel: SaleChannel;
+  notes: string;
+  items: SaleModalEditItem[];
+};
+
 // Um item da cesta: a foto (source) congelada + o que o usuário edita na venda.
+// `id`/`createdAt` só existem para itens já salvos (modo edição).
 type CestaItem = {
   key: string;
+  id?: string;
+  createdAt?: number;
   source: SaleModalContext;
   productName: string;
   material: string;
@@ -41,19 +110,26 @@ type CestaItem = {
 
 type SaleModalProps = {
   // Produto que abriu o modal (do card ou do catálogo) — vira o 1º item.
-  // null quando o recibo começa vazio ("Nova venda"): usuário adiciona itens
-  // pelo seletor do catálogo.
-  seed: SaleModalContext | null;
+  // null/ausente quando o recibo começa vazio ("Nova venda"): usuário adiciona
+  // itens pelo seletor do catálogo.
+  seed?: SaleModalContext | null;
+  // Recibo já existente aberto para edição. Quando presente, o modal entra em
+  // modo edição (grava sobre os mesmos docs em vez de criar um recibo novo).
+  editRecibo?: EditReciboSeed | null;
   // Demais produtos do catálogo, para adicionar mais itens ao mesmo recibo.
   catalogItems: SaleModalContext[];
   onClose: () => void;
-  onConfirm: (payloads: SalePayload[]) => Promise<void>;
+  onConfirm: (upserts: ReciboUpsert[], removedIds: string[]) => Promise<void>;
 };
 
+function toDateInput(ms: number): string {
+  const date = new Date(ms);
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
 function todayInputValue(): string {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60000;
-  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+  return toDateInput(Date.now());
 }
 
 function toTimestamp(dateStr: string): number {
@@ -81,20 +157,38 @@ function itemFromContext(source: SaleModalContext): CestaItem {
 
 export function SaleModal({
   seed,
+  editRecibo,
   catalogItems,
   onClose,
   onConfirm,
 }: SaleModalProps) {
-  const [items, setItems] = useState<CestaItem[]>(() =>
-    seed ? [itemFromContext(seed)] : [],
+  const isEdit = Boolean(editRecibo);
+  const [items, setItems] = useState<CestaItem[]>(() => {
+    if (editRecibo) {
+      return editRecibo.items.map((entry) => ({
+        key: `item_${entry.id}`,
+        id: entry.id,
+        createdAt: entry.createdAt,
+        source: entry.source,
+        productName: entry.productName,
+        material: entry.material,
+        quantity: entry.quantity,
+        salePrice: entry.salePrice,
+      }));
+    }
+    return seed ? [itemFromContext(seed)] : [];
+  });
+  const [customer, setCustomer] = useState(editRecibo?.customer ?? "");
+  const [dateStr, setDateStr] = useState(
+    editRecibo ? toDateInput(editRecibo.saleDate) : todayInputValue(),
   );
-  const [customer, setCustomer] = useState("");
-  const [dateStr, setDateStr] = useState(todayInputValue());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
-    DEFAULT_PAYMENT_METHOD,
+    editRecibo?.paymentMethod ?? DEFAULT_PAYMENT_METHOD,
   );
-  const [channel, setChannel] = useState<SaleChannel>(DEFAULT_SALE_CHANNEL);
-  const [notes, setNotes] = useState("");
+  const [channel, setChannel] = useState<SaleChannel>(
+    editRecibo?.channel ?? DEFAULT_SALE_CHANNEL,
+  );
+  const [notes, setNotes] = useState(editRecibo?.notes ?? "");
   const [addPick, setAddPick] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -152,16 +246,17 @@ export function SaleModal({
 
     setSaving(true);
     const now = Date.now();
-    const reciboId = `r_${now}_${Math.floor(Math.random() * 1000)}`;
+    const reciboId =
+      editRecibo?.reciboId ?? `r_${now}_${Math.floor(Math.random() * 1000)}`;
     const saleDate = toTimestamp(dateStr);
 
-    const payloads: SalePayload[] = items.map((item) => {
+    const upserts: ReciboUpsert[] = items.map((item) => {
       const qty = Math.max(1, Number(item.quantity) || 1);
       const unitPrice = Math.max(0, Number(item.salePrice) || 0);
       const totalRevenue = unitPrice * qty;
       const totalCost = item.source.unitCost * qty;
       const itemProfit = totalRevenue - totalCost;
-      return {
+      const payload: SalePayload = {
         reciboId,
         saleDate,
         customer: customer.trim(),
@@ -184,15 +279,32 @@ export function SaleModal({
         totalRevenue,
         profit: itemProfit,
         margin: totalRevenue > 0 ? (itemProfit / totalRevenue) * 100 : 0,
-        createdAt: now,
+        // Preserva o createdAt de itens já salvos (mantém a ordem no recibo);
+        // itens novos nascem agora.
+        createdAt: item.createdAt ?? now,
       };
+      return { id: item.id, payload };
     });
 
+    // Itens que estavam no recibo original e saíram na edição → apagar.
+    const currentIds = new Set(
+      items
+        .map((item) => item.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const removedIds = editRecibo
+      ? editRecibo.items
+          .map((entry) => entry.id)
+          .filter((id) => !currentIds.has(id))
+      : [];
+
     try {
-      await onConfirm(payloads);
+      await onConfirm(upserts, removedIds);
       onClose();
     } catch (error) {
-      window.alert(`Erro ao registrar venda: ${(error as Error).message}`);
+      window.alert(
+        `Erro ao ${isEdit ? "salvar" : "registrar"} venda: ${(error as Error).message}`,
+      );
       setSaving(false);
     }
   }
@@ -205,11 +317,13 @@ export function SaleModal({
         className="modal-box sale-modal"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <h3 className="modal-title">Registrar venda</h3>
+        <h3 className="modal-title">
+          {isEdit ? "Editar venda" : "Registrar venda"}
+        </h3>
         <p className="modal-sub">
-          Congela uma foto do custo e do preço no momento da venda. Adicione um
-          ou mais produtos ao mesmo recibo. Editar valores na calculadora depois
-          não altera este registro.
+          {isEdit
+            ? "Ajuste os dados desta venda. O custo permanece congelado no valor do momento da venda; alterar quantidade ou preço recalcula receita e lucro."
+            : "Congela uma foto do custo e do preço no momento da venda. Adicione um ou mais produtos ao mesmo recibo. Editar valores na calculadora depois não altera este registro."}
         </p>
 
         <div className="two-col">
@@ -442,10 +556,16 @@ export function SaleModal({
             disabled={saving || items.length === 0}
           >
             {saving
-              ? "Registrando..."
-              : multiItem
-                ? `Registrar venda (${items.length} itens)`
-                : "Registrar venda"}
+              ? isEdit
+                ? "Salvando..."
+                : "Registrando..."
+              : isEdit
+                ? multiItem
+                  ? `Salvar (${items.length} itens)`
+                  : "Salvar alterações"
+                : multiItem
+                  ? `Registrar venda (${items.length} itens)`
+                  : "Registrar venda"}
           </button>
           <button
             className="btn btn-secondary"

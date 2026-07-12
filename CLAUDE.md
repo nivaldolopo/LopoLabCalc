@@ -9,7 +9,16 @@
 > não é histórico (o git já guarda o detalhe). Atualizar ao concluir mudanças relevantes.
 
 - **Estado do site:** no ar e estável (produção `● Ready`).
-- **Últimas mudanças relevantes:** **Histórico de orçamentos.** Cada PDF gerado agora
+- **Últimas mudanças relevantes:** **Editar recibo de venda.** A `/vendas` ganhou botão
+  **editar** em cada recibo — reabre o `SaleModal` em **modo edição** (campos compartilhados +
+  itens): dá pra mudar produto/qtd/preço/material, remover itens e **adicionar** do catálogo. O
+  custo continua **congelado**; alterar qtd/preço recalcula receita/lucro. Gravação **atômica**
+  no novo **`saveRecibo`** (writeBatch: upsert dos itens + delete dos removidos), que
+  **unificou** registrar venda nova e editar (aposentou `createSales`). Os helpers
+  `saleContextFromResult`/`productPrintHours` foram para o `SaleModal` (reusados pela calculadora
+  e pela `/vendas`); reconstrução da foto congelada via `contextFromSale`. **Antes:** limpeza de
+  código morto (ACCENT órfão; `createSale`/`updateSale`+`addSale`/`editSale` não usados).
+  **Antes:** **Histórico de orçamentos.** Cada PDF gerado agora
   **também salva** um registro na coleção **`orcamentos`** (nº, cliente, itens, total, dados do
   negócio **congelados**); seção **Histórico** na `/orcamento` com **re-baixar** (regenera o PDF)
   e **excluir**. Novos: `quotesRepository` + `useQuotes`. A **numeração perdeu o contador**
@@ -118,8 +127,8 @@
   → `e5d09afaf3e58d32.vercel-dns-017.com`** obrigatoriamente como **"DNS only" (nuvem CINZA, não
   proxied)** — o proxy laranja quebra o SSL/verificação da Vercel; depois adicionar
   `calculadora.lopolab.com.br` nos **Authorized domains** do Firebase. O domínio já está
-  adicionado no projeto Vercel `lopolabcalc`. **Pendências opcionais:** **editar** um recibo de
-  venda já registrado; **logo real** no PDF do orçamento (hoje é placeholder de impressora).
+  adicionado no projeto Vercel `lopolabcalc`. **Pendências opcionais:** **logo real** no PDF do
+  orçamento (hoje é placeholder de impressora).
 - **Problemas conhecidos / decisões pendentes:** variáveis de **Preview** do Firebase não
   cadastradas (por decisão — só mantemos Production; ver Diretriz 1). Nada quebrado.
 
@@ -150,9 +159,10 @@
 1. **Captura de venda + Histórico** *(rota `/vendas`)* — **Fase 1a ✅ FEITA.** Botão
    "Registrar venda" no card → `SaleModal` congela snapshot em `vendas` (Firestore); rota
    `/vendas` com totais, tabela, excluir e CSV. Fundação dos itens 3 e 4.
-   **Fase 1b ✅ FEITA: cesta/recibo** — modal virou cesta (N itens, `createSales` em batch
-   compartilhando `reciboId`), `/vendas` agrupa por recibo em cartões. Opcional que sobrou:
-   **editar** um recibo já registrado (hoje só exclui item a item).
+   **Fase 1b ✅ FEITA: cesta/recibo** — modal virou cesta (N itens em batch compartilhando
+   `reciboId`), `/vendas` agrupa por recibo em cartões. **Editar recibo ✅ FEITO** — botão
+   editar em cada recibo reabre o `SaleModal` em modo edição; grava atômico via `saveRecibo`
+   (upsert + delete), que unificou registrar e editar.
 2. **Geração de orçamento (PDF)** — **✅ FEITA (avulso).** Rota `/orcamento` (`QuotePage`):
    monta itens só pra cotação (catálogo ou livre), sem registrar venda; `generateQuotePdf`
    (jspdf) baixa o PDF com nº, cliente, data, itens, total, validade + **logo placeholder**

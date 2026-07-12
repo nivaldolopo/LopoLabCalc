@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -10,9 +9,9 @@ import {
 import { db } from "./client";
 import type {
   PaymentMethod,
+  ReciboUpsert,
   Sale,
   SaleChannel,
-  SalePayload,
 } from "@/features/pricing-calculator/types";
 
 const salesCollection = collection(db, "vendas");
@@ -89,19 +88,23 @@ export function subscribeSales(
   );
 }
 
-// Grava uma venda (cesta/recibo): vários itens de uma mesma compra de uma vez.
-// Todos compartilham o mesmo reciboId (definido pelo chamador) e vão juntos
-// num writeBatch — ou entram todos, ou nenhum (atômico). Um único item cai no
-// caminho simples do addDoc.
-export async function createSales(payloads: SalePayload[]): Promise<void> {
-  if (payloads.length === 0) return;
-  if (payloads.length === 1) {
-    await addDoc(salesCollection, payloads[0]);
-    return;
-  }
+// Grava um recibo inteiro (cria e/ou edita) numa transação atômica. Cada upsert
+// sem `id` vira um doc novo; com `id`, atualiza o doc existente. Os `removedIds`
+// são itens que saíram do recibo na edição. Todos os itens de um recibo
+// compartilham o mesmo `reciboId` (definido pelo chamador). Ou entra tudo, ou
+// nada. Serve tanto para registrar uma venda nova quanto para editar uma já feita.
+export async function saveRecibo(
+  upserts: ReciboUpsert[],
+  removedIds: string[] = [],
+): Promise<void> {
+  if (upserts.length === 0 && removedIds.length === 0) return;
   const batch = writeBatch(db);
-  for (const payload of payloads) {
-    batch.set(doc(salesCollection), payload);
+  for (const { id, payload } of upserts) {
+    const ref = id ? doc(db, "vendas", id) : doc(salesCollection);
+    batch.set(ref, payload);
+  }
+  for (const id of removedIds) {
+    batch.delete(doc(db, "vendas", id));
   }
   await batch.commit();
 }

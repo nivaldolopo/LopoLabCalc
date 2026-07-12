@@ -1,14 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowLeft, Edit3, Trash2 } from "lucide-react";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
-import { PAYMENT_METHODS, SALE_CHANNELS } from "../constants";
+import {
+  DEFAULT_FIXED_COSTS,
+  PAYMENT_METHODS,
+  SALE_CHANNELS,
+} from "../constants";
+import { calculatePricing } from "../lib/calculatePricing";
+import { useMachines } from "../hooks/useMachines";
+import { useProducts } from "../hooks/useProducts";
 import { useSales } from "../hooks/useSales";
 import { useTheme } from "../hooks/useTheme";
 import type { CloudStatus, Sale } from "../types";
+import { saveRecibo } from "@/lib/firebase/salesRepository";
 import { LogoutButton } from "./LogoutButton";
+import {
+  SaleModal,
+  productPrintHours,
+  saleContextFromResult,
+  type EditReciboSeed,
+  type SaleModalContext,
+} from "./SaleModal";
 
 const statusLabel: Record<CloudStatus, string> = {
   connecting: "Conectando nuvem...",
@@ -35,6 +50,21 @@ type Recibo = {
 
 function formatDate(ms: number): string {
   return new Date(ms).toLocaleDateString("pt-BR");
+}
+
+// Reconstrói a foto congelada (SaleModalContext) a partir de uma venda salva,
+// para reabrir o item no modal em modo edição sem recalcular custo/preço.
+function contextFromSale(sale: Sale): SaleModalContext {
+  return {
+    defaultProductName: sale.productName,
+    productId: sale.productId,
+    machineId: sale.machineId,
+    machineName: sale.machineName,
+    printHours: sale.printHours,
+    suggestedPrice: sale.suggestedPrice,
+    unitCost: sale.unitCost,
+    costBreakdown: sale.costBreakdown,
+  };
 }
 
 function buildCsv(sales: Sale[]): string {
@@ -87,6 +117,28 @@ function buildCsv(sales: Sale[]): string {
 export function SalesPage() {
   const { theme, toggleTheme } = useTheme();
   const { sales, status, error, deleteSale } = useSales();
+  const { products } = useProducts();
+  const { machines } = useMachines();
+  const [editRecibo, setEditRecibo] = useState<EditReciboSeed | null>(null);
+
+  // Produtos do catálogo como itens prontos, para adicionar mais linhas a um
+  // recibo durante a edição (mesma lista alfabética do modal de venda).
+  const catalogItems = useMemo<SaleModalContext[]>(
+    () =>
+      products
+        .map((product) =>
+          saleContextFromResult(
+            product.name || product.mainStageName || "",
+            product.id,
+            calculatePricing(product, machines, DEFAULT_FIXED_COSTS),
+            productPrintHours(product),
+          ),
+        )
+        .sort((a, b) =>
+          a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
+        ),
+    [products, machines],
+  );
 
   // Agrupa as vendas por recibo (fase 1b): itens de uma mesma compra ficam juntos.
   const recibos = useMemo<Recibo[]>(() => {
@@ -150,6 +202,27 @@ export function SalesPage() {
     );
     if (!ok) return;
     await deleteSale(sale.id);
+  }
+
+  function openEdit(recibo: Recibo) {
+    setEditRecibo({
+      reciboId: recibo.reciboId,
+      customer: recibo.customer,
+      saleDate: recibo.saleDate,
+      paymentMethod: recibo.paymentMethod,
+      channel: recibo.channel,
+      // notes é compartilhado no recibo — pega o primeiro item que tiver.
+      notes: recibo.items.find((item) => item.notes)?.notes ?? "",
+      items: recibo.items.map((sale) => ({
+        id: sale.id,
+        source: contextFromSale(sale),
+        productName: sale.productName,
+        material: sale.material,
+        quantity: sale.quantity,
+        salePrice: sale.salePrice,
+        createdAt: sale.createdAt,
+      })),
+    });
   }
 
   return (
@@ -261,22 +334,32 @@ export function SalesPage() {
                     </span>
                   ) : null}
                 </div>
-                <div className="recibo-head-totals">
-                  <span>
-                    Receita{" "}
-                    <strong className="mono">
-                      {formatCurrency(recibo.revenue)}
-                    </strong>
-                  </span>
-                  <span>
-                    Lucro{" "}
-                    <strong
-                      className={`mono ${recibo.profit < 0 ? "sale-neg" : "sale-pos"}`}
-                    >
-                      {formatCurrency(recibo.profit)} (
-                      {recibo.margin.toFixed(0)}%)
-                    </strong>
-                  </span>
+                <div className="recibo-head-side">
+                  <div className="recibo-head-totals">
+                    <span>
+                      Receita{" "}
+                      <strong className="mono">
+                        {formatCurrency(recibo.revenue)}
+                      </strong>
+                    </span>
+                    <span>
+                      Lucro{" "}
+                      <strong
+                        className={`mono ${recibo.profit < 0 ? "sale-neg" : "sale-pos"}`}
+                      >
+                        {formatCurrency(recibo.profit)} (
+                        {recibo.margin.toFixed(0)}%)
+                      </strong>
+                    </span>
+                  </div>
+                  <button
+                    className="icon-button edit"
+                    type="button"
+                    onClick={() => openEdit(recibo)}
+                    title="Editar venda"
+                  >
+                    <Edit3 size={15} />
+                  </button>
                 </div>
               </div>
 
@@ -331,6 +414,15 @@ export function SalesPage() {
           ))}
         </div>
       )}
+
+      {editRecibo ? (
+        <SaleModal
+          editRecibo={editRecibo}
+          catalogItems={catalogItems}
+          onClose={() => setEditRecibo(null)}
+          onConfirm={saveRecibo}
+        />
+      ) : null}
     </main>
   );
 }

@@ -24,51 +24,19 @@ import {
 } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { validateProduct } from "../lib/validateProduct";
-import { createSales } from "@/lib/firebase/salesRepository";
+import { saveRecibo } from "@/lib/firebase/salesRepository";
 import { FixedCostsPanel } from "./FixedCostsPanel";
 import { Header } from "./Header";
 import { MachineManagerModal } from "./MachineManagerModal";
 import { PricingResultCard } from "./PricingResultCard";
 import { ProductCatalog } from "./ProductCatalog";
 import { ProductForm } from "./ProductForm";
-import { SaleModal, type SaleModalContext } from "./SaleModal";
-
-// Monta a foto congelada de UM produto a partir do resultado de precificação.
-// Pura (sem estado) para servir tanto o item que abre o modal quanto a lista
-// do catálogo (cesta).
-function saleContextFromResult(
-  productName: string,
-  productId: string,
-  result: PricingResult,
-  printHours: number,
-): SaleModalContext {
-  return {
-    defaultProductName: productName,
-    productId,
-    machineId: result.machine.id,
-    machineName: result.machine.name,
-    printHours,
-    suggestedPrice: result.suggestedPrice,
-    unitCost: result.totalCost,
-    costBreakdown: {
-      material: result.materialCost,
-      energy: result.energyCost,
-      depreciation: result.depreciationCost,
-      maintenance: result.maintenanceCost,
-      labor: result.laborCost,
-      accessories: result.accessoriesCost,
-      failureReserve: result.failureReserve,
-      fixed: result.fixedCost,
-    },
-  };
-}
-
-function productPrintHours(product: SavedProduct): number {
-  return (
-    product.printHours +
-    (product.stages ?? []).reduce((sum, stage) => sum + (stage.printHours || 0), 0)
-  );
-}
+import {
+  SaleModal,
+  productPrintHours,
+  saleContextFromResult,
+  type SaleModalContext,
+} from "./SaleModal";
 
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
@@ -342,7 +310,7 @@ export function PricingCalculator() {
           seed={saleSeed}
           catalogItems={catalogSaleItems}
           onClose={() => setSaleOpen(false)}
-          onConfirm={createSales}
+          onConfirm={saveRecibo}
         />
       ) : null}
     </main>
