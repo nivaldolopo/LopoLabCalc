@@ -63,9 +63,9 @@ export const DEFAULT_MACHINES: Machine[] = [
 export const DEFAULT_FIXED_COSTS: FixedCostSettings = {
   enabled: false,
   rent: 1500,
-  other: 0,
+  other: 150,
   machines: 2,
-  hoursDay: 8,
+  hoursDay: 20,
   daysMonth: 26,
   markupOnFixed: false,
 };
