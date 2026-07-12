@@ -208,7 +208,8 @@ export type Sale = SaleInput & { id: string; createdAt: number };
 export type QuoteBusiness = {
   name: string;
   phone: string; // telefone / WhatsApp
-  contact: string; // e-mail / Instagram / site
+  email: string;
+  instagram: string;
 };
 
 export type QuoteConfig = {

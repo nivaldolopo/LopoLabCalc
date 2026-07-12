@@ -232,18 +232,29 @@ export function QuotePage() {
               />
             </div>
             <div className="field-block compact">
-              <div className="section-label">E-mail / Instagram</div>
+              <div className="section-label">Instagram</div>
               <input
                 className="field-input"
                 type="text"
-                value={business.contact}
+                value={business.instagram}
                 onChange={(event) =>
-                  updateBusiness({ contact: event.target.value })
+                  updateBusiness({ instagram: event.target.value })
                 }
                 onBlur={() => void saveBusiness(business)}
-                placeholder="@lopolab · contato@..."
+                placeholder="@lopolab"
               />
             </div>
+          </div>
+          <div className="field-block compact">
+            <div className="section-label">E-mail</div>
+            <input
+              className="field-input"
+              type="text"
+              value={business.email}
+              onChange={(event) => updateBusiness({ email: event.target.value })}
+              onBlur={() => void saveBusiness(business)}
+              placeholder="contato@lopolab.com.br"
+            />
           </div>
         </div>
 

@@ -21,7 +21,9 @@ function toConfig(data: DocumentData): QuoteConfig {
     business: {
       name: business.name ?? DEFAULT_QUOTE_BUSINESS.name,
       phone: business.phone ?? "",
-      contact: business.contact ?? "",
+      // Compat: docs antigos guardavam tudo em `contact` → cai no e-mail.
+      email: business.email ?? business.contact ?? "",
+      instagram: business.instagram ?? "",
     },
     lastNumber: Number(data.lastNumber) || 0,
   };

@@ -147,7 +147,8 @@ export const DEFAULT_SALE_CHANNEL: SaleChannel = "quiosque";
 export const DEFAULT_QUOTE_BUSINESS: QuoteBusiness = {
   name: "Lopo Lab",
   phone: "",
-  contact: "",
+  email: "",
+  instagram: "",
 };
 
 export const DEFAULT_QUOTE_VALIDITY_DAYS = 7;
