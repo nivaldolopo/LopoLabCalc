@@ -82,6 +82,15 @@ export type FixedCostSettings = {
   markupOnFixed: boolean;
 };
 
+// Parte GLOBAL do custo fixo (a "taxa": aluguel/outros/máquinas/horas/dias),
+// persistida por negócio no doc `config/negocio` (TD-001). Fica de fora os dois
+// toggles `enabled`/`markupOnFixed` do `FixedCostSettings` — esses são POR
+// PRODUTO (gravados em `includeFixed`/`markupOnFixed` de cada produto).
+export type FixedCostRate = Pick<
+  FixedCostSettings,
+  "rent" | "other" | "machines" | "hoursDay" | "daysMonth"
+>;
+
 export type CapacitySettings = {
   hoursDay: number;
   machines: number;

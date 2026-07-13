@@ -11,6 +11,7 @@ import {
 } from "../constants";
 import { calculatePricing } from "../lib/calculatePricing";
 import { generateQuotePdf } from "../lib/generateQuotePdf";
+import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
 import { useQuoteConfig } from "../hooks/useQuoteConfig";
@@ -61,7 +62,15 @@ export function QuotePage() {
   const { theme, toggleTheme } = useTheme();
   const { products } = useProducts();
   const { machines } = useMachines();
+  const { fixedCostRate } = useBusinessSettings();
   const { business: cfgBusiness, loaded, saveBusiness } = useQuoteConfig();
+
+  // Taxa de custo fixo real do negócio (TD-001). enabled/markupOnFixed vêm do
+  // próprio produto no cálculo, então aqui só a taxa importa.
+  const fixedCosts = useMemo(
+    () => ({ ...DEFAULT_FIXED_COSTS, ...fixedCostRate }),
+    [fixedCostRate],
+  );
   const { quotes, addQuote, deleteQuote } = useQuotes();
 
   const [business, setBusiness] = useState<QuoteBusiness>(
@@ -108,12 +117,11 @@ export function QuotePage() {
         .map((product) => ({
           name: product.name || product.mainStageName || "Produto",
           price: round2(
-            calculatePricing(product, machines, DEFAULT_FIXED_COSTS)
-              .suggestedPrice,
+            calculatePricing(product, machines, fixedCosts).suggestedPrice,
           ),
         }))
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
-    [products, machines],
+    [products, machines, fixedCosts],
   );
 
   const total = useMemo(

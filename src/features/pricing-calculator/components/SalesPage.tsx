@@ -10,6 +10,7 @@ import {
   SALE_CHANNELS,
 } from "../constants";
 import { calculatePricing } from "../lib/calculatePricing";
+import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useFees } from "../hooks/useFees";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
@@ -156,9 +157,17 @@ export function SalesPage() {
   const { sales, status, error, deleteSale } = useSales();
   const { products } = useProducts();
   const { machines } = useMachines();
+  const { fixedCostRate } = useBusinessSettings();
   const { fees, saveFees } = useFees();
   const [editRecibo, setEditRecibo] = useState<EditReciboSeed | null>(null);
   const [sortMode, setSortMode] = useState<SalesSortMode>("recent");
+
+  // Taxa de custo fixo real do negócio (TD-001) para reprecificar os itens de
+  // catálogo ao editar um recibo. enabled/markupOnFixed vêm do produto.
+  const fixedCosts = useMemo(
+    () => ({ ...DEFAULT_FIXED_COSTS, ...fixedCostRate }),
+    [fixedCostRate],
+  );
 
   // Produtos do catálogo como itens prontos, para adicionar mais linhas a um
   // recibo durante a edição (mesma lista alfabética do modal de venda).
@@ -169,7 +178,7 @@ export function SalesPage() {
           saleContextFromResult(
             product.name || product.mainStageName || "",
             product.id,
-            calculatePricing(product, machines, DEFAULT_FIXED_COSTS),
+            calculatePricing(product, machines, fixedCosts),
             productPrintHours(product),
             product.roundingMode,
           ),
@@ -177,7 +186,7 @@ export function SalesPage() {
         .sort((a, b) =>
           a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),
-    [products, machines],
+    [products, machines, fixedCosts],
   );
 
   // Agrupa as vendas por recibo (fase 1b): itens de uma mesma compra ficam juntos.

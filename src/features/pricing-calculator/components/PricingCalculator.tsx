@@ -8,12 +8,14 @@ import {
 } from "../constants";
 import type {
   CapacitySettings,
+  FixedCostRate,
   FixedCostSettings,
   PricingResult,
   ProductPayload,
   SavedProduct,
   SortMode,
 } from "../types";
+import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useFees } from "../hooks/useFees";
 import { useMachines } from "../hooks/useMachines";
 import { usePricingForm } from "../hooks/usePricingForm";
@@ -43,11 +45,21 @@ export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
   const { machines, saveMachines } = useMachines();
   const { fees, saveFees } = useFees();
+  const { fixedCostRate, saveFixedCostRate } = useBusinessSettings();
   const productsApi = useProducts();
   const form = usePricingForm();
 
-  const [fixedCosts, setFixedCosts] =
-    useState<FixedCostSettings>(DEFAULT_FIXED_COSTS);
+  // A TAXA de custo fixo vem persistida (global do negócio, TD-001); os toggles
+  // enabled/markupOnFixed são por-produto (espelham o produto em edição). O
+  // `fixedCosts` completo é a junção dos dois.
+  const [fixedToggles, setFixedToggles] = useState({
+    enabled: DEFAULT_FIXED_COSTS.enabled,
+    markupOnFixed: DEFAULT_FIXED_COSTS.markupOnFixed,
+  });
+  const fixedCosts = useMemo<FixedCostSettings>(
+    () => ({ ...fixedCostRate, ...fixedToggles }),
+    [fixedCostRate, fixedToggles],
+  );
   const [capacitySettings, setCapacitySettings] =
     useState<CapacitySettings>(DEFAULT_CAPACITY);
   const [sortMode, setSortMode] = useState<SortMode>("recent");
@@ -110,17 +122,37 @@ export function PricingCalculator() {
       : 0;
 
   function updateFixedCosts(patch: Partial<FixedCostSettings>) {
-    setFixedCosts((current) => ({ ...current, ...patch }));
-    if (patch.enabled !== undefined) {
-      form.updateProduct({ includeFixed: patch.enabled });
+    // Toggles por-produto: atualizam o estado local e espelham no produto.
+    if (patch.enabled !== undefined || patch.markupOnFixed !== undefined) {
+      setFixedToggles((current) => ({
+        enabled: patch.enabled ?? current.enabled,
+        markupOnFixed: patch.markupOnFixed ?? current.markupOnFixed,
+      }));
+      if (patch.enabled !== undefined) {
+        form.updateProduct({ includeFixed: patch.enabled });
+      }
+      if (patch.markupOnFixed !== undefined) {
+        form.updateProduct({ markupOnFixed: patch.markupOnFixed });
+      }
     }
-    if (patch.markupOnFixed !== undefined) {
-      form.updateProduct({ markupOnFixed: patch.markupOnFixed });
+    // Taxa (aluguel/outros/máquinas/horas/dias): persiste no negócio (TD-001).
+    const ratePatch: Partial<FixedCostRate> = {};
+    if (patch.rent !== undefined) ratePatch.rent = patch.rent;
+    if (patch.other !== undefined) ratePatch.other = patch.other;
+    if (patch.machines !== undefined) ratePatch.machines = patch.machines;
+    if (patch.hoursDay !== undefined) ratePatch.hoursDay = patch.hoursDay;
+    if (patch.daysMonth !== undefined) ratePatch.daysMonth = patch.daysMonth;
+    if (Object.keys(ratePatch).length > 0) {
+      saveFixedCostRate(ratePatch);
     }
   }
 
   function applyLoadedFixedCosts(patch: Partial<FixedCostSettings>) {
-    setFixedCosts((current) => ({ ...current, ...patch }));
+    // loadProduct só passa os toggles (enabled/markupOnFixed) do produto.
+    setFixedToggles((current) => ({
+      enabled: patch.enabled ?? current.enabled,
+      markupOnFixed: patch.markupOnFixed ?? current.markupOnFixed,
+    }));
   }
 
   function resetFormKeepingFixedCosts() {
