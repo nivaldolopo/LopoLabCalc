@@ -138,3 +138,40 @@ describe("calculatePricing — múltiplas etapas / máquinas", () => {
     expect(ids).toEqual(["a1", "x2d"]);
   });
 });
+
+describe("calculatePricing — máquina órfã (TD-009)", () => {
+  it("não sinaliza quando o machineId existe", () => {
+    const r = calculatePricing(makeProduct(), DEFAULT_MACHINES, NO_FIXED);
+    expect(r.machineMissing).toBe(false);
+  });
+
+  it("sinaliza e cai no fallback (1ª máquina) quando o machineId não existe", () => {
+    const r = calculatePricing(
+      makeProduct({ machineId: "inexistente" }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    expect(r.machineMissing).toBe(true);
+    // Fallback: usa a 1ª máquina para não quebrar o preço.
+    expect(r.machine.id).toBe(DEFAULT_MACHINES[0].id);
+  });
+
+  it("sinaliza quando a máquina órfã está numa etapa extra", () => {
+    const r = calculatePricing(
+      makeProduct({
+        stages: [
+          {
+            machineId: "inexistente",
+            weightG: 20,
+            printHours: 1,
+            filamentPricePerKg: 110,
+            laborMinutes: 0,
+          },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    expect(r.machineMissing).toBe(true);
+  });
+});

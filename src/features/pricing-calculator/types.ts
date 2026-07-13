@@ -89,6 +89,10 @@ export type CapacitySettings = {
 
 export type StageCost = {
   machine: Machine;
+  // true quando o machineId da etapa não existe na lista de máquinas e o
+  // cálculo caiu no fallback (1ª máquina). Sinaliza dado órfão em vez de
+  // mascarar em silêncio (ver TD-009).
+  machineMissing: boolean;
   materialCost: number;
   energyCost: number;
   depreciationCost: number;
@@ -130,6 +134,10 @@ export type PricingResult = {
   // Repartição por máquina (por unidade), para atribuir horas/vida/lucro à
   // impressora certa quando o produto usa mais de uma.
   machineUsage: MachineUsage[];
+  // true quando alguma etapa (principal ou extra) referencia uma máquina que
+  // não existe e o cálculo caiu no fallback. A UI usa isso para avisar em vez
+  // de mascarar o dado órfão (TD-009). Opcional: ausente em snapshots antigos.
+  machineMissing?: boolean;
 };
 
 export type FixedCostSummary = {

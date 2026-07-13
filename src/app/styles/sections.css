@@ -370,6 +370,14 @@
   font-weight: 600;
 }
 
+/* Máquina órfã no catálogo (TD-009): destaca o produto cujo machineId não
+   existe mais e caiu no fallback. */
+.machine-missing-badge {
+  color: #c4836b;
+  font-weight: 600;
+  cursor: help;
+}
+
 .per-piece-row {
   background: rgba(255, 107, 53, 0.12);
   border-radius: 8px;

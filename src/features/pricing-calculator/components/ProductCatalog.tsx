@@ -222,7 +222,18 @@ export function ProductCatalog({
                       <td className="mono muted" data-label="Margem">
                         {result.margin.toFixed(0)}%
                       </td>
-                      <td data-label="Máquina">{result.machine.name}</td>
+                      <td data-label="Máquina">
+                        {result.machineMissing ? (
+                          <span
+                            className="machine-missing-badge"
+                            title="Máquina não encontrada — usando esta como fallback. Reatribua a impressora."
+                          >
+                            ⚠ {result.machine.name}
+                          </span>
+                        ) : (
+                          result.machine.name
+                        )}
+                      </td>
                       <td className="col-actions">
                         <button
                           className="icon-button edit"
@@ -321,7 +332,17 @@ function CatalogDetails({
     <div className="catalog-details">
       <div className="cd-meta">
         <span>
-          <span className="db-label">Máquina</span> {result.machine.name}
+          <span className="db-label">Máquina</span>{" "}
+          {result.machineMissing ? (
+            <span
+              className="machine-missing-badge"
+              title="Máquina não encontrada — usando esta como fallback. Reatribua a impressora."
+            >
+              ⚠ {result.machine.name}
+            </span>
+          ) : (
+            result.machine.name
+          )}
         </span>
         <span>
           <span className="db-label">Markup</span> {product.markup.toFixed(1)}x

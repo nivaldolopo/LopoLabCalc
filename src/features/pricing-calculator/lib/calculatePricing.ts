@@ -12,8 +12,22 @@ import { DEFAULT_FAILURE_RATE } from "../constants";
 import { roundPrice } from "./roundPrice";
 import { num } from "@/lib/number";
 
-function findMachine(machines: Machine[], machineId: string): Machine {
-  return machines.find((machine) => machine.id === machineId) ?? machines[0];
+function findMachine(
+  machines: Machine[],
+  machineId: string,
+): { machine: Machine; found: boolean } {
+  const match = machines.find((machine) => machine.id === machineId);
+  if (match) return { machine: match, found: true };
+  // Dado órfão: o produto aponta para uma máquina que não existe mais. Mantemos
+  // o fallback (1ª máquina) para não quebrar o preço, mas sinalizamos — antes
+  // isso caía em silêncio e mascarava o erro (TD-009).
+  if (process.env.NODE_ENV !== "production") {
+    console.warn(
+      `[pricing] máquina "${machineId}" não encontrada; usando ` +
+        `"${machines[0]?.name ?? "—"}" como fallback.`,
+    );
+  }
+  return { machine: machines[0], found: false };
 }
 
 export function normalizeStages(product: ProductInput): PrintStage[] {
@@ -61,7 +75,7 @@ export function calculateStageCost(
   fallbackEnergyTariff: number,
   fallbackLaborRate: number,
 ): StageCost {
-  const machine = findMachine(machines, stage.machineId);
+  const { machine, found } = findMachine(machines, stage.machineId);
   const materialCost =
     (num(stage.weightG) / 1000) *
     num(stage.filamentPricePerKg);
@@ -82,6 +96,7 @@ export function calculateStageCost(
 
   return {
     machine,
+    machineMissing: !found,
     materialCost,
     energyCost,
     depreciationCost,
@@ -135,6 +150,8 @@ export function calculatePricing(
     mainStage.depreciationCost,
   );
 
+  let anyMachineMissing = mainStage.machineMissing;
+
   const stagesList = normalizeStages(product);
   let stagesMaterial = 0;
   let stagesEnergy = 0;
@@ -156,6 +173,7 @@ export function calculatePricing(
     stagesMaintenance += cost.maintenanceCost;
     stagesLabor += cost.laborCost;
     stagesHours += num(stage.printHours);
+    if (cost.machineMissing) anyMachineMissing = true;
     addUsage(cost.machine, num(stage.printHours), cost.depreciationCost);
   });
 
@@ -264,5 +282,6 @@ export function calculatePricing(
     stagesCount: stagesList.length,
     contributionMargin,
     machineUsage,
+    machineMissing: anyMachineMissing,
   };
 }

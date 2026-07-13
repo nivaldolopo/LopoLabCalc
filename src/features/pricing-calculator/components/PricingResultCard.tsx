@@ -72,6 +72,14 @@ export function PricingResultCard({
         margem de {result.margin.toFixed(0)}% sobre o preço final
       </div>
 
+      {result.machineMissing ? (
+        <div className="form-error machine-missing">
+          ⚠ Máquina não encontrada — usando “{result.machine.name}” como
+          fallback. Reatribua a impressora do produto (o custo pode estar
+          errado).
+        </div>
+      ) : null}
+
       <div className="rounding-control">
         <label htmlFor="rounding-mode">Arredondar preço</label>
         <select
