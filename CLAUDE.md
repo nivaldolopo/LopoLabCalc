@@ -10,16 +10,14 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **auditoria do GPT verificada e registrada no backlog (sem mudança de código).**
-  O dono trouxe uma revisão "senior engineer" do ChatGPT (feita sobre um ZIP, sem rodar o app);
-  cruzei cada achado com o código real. Resultado na seção **"Achados da auditoria do GPT"** do
-  backlog, com veredito por item (✅/⚠️/❌). Destaques: **TD-002 improcede** (o "payback em dobro"
-  não existe — a `/maquinas` já separa payback vs. vida útil em 2 barras); **TD-001 procede parcial**
-  (custo fixo não persistido → preço diverge entre calculadora e vendas/orçamento; raiz = falta
-  "business settings" no Firestore); **TD-008** (falta teste no núcleo financeiro) e **TD-005**
-  (regras do Firestore não versionadas) são os avulsos de melhor custo/benefício. Nada subprecifica
-  venda hoje. Anterior: dívida técnica dos 3 itens da faxina QUITADA (saleContext, split do CSS +
-  Tailwind removido, validateProduct/aviso inline) — ver `git log`.
+- **Última mudança:** **avulsos da auditoria QUITADOS — TD-008 + TD-005.** (a) **TD-008:**
+  testes do núcleo financeiro (`calculatePricing`, `calculateCapacity`, `roundPrice`,
+  `validateProduct` — matemática pura, sem UI); suíte de 46 casos verde (`pnpm test`).
+  (b) **TD-005:** `firestore.rules` + `firebase.json` versionados no repo (reconstruídos da trava
+  real `ALLOWED_EMAILS`; deploy NÃO automático — o dono aplica no Console; conferir antes). Restam
+  no backlog da auditoria: **TD-001** (business settings persistido, casar com Estoque), **TD-004**
+  (feedback de escrita), **TD-003/009/006/007** menores. Anterior: auditoria do GPT verificada e
+  registrada no backlog (sem código) — ver `git log`.
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
@@ -40,10 +38,10 @@
 - **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — desenhar JUNTO do "business
   settings persistido" (TD-001 da auditoria); (b) item 4 — **Dashboard** (`/painel`, só vale com
   ~1-2 meses de vendas; incorpora TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF
-  do orçamento (placeholder hoje). **Achados da auditoria do GPT registrados no backlog** com
-  veredito por item — avulsos de bom retorno: TD-008 (testes do núcleo), TD-004 (feedback de
-  escrita), TD-005 (versionar regras). Ponta antiga: `window.alert` restantes (import CSV,
-  `MachineManagerModal`, `QuotePage`, `SaleModal`) seguem nativos.
+  do orçamento (placeholder hoje). **Auditoria do GPT: TD-008 (testes) e TD-005 (regras
+  versionadas) FEITOS.** Avulso de bom retorno que sobra: TD-004 (feedback de escrita). Ponta
+  antiga: `window.alert` restantes (import CSV, `MachineManagerModal`, `QuotePage`, `SaleModal`)
+  seguem nativos.
 - **Decisões pendentes:** variáveis de **Preview** do Firebase não cadastradas (por decisão —
   só Production; ver Diretriz 1). Nada quebrado.
 
@@ -133,12 +131,15 @@
 - ✅ **[TD-004] Escritas sem feedback (Salvando/Salvo/Erro).** Já mapeado (os `window.alert`
   restantes). Para ferramenta operacional, venda que falha em salvar em silêncio = dado perdido.
   **Atacar ao tocar nos modais.**
-- ✅ **[TD-005] Regras/índices do Firestore não versionados.** Não há `firestore.rules`/`firebase.json`
-  no repo (só no Console). Versionar o `firestore.rules` é barato e protege a trava. **Não conflita
-  com a Diretriz 1** (é doc, não ambiente). **Avulso rápido.**
-- ✅ **[TD-008] Falta teste no núcleo financeiro.** Só há teste de `machineRoi` e `paymentFees`.
-  `calculatePricing`, `calculateCapacity`, `roundPrice`, `validateProduct` sem cobertura — é
-  matemática pura, custo/benefício ótimo. **Pode ser feito isolado, a qualquer momento.**
+- ✅ **[TD-005] Regras do Firestore não versionadas — FEITO.** Criados `firestore.rules` +
+  `firebase.json` no repo (banco `lopo-lab-calculadora`, trava por `ALLOWED_EMAILS`). Deploy NÃO
+  automático (Vercel só sobe o site); o dono aplica no Console via `firebase deploy --only
+  firestore:rules` quando quiser — conferir contra o Console antes. (Índices não versionados: não
+  há composto conhecido hoje; adicionar se surgir.)
+- ✅ **[TD-008] Falta teste no núcleo financeiro — FEITO.** `calculatePricing.test.ts`,
+  `calculateCapacity.test.ts`, `roundPrice.test.ts`, `validateProduct.test.ts` cobrem a matemática
+  pura (componentes de custo, reserva de falha, custo fixo, divisão por peça, etapas/máquinas,
+  capacidade mensal, validações). `pnpm test` = 46 casos verdes.
 - ✅ **[TD-009] `machineId` ausente cai na 1ª máquina em silêncio** (`findMachine` `?? machines[0]`
   em `calculatePricing.ts:16`). Mascara erro de dado. Baixo, fácil de tornar visível.
 - ✅ **[TD-006] Subscrição de coleção inteira** (`subscribeProducts`/`useSales` sem paginação) —

@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// -----------------------------------------------------------------------------
+// Regras do Firestore — banco `lopo-lab-calculadora` (projeto lopo-lab).
+//
+// TD-005: versionadas aqui para NÃO viverem só no Console. Reconstruídas a partir
+// da trava real do app: login Google restrito à lista `ALLOWED_EMAILS`
+// (src/features/pricing-calculator/constants.ts) — as MESMAS contas que o
+// `AuthGate` libera na UI. Manter esta lista em sincronia com a constante.
+//
+// IMPORTANTE: o deploy NÃO é automático. O site sobe pela Vercel (push na main);
+// estas regras só sobem se alguém rodar `firebase deploy --only firestore:rules`
+// de propósito. Antes de aplicar no Console, confira se batem com o que está lá.
+// -----------------------------------------------------------------------------
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Conta autenticada cujo e-mail (minúsculo) está na lista de permitidos.
+    function isAllowed() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() in [
+          "nivaldo.lopo@gmail.com",
+          "lopolab3d@gmail.com"
+        ];
+    }
+
+    // Todo o banco (products, config/*, vendas, orcamentos) é privado do dono.
+    // Sem conta permitida não há leitura nem escrita.
+    match /{document=**} {
+      allow read, write: if isAllowed();
+    }
+  }
+}
