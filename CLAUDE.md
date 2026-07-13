@@ -10,17 +10,16 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **dívida técnica quitada (3 itens, sem mudança funcional visível).**
-  (1) helpers puros do `SaleModal` (`saleContextFromResult`/`productPrintHours`/`chargedWithFee`
-  + type `SaleModalContext`) movidos para `lib/saleContext.ts`; imports refeitos no `SaleModal`,
-  `PricingCalculator` e `SalesPage`. (2) `globals.css` (2.9k linhas) **dividido** em
-  `src/app/styles/*.css` (14 arquivos por área) importados em ordem via `@import` — split provado
-  byte-a-byte idêntico ao original (cascata preservada); **Tailwind removido** (era peso morto: não
-  havia `@import "tailwindcss"`, gerava zero CSS) — sem `postcss.config`, deps fora do `package.json`.
-  (3) `validateProduct` agora cobre **acessórios negativos** e completa os negativos das **etapas**
-  (energia/valor-hora que escapavam); erro do formulário virou **aviso inline** (`.form-error` no
-  `ProductForm`, some ao editar) no lugar do `window.alert`. `pnpm build`/`lint`/`test` (20) ok.
-  Obs.: "markup das etapas" da nota antiga não existe como campo (etapas herdam o markup do produto).
+- **Última mudança:** **auditoria do GPT verificada e registrada no backlog (sem mudança de código).**
+  O dono trouxe uma revisão "senior engineer" do ChatGPT (feita sobre um ZIP, sem rodar o app);
+  cruzei cada achado com o código real. Resultado na seção **"Achados da auditoria do GPT"** do
+  backlog, com veredito por item (✅/⚠️/❌). Destaques: **TD-002 improcede** (o "payback em dobro"
+  não existe — a `/maquinas` já separa payback vs. vida útil em 2 barras); **TD-001 procede parcial**
+  (custo fixo não persistido → preço diverge entre calculadora e vendas/orçamento; raiz = falta
+  "business settings" no Firestore); **TD-008** (falta teste no núcleo financeiro) e **TD-005**
+  (regras do Firestore não versionadas) são os avulsos de melhor custo/benefício. Nada subprecifica
+  venda hoje. Anterior: dívida técnica dos 3 itens da faxina QUITADA (saleContext, split do CSS +
+  Tailwind removido, validateProduct/aviso inline) — ver `git log`.
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
@@ -38,12 +37,13 @@
   (2) ROI/payback da máquina ✅ FEITO (`/maquinas`); (3) conversão peso↔metragem de filamento
   **descartada** (o dono decidiu não implementar). Foco volta ao backlog antigo
   (**item 3 — Estoque** `/estoque`, já desbloqueado).
-- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`); (b) item 4 — **Dashboard**
-  (`/painel`, só vale com ~1-2 meses de vendas); (c) **logo real** no PDF do orçamento (hoje
-  placeholder de impressora — há comentário no `generateQuotePdf` de onde trocar).
-  **Dívida técnica dos 3 itens: QUITADA** (ver "Última mudança"). Sobrou só uma ponta: os
-  outros `window.alert` (import CSV, `MachineManagerModal`, `QuotePage`, `SaleModal`) seguem
-  como alert nativo — não faziam parte do débito do `validateProduct`.
+- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — desenhar JUNTO do "business
+  settings persistido" (TD-001 da auditoria); (b) item 4 — **Dashboard** (`/painel`, só vale com
+  ~1-2 meses de vendas; incorpora TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF
+  do orçamento (placeholder hoje). **Achados da auditoria do GPT registrados no backlog** com
+  veredito por item — avulsos de bom retorno: TD-008 (testes do núcleo), TD-004 (feedback de
+  escrita), TD-005 (versionar regras). Ponta antiga: `window.alert` restantes (import CSV,
+  `MachineManagerModal`, `QuotePage`, `SaleModal`) seguem nativos.
 - **Decisões pendentes:** variáveis de **Preview** do Firebase não cadastradas (por decisão —
   só Production; ver Diretriz 1). Nada quebrado.
 
@@ -106,6 +106,51 @@
   (Etapas não têm campo de markup — herdam o do produto; a nota antiga estava imprecisa.)
   Ponta que sobrou: demais `window.alert` (import CSV, `MachineManagerModal`, `QuotePage`,
   `SaleModal`) seguem nativos — fora do escopo do débito do `validateProduct`.
+
+**Achados da auditoria do GPT (jul/2026) — VERIFICADOS contra o código, ainda A FAZER:**
+
+> O dono trouxe uma revisão "senior engineer" feita pelo ChatGPT sobre um ZIP do projeto
+> (sem rodar o app). Cada achado foi cruzado com o código real neste chat. Veredito abaixo:
+> ✅ procede · ⚠️ parcial/impreciso · ❌ improcede. Nada estava subprecificando venda hoje —
+> o retrato é "fundação sólida com dívidas latentes". Ordenado por retorno.
+
+- ⚠️ **[TD-001] Custo fixo não persistido → preço diverge entre telas.** Calculadora usa o
+  `fixedCosts` editado ao vivo; `QuotePage`/`SalesPage` chamam `calculatePricing(..., DEFAULT_FIXED_COSTS)`
+  (ver `QuotePage.tsx:111`, `SalesPage.tsx:172`). A mecânica que o GPT descreveu está imprecisa
+  (o `product.includeFixed` pode reativar o fixo em `calculatePricing.ts:196`); o problema REAL é
+  que a **taxa** de custo fixo (aluguel/outros/horas/dias) não é persistida por produto — cai nos
+  defaults. Impacto baixo hoje (fixo nasce `enabled:false`), mas latente. **Fix = criar "business
+  settings" persistido no Firestore (raiz do achado de arquitetura) — fazer JUNTO do Estoque.**
+- ❌ **[TD-002] "Payback cobra depreciação em dobro" — IMPROCEDE.** Erro de revisar sem rodar:
+  a `MachinesPage` já separa em DUAS barras — "Payback do investimento" (`profit/price`, lucro
+  ALÉM do custo) e "Vida útil consumida" (`horas/lifeHours`, com `depreciationRecovered` mostrado
+  no texto). Não há dobra; a definição de payback é conservadora e correta. No máximo, melhorar
+  o rótulo. **Descartar.**
+- ✅ **[TD-003] Capacidade não é por-máquina em produto multi-etapa.** `calculateCapacity.ts`
+  soma todas as horas de etapa e multiplica por `machines` genérico — impreciso quando etapas
+  rodam em impressoras diferentes ou disputam a mesma. Impacto baixo hoje (maioria mono-máquina).
+  **Prioridade média — atacar quando o Dashboard/utilização (item 4) entrar (é a base do "gargalo").**
+- ✅ **[TD-004] Escritas sem feedback (Salvando/Salvo/Erro).** Já mapeado (os `window.alert`
+  restantes). Para ferramenta operacional, venda que falha em salvar em silêncio = dado perdido.
+  **Atacar ao tocar nos modais.**
+- ✅ **[TD-005] Regras/índices do Firestore não versionados.** Não há `firestore.rules`/`firebase.json`
+  no repo (só no Console). Versionar o `firestore.rules` é barato e protege a trava. **Não conflita
+  com a Diretriz 1** (é doc, não ambiente). **Avulso rápido.**
+- ✅ **[TD-008] Falta teste no núcleo financeiro.** Só há teste de `machineRoi` e `paymentFees`.
+  `calculatePricing`, `calculateCapacity`, `roundPrice`, `validateProduct` sem cobertura — é
+  matemática pura, custo/benefício ótimo. **Pode ser feito isolado, a qualquer momento.**
+- ✅ **[TD-009] `machineId` ausente cai na 1ª máquina em silêncio** (`findMachine` `?? machines[0]`
+  em `calculatePricing.ts:16`). Mascara erro de dado. Baixo, fácil de tornar visível.
+- ✅ **[TD-006] Subscrição de coleção inteira** (`subscribeProducts`/`useSales` sem paginação) —
+  ok agora, revisitar quando `/vendas` tiver meses. **[TD-007] Import CSV > 500 parcialmente
+  atômico** (`productsRepository.ts:81`, lotes de 500 em sequência) — real, improvável, fix trivial.
+  **Ambos: registrar, não priorizar.**
+- Menores: numeração de orçamento derivada no browser (2 abas/2 cliques podem repetir); labor
+  incluído na reserva de falha (teoricamente discutível, impacto de centavos). **Opcionais.**
+
+**Recomendação de execução (próximo chat):** o "business settings persistido" (TD-001) casa
+naturalmente com o **item 3 — Estoque**; desenhar os dois juntos. Testes do núcleo (TD-008),
+feedback de escrita (TD-004) e versionar regras (TD-005) são avulsos que podem entrar quando der.
 
 ## Resumo do projeto (contexto rápido)
 
