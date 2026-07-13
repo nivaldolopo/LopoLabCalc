@@ -1,0 +1,323 @@
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+}
+
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card,
+.fixed-costs-banner,
+.result-card,
+.catalog-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.card,
+.result-card {
+  padding: 24px;
+}
+
+.result-card {
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.field-block {
+  margin-bottom: 20px;
+}
+
+.field-block.compact {
+  margin-bottom: 12px;
+}
+
+.field-block.last {
+  margin-bottom: 0;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.label-hint {
+  text-transform: none;
+  font-weight: 400;
+  color: var(--muted2);
+}
+
+.section-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.field-input,
+.fc-item input,
+.capacity-inputs input,
+.accessory-row input,
+.machine-edit-row input,
+.catalog-actions select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid var(--field-border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--field-bg);
+  color: var(--ink);
+}
+
+.field-input:focus,
+.fc-item input:focus,
+.capacity-inputs input:focus,
+.accessory-row input:focus,
+.machine-edit-row input:focus,
+.catalog-actions select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.product-name {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.two-col.no-margin {
+  margin-bottom: 0;
+}
+
+.time-inputs {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.time-unit-select {
+  width: auto;
+  cursor: pointer;
+}
+
+.machine-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.machine-chip {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--field-border);
+  background: var(--chip-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  min-width: 0;
+}
+
+.machine-chip:hover {
+  transform: translateY(-1px);
+}
+
+.machine-chip.active {
+  border: 2px solid var(--accent);
+  background: var(--chip-active-bg);
+}
+
+.machine-chip .mname,
+.machine-chip .mmeta {
+  display: block;
+}
+
+.machine-chip .mname {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.machine-chip .mmeta {
+  font-size: 11px;
+  color: var(--muted2);
+  margin-top: 2px;
+  font-family: var(--font-jetbrains-mono), monospace;
+}
+
+input[type="range"] {
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--field-border);
+  margin-top: 10px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.markup-header,
+.markup-labels {
+  display: flex;
+  justify-content: space-between;
+}
+
+.markup-labels {
+  font-size: 11px;
+  color: var(--muted2);
+  margin-top: 4px;
+}
+
+.markup-value {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+/* Aviso de validação do formulário de produto (substitui o window.alert). */
+.form-error {
+  margin-top: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: rgba(196, 131, 107, 0.1);
+  border: 1px solid rgba(196, 131, 107, 0.35);
+  color: #c4836b;
+  font-size: 13px;
+}
+
+.btn,
+.icon-label-button,
+.link-button,
+.icon-button {
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s;
+}
+
+.btn {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.btn.primary {
+  flex: 1;
+  background: var(--accent);
+  color: white;
+}
+
+.btn.primary:disabled {
+  background: var(--border);
+  color: var(--muted2);
+  cursor: not-allowed;
+}
+
+.btn.primary.saved {
+  background: var(--green);
+}
+
+.btn-secondary,
+.icon-label-button {
+  background: var(--field-bg);
+  border: 1.5px solid var(--field-border);
+  color: var(--ink);
+}
+
+.btn-secondary:hover,
+.icon-label-button:hover {
+  border-color: var(--muted);
+}
+
+.icon-label-button {
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.link-button {
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.link-button.bordered,
+.link-button.add-line {
+  border: 1.5px solid var(--field-border);
+  background: var(--field-bg);
+  border-radius: 8px;
+  padding: 7px 12px;
+}
+
+.link-button.add-line {
+  margin-top: 8px;
+}
+
+.icon-button {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.icon-button.danger {
+  color: #c4836b;
+}
+
+.icon-button.edit {
+  color: #6b88c4;
+}
+
+.icon-button:hover {
+  background: var(--markup-row-bg);
+  color: var(--accent);
+}
+

@@ -20,15 +20,31 @@ export function validateProduct(product: ProductInput): string | null {
 
   if (product.markup < 1) return "⚠️ O markup deve ser no mínimo 1x.";
 
-  for (let index = 0; index < (product.stages ?? []).length; index += 1) {
-    const stage = product.stages[index];
+  // Etapas extras: nenhum campo pode ser negativo. Antes energia e valor-hora
+  // (opcionais) escapavam da checagem.
+  const stages = product.stages ?? [];
+  for (let index = 0; index < stages.length; index += 1) {
+    const stage = stages[index];
     if (
       stage.weightG < 0 ||
       stage.printHours < 0 ||
       stage.filamentPricePerKg < 0 ||
-      stage.laborMinutes < 0
+      stage.laborMinutes < 0 ||
+      (stage.energyTariff ?? 0) < 0 ||
+      (stage.laborRate ?? 0) < 0
     ) {
       return `⚠️ A etapa ${index + 2} contém valores negativos.`;
+    }
+  }
+
+  // Acessórios: quantidade e preço unitário não podem ser negativos. A UI já
+  // trava a digitação, mas um CSV importado ou produto legado pode furar isso.
+  const accessories = product.accessories ?? [];
+  for (let index = 0; index < accessories.length; index += 1) {
+    const accessory = accessories[index];
+    if (accessory.qty < 0 || accessory.unitPrice < 0) {
+      const label = accessory.desc?.trim() || `Acessório ${index + 1}`;
+      return `⚠️ "${label}" tem quantidade ou preço negativo.`;
     }
   }
 

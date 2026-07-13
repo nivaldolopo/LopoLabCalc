@@ -1,0 +1,225 @@
+/* --- Cesta (itens no modal de venda) --- */
+
+.cesta-label {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+/* Respiro do modal de venda: os rótulos ficavam colados nos campos e as
+   seções muito próximas. Escopado a .sale-modal para não afetar o resto. */
+.sale-modal .section-label {
+  margin-bottom: 7px;
+}
+
+.sale-modal .two-col {
+  margin-bottom: 18px;
+}
+
+.sale-modal .cesta-label {
+  margin-top: 14px;
+  margin-bottom: 10px;
+}
+
+.sale-modal .cesta-item-grid .field-block {
+  margin-bottom: 0;
+}
+
+.sale-modal .cesta-add {
+  margin-top: 12px;
+  margin-bottom: 18px;
+}
+
+.sale-modal .modal-sub {
+  margin-bottom: 22px;
+}
+
+.cesta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cesta-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+.cesta-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--details-bg);
+}
+
+.cesta-item-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.cesta-item-head .field-input {
+  flex: 1;
+}
+
+.cesta-item-grid {
+  display: grid;
+  grid-template-columns: 1fr 70px 108px;
+  gap: 8px;
+}
+
+.cesta-item-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cesta-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--muted);
+}
+
+.cesta-add .field-input {
+  flex: 1;
+}
+
+/* Botão "Nova venda" no cabeçalho do catálogo — primário mas compacto e inline. */
+.catalog-new-sale {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+/* --- Recibos (histórico agrupado por venda) --- */
+
+.recibo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recibo-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  overflow: hidden;
+}
+
+.recibo-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--th-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.recibo-head-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.recibo-date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.recibo-customer {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.recibo-pay {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.recibo-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.recibo-head-side {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.recibo-head-totals {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--muted2);
+}
+
+.recibo-head-totals strong {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.recibo-items {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.recibo-items td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.recibo-items tr:last-child td {
+  border-bottom: 0;
+}
+
+.recibo-items .ri-name {
+  width: 100%;
+  white-space: normal;
+}
+
+.recibo-items .num {
+  text-align: right;
+}
+
+.ri-cost {
+  color: var(--muted);
+}
+
+.ri-actions {
+  text-align: right;
+  width: 40px;
+}
+
+.recibo-notes {
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--border-soft);
+  background: var(--details-bg);
+}
+

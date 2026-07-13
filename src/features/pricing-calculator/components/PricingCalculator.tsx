@@ -32,12 +32,12 @@ import { MachineManagerModal } from "./MachineManagerModal";
 import { PricingResultCard } from "./PricingResultCard";
 import { ProductCatalog } from "./ProductCatalog";
 import { ProductForm } from "./ProductForm";
+import { SaleModal } from "./SaleModal";
 import {
-  SaleModal,
   productPrintHours,
   saleContextFromResult,
   type SaleModalContext,
-} from "./SaleModal";
+} from "../lib/saleContext";
 
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
@@ -57,6 +57,15 @@ export function PricingCalculator() {
   const [saleOpen, setSaleOpen] = useState(false);
   const [saleSeed, setSaleSeed] = useState<SaleModalContext | null>(null);
   const [saved, setSaved] = useState(false);
+  // Aviso de validação do formulário (inline, no lugar do window.alert).
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Edições no produto limpam o aviso de validação — some assim que o usuário
+  // começa a corrigir.
+  function handleProductChange(patch: Partial<typeof form.product>) {
+    if (saveError) setSaveError(null);
+    form.updateProduct(patch);
+  }
 
   const totalPrintHours = useMemo(
     () =>
@@ -115,6 +124,7 @@ export function PricingCalculator() {
   }
 
   function resetFormKeepingFixedCosts() {
+    setSaveError(null);
     form.resetForm();
     form.updateProduct({
       includeFixed: fixedCosts.enabled,
@@ -161,9 +171,10 @@ export function PricingCalculator() {
       markupOnFixed: fixedCosts.markupOnFixed,
     });
     if (error) {
-      window.alert(error);
+      setSaveError(error);
       return;
     }
+    setSaveError(null);
 
     if (form.editingProductId) {
       await productsApi.updateProduct(form.editingProductId, buildPayload(false));
@@ -179,9 +190,10 @@ export function PricingCalculator() {
   async function saveAsNewProduct() {
     const error = validateProduct(form.product);
     if (error) {
-      window.alert(error);
+      setSaveError(error);
       return;
     }
+    setSaveError(null);
     await productsApi.addProduct(buildPayload(true));
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1200);
@@ -189,6 +201,7 @@ export function PricingCalculator() {
   }
 
   function loadProduct(product: SavedProduct) {
+    setSaveError(null);
     form.loadProduct(product, applyLoadedFixedCosts);
   }
 
@@ -264,7 +277,7 @@ export function PricingCalculator() {
             machines={machines}
             editingProductId={form.editingProductId}
             saved={saved}
-            onChange={form.updateProduct}
+            onChange={handleProductChange}
             onManageMachines={() => setMachineModalOpen(true)}
             onAddStage={form.addStage}
             onRemoveStage={form.removeStage}
@@ -275,6 +288,7 @@ export function PricingCalculator() {
             onSave={saveCurrentProduct}
             onSaveAsNew={saveAsNewProduct}
             onCancelEdit={resetFormKeepingFixedCosts}
+            saveError={saveError}
           />
           <FixedCostsPanel
             fixedCosts={fixedCosts}

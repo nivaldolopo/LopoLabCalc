@@ -18,13 +18,12 @@ import { useTheme } from "../hooks/useTheme";
 import type { CloudStatus, RoundingMode, Sale } from "../types";
 import { saveRecibo } from "@/lib/firebase/salesRepository";
 import { LogoutButton } from "./LogoutButton";
+import { SaleModal, type EditReciboSeed } from "./SaleModal";
 import {
-  SaleModal,
   productPrintHours,
   saleContextFromResult,
-  type EditReciboSeed,
   type SaleModalContext,
-} from "./SaleModal";
+} from "../lib/saleContext";
 
 const statusLabel: Record<CloudStatus, string> = {
   connecting: "Conectando nuvem...",

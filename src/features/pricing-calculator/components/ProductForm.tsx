@@ -24,6 +24,7 @@ type ProductFormProps = {
   onSave: () => void;
   onSaveAsNew: () => void;
   onCancelEdit: () => void;
+  saveError?: string | null;
 };
 
 export function ProductForm({
@@ -42,6 +43,7 @@ export function ProductForm({
   onSave,
   onSaveAsNew,
   onCancelEdit,
+  saveError,
 }: ProductFormProps) {
   const canSave = product.name.trim().length > 0;
 
@@ -187,6 +189,8 @@ export function ProductForm({
           </>
         ) : null}
       </div>
+
+      {saveError ? <div className="form-error">{saveError}</div> : null}
     </div>
   );
 }

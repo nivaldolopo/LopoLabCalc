@@ -1,0 +1,181 @@
+@media (max-width: 760px) {
+  .wrap {
+    padding: 16px 14px 60px;
+  }
+
+  .header,
+  .catalog-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  h1 {
+    font-size: 18px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .result-card {
+    position: static;
+  }
+
+  .card,
+  .fixed-costs-banner,
+  .result-card {
+    padding: 16px;
+  }
+
+  .fc-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .two-col {
+    gap: 10px;
+  }
+
+  .field-input {
+    font-size: 15px;
+    padding: 10px;
+  }
+
+  .btn {
+    padding: 14px 12px;
+    font-size: 15px;
+  }
+
+  .result-price {
+    font-size: 30px;
+  }
+
+  .machine-edit-row,
+  .machine-edit-header {
+    grid-template-columns: 1fr 64px 54px 52px 66px 32px;
+  }
+}
+
+/* --- Catálogo vira lista de cartões no celular --- */
+@media (max-width: 640px) {
+  .catalog-card {
+    border: none;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .table-scroll {
+    overflow-x: visible;
+  }
+
+  .catalog-card table,
+  .catalog-card tbody {
+    display: block;
+    width: auto;
+    min-width: 0;
+  }
+
+  .catalog-card thead {
+    display: none;
+  }
+
+  /* cartão colapsado = só Nome + Preço/peça (tipo dropdown) */
+  .main-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 10px;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--card-bg);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+
+  .main-row.open {
+    border-color: var(--accent);
+    margin-bottom: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  /* reset dos estilos de célula de tabela / sticky */
+  .main-row td,
+  .details-row td {
+    display: block;
+    position: static;
+    border: 0;
+    background: transparent;
+    min-width: 0;
+    max-width: none;
+    padding: 0;
+    white-space: normal;
+  }
+
+  .main-row td.col-name {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .main-row td.col-name .arrow-icon {
+    margin: 0 4px 0 0;
+  }
+
+  .main-row td.col-price {
+    flex: 0 0 auto;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .per-unit-hint {
+    display: inline;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-left: 3px;
+  }
+
+  /* fechado = só nome + preço/peça numa linha; o resto aparece ao expandir */
+  .main-row td[data-label],
+  .main-row td.col-actions {
+    display: none;
+  }
+
+  .main-row.open td.col-actions {
+    display: flex;
+    flex-basis: 100%;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .details-row.open {
+    display: block;
+    border: 1px solid var(--accent);
+    border-top: 0;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    background: var(--details-bg);
+    margin-bottom: 10px;
+  }
+
+  .catalog-details {
+    padding: 12px 14px;
+  }
+
+  .cd-main {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+

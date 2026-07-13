@@ -1,0 +1,316 @@
+/* --- Página de orçamento (PDF) --- */
+
+.quote-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.quote-card > .section-label,
+.quote-items-card > .section-label {
+  margin-bottom: 12px;
+}
+
+.quote-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quote-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--details-bg);
+}
+
+.quote-item-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.quote-item-head .field-input {
+  flex: 1;
+}
+
+.quote-item-grid {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.quote-item-grid .field-block {
+  margin-bottom: 0;
+}
+
+.quote-subtotal {
+  padding: 8px 10px;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--field-bg);
+}
+
+.quote-add {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 14px 0 4px;
+}
+
+.quote-add-catalog {
+  flex: 1;
+  min-width: 220px;
+  margin: 0;
+}
+
+.quote-notes {
+  margin-top: 16px;
+}
+
+.quote-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.quote-total {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quote-total span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted2);
+}
+
+.quote-total strong {
+  font-size: 24px;
+}
+
+.quote-generate {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  padding: 12px 22px;
+}
+
+.quote-history {
+  margin-top: 16px;
+}
+
+.quote-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quote-history-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--details-bg);
+  overflow: hidden;
+}
+
+.qh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.qh-header:hover {
+  background: var(--th-bg);
+}
+
+.qh-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.qh-arrow {
+  font-size: 10px;
+  color: var(--muted2);
+}
+
+.qh-details {
+  padding: 4px 12px 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.qh-items {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+.qh-item {
+  display: grid;
+  grid-template-columns: 1fr auto minmax(72px, auto);
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13px;
+}
+
+.qh-item:last-child {
+  border-bottom: 0;
+}
+
+.qh-item-desc {
+  color: var(--ink);
+}
+
+.qh-item-calc {
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.qh-item-sub {
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.qh-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.qh-total-row strong {
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.qh-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.qh-number {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.qh-customer {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.qh-date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.qh-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qh-total {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .quote-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .quote-generate {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Item do histórico: descrição na 1ª linha (largura toda) e
+     "qtd × unit" + subtotal na 2ª — nada de rolagem horizontal. */
+  .qh-item {
+    grid-template-columns: 1fr auto;
+    gap: 2px 10px;
+  }
+
+  .qh-item-desc {
+    grid-column: 1 / -1;
+    font-weight: 600;
+  }
+
+  .qh-item-calc {
+    grid-column: 1;
+  }
+
+  .qh-item-sub {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 760px) {
+  .sales-totals {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Ações do cabeçalho viram uma grade de 2 colunas: botões do mesmo tamanho,
+     preenchendo a largura (barra de ferramentas). Um botão sozinho na última
+     linha (contagem ímpar — ex.: futuro "Estoque") ocupa as duas colunas. */
+  .header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .header-actions > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .recibo-head-totals {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .recibo-items .ri-cost {
+    display: none;
+  }
+}
+

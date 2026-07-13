@@ -10,12 +10,17 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **faxina de código** (sem mudança funcional). Utils numéricos unificados
-  em `src/lib/number.ts` (`num`/`round2`) — antes duplicados em 4+ arquivos. Import de produtos
-  (CSV) virou `createProductsBatch` (writeBatch atômico, fatiado em 500). Removido campo morto
-  `stage2Cost` do `PricingResult`. Campos legados (`combineEnabled`/`stage2`/`fixedCostPerHour`)
-  comentados como só-leitura de migração. `.gitignore`/`.env.example` limpos. Novo
-  `vitest.config.ts` resolve o alias `@/` nos testes (`pnpm test` = 20, `pnpm build` ok).
+- **Última mudança:** **dívida técnica quitada (3 itens, sem mudança funcional visível).**
+  (1) helpers puros do `SaleModal` (`saleContextFromResult`/`productPrintHours`/`chargedWithFee`
+  + type `SaleModalContext`) movidos para `lib/saleContext.ts`; imports refeitos no `SaleModal`,
+  `PricingCalculator` e `SalesPage`. (2) `globals.css` (2.9k linhas) **dividido** em
+  `src/app/styles/*.css` (14 arquivos por área) importados em ordem via `@import` — split provado
+  byte-a-byte idêntico ao original (cascata preservada); **Tailwind removido** (era peso morto: não
+  havia `@import "tailwindcss"`, gerava zero CSS) — sem `postcss.config`, deps fora do `package.json`.
+  (3) `validateProduct` agora cobre **acessórios negativos** e completa os negativos das **etapas**
+  (energia/valor-hora que escapavam); erro do formulário virou **aviso inline** (`.form-error` no
+  `ProductForm`, some ao editar) no lugar do `window.alert`. `pnpm build`/`lint`/`test` (20) ok.
+  Obs.: "markup das etapas" da nota antiga não existe como campo (etapas herdam o markup do produto).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
@@ -29,13 +34,16 @@
 - **Infra pronta:** subdomínio `calculadora.lopolab.com.br` **NO AR** (CNAME "DNS only" no
   Cloudflare + SSL Let's Encrypt + Authorized domain no Firebase). **E-mail `@lopolab.com.br`
   configurado** (DNS no Cloudflare; contexto no chat "abertura da loja", fora do repo).
-- **Próximo passo:** plano de 3 itens da **comparação com o Pea3D** (o dono aprova cada um por
-  vez): (1) taxa de pagamento ✅ FEITO; (2) ROI/payback da máquina ✅ FEITO (`/maquinas`);
-  **(3) conversão peso↔metragem de filamento**. Em paralelo segue o backlog antigo
+- **Próximo passo:** **comparação com o Pea3D encerrada** — (1) taxa de pagamento ✅ FEITO;
+  (2) ROI/payback da máquina ✅ FEITO (`/maquinas`); (3) conversão peso↔metragem de filamento
+  **descartada** (o dono decidiu não implementar). Foco volta ao backlog antigo
   (**item 3 — Estoque** `/estoque`, já desbloqueado).
 - **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`); (b) item 4 — **Dashboard**
   (`/painel`, só vale com ~1-2 meses de vendas); (c) **logo real** no PDF do orçamento (hoje
   placeholder de impressora — há comentário no `generateQuotePdf` de onde trocar).
+  **Dívida técnica dos 3 itens: QUITADA** (ver "Última mudança"). Sobrou só uma ponta: os
+  outros `window.alert` (import CSV, `MachineManagerModal`, `QuotePage`, `SaleModal`) seguem
+  como alert nativo — não faziam parte do débito do `validateProduct`.
 - **Decisões pendentes:** variáveis de **Preview** do Firebase não cadastradas (por decisão —
   só Production; ver Diretriz 1). Nada quebrado.
 
@@ -87,16 +95,17 @@
    líquido**; **utilização das máquinas** (horas impressas ÷ disponíveis → sinaliza se precisa
    comprar outra impressora); receita por máquina; lucro por material; produto mais lucrativo.
 
-**Dívida técnica / faxina (não urgente — saíram de uma análise em jul/2026):**
-- **Mover helpers puros do `SaleModal` para `lib/`** — `saleContextFromResult`, `productPrintHours`,
-  `chargedWithFee` são lógica pura, mas moram no componente do modal e são importados por
-  `PricingCalculator` **e** `SalesPage`. Passar para um `lib/saleContext.ts`. Refactor de imports
-  em 3 arquivos; commit próprio.
-- **`globals.css` (~2.9k linhas num arquivo só) + Tailwind subutilizado** — a UI usa classes
-  artesanais; o Tailwind 4 está instalado mas quase não é usado. Decidir: (a) quebrar o CSS por
-  área e **remover o Tailwind**, ou (b) adotar Tailwind de verdade e migrar aos poucos. Não mistura.
-- **Validação e avisos de UI** — `validateProduct` não cobre acessórios negativos nem markup das
-  etapas; erros usam `window.alert` (destoa da UI caprichada). Trocar por aviso inline.
+**Dívida técnica / faxina (análise de jul/2026) — TODOS OS 3 ITENS ✅ FEITOS:**
+- ✅ **Helpers puros do `SaleModal` → `lib/saleContext.ts`** (`saleContextFromResult`,
+  `productPrintHours`, `chargedWithFee` + type `SaleModalContext`); imports refeitos nos 3 arquivos.
+- ✅ **`globals.css` dividido** em `src/app/styles/*.css` (14 arquivos por área, `@import` em ordem,
+  split byte-a-byte idêntico) e **Tailwind removido** (opção (a) — o Tailwind era peso morto, não
+  gerava CSS). Não usar Tailwind daqui pra frente; CSS artesanal por área.
+- ✅ **Validação/avisos** — `validateProduct` cobre acessórios negativos e completa negativos das
+  etapas; erro do formulário virou **aviso inline** (`.form-error`) no lugar do `window.alert`.
+  (Etapas não têm campo de markup — herdam o do produto; a nota antiga estava imprecisa.)
+  Ponta que sobrou: demais `window.alert` (import CSV, `MachineManagerModal`, `QuotePage`,
+  `SaleModal`) seguem nativos — fora do escopo do débito do `validateProduct`.
 
 ## Resumo do projeto (contexto rápido)
 
@@ -108,7 +117,7 @@ sincronizados em tempo real.
 
 **Stack:**
 - **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript 5**
-- **Tailwind CSS 4** (via `@tailwindcss/postcss`)
+- **CSS artesanal** por área em `src/app/styles/*.css` (Tailwind foi removido — não usar)
 - **Firebase 12** → **Firestore** (banco nomeado `lopo-lab-calculadora`)
 - Ícones: `lucide-react`
 - PDF (orçamento): `jspdf` + `jspdf-autotable` (client-side)
@@ -118,7 +127,8 @@ sincronizados em tempo real.
 ```
 src/
   app/                      # App Router: layout.tsx, page.tsx (calculadora),
-                            #   vendas/page.tsx (histórico), orcamento/page.tsx (PDF), globals.css
+                            #   vendas/page.tsx (histórico), orcamento/page.tsx (PDF),
+                            #   globals.css (só @import) + styles/*.css (CSS por área)
   features/pricing-calculator/
     components/             # UI: PricingCalculator (raiz), ProductForm, ProductCatalog,
                             #     PricingResultCard, CapacityPanel, MachineSelector,
@@ -130,6 +140,7 @@ src/
                             #     useAuth, useQuoteConfig (negócio), useQuotes (histórico),
                             #     useFees (taxas de pagamento)
     lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv,
+                            #     saleContext (foto congelada da venda — helpers puros do SaleModal),
                             #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento,
                             #     testado em paymentFees.test.ts via vitest)
     constants.ts, types.ts
