@@ -3,33 +3,31 @@ rules_version = '2';
 // -----------------------------------------------------------------------------
 // Regras do Firestore — banco `lopo-lab-calculadora` (projeto lopo-lab).
 //
-// TD-005: versionadas aqui para NÃO viverem só no Console. Reconstruídas a partir
-// da trava real do app: login Google restrito à lista `ALLOWED_EMAILS`
-// (src/features/pricing-calculator/constants.ts) — as MESMAS contas que o
-// `AuthGate` libera na UI. Manter esta lista em sincronia com a constante.
+// TD-005: versionadas aqui para NÃO viverem só no Console. Este arquivo é uma
+// CÓPIA FIEL do que está valendo no Console (conferido em 13/07/2026) — a lógica
+// abaixo é idêntica à do painel; só este cabeçalho é comentário extra. Serve de
+// backup/documentação. A trava libera só as contas Google verificadas cuja
+// conta está na lista (mesmas de `ALLOWED_EMAILS` em
+// src/features/pricing-calculator/constants.ts — manter em sincronia).
 //
 // IMPORTANTE: o deploy NÃO é automático. O site sobe pela Vercel (push na main);
 // estas regras só sobem se alguém rodar `firebase deploy --only firestore:rules`
-// de propósito. Antes de aplicar no Console, confira se batem com o que está lá.
+// de propósito. Como este arquivo espelha o Console, deployar não muda nada hoje.
 // -----------------------------------------------------------------------------
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Conta autenticada cujo e-mail (minúsculo) está na lista de permitidos.
-    function isAllowed() {
+    function autorizado() {
       return request.auth != null
-        && request.auth.token.email != null
-        && request.auth.token.email.lower() in [
-          "nivaldo.lopo@gmail.com",
-          "lopolab3d@gmail.com"
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'nivaldo.lopo@gmail.com',
+          'lopolab3d@gmail.com'
         ];
     }
 
-    // Todo o banco (products, config/*, vendas, orcamentos) é privado do dono.
-    // Sem conta permitida não há leitura nem escrita.
     match /{document=**} {
-      allow read, write: if isAllowed();
+      allow read, write: if autorizado();
     }
   }
 }
