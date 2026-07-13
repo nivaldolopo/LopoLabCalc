@@ -73,21 +73,38 @@ export async function createProduct(payload: ProductPayload): Promise<void> {
   await addDoc(productsCollection, payload);
 }
 
-// Cria vários produtos de uma vez (importação de CSV). Grava em lotes atômicos —
-// ou entra o lote inteiro, ou nada. Fatiado em blocos de 500 porque esse é o
-// teto de operações de um writeBatch do Firestore.
+// Cria vários produtos de uma vez (importação de CSV). Cada lote de até 500 é
+// atômico (teto de um writeBatch do Firestore). ATENÇÃO: acima de 500 são vários
+// commits SEQUENCIAIS — não há transação única cross-lote no cliente Firestore.
+// Logo, se um lote falhar no meio, os anteriores JÁ foram gravados. Em vez de
+// deixar esse estado parcial em silêncio (TD-009/TD-007), o erro informa quantos
+// já entraram, para o usuário reimportar só o restante.
 const BATCH_LIMIT = 500;
 
 export async function createProductsBatch(
   payloads: ProductPayload[],
 ): Promise<void> {
+  let imported = 0;
   for (let start = 0; start < payloads.length; start += BATCH_LIMIT) {
     const chunk = payloads.slice(start, start + BATCH_LIMIT);
     const batch = writeBatch(db);
     for (const payload of chunk) {
       batch.set(doc(productsCollection), payload);
     }
-    await batch.commit();
+    try {
+      await batch.commit();
+      imported += chunk.length;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      // Só há o que reportar quando parte já foi gravada (>1 lote). No caso
+      // comum (≤500, atômico) nada entrou, então repassa o erro cru.
+      if (imported === 0) throw error;
+      throw new Error(
+        `Importados ${imported} de ${payloads.length} produtos antes de ` +
+          `falhar (${reason}). Os já importados foram mantidos — reimporte ` +
+          `apenas os ${payloads.length - imported} restantes.`,
+      );
+    }
   }
 }
 
