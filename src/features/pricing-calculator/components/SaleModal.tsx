@@ -155,6 +155,8 @@ export function SaleModal({
   const [addPick, setAddPick] = useState("");
   const [showFeesEditor, setShowFeesEditor] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Aviso inline (validação ou erro de gravação), no lugar do window.alert.
+  const [error, setError] = useState<string | null>(null);
 
   const feeRatePct = feeRateForMethod(fees, paymentMethod);
   const hasFee = feeRatePct > 0;
@@ -241,20 +243,21 @@ export function SaleModal({
 
   async function confirm() {
     if (items.length === 0) {
-      window.alert("Adicione ao menos um produto à venda.");
+      setError("Adicione ao menos um produto à venda.");
       return;
     }
     for (const item of items) {
       if (!item.productName.trim()) {
-        window.alert("Dê um nome a todos os produtos da venda.");
+        setError("Dê um nome a todos os produtos da venda.");
         return;
       }
       if (Math.max(0, Number(item.salePrice) || 0) <= 0) {
-        window.alert(`Informe o preço de venda de "${item.productName}".`);
+        setError(`Informe o preço de venda de "${item.productName}".`);
         return;
       }
     }
 
+    setError(null);
     setSaving(true);
     const now = Date.now();
     const reciboId =
@@ -319,9 +322,9 @@ export function SaleModal({
     try {
       await onConfirm(upserts, removedIds);
       onClose();
-    } catch (error) {
-      window.alert(
-        `Erro ao ${isEdit ? "salvar" : "registrar"} venda: ${(error as Error).message}`,
+    } catch (err) {
+      setError(
+        `Erro ao ${isEdit ? "salvar" : "registrar"} venda: ${(err as Error).message}. Nada foi salvo — tente de novo.`,
       );
       setSaving(false);
     }
@@ -648,6 +651,8 @@ export function SaleModal({
             </strong>
           </div>
         </div>
+
+        {error ? <div className="form-error">{error}</div> : null}
 
         <div className="modal-actions">
           <button

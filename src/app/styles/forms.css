@@ -225,6 +225,17 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 13px;
 }
 
+/* Confirmação de escrita bem-sucedida (par verde do .form-error, TD-004). */
+.form-ok {
+  margin-top: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: rgba(74, 158, 118, 0.12);
+  border: 1px solid rgba(74, 158, 118, 0.4);
+  color: #4a9e76;
+  font-size: 13px;
+}
+
 .btn,
 .icon-label-button,
 .link-button,

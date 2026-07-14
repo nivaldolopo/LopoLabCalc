@@ -84,6 +84,12 @@ export function QuotePage() {
   const [notes, setNotes] = useState("");
   const [addPick, setAddPick] = useState("");
   const [openQuoteId, setOpenQuoteId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  // Feedback inline de escrita (validação/erro/sucesso), no lugar do alert e da
+  // gravação fire-and-forget silenciosa (TD-004).
+  const [feedback, setFeedback] = useState<
+    { kind: "error" | "ok"; msg: string } | null
+  >(null);
   const businessSeeded = useRef(false);
   const numberEdited = useRef(false);
 
@@ -168,17 +174,18 @@ export function QuotePage() {
     [quotes],
   );
 
-  function handleGenerate() {
+  async function handleGenerate() {
     if (items.length === 0) {
-      window.alert("Adicione ao menos um item ao orçamento.");
+      setFeedback({ kind: "error", msg: "Adicione ao menos um item ao orçamento." });
       return;
     }
     for (const item of items) {
       if (!item.description.trim()) {
-        window.alert("Dê uma descrição a todos os itens.");
+        setFeedback({ kind: "error", msg: "Dê uma descrição a todos os itens." });
         return;
       }
     }
+    setFeedback(null);
 
     const numberStr = String(quoteNumber).padStart(4, "0");
     const cleanItems = items.map((item) => ({
@@ -216,10 +223,25 @@ export function QuotePage() {
       total: cleanTotal,
       createdAt: Date.now(),
     };
-    void addQuote(payload);
-    void saveBusiness(business);
-    // Volta a numeração a seguir o histórico (o novo registro puxa o próximo nº).
-    numberEdited.current = false;
+    // O PDF já baixou (client-side); a gravação no histórico pode falhar e antes
+    // era fire-and-forget silenciosa. Agora aguarda e reporta (TD-004).
+    setSaving(true);
+    try {
+      await Promise.all([addQuote(payload), saveBusiness(business)]);
+      // Volta a numeração a seguir o histórico (o novo registro puxa o próximo nº).
+      numberEdited.current = false;
+      setFeedback({
+        kind: "ok",
+        msg: `✓ Orçamento nº ${numberStr} salvo no histórico.`,
+      });
+    } catch (err) {
+      setFeedback({
+        kind: "error",
+        msg: `O PDF foi gerado, mas falhou ao salvar no histórico: ${(err as Error).message}. Tente gerar de novo.`,
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   function reDownload(quote: QuoteRecord) {
@@ -239,7 +261,14 @@ export function QuotePage() {
       `Excluir o orçamento nº ${quote.number}${quote.customer ? ` (${quote.customer})` : ""}? Isso não pode ser desfeito.`,
     );
     if (!ok) return;
-    await deleteQuote(quote.id);
+    try {
+      await deleteQuote(quote.id);
+    } catch (err) {
+      setFeedback({
+        kind: "error",
+        msg: `Erro ao excluir o orçamento nº ${quote.number}: ${(err as Error).message}.`,
+      });
+    }
   }
 
   return (
@@ -506,12 +535,17 @@ export function QuotePage() {
           <button
             className="btn primary quote-generate"
             type="button"
-            onClick={handleGenerate}
-            disabled={items.length === 0}
+            onClick={() => void handleGenerate()}
+            disabled={items.length === 0 || saving}
           >
-            <FileText size={16} /> Gerar PDF
+            <FileText size={16} /> {saving ? "Gerando..." : "Gerar PDF"}
           </button>
         </div>
+        {feedback ? (
+          <div className={feedback.kind === "ok" ? "form-ok" : "form-error"}>
+            {feedback.msg}
+          </div>
+        ) : null}
       </div>
 
       {orderedQuotes.length > 0 ? (
