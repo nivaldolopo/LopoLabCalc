@@ -162,6 +162,41 @@
 (item 4), é a base do "gargalo"; **TD-006** (paginação) — quando `/vendas` acumular meses. Nada mais
 pendente da auditoria.
 
+**Ideias/ajustes trazidos pelo dono (jul/2026) — a fazer:**
+
+> Itens levantados pelo dono em conversa (não vieram da auditoria do GPT). Verificados contra o
+> código quando aplicável. Prioridade é a que o dono deu.
+
+- ⬜ **[UX-01] Zero à esquerda ao reescrever campo numérico** *(prioridade baixa · pequeno)*. Ao
+  **apagar** um campo numérico, ele volta a exibir `0`; ao digitar o novo número o `0` fica à
+  esquerda (ex.: `05`). Só ocorre no fluxo apagar→digitar (selecionar-e-substituir funciona). É
+  estético, não altera o valor final. **Causa (confirmada):** inputs são controlados com valor
+  `number` e todo `onChange` faz `Number(event.target.value) || 0` → campo vazio coage para `0`.
+  **Abrange todos os campos numéricos:** `ProductForm`, `AccessoriesSection`, `ExtraStagesSection`,
+  `CapacityPanel`, `FixedCostsPanel`, `SaleModal`, `QuotePage`, `MachineManagerModal`. **Correção
+  sugerida:** permitir string vazia no estado do input (só coagir para número no submit/blur) ou um
+  helper de input numérico compartilhado — evita repetir a lógica em 8 telas.
+- ⬜ **[FEAT-01] Preço por etapa (etapa como item opcional no orçamento/venda)** *(prioridade a
+  definir · tamanho médio)*. Salvar/mostrar o preço calculado e proporcional de **cada etapa** do
+  produto (considerando máquina, mão de obra, filamento, tempo de cada etapa). **Por quê:** uma
+  etapa pode ser um acessório opcional pro cliente (ex.: peça base + adorno impresso à parte) — o
+  dono quer poder cotar as etapas separadamente e deixar o cliente escolher tudo ou só uma parte.
+  **Onde:** card do produto no catálogo (mostrar preço por etapa) + toggle na `/orcamento` (e talvez
+  `/vendas`) que **divide o produto em etapas** (cada etapa vira linha) ou trata como item único.
+  **O que já existe:** `calculateStageCost` (`calculatePricing.ts`) já devolve o **custo** por etapa
+  (`StageCost`: material/energia/depreciação/manutenção/labor). **Decisão de design que falta (o
+  miolo):** etapas hoje **não** têm preço próprio — markup, reserva de falha, custo fixo e
+  arredondamento são aplicados no **produto inteiro** e as etapas são fundidas nas categorias do
+  produto. Definir a regra de rateio do preço por etapa: (a) aplicar o markup do produto sobre o
+  custo de cada etapa, ou (b) ratear o preço final do produto proporcional ao custo de cada etapa;
+  e como distribuir custo fixo/reserva de falha/acessórios/arredondamento (a soma das partes tem que
+  fechar com o total). **Contexto do dono (importante):** as etapas são **peças físicas diferentes,
+  de impressões diferentes** — ou seja, cada etapa é um produto realmente vendável à parte, então o
+  rateio precisa ser **exato/aditivo** (soma das partes = total; não serve rateio só informativo).
+  **Também quer:** poder **agrupar etapas específicas num subitem** do produto (ex.: 4 etapas → 2
+  subitens vendáveis), não só quebrar 1-etapa-por-linha. Isso pede um conceito de "grupo de etapas"
+  no orçamento/venda. **Depende de:** produto com etapas (`stages[]`) e dados por etapa (já existem).
+
 ## Resumo do projeto (contexto rápido)
 
 **O que é:** aplicação web de **calculadora de precificação para impressão 3D**
