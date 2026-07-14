@@ -258,6 +258,17 @@ export function SaleModal({
     }
 
     setError(null);
+
+    // Offline: o Firestore enfileira a escrita e a Promise fica pendente para
+    // sempre (nem resolve, nem rejeita) — o botão travaria em "Registrando...".
+    // Bloqueia com aviso claro em vez de pendurar (TD-004).
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setError(
+        "Sem conexão com a internet. Reconecte e tente de novo — nada foi salvo ainda.",
+      );
+      return;
+    }
+
     setSaving(true);
     const now = Date.now();
     const reciboId =

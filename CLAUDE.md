@@ -134,7 +134,9 @@
   import CSV (`ProductCatalog`) e `MachineManagerModal` trocaram o `window.alert` de resultado/validação
   por avisos inline (`.form-error`/`.form-ok`). `QuotePage.handleGenerate` deixou de gravar
   fire-and-forget (`void addQuote/saveBusiness`) → aguarda com estado `saving` e reporta sucesso/erro.
-  Decisão: os `window.confirm` **destrutivos** (excluir, sair) seguem nativos por escolha.
+  Decisão: os `window.confirm` **destrutivos** (excluir, sair) seguem nativos por escolha. **Guarda
+  offline:** venda e orçamento checam `navigator.onLine` antes de gravar (o Firestore deixaria a
+  Promise pendente para sempre offline, travando o botão) — bloqueiam com aviso em vez de pendurar.
 - ✅ **[TD-005] Regras do Firestore não versionadas — FEITO.** Criados `firestore.rules` +
   `firebase.json` no repo (banco `lopo-lab-calculadora`, trava por `ALLOWED_EMAILS`). Deploy NÃO
   automático (Vercel só sobe o site); o dono aplica no Console via `firebase deploy --only

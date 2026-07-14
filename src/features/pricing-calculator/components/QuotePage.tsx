@@ -225,6 +225,15 @@ export function QuotePage() {
     };
     // O PDF já baixou (client-side); a gravação no histórico pode falhar e antes
     // era fire-and-forget silenciosa. Agora aguarda e reporta (TD-004).
+    // Offline: o Firestore deixaria a Promise pendente para sempre (botão preso
+    // em "Gerando..."). Bloqueia o salvamento com aviso — o PDF já foi entregue.
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setFeedback({
+        kind: "error",
+        msg: "PDF gerado, mas sem conexão para salvar no histórico. Gere de novo quando reconectar.",
+      });
+      return;
+    }
     setSaving(true);
     try {
       await Promise.all([addQuote(payload), saveBusiness(business)]);
