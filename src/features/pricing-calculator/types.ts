@@ -47,7 +47,6 @@ export type ProductInput = {
   // perdidas (adesão, entupimento, queda de energia...). 0 = sem reserva.
   failureRate: number;
   includeFixed: boolean;
-  markupOnFixed: boolean;
   roundingMode: RoundingMode;
   piecesCount: number;
   stages: PrintStage[];
@@ -79,13 +78,12 @@ export type FixedCostSettings = {
   machines: number;
   hoursDay: number;
   daysMonth: number;
-  markupOnFixed: boolean;
 };
 
 // Parte GLOBAL do custo fixo (a "taxa": aluguel/outros/máquinas/horas/dias),
-// persistida por negócio no doc `config/negocio` (TD-001). Fica de fora os dois
-// toggles `enabled`/`markupOnFixed` do `FixedCostSettings` — esses são POR
-// PRODUTO (gravados em `includeFixed`/`markupOnFixed` de cada produto).
+// persistida por negócio no doc `config/negocio` (TD-001). Fica de fora o
+// toggle `enabled` do `FixedCostSettings` — esse é POR PRODUTO (gravado em
+// `includeFixed` de cada produto).
 export type FixedCostRate = Pick<
   FixedCostSettings,
   "rent" | "other" | "machines" | "hoursDay" | "daysMonth"

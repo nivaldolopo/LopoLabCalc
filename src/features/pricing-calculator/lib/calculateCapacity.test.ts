@@ -19,7 +19,6 @@ const NO_FIXED: FixedCostSettings = {
   machines: 1,
   hoursDay: 20,
   daysMonth: 26,
-  markupOnFixed: false,
 };
 
 function priceOf(product: ProductInput) {

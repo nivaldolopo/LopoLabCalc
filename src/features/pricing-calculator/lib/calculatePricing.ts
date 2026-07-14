@@ -243,19 +243,21 @@ export function calculatePricing(
 
   const variableCost = printingCost + failureReserve + accessoriesCost;
   const totalCost = variableCost + fixedCost;
-  const markupOnFixed =
-    product.markupOnFixed !== undefined
-      ? product.markupOnFixed
-      : fixedCosts.markupOnFixed;
+  // DEC-01: markup NUNCA incide sobre o custo fixo — o fixo é só repassado
+  // (variableCost × markup + fixedCost). O antigo toggle "aplicar markup sobre
+  // o fixo" foi removido; se algum produto no Firestore ainda tiver o campo
+  // `markupOnFixed`, é lixo inofensivo (ignorado aqui).
   // Preço exato (bruto do cálculo) e preço final arredondado para valor de
   // mercado. Todo o resto (margem, lote, catálogo, capacidade) usa o final.
-  const exactPrice = markupOnFixed
-    ? totalCost * product.markup
-    : variableCost * product.markup + fixedCost;
+  const exactPrice = variableCost * product.markup + fixedCost;
   const suggestedPrice = roundPrice(exactPrice, product.roundingMode ?? "exact");
-  const contributionPrice = markupOnFixed
-    ? variableCost * product.markup
-    : suggestedPrice - fixedCost;
+  // NOTA (DEC-01, pendência): sem markup no fixo, `contributionPrice` desconta o
+  // fixo → `contributionMargin` fica = suggestedPrice − totalCost, ou seja o
+  // LUCRO por peça, não a margem de contribuição clássica (preço − custo
+  // variável). Nome impróprio, mantido idêntico ao comportamento anterior de
+  // propósito (opção A). Corrigir a semântica mudaria o ponto de equilíbrio
+  // (opção B, adiada). Ver DEC-01 no CLAUDE.md.
+  const contributionPrice = suggestedPrice - fixedCost;
   const contributionMargin = contributionPrice - variableCost;
   const margin =
     suggestedPrice > 0

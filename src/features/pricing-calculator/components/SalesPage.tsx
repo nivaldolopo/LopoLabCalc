@@ -163,7 +163,7 @@ export function SalesPage() {
   const [sortMode, setSortMode] = useState<SalesSortMode>("recent");
 
   // Taxa de custo fixo real do negócio (TD-001) para reprecificar os itens de
-  // catálogo ao editar um recibo. enabled/markupOnFixed vêm do produto.
+  // catálogo ao editar um recibo. O toggle `enabled` vem do produto.
   const fixedCosts = useMemo(
     () => ({ ...DEFAULT_FIXED_COSTS, ...fixedCostRate }),
     [fixedCostRate],

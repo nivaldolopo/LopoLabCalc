@@ -65,7 +65,7 @@ export function QuotePage() {
   const { fixedCostRate } = useBusinessSettings();
   const { business: cfgBusiness, loaded, saveBusiness } = useQuoteConfig();
 
-  // Taxa de custo fixo real do negócio (TD-001). enabled/markupOnFixed vêm do
+  // Taxa de custo fixo real do negócio (TD-001). O toggle `enabled` vem do
   // próprio produto no cálculo, então aqui só a taxa importa.
   const fixedCosts = useMemo(
     () => ({ ...DEFAULT_FIXED_COSTS, ...fixedCostRate }),

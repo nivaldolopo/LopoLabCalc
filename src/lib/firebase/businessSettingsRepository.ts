@@ -9,8 +9,8 @@ import type { FixedCostRate } from "@/features/pricing-calculator/types";
 
 // Configurações do negócio compartilhadas entre aparelhos (mesmo padrão de
 // config/machines e config/orcamento). Hoje guarda só a TAXA de custo fixo
-// (aluguel/outros/máquinas/horas/dias) — TD-001. Os toggles enabled/markupOnFixed
-// NÃO entram aqui: são por-produto. Doc pensado para crescer (ex.: o Estoque
+// (aluguel/outros/máquinas/horas/dias) — TD-001. O toggle `enabled` NÃO entra
+// aqui: é por-produto. Doc pensado para crescer (ex.: o Estoque
 // adiciona campos aqui sem migração).
 const businessDoc = doc(db, "config", "negocio");
 

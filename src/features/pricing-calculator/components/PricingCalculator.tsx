@@ -49,12 +49,11 @@ export function PricingCalculator() {
   const productsApi = useProducts();
   const form = usePricingForm();
 
-  // A TAXA de custo fixo vem persistida (global do negócio, TD-001); os toggles
-  // enabled/markupOnFixed são por-produto (espelham o produto em edição). O
-  // `fixedCosts` completo é a junção dos dois.
+  // A TAXA de custo fixo vem persistida (global do negócio, TD-001); o toggle
+  // `enabled` é por-produto (espelha o produto em edição). O `fixedCosts`
+  // completo é a junção dos dois.
   const [fixedToggles, setFixedToggles] = useState({
     enabled: DEFAULT_FIXED_COSTS.enabled,
-    markupOnFixed: DEFAULT_FIXED_COSTS.markupOnFixed,
   });
   const fixedCosts = useMemo<FixedCostSettings>(
     () => ({ ...fixedCostRate, ...fixedToggles }),
@@ -122,18 +121,10 @@ export function PricingCalculator() {
       : 0;
 
   function updateFixedCosts(patch: Partial<FixedCostSettings>) {
-    // Toggles por-produto: atualizam o estado local e espelham no produto.
-    if (patch.enabled !== undefined || patch.markupOnFixed !== undefined) {
-      setFixedToggles((current) => ({
-        enabled: patch.enabled ?? current.enabled,
-        markupOnFixed: patch.markupOnFixed ?? current.markupOnFixed,
-      }));
-      if (patch.enabled !== undefined) {
-        form.updateProduct({ includeFixed: patch.enabled });
-      }
-      if (patch.markupOnFixed !== undefined) {
-        form.updateProduct({ markupOnFixed: patch.markupOnFixed });
-      }
+    // Toggle por-produto: atualiza o estado local e espelha no produto.
+    if (patch.enabled !== undefined) {
+      setFixedToggles({ enabled: patch.enabled });
+      form.updateProduct({ includeFixed: patch.enabled });
     }
     // Taxa (aluguel/outros/máquinas/horas/dias): persiste no negócio (TD-001).
     const ratePatch: Partial<FixedCostRate> = {};
@@ -148,10 +139,9 @@ export function PricingCalculator() {
   }
 
   function applyLoadedFixedCosts(patch: Partial<FixedCostSettings>) {
-    // loadProduct só passa os toggles (enabled/markupOnFixed) do produto.
+    // loadProduct só passa o toggle `enabled` do produto.
     setFixedToggles((current) => ({
       enabled: patch.enabled ?? current.enabled,
-      markupOnFixed: patch.markupOnFixed ?? current.markupOnFixed,
     }));
   }
 
@@ -160,7 +150,6 @@ export function PricingCalculator() {
     form.resetForm();
     form.updateProduct({
       includeFixed: fixedCosts.enabled,
-      markupOnFixed: fixedCosts.markupOnFixed,
     });
   }
 
@@ -170,7 +159,6 @@ export function PricingCalculator() {
       name: form.product.name.trim(),
       mainStageName: form.product.mainStageName.trim(),
       includeFixed: fixedCosts.enabled,
-      markupOnFixed: fixedCosts.markupOnFixed,
       stages: form.product.stages.map((stage) => ({
         name: stage.name ?? "",
         machineId: stage.machineId,
@@ -200,7 +188,6 @@ export function PricingCalculator() {
     const error = validateProduct({
       ...form.product,
       includeFixed: fixedCosts.enabled,
-      markupOnFixed: fixedCosts.markupOnFixed,
     });
     if (error) {
       setSaveError(error);

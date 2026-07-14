@@ -8,8 +8,8 @@ import {
 import { DEFAULT_FIXED_COSTS } from "../constants";
 import type { FixedCostRate } from "../types";
 
-// Taxa padrão derivada do DEFAULT_FIXED_COSTS (só os campos de taxa, sem os
-// toggles enabled/markupOnFixed, que são por-produto).
+// Taxa padrão derivada do DEFAULT_FIXED_COSTS (só os campos de taxa, sem o
+// toggle `enabled`, que é por-produto).
 const DEFAULT_RATE: FixedCostRate = {
   rent: DEFAULT_FIXED_COSTS.rent,
   other: DEFAULT_FIXED_COSTS.other,

@@ -127,23 +127,6 @@ export function FixedCostsPanel({
             considere desativar e monitorar separadamente.
           </div>
         ) : null}
-        <button
-          className="markup-fixed-row"
-          type="button"
-          onClick={() => onChange({ markupOnFixed: !fixedCosts.markupOnFixed })}
-        >
-          <span className={`toggle-track ${fixedCosts.markupOnFixed ? "on" : ""}`}>
-            <span className="toggle-thumb" />
-          </span>
-          <span>
-            <span className="mf-label">Aplicar markup sobre custo fixo</span>
-            <span className="mf-sub">
-              {fixedCosts.markupOnFixed
-                ? "Ativado — markup multiplica também o custo fixo"
-                : "Desativado — custo fixo entra direto no preço, sem multiplicar"}
-            </span>
-          </span>
-        </button>
       </div>
     </div>
   );

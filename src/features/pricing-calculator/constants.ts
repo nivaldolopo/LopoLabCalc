@@ -68,7 +68,6 @@ export const DEFAULT_FIXED_COSTS: FixedCostSettings = {
   machines: 2,
   hoursDay: 20,
   daysMonth: 26,
-  markupOnFixed: false,
 };
 
 export const DEFAULT_CAPACITY: CapacitySettings = {
@@ -98,7 +97,6 @@ export const DEFAULT_PRODUCT_INPUT: ProductInput = {
   markup: 3,
   failureRate: DEFAULT_FAILURE_RATE,
   includeFixed: false,
-  markupOnFixed: false,
   roundingMode: "exact",
   piecesCount: 1,
   stages: [],

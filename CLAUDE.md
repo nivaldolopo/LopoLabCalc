@@ -10,17 +10,17 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **lote de dívidas da auditoria QUITADO — TD-009 + TD-007 + TD-001 + TD-004.**
-  (a) **TD-009:** `findMachine` sinaliza `machineId` órfão (fallback + `console.warn` no dev) —
-  flag `machineMissing` em `PricingResult`, aviso inline no card e badge no catálogo; +3 testes.
-  (b) **TD-007:** `createProductsBatch` reporta estado parcial no import CSV >500 (quantos
-  entraram/faltam) em vez de falhar em silêncio. (c) **TD-001:** taxa de custo fixo persistida em
-  `config/negocio` (novo `businessSettingsRepository` + `useBusinessSettings`, tipo `FixedCostRate`
-  separa taxa global dos toggles por-produto); alimenta calculadora, orçamento e vendas. (d)
-  **TD-004:** feedback de escrita — venda/orçamento/import/máquinas trocaram `window.alert` de
-  resultado por avisos inline (`.form-error`/`.form-ok`); `QuotePage` deixou de gravar
-  fire-and-forget. `pnpm test` = 49 casos verdes. Restam no backlog da auditoria: **TD-003**
-  (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação) — mantidos, não descartados.
+- **Última mudança:** **DEC-01 RESOLVIDO — markup nunca incide sobre o custo fixo; toggle
+  removido.** O fixo passa a ser só repassado (`variableCost × markup + fixedCost`); apagados o
+  campo `markupOnFixed` (de `ProductInput`/`FixedCostSettings`), o toggle na UI (`FixedCostsPanel` +
+  CSS morto), a coluna "Markup no Fixo" do CSV, e todas as referências (calc, form, repo, defaults,
+  testes). Sem migração: `markupOnFixed` que sobrar no Firestore é ignorado. Como o default sempre
+  foi `false`, nenhum preço muda na prática. **Opção A (cirúrgica):** mantido o comportamento
+  idêntico — **pendência registrada** (ver DEC-01 abaixo): no ramo sem markup no fixo,
+  `contributionMargin` desconta o fixo → é numericamente o LUCRO por peça, não a margem de
+  contribuição clássica (preço − custo variável). Corrigir a semântica (opção B) mudaria o ponto de
+  equilíbrio — adiado. `pnpm test` = 49 verdes, `pnpm lint` limpo. Restam da auditoria: **TD-003**
+  (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
@@ -222,16 +222,20 @@ pendente da auditoria.
   **horas decimais** (`printHours`), então os dois campos combinam para decimal ao salvar — sem
   migração. **Onde:** os campos de entrada de tempo — `ProductForm` (produto) e `ExtraStagesSection`
   (etapas). Demais telas só exibem/leem `printHours`, não precisam mudar.
-- ⬜ **[DEC-01] Decidir se mantém o toggle "aplicar markup sobre o custo fixo"** *(decisão · pequeno
-  se remover)*. O dono acha que **não faz sentido** aplicar markup no custo fixo. **Hoje**
-  (`calculatePricing.ts`): `markupOnFixed = true` → `totalCost × markup` (lucra também sobre o fixo);
-  `false` → `variableCost × markup + fixedCost` (fixo só repassado, sem markup). Os dois têm
-  fundamento: "markup sobre tudo" trata o fixo como custo real a marcar; "só no variável" trata o
-  fixo como overhead a recuperar. A posição do dono (não marcar o fixo) é a mais conservadora
-  (preço menor). **Se decidir que nunca faz sentido:** remover o toggle vira simplificação (limpa
-  `FixedCostRate`, `FixedCostsPanel` e o ramo do cálculo) — **atenção:** muda o preço de qualquer
-  produto hoje com `markupOnFixed = true`. **Ação:** dono decide manter vs. fixar num comportamento
-  só; se fixar, remover o toggle e o campo.
+- ✅ **[DEC-01] Toggle "aplicar markup sobre o custo fixo" — RESOLVIDO (removido).** O dono decidiu
+  que markup **nunca** deve incidir no fixo. Fixado o comportamento em `variableCost × markup +
+  fixedCost` e removido o campo `markupOnFixed` de ponta a ponta (tipos, defaults, UI+CSS, CSV,
+  repo, testes). Sem migração; default sempre foi `false`, então nenhum preço muda na prática.
+  **PENDÊNCIA aberta (opção B, adiada) — semântica do `contributionMargin`:** no ramo sem markup no
+  fixo, `contributionMargin = suggestedPrice − fixedCost − variableCost = suggestedPrice −
+  totalCost`, ou seja **é o LUCRO por peça, não a margem de contribuição clássica** (que seria
+  `preço − custo variável`, sem descontar o fixo). O nome da variável está impróprio. Ela alimenta
+  só o **ponto de equilíbrio** (`custoFixoMês / contributionMargin` em `PricingResultCard` e
+  `ProductCatalog`) — a aba Rentabilidade (`ProfitSummary`) NÃO usa, calcula lucro por conta
+  (`suggestedPrice − totalCost`). Corrigir para a margem de contribuição correta faria o ponto de
+  equilíbrio **diminuir** (margem maior) → é mudança de comportamento, mantida fora do DEC-01.
+  Decidir depois se vale corrigir o cálculo do break-even ou só renomear a variável. Ver a NOTA no
+  `calculatePricing.ts` (linha do `contributionPrice`).
 - ⬜ **[UX-03] Telefone e Instagram clicáveis no PDF do orçamento** *(prioridade a definir ·
   pequeno)*. No cabeçalho do PDF, tornar o **telefone** um link de **WhatsApp** (`https://wa.me/...`)
   e o **@ do Instagram** um link pro perfil. **Hoje:** ambos são texto puro (`doc.text(...)` no loop
@@ -266,9 +270,10 @@ pendente da auditoria.
 > Priorização unificada acordada no chat. Guia: barato-e-destrava primeiro; captura antes de
 > análise; features grandes por dependência, não por valor. O dono ajusta quando quiser.
 
-- **Tier 0 (limpar já — pequenos/baratos, alguns destravam):** (1) **DEC-01** decidir markup no
-  fixo — alavanca, destrava FEAT-01; (2) **UX-04** botão "Nova venda" na `/vendas`; (3) **UX-03**
-  telefone/Instagram clicáveis no PDF; (4) **UX-02** tempo em h+min; (5) **UX-01** zero à esquerda.
+- **Tier 0 (limpar já — pequenos/baratos, alguns destravam):** (1) ~~**DEC-01**~~ ✅ FEITO
+  (markup nunca no fixo, toggle removido); (2) **UX-04** botão "Nova venda" na `/vendas`;
+  (3) **UX-03** telefone/Instagram clicáveis no PDF; (4) **UX-02** tempo em h+min; (5) **UX-01**
+  zero à esquerda. **Próximo da fila: UX-04.**
 - **Tier 1 (grande próximo passo):** (6) **Item 3 — Estoque** (`/estoque`, desbloqueado, destrava
   FEAT-02); (7) **FEAT-02** gasto por cor/multicor — ALTA, mas depende do Estoque → desenhar junto.
 - **Tier 2 (features comerciais):** (8) **FEAT-01** preço/subitens por etapa (depois do DEC-01);

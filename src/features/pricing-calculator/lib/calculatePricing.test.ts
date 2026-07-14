@@ -17,7 +17,6 @@ const NO_FIXED: FixedCostSettings = {
   machines: 1,
   hoursDay: 20,
   daysMonth: 26,
-  markupOnFixed: false,
 };
 
 describe("calculatePricing — componentes de custo", () => {
@@ -80,7 +79,7 @@ describe("calculatePricing — componentes de custo", () => {
     expect(comAcess.variableCost).toBeCloseTo(semAcess.variableCost + 3, 6);
   });
 
-  it("custo fixo entra quando habilitado (sem markup, com markupOnFixed=false)", () => {
+  it("custo fixo entra quando habilitado (repassado, sem markup no fixo)", () => {
     const fixed: FixedCostSettings = {
       enabled: true,
       rent: 1500,
@@ -88,7 +87,6 @@ describe("calculatePricing — componentes de custo", () => {
       machines: 2,
       hoursDay: 20,
       daysMonth: 26,
-      markupOnFixed: false,
     };
     const r = calculatePricing(
       makeProduct({ includeFixed: true }),

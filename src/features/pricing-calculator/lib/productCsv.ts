@@ -50,7 +50,6 @@ const CSV_HEADERS = [
   "Mao de obra (min)",
   "Valor-hora (R$)",
   "Inclui Fixo",
-  "Markup no Fixo",
   "Link Modelo",
   "Link Concorrente",
   "Link Arquivo",
@@ -208,7 +207,6 @@ export function exportProductsCsv(
       product.laborMinutes,
       product.laborRate,
       includeFixed ? "sim" : "nao",
-      product.markupOnFixed ? "sim" : "nao",
       csvCell(product.linkModel || ""),
       csvCell(product.linkCompetitor || ""),
       csvCell(product.linkFile || ""),
@@ -247,7 +245,6 @@ export function parseProductsCsv(
   const indexLaborRate = findColumn(headers, "valor-hora");
   const indexEnergy = findColumn(headers, "tarifa energia");
   const indexIncludeFixed = findColumn(headers, "inclui fixo");
-  const indexMarkupFixed = findColumn(headers, "markup no fixo");
   const indexRounding = findColumn(headers, "arredondamento");
   const indexLinkModel = findColumn(headers, "link modelo");
   const indexLinkCompetitor = findColumn(headers, "link concorrente");
@@ -293,8 +290,6 @@ export function parseProductsCsv(
             : DEFAULT_FAILURE_RATE,
         includeFixed:
           indexIncludeFixed >= 0 ? parseBool(columns[indexIncludeFixed]) : false,
-        markupOnFixed:
-          indexMarkupFixed >= 0 ? parseBool(columns[indexMarkupFixed]) : false,
         roundingMode:
           indexRounding >= 0
             ? parseRoundingMode(columns[indexRounding])

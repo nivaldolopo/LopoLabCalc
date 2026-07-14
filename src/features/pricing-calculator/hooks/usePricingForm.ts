@@ -127,14 +127,12 @@ export function usePricingForm() {
         createAccessory(index, accessory),
       ),
       includeFixed: savedProduct.includeFixed,
-      markupOnFixed: savedProduct.markupOnFixed,
       fixedCostPerHour: null,
       combineEnabled: null,
       stage2: null,
     });
     setFixedCosts({
       enabled: savedProduct.includeFixed,
-      markupOnFixed: savedProduct.markupOnFixed,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
