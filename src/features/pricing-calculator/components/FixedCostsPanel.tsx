@@ -2,6 +2,7 @@
 
 import type { FixedCostSettings, FixedCostSummary } from "../types";
 import { formatCurrency } from "@/lib/formatting/currency";
+import { NumberInput } from "./NumberInput";
 
 type FixedCostsPanelProps = {
   fixedCosts: FixedCostSettings;
@@ -44,58 +45,43 @@ export function FixedCostsPanel({
         <div className="fc-grid">
           <div className="fc-item">
             <label>Aluguel (R$/mês)</label>
-            <input
+            <NumberInput
               min={0}
-              type="number"
               value={fixedCosts.rent}
-              onChange={(event) =>
-                onChange({ rent: Math.max(0, Number(event.target.value) || 0) })
-              }
+              onChange={(rent) => onChange({ rent })}
             />
           </div>
           <div className="fc-item">
             <label>Outros custos fixos (R$/mês)</label>
-            <input
+            <NumberInput
               min={0}
-              type="number"
               value={fixedCosts.other}
-              onChange={(event) =>
-                onChange({ other: Math.max(0, Number(event.target.value) || 0) })
-              }
+              onChange={(other) => onChange({ other })}
               placeholder="contador, internet..."
             />
           </div>
           <div className="fc-item">
             <label>Máquinas operando</label>
-            <input
+            <NumberInput
               min={0}
-              type="number"
               value={fixedCosts.machines}
-              onChange={(event) =>
-                onChange({ machines: Math.max(0, Number(event.target.value) || 0) })
-              }
+              onChange={(machines) => onChange({ machines })}
             />
           </div>
           <div className="fc-item">
             <label>Horas de operação/dia</label>
-            <input
+            <NumberInput
               min={0}
-              type="number"
               value={fixedCosts.hoursDay}
-              onChange={(event) =>
-                onChange({ hoursDay: Math.max(0, Number(event.target.value) || 0) })
-              }
+              onChange={(hoursDay) => onChange({ hoursDay })}
             />
           </div>
           <div className="fc-item">
             <label>Dias de operação/mês</label>
-            <input
+            <NumberInput
               min={0}
-              type="number"
               value={fixedCosts.daysMonth}
-              onChange={(event) =>
-                onChange({ daysMonth: Math.max(0, Number(event.target.value) || 0) })
-              }
+              onChange={(daysMonth) => onChange({ daysMonth })}
             />
           </div>
         </div>

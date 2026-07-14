@@ -2,6 +2,7 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import type { Machine, PrintStage } from "../types";
+import { NumberInput } from "./NumberInput";
 import { PrintTimeField } from "./ProductForm";
 
 type ExtraStagesSectionProps = {
@@ -82,15 +83,12 @@ export function ExtraStagesSection({
           <div className="two-col no-margin">
             <div>
               <label className="section-label">📦 Peso (g)</label>
-              <input
+              <NumberInput
                 className="field-input"
                 min={0}
-                type="number"
                 value={stage.weightG}
-                onChange={(event) =>
-                  onUpdateStage(stage.id ?? "", {
-                    weightG: Math.max(0, Number(event.target.value) || 0),
-                  })
+                onChange={(weightG) =>
+                  onUpdateStage(stage.id ?? "", { weightG })
                 }
               />
             </div>
@@ -103,29 +101,23 @@ export function ExtraStagesSection({
             />
             <div>
               <label className="section-label">Filamento (R$/kg)</label>
-              <input
+              <NumberInput
                 className="field-input"
                 min={0}
-                type="number"
                 value={stage.filamentPricePerKg}
-                onChange={(event) =>
-                  onUpdateStage(stage.id ?? "", {
-                    filamentPricePerKg: Math.max(0, Number(event.target.value) || 0),
-                  })
+                onChange={(filamentPricePerKg) =>
+                  onUpdateStage(stage.id ?? "", { filamentPricePerKg })
                 }
               />
             </div>
             <div>
               <label className="section-label">Mão de obra (min)</label>
-              <input
+              <NumberInput
                 className="field-input"
                 min={0}
-                type="number"
                 value={stage.laborMinutes}
-                onChange={(event) =>
-                  onUpdateStage(stage.id ?? "", {
-                    laborMinutes: Math.max(0, Number(event.target.value) || 0),
-                  })
+                onChange={(laborMinutes) =>
+                  onUpdateStage(stage.id ?? "", { laborMinutes })
                 }
               />
             </div>

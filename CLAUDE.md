@@ -10,13 +10,16 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **UX-02 FEITO — tempo de impressão em horas + minutos.** O `PrintTimeField`
-  (compartilhado por produto e etapas, em `ProductForm.tsx`) virou **dois campos fixos** (horas +
-  minutos): o de horas **aceita decimal** (ex.: `11.85`) e, **no blur**, normaliza pra `11 h 51 min`;
-  só minutos segue funcionando (horas = 0). Removeu o `<select>` de unidade. Dado continua guardado
-  como `printHours` decimal — sem migração. Resync com prop externa via padrão "ajustar estado no
-  render". CSS `.time-inputs` → `1fr auto 1fr auto` + `.time-sep`. `pnpm lint` limpo. **Próximo da
-  fila (Tier 0): UX-01** (zero à esquerda).
+- **Última mudança:** **UX-01 FEITO — zero à esquerda nos campos numéricos.** Novo componente
+  compartilhado `NumberInput` (`components/NumberInput.tsx`): input controlado que guarda a **string
+  exibida** em estado local (pode ficar vazio ao apagar, sem virar `0`), emite número **clampado**
+  por `min`/`max`, normaliza a exibição **no blur**, e resync com o valor externo via padrão "ajustar
+  estado no render" (mesmo idioma do `PrintTimeField`). Trocado em **8 telas** (`NumberField` do
+  `ProductForm` passou a usá-lo → cobre todos os campos do form; `AccessoriesSection`,
+  `ExtraStagesSection`, `CapacityPanel`, `FixedCostsPanel`, `SaleModal`, `QuotePage`,
+  `MachineManagerModal`). Clamps de call-site redundantes removidos (o `min`/`max` do `NumberInput`
+  cuida). Só UI — nenhum dado/valor muda. `pnpm lint` + `pnpm build` limpos. **Tier 0 fechado.**
+  **Próximo passo: Tier 1 — Estoque (`/estoque`)** + FEAT-02 (gasto por cor), desenhados juntos.
   Restam da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
@@ -164,15 +167,13 @@ pendente da auditoria.
 > Itens levantados pelo dono em conversa (não vieram da auditoria do GPT). Verificados contra o
 > código quando aplicável. Prioridade é a que o dono deu.
 
-- ⬜ **[UX-01] Zero à esquerda ao reescrever campo numérico** *(prioridade baixa · pequeno)*. Ao
-  **apagar** um campo numérico, ele volta a exibir `0`; ao digitar o novo número o `0` fica à
-  esquerda (ex.: `05`). Só ocorre no fluxo apagar→digitar (selecionar-e-substituir funciona). É
-  estético, não altera o valor final. **Causa (confirmada):** inputs são controlados com valor
-  `number` e todo `onChange` faz `Number(event.target.value) || 0` → campo vazio coage para `0`.
-  **Abrange todos os campos numéricos:** `ProductForm`, `AccessoriesSection`, `ExtraStagesSection`,
-  `CapacityPanel`, `FixedCostsPanel`, `SaleModal`, `QuotePage`, `MachineManagerModal`. **Correção
-  sugerida:** permitir string vazia no estado do input (só coagir para número no submit/blur) ou um
-  helper de input numérico compartilhado — evita repetir a lógica em 8 telas.
+- ✅ **[UX-01] Zero à esquerda ao reescrever campo numérico — FEITO.** Criado o componente
+  compartilhado `NumberInput` (`components/NumberInput.tsx`): guarda a **string exibida** em estado
+  local (fica vazio ao apagar, não vira `0`), emite número **clampado** por `min`/`max`, normaliza a
+  exibição **no blur** e resync com o valor externo pelo padrão "ajustar estado no render". Adotado
+  nas 8 telas (`NumberField` do `ProductForm` passou a usá-lo; + `AccessoriesSection`,
+  `ExtraStagesSection`, `CapacityPanel`, `FixedCostsPanel`, `SaleModal`, `QuotePage`,
+  `MachineManagerModal`). Clamps de call-site redundantes removidos. Só UI, sem migração.
 - ⬜ **[FEAT-01] Preço por etapa (etapa como item opcional no orçamento/venda)** *(prioridade a
   definir · tamanho médio)*. Salvar/mostrar o preço calculado e proporcional de **cada etapa** do
   produto (considerando máquina, mão de obra, filamento, tempo de cada etapa). **Por quê:** uma
@@ -262,10 +263,11 @@ pendente da auditoria.
 > Priorização unificada acordada no chat. Guia: barato-e-destrava primeiro; captura antes de
 > análise; features grandes por dependência, não por valor. O dono ajusta quando quiser.
 
-- **Tier 0 (limpar já — pequenos/baratos, alguns destravam):** (1) ~~**DEC-01**~~ ✅ FEITO
-  (markup nunca no fixo, toggle removido); (2) ~~**UX-04**~~ ✅ FEITO (botão "Nova venda" na
-  `/vendas`); (3) ~~**UX-03**~~ ✅ FEITO (telefone/Instagram clicáveis no PDF); (4) ~~**UX-02**~~
-  ✅ FEITO (tempo em h+min); (5) **UX-01** zero à esquerda. **Próximo da fila: UX-01.**
+- **Tier 0 (limpar já — pequenos/baratos, alguns destravam) — ✅ FECHADO:** (1) ~~**DEC-01**~~ FEITO
+  (markup nunca no fixo, toggle removido); (2) ~~**UX-04**~~ FEITO (botão "Nova venda" na
+  `/vendas`); (3) ~~**UX-03**~~ FEITO (telefone/Instagram clicáveis no PDF); (4) ~~**UX-02**~~
+  FEITO (tempo em h+min); (5) ~~**UX-01**~~ FEITO (zero à esquerda, componente `NumberInput`).
+  **Próximo: Tier 1.**
 - **Tier 1 (grande próximo passo):** (6) **Item 3 — Estoque** (`/estoque`, desbloqueado, destrava
   FEAT-02); (7) **FEAT-02** gasto por cor/multicor — ALTA, mas depende do Estoque → desenhar junto.
 - **Tier 2 (features comerciais):** (8) **FEAT-01** preço/subitens por etapa (depois do DEC-01);

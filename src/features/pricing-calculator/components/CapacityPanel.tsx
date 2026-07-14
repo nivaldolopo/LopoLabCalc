@@ -2,6 +2,7 @@
 
 import { formatCurrency } from "@/lib/formatting/currency";
 import type { CapacityResult, CapacitySettings } from "../types";
+import { NumberInput } from "./NumberInput";
 
 type CapacityPanelProps = {
   settings: CapacitySettings;
@@ -32,27 +33,19 @@ export function CapacityPanel({
       <div className="capacity-inputs">
         <div className="ci-item">
           <label>Horas de impressão/dia</label>
-          <input
+          <NumberInput
             max={24}
             min={0}
-            type="number"
             value={settings.hoursDay}
-            onChange={(event) =>
-              onChange({
-                hoursDay: Math.min(24, Math.max(0, Number(event.target.value) || 0)),
-              })
-            }
+            onChange={(hoursDay) => onChange({ hoursDay })}
           />
         </div>
         <div className="ci-item">
           <label>Máquinas dedicadas</label>
-          <input
+          <NumberInput
             min={1}
-            type="number"
             value={settings.machines}
-            onChange={(event) =>
-              onChange({ machines: Math.max(1, Number(event.target.value) || 1) })
-            }
+            onChange={(machines) => onChange({ machines })}
           />
         </div>
       </div>

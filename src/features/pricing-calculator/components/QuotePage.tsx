@@ -19,6 +19,7 @@ import { useQuotes } from "../hooks/useQuotes";
 import { useTheme } from "../hooks/useTheme";
 import type { QuoteBusiness, QuoteRecord, QuoteRecordPayload } from "../types";
 import { LogoutButton } from "./LogoutButton";
+import { NumberInput } from "./NumberInput";
 
 type QuoteItem = {
   key: string;
@@ -371,14 +372,13 @@ export function QuotePage() {
           <div className="two-col">
             <div className="field-block compact">
               <div className="section-label">Número</div>
-              <input
+              <NumberInput
                 className="field-input"
-                type="number"
                 min={1}
                 value={quoteNumber}
-                onChange={(event) => {
+                onChange={(next) => {
                   numberEdited.current = true;
-                  setQuoteNumber(Math.max(1, Number(event.target.value) || 1));
+                  setQuoteNumber(next);
                 }}
               />
             </div>
@@ -407,14 +407,11 @@ export function QuotePage() {
             </div>
             <div className="field-block compact">
               <div className="section-label">Validade (dias)</div>
-              <input
+              <NumberInput
                 className="field-input"
-                type="number"
                 min={1}
                 value={validityDays}
-                onChange={(event) =>
-                  setValidityDays(Math.max(1, Number(event.target.value) || 1))
-                }
+                onChange={setValidityDays}
               />
             </div>
           </div>
@@ -457,30 +454,24 @@ export function QuotePage() {
                 <div className="quote-item-grid">
                   <div className="field-block compact">
                     <div className="section-label">Qtd</div>
-                    <input
+                    <NumberInput
                       className="field-input"
-                      type="number"
                       min={1}
                       value={item.quantity}
-                      onChange={(event) =>
-                        updateItem(item.key, {
-                          quantity: Math.max(1, Number(event.target.value) || 1),
-                        })
+                      onChange={(quantity) =>
+                        updateItem(item.key, { quantity })
                       }
                     />
                   </div>
                   <div className="field-block compact">
                     <div className="section-label">Preço unit.</div>
-                    <input
+                    <NumberInput
                       className="field-input"
-                      type="number"
                       min={0}
                       step="0.01"
                       value={item.unitPrice}
-                      onChange={(event) =>
-                        updateItem(item.key, {
-                          unitPrice: Math.max(0, Number(event.target.value) || 0),
-                        })
+                      onChange={(unitPrice) =>
+                        updateItem(item.key, { unitPrice })
                       }
                     />
                   </div>

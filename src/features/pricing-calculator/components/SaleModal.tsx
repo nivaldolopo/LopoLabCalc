@@ -15,6 +15,7 @@ import {
   chargedWithFee,
   type SaleModalContext,
 } from "../lib/saleContext";
+import { NumberInput } from "./NumberInput";
 import type {
   PaymentFeeSettings,
   PaymentMethod,
@@ -553,30 +554,24 @@ export function SaleModal({
                   </div>
                   <div className="field-block compact">
                     <div className="section-label">Qtd</div>
-                    <input
+                    <NumberInput
                       className="field-input"
-                      type="number"
                       min={1}
                       value={item.quantity}
-                      onChange={(event) =>
-                        updateItem(item.key, {
-                          quantity: Math.max(1, Number(event.target.value) || 1),
-                        })
+                      onChange={(quantity) =>
+                        updateItem(item.key, { quantity })
                       }
                     />
                   </div>
                   <div className="field-block compact">
                     <div className="section-label">Preço unit.</div>
-                    <input
+                    <NumberInput
                       className="field-input"
-                      type="number"
                       min={0}
                       step="0.01"
                       value={item.salePrice}
-                      onChange={(event) =>
-                        updateItem(item.key, {
-                          salePrice: Math.max(0, Number(event.target.value) || 0),
-                        })
+                      onChange={(salePrice) =>
+                        updateItem(item.key, { salePrice })
                       }
                     />
                   </div>

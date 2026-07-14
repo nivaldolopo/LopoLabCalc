@@ -7,6 +7,7 @@ import { AccessoriesSection } from "./AccessoriesSection";
 import { ExtraStagesSection } from "./ExtraStagesSection";
 import { LinksSection } from "./LinksSection";
 import { MachineSelector } from "./MachineSelector";
+import { NumberInput } from "./NumberInput";
 
 type ProductFormProps = {
   product: ProductInput;
@@ -114,18 +115,14 @@ export function ProductForm({
           label="🔢 Peças por impressão"
           min={1}
           value={product.piecesCount}
-          onChange={(piecesCount) =>
-            onChange({ piecesCount: Math.max(1, piecesCount || 1) })
-          }
+          onChange={(piecesCount) => onChange({ piecesCount })}
         />
         <NumberField
           label="🎲 Taxa de falha (%)"
           max={95}
           step="1"
           value={product.failureRate}
-          onChange={(failureRate) =>
-            onChange({ failureRate: Math.min(95, Math.max(0, failureRate)) })
-          }
+          onChange={(failureRate) => onChange({ failureRate })}
         />
       </div>
 
@@ -302,16 +299,13 @@ function NumberField({
   return (
     <div>
       <label className="section-label">{label}</label>
-      <input
+      <NumberInput
         className="field-input"
         min={min}
         max={max}
         step={step}
-        type="number"
         value={value}
-        onChange={(event) =>
-          onChange(Math.max(min, Number(event.target.value) || 0))
-        }
+        onChange={onChange}
       />
     </div>
   );

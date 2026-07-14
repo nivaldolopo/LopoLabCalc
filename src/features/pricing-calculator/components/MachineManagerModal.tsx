@@ -3,6 +3,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Machine } from "../types";
+import { NumberInput } from "./NumberInput";
 
 type MachineManagerModalProps = {
   open: boolean;
@@ -107,52 +108,31 @@ export function MachineManagerModal({
                 }
                 placeholder="Nome"
               />
-              <input
+              <NumberInput
                 aria-label="Preço da máquina"
                 min={0}
-                type="number"
                 value={machine.price}
-                onChange={(event) =>
-                  updateMachine(index, {
-                    price: Math.max(0, Number(event.target.value) || 0),
-                  })
-                }
+                onChange={(price) => updateMachine(index, { price })}
               />
-              <input
+              <NumberInput
                 aria-label="Vida útil em horas"
                 min={1}
-                type="number"
                 value={machine.lifeHours}
-                onChange={(event) =>
-                  updateMachine(index, {
-                    lifeHours: Math.max(0, Number(event.target.value) || 0),
-                  })
-                }
+                onChange={(lifeHours) => updateMachine(index, { lifeHours })}
               />
-              <input
+              <NumberInput
                 aria-label="Consumo em watts"
                 min={0}
-                type="number"
                 value={machine.watts}
-                onChange={(event) =>
-                  updateMachine(index, {
-                    watts: Math.max(0, Number(event.target.value) || 0),
-                  })
-                }
+                onChange={(watts) => updateMachine(index, { watts })}
               />
-              <input
+              <NumberInput
                 aria-label="Manutenção por hora"
                 min={0}
                 step="0.1"
-                type="number"
                 value={machine.maintenancePerHour}
-                onChange={(event) =>
-                  updateMachine(index, {
-                    maintenancePerHour: Math.max(
-                      0,
-                      Number(event.target.value) || 0,
-                    ),
-                  })
+                onChange={(maintenancePerHour) =>
+                  updateMachine(index, { maintenancePerHour })
                 }
               />
               <button

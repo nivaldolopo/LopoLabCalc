@@ -3,6 +3,7 @@
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Accessory } from "../types";
+import { NumberInput } from "./NumberInput";
 
 type AccessoriesSectionProps = {
   accessories: Accessory[];
@@ -59,26 +60,18 @@ export function AccessoriesSection({
               }
               placeholder="Ex: Argola"
             />
-            <input
+            <NumberInput
               min={0}
               step={1}
-              type="number"
               value={accessory.qty}
-              onChange={(event) =>
-                onUpdateAccessory(accessory.id ?? "", {
-                  qty: Math.max(0, Number(event.target.value) || 0),
-                })
-              }
+              onChange={(qty) => onUpdateAccessory(accessory.id ?? "", { qty })}
             />
-            <input
+            <NumberInput
               min={0}
               step="0.01"
-              type="number"
               value={accessory.unitPrice}
-              onChange={(event) =>
-                onUpdateAccessory(accessory.id ?? "", {
-                  unitPrice: Math.max(0, Number(event.target.value) || 0),
-                })
+              onChange={(unitPrice) =>
+                onUpdateAccessory(accessory.id ?? "", { unitPrice })
               }
             />
             <button
