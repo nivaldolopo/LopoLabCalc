@@ -60,6 +60,10 @@ export function ProductCatalog({
 }: ProductCatalogProps) {
   const [openProductId, setOpenProductId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Resultado da importação de CSV, inline no lugar do window.alert (TD-004).
+  const [importMsg, setImportMsg] = useState<
+    { kind: "error" | "ok"; msg: string } | null
+  >(null);
 
   // Lê a precificação já memoizada no pai; fallback defensivo se algum produto
   // ainda não estiver no map.
@@ -105,11 +109,12 @@ export function ProductCatalog({
   function importCsv(file: File) {
     const reader = new FileReader();
     reader.onload = async (event) => {
+      setImportMsg(null);
       try {
         const content = String(event.target?.result ?? "");
         const importedProducts = parseProductsCsv(content, machines);
         if (importedProducts.length === 0) {
-          window.alert("Nenhum produto válido encontrado.");
+          setImportMsg({ kind: "error", msg: "Nenhum produto válido encontrado no CSV." });
           return;
         }
 
@@ -119,10 +124,16 @@ export function ProductCatalog({
           )
         ) {
           await onImportProducts(importedProducts);
-          window.alert("✓ Todos os produtos foram importados com sucesso!");
+          setImportMsg({
+            kind: "ok",
+            msg: `✓ ${importedProducts.length} produtos importados com sucesso.`,
+          });
         }
       } catch (error) {
-        window.alert(error instanceof Error ? error.message : "CSV inválido.");
+        setImportMsg({
+          kind: "error",
+          msg: error instanceof Error ? error.message : "CSV inválido.",
+        });
       }
     };
     reader.readAsText(file, "UTF-8");
@@ -176,6 +187,11 @@ export function ProductCatalog({
           />
         </div>
       </div>
+      {importMsg ? (
+        <div className={importMsg.kind === "ok" ? "form-ok" : "form-error"}>
+          {importMsg.msg}
+        </div>
+      ) : null}
       <div className="catalog-card">
         <div className="table-scroll">
           <table>

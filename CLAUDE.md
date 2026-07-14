@@ -10,14 +10,17 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **avulsos da auditoria QUITADOS — TD-008 + TD-005.** (a) **TD-008:**
-  testes do núcleo financeiro (`calculatePricing`, `calculateCapacity`, `roundPrice`,
-  `validateProduct` — matemática pura, sem UI); suíte de 46 casos verde (`pnpm test`).
-  (b) **TD-005:** `firestore.rules` + `firebase.json` versionados no repo (reconstruídos da trava
-  real `ALLOWED_EMAILS`; deploy NÃO automático — o dono aplica no Console; conferir antes). Restam
-  no backlog da auditoria: **TD-001** (business settings persistido, casar com Estoque), **TD-004**
-  (feedback de escrita), **TD-003/009/006/007** menores. Anterior: auditoria do GPT verificada e
-  registrada no backlog (sem código) — ver `git log`.
+- **Última mudança:** **lote de dívidas da auditoria QUITADO — TD-009 + TD-007 + TD-001 + TD-004.**
+  (a) **TD-009:** `findMachine` sinaliza `machineId` órfão (fallback + `console.warn` no dev) —
+  flag `machineMissing` em `PricingResult`, aviso inline no card e badge no catálogo; +3 testes.
+  (b) **TD-007:** `createProductsBatch` reporta estado parcial no import CSV >500 (quantos
+  entraram/faltam) em vez de falhar em silêncio. (c) **TD-001:** taxa de custo fixo persistida em
+  `config/negocio` (novo `businessSettingsRepository` + `useBusinessSettings`, tipo `FixedCostRate`
+  separa taxa global dos toggles por-produto); alimenta calculadora, orçamento e vendas. (d)
+  **TD-004:** feedback de escrita — venda/orçamento/import/máquinas trocaram `window.alert` de
+  resultado por avisos inline (`.form-error`/`.form-ok`); `QuotePage` deixou de gravar
+  fire-and-forget. `pnpm test` = 49 casos verdes. Restam no backlog da auditoria: **TD-003**
+  (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação) — mantidos, não descartados.
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
@@ -35,13 +38,13 @@
   (2) ROI/payback da máquina ✅ FEITO (`/maquinas`); (3) conversão peso↔metragem de filamento
   **descartada** (o dono decidiu não implementar). Foco volta ao backlog antigo
   (**item 3 — Estoque** `/estoque`, já desbloqueado).
-- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — desenhar JUNTO do "business
-  settings persistido" (TD-001 da auditoria); (b) item 4 — **Dashboard** (`/painel`, só vale com
-  ~1-2 meses de vendas; incorpora TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF
-  do orçamento (placeholder hoje). **Auditoria do GPT: TD-008 (testes) e TD-005 (regras
-  versionadas) FEITOS.** Avulso de bom retorno que sobra: TD-004 (feedback de escrita). Ponta
-  antiga: `window.alert` restantes (import CSV, `MachineManagerModal`, `QuotePage`, `SaleModal`)
-  seguem nativos.
+- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — o "business settings persistido"
+  (TD-001) já está pronto (`config/negocio`); o Estoque agrega campos nesse mesmo doc, sem
+  migração; (b) item 4 — **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
+  TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
+  **Auditoria do GPT: TD-001/004/005/007/008/009 FEITOS; restam TD-003 e TD-006** (no backlog, não
+  descartados). Menores mantidos no backlog: numeração de orçamento derivada no browser, labor na
+  reserva de falha, `window.confirm` destrutivos (mantidos nativos por decisão).
 - **Decisões pendentes:** variáveis de **Preview** do Firebase não cadastradas (por decisão —
   só Production; ver Diretriz 1). Nada quebrado.
 
@@ -112,13 +115,12 @@
 > ✅ procede · ⚠️ parcial/impreciso · ❌ improcede. Nada estava subprecificando venda hoje —
 > o retrato é "fundação sólida com dívidas latentes". Ordenado por retorno.
 
-- ⚠️ **[TD-001] Custo fixo não persistido → preço diverge entre telas.** Calculadora usa o
-  `fixedCosts` editado ao vivo; `QuotePage`/`SalesPage` chamam `calculatePricing(..., DEFAULT_FIXED_COSTS)`
-  (ver `QuotePage.tsx:111`, `SalesPage.tsx:172`). A mecânica que o GPT descreveu está imprecisa
-  (o `product.includeFixed` pode reativar o fixo em `calculatePricing.ts:196`); o problema REAL é
-  que a **taxa** de custo fixo (aluguel/outros/horas/dias) não é persistida por produto — cai nos
-  defaults. Impacto baixo hoje (fixo nasce `enabled:false`), mas latente. **Fix = criar "business
-  settings" persistido no Firestore (raiz do achado de arquitetura) — fazer JUNTO do Estoque.**
+- ✅ **[TD-001] Custo fixo não persistido → preço diverge entre telas — FEITO.** A **taxa** de custo
+  fixo (aluguel/outros/máquinas/horas/dias) agora persiste em `config/negocio` (novo
+  `businessSettingsRepository` + hook `useBusinessSettings`, mesmo padrão de `config/machines`); tipo
+  `FixedCostRate` separa a taxa global dos toggles `enabled`/`markupOnFixed` (que seguem por-produto).
+  Calculadora, `QuotePage` e `SalesPage` consomem a mesma taxa — preço consistente. Doc pensado para o
+  Estoque agregar campos sem migração.
 - ❌ **[TD-002] "Payback cobra depreciação em dobro" — IMPROCEDE.** Erro de revisar sem rodar:
   a `MachinesPage` já separa em DUAS barras — "Payback do investimento" (`profit/price`, lucro
   ALÉM do custo) e "Vida útil consumida" (`horas/lifeHours`, com `depreciationRecovered` mostrado
@@ -128,9 +130,11 @@
   soma todas as horas de etapa e multiplica por `machines` genérico — impreciso quando etapas
   rodam em impressoras diferentes ou disputam a mesma. Impacto baixo hoje (maioria mono-máquina).
   **Prioridade média — atacar quando o Dashboard/utilização (item 4) entrar (é a base do "gargalo").**
-- ✅ **[TD-004] Escritas sem feedback (Salvando/Salvo/Erro).** Já mapeado (os `window.alert`
-  restantes). Para ferramenta operacional, venda que falha em salvar em silêncio = dado perdido.
-  **Atacar ao tocar nos modais.**
+- ✅ **[TD-004] Escritas sem feedback (Salvando/Salvo/Erro) — FEITO.** `SaleModal`, `QuotePage`,
+  import CSV (`ProductCatalog`) e `MachineManagerModal` trocaram o `window.alert` de resultado/validação
+  por avisos inline (`.form-error`/`.form-ok`). `QuotePage.handleGenerate` deixou de gravar
+  fire-and-forget (`void addQuote/saveBusiness`) → aguarda com estado `saving` e reporta sucesso/erro.
+  Decisão: os `window.confirm` **destrutivos** (excluir, sair) seguem nativos por escolha.
 - ✅ **[TD-005] Regras do Firestore não versionadas — FEITO.** Criados `firestore.rules` +
   `firebase.json` no repo (banco `lopo-lab-calculadora`, trava por `ALLOWED_EMAILS`). Deploy NÃO
   automático (Vercel só sobe o site); o dono aplica no Console via `firebase deploy --only
@@ -140,18 +144,21 @@
   `calculateCapacity.test.ts`, `roundPrice.test.ts`, `validateProduct.test.ts` cobrem a matemática
   pura (componentes de custo, reserva de falha, custo fixo, divisão por peça, etapas/máquinas,
   capacidade mensal, validações). `pnpm test` = 46 casos verdes.
-- ✅ **[TD-009] `machineId` ausente cai na 1ª máquina em silêncio** (`findMachine` `?? machines[0]`
-  em `calculatePricing.ts:16`). Mascara erro de dado. Baixo, fácil de tornar visível.
-- ✅ **[TD-006] Subscrição de coleção inteira** (`subscribeProducts`/`useSales` sem paginação) —
-  ok agora, revisitar quando `/vendas` tiver meses. **[TD-007] Import CSV > 500 parcialmente
-  atômico** (`productsRepository.ts:81`, lotes de 500 em sequência) — real, improvável, fix trivial.
-  **Ambos: registrar, não priorizar.**
-- Menores: numeração de orçamento derivada no browser (2 abas/2 cliques podem repetir); labor
-  incluído na reserva de falha (teoricamente discutível, impacto de centavos). **Opcionais.**
+- ✅ **[TD-009] `machineId` ausente cai na 1ª máquina em silêncio — FEITO.** `findMachine`
+  (`calculatePricing.ts`) devolve `{ machine, found }`; mantém o fallback mas sinaliza via flag
+  `machineMissing` (em `StageCost`/`PricingResult`) + `console.warn` no dev. UI: aviso inline no card
+  de preço e badge ⚠ na coluna Máquina do catálogo e no detalhe. +3 testes.
+- ✅ **[TD-007] Import CSV > 500 parcialmente atômico — FEITO.** `createProductsBatch`
+  (`productsRepository.ts`) reporta quantos entraram/faltam se um lote falhar após o 1º commit (o
+  cliente Firestore não faz transação cross-lote). Caso comum (≤500) segue 100% atômico.
+  **[TD-006] Subscrição de coleção inteira** (`subscribeProducts`/`useSales` sem paginação) —
+  **ainda no backlog** (ok agora, revisitar quando `/vendas` tiver meses). Não descartado.
+- Menores **(mantidos no backlog, não descartados):** numeração de orçamento derivada no browser
+  (2 abas/2 cliques podem repetir); labor incluído na reserva de falha (impacto de centavos).
 
-**Recomendação de execução (próximo chat):** o "business settings persistido" (TD-001) casa
-naturalmente com o **item 3 — Estoque**; desenhar os dois juntos. Testes do núcleo (TD-008),
-feedback de escrita (TD-004) e versionar regras (TD-005) são avulsos que podem entrar quando der.
+**Restam da auditoria:** **TD-003** (capacidade por-máquina) — atacar junto do Dashboard/utilização
+(item 4), é a base do "gargalo"; **TD-006** (paginação) — quando `/vendas` acumular meses. Nada mais
+pendente da auditoria.
 
 ## Resumo do projeto (contexto rápido)
 

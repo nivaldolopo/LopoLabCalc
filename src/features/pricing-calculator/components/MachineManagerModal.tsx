@@ -18,6 +18,8 @@ export function MachineManagerModal({
   onSave,
 }: MachineManagerModalProps) {
   const [draft, setDraft] = useState<Machine[]>(machines);
+  // Aviso de validação inline, no lugar do window.alert (TD-004).
+  const [error, setError] = useState<string | null>(null);
 
   if (!open) return null;
 
@@ -45,9 +47,10 @@ export function MachineManagerModal({
 
   function removeMachine(index: number) {
     if (draft.length <= 1) {
-      window.alert("É preciso ter ao menos uma máquina.");
+      setError("É preciso ter ao menos uma máquina.");
       return;
     }
+    setError(null);
     setDraft((current) =>
       current.filter((_, machineIndex) => machineIndex !== index),
     );
@@ -56,7 +59,7 @@ export function MachineManagerModal({
   function saveDraft() {
     for (const machine of draft) {
       if (!machine.name.trim()) {
-        window.alert("Toda máquina precisa de um nome.");
+        setError("Toda máquina precisa de um nome.");
         return;
       }
       if (
@@ -65,11 +68,12 @@ export function MachineManagerModal({
         machine.watts < 0 ||
         machine.maintenancePerHour < 0
       ) {
-        window.alert(`Valores inválidos em "${machine.name}".`);
+        setError(`Valores inválidos em "${machine.name}".`);
         return;
       }
     }
 
+    setError(null);
     onSave(draft);
     onClose();
   }
@@ -166,6 +170,7 @@ export function MachineManagerModal({
           <Plus size={15} />
           Adicionar máquina
         </button>
+        {error ? <div className="form-error">{error}</div> : null}
         <div className="modal-actions">
           <button className="btn primary" type="button" onClick={saveDraft}>
             Salvar
