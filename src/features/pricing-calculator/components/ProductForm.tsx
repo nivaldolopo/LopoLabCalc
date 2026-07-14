@@ -195,6 +195,17 @@ export function ProductForm({
   );
 }
 
+function splitPrintTime(total: number) {
+  const safe = Math.max(0, total || 0);
+  let h = Math.floor(safe);
+  let min = Math.round((safe - h) * 60);
+  if (min === 60) {
+    h += 1;
+    min = 0;
+  }
+  return { h, min };
+}
+
 export function PrintTimeField({
   value,
   onChange,
@@ -204,8 +215,37 @@ export function PrintTimeField({
   onChange: (value: number) => void;
   label?: string;
 }) {
-  const [unit, setUnit] = useState<"h" | "min">("h");
-  const displayValue = unit === "h" ? value : Math.round(value * 60);
+  const initial = splitPrintTime(value);
+  const [hours, setHours] = useState(String(initial.h));
+  const [minutes, setMinutes] = useState(String(initial.min));
+
+  // Resync os campos quando o valor muda por fora (ex.: carregar outro produto).
+  // Padrão do React de ajustar estado durante o render ao detectar mudança de prop;
+  // a tolerância evita sobrescrever o que está sendo digitado (o próprio emit muda `value`).
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    const localTotal = (Number(hours) || 0) + (Number(minutes) || 0) / 60;
+    if (Math.abs(localTotal - Math.max(0, value || 0)) > 1e-6) {
+      const parts = splitPrintTime(value);
+      setHours(String(parts.h));
+      setMinutes(String(parts.min));
+    }
+  }
+
+  const emit = (h: string, m: string) => {
+    onChange(Math.max(0, (Number(h) || 0) + (Number(m) || 0) / 60));
+  };
+
+  // No blur, normaliza o total para horas inteiras + minutos 0-59
+  // (aceita horas decimais digitadas, ex.: 11.85 → 11 h 51 min).
+  const normalize = () => {
+    const parts = splitPrintTime(
+      (Number(hours) || 0) + (Number(minutes) || 0) / 60,
+    );
+    setHours(String(parts.h));
+    setMinutes(String(parts.min));
+  };
 
   return (
     <div>
@@ -213,23 +253,32 @@ export function PrintTimeField({
       <div className="time-inputs">
         <input
           className="field-input"
+          aria-label="horas"
           min={0}
-          step={unit === "h" ? "0.1" : "1"}
+          step="0.1"
           type="number"
-          value={displayValue}
+          value={hours}
           onChange={(event) => {
-            const raw = Math.max(0, Number(event.target.value) || 0);
-            onChange(unit === "h" ? raw : raw / 60);
+            setHours(event.target.value);
+            emit(event.target.value, minutes);
           }}
+          onBlur={normalize}
         />
-        <select
-          className="field-input time-unit-select"
-          value={unit}
-          onChange={(event) => setUnit(event.target.value as "h" | "min")}
-        >
-          <option value="h">horas</option>
-          <option value="min">minutos</option>
-        </select>
+        <span className="time-sep">h</span>
+        <input
+          className="field-input"
+          aria-label="minutos"
+          min={0}
+          step="1"
+          type="number"
+          value={minutes}
+          onChange={(event) => {
+            setMinutes(event.target.value);
+            emit(hours, event.target.value);
+          }}
+          onBlur={normalize}
+        />
+        <span className="time-sep">min</span>
       </div>
     </div>
   );

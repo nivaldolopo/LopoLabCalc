@@ -10,12 +10,13 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **UX-03 FEITO — telefone/Instagram clicáveis no PDF do orçamento.** No
-  cabeçalho do PDF (`generateQuotePdf.ts`) o telefone virou link de WhatsApp (`wa.me`, com o DDI
-  55 garantido via novo `whatsappUrl`) e o @ do Instagram virou link pro perfil (novo
-  `instagramUrl`); o loop de contato passou a usar `doc.textWithLink` quando há URL. Só o PDF —
-  sem mudança de dados/outras telas. `pnpm lint` limpo. **Próximo da fila (Tier 0): UX-02**
-  (tempo em h+min), depois **UX-01** (zero à esquerda).
+- **Última mudança:** **UX-02 FEITO — tempo de impressão em horas + minutos.** O `PrintTimeField`
+  (compartilhado por produto e etapas, em `ProductForm.tsx`) virou **dois campos fixos** (horas +
+  minutos): o de horas **aceita decimal** (ex.: `11.85`) e, **no blur**, normaliza pra `11 h 51 min`;
+  só minutos segue funcionando (horas = 0). Removeu o `<select>` de unidade. Dado continua guardado
+  como `printHours` decimal — sem migração. Resync com prop externa via padrão "ajustar estado no
+  render". CSS `.time-inputs` → `1fr auto 1fr auto` + `.time-sep`. `pnpm lint` limpo. **Próximo da
+  fila (Tier 0): UX-01** (zero à esquerda).
   Restam da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
@@ -212,12 +213,13 @@ pendente da auditoria.
   modelo de dados (peso por cor no produto) antes, e plugar a baixa quando o Estoque existir.
   **Modelo hoje:** `weightG`/`filamentPricePerKg` únicos por produto/etapa → passam a array
   `{ filamentId/cor, weightG, pricePerKg }`, com o caso mono como array de 1.
-- ⬜ **[UX-02] Entrada de tempo de impressão em horas + minutos** *(prioridade baixa · pequeno)*. Os
-  slicers dão o tempo como `11h51m` — hoje o campo aceita só horas decimais, obrigando a converter
-  na mão. Permitir informar **h + min** (dois campos ou máscara). **Só UI:** o dado é guardado como
-  **horas decimais** (`printHours`), então os dois campos combinam para decimal ao salvar — sem
-  migração. **Onde:** os campos de entrada de tempo — `ProductForm` (produto) e `ExtraStagesSection`
-  (etapas). Demais telas só exibem/leem `printHours`, não precisam mudar.
+- ✅ **[UX-02] Entrada de tempo de impressão em horas + minutos — FEITO.** O `PrintTimeField`
+  (compartilhado por `ProductForm` e `ExtraStagesSection`) passou a ter **dois campos fixos** (horas +
+  minutos). O campo de horas **aceita decimal** e, no **blur**, o total normaliza pra horas inteiras +
+  minutos 0-59 (`11.85` → `11 h 51 min`; rollover de 60 min). Só minutos ou só horas decimais seguem
+  funcionando. Removido o `<select>` de unidade. **Só UI:** dado guardado como `printHours` decimal —
+  sem migração. Resync com prop externa via padrão React "ajustar estado no render" (evita o lint
+  `set-state-in-effect`).
 - ✅ **[DEC-01] Toggle "aplicar markup sobre o custo fixo" — RESOLVIDO (removido).** O dono decidiu
   que markup **nunca** deve incidir no fixo. Fixado o comportamento em `variableCost × markup +
   fixedCost` e removido o campo `markupOnFixed` de ponta a ponta (tipos, defaults, UI+CSS, CSV,
@@ -262,8 +264,8 @@ pendente da auditoria.
 
 - **Tier 0 (limpar já — pequenos/baratos, alguns destravam):** (1) ~~**DEC-01**~~ ✅ FEITO
   (markup nunca no fixo, toggle removido); (2) ~~**UX-04**~~ ✅ FEITO (botão "Nova venda" na
-  `/vendas`); (3) ~~**UX-03**~~ ✅ FEITO (telefone/Instagram clicáveis no PDF); (4) **UX-02** tempo
-  em h+min; (5) **UX-01** zero à esquerda. **Próximo da fila: UX-02.**
+  `/vendas`); (3) ~~**UX-03**~~ ✅ FEITO (telefone/Instagram clicáveis no PDF); (4) ~~**UX-02**~~
+  ✅ FEITO (tempo em h+min); (5) **UX-01** zero à esquerda. **Próximo da fila: UX-01.**
 - **Tier 1 (grande próximo passo):** (6) **Item 3 — Estoque** (`/estoque`, desbloqueado, destrava
   FEAT-02); (7) **FEAT-02** gasto por cor/multicor — ALTA, mas depende do Estoque → desenhar junto.
 - **Tier 2 (features comerciais):** (8) **FEAT-01** preço/subitens por etapa (depois do DEC-01);
