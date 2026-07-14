@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Edit3, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit3, Plus, Trash2 } from "lucide-react";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import {
   DEFAULT_FIXED_COSTS,
@@ -160,6 +160,7 @@ export function SalesPage() {
   const { fixedCostRate } = useBusinessSettings();
   const { fees, saveFees } = useFees();
   const [editRecibo, setEditRecibo] = useState<EditReciboSeed | null>(null);
+  const [newSale, setNewSale] = useState(false);
   const [sortMode, setSortMode] = useState<SalesSortMode>("recent");
 
   // Taxa de custo fixo real do negócio (TD-001) para reprecificar os itens de
@@ -332,6 +333,19 @@ export function SalesPage() {
           </div>
         </div>
         <div className="header-actions">
+          <button
+            className="icon-label-button"
+            type="button"
+            onClick={() => setNewSale(true)}
+            disabled={catalogItems.length === 0}
+            title={
+              catalogItems.length === 0
+                ? "Cadastre um produto na calculadora antes de registrar uma venda"
+                : "Registrar uma nova venda"
+            }
+          >
+            <Plus size={15} /> Nova venda
+          </button>
           <Link className="icon-label-button" href="/">
             <ArrowLeft size={15} /> Calculadora
           </Link>
@@ -415,11 +429,12 @@ export function SalesPage() {
 
       {recibos.length === 0 ? (
         <div className="sales-empty">
-          Nenhuma venda registrada ainda. Abra a{" "}
+          Nenhuma venda registrada ainda. Use{" "}
+          <strong>Nova venda</strong> no topo da página, ou abra a{" "}
           <Link href="/" className="link-inline">
             calculadora
           </Link>{" "}
-          e use <strong>Registrar venda</strong> no card de preço.
+          e registre pelo card de preço.
         </div>
       ) : (
         <div className="recibo-list">
@@ -542,6 +557,17 @@ export function SalesPage() {
           fees={fees}
           onFeesChange={saveFees}
           onClose={() => setEditRecibo(null)}
+          onConfirm={saveRecibo}
+        />
+      ) : null}
+
+      {newSale ? (
+        <SaleModal
+          seed={null}
+          catalogItems={catalogItems}
+          fees={fees}
+          onFeesChange={saveFees}
+          onClose={() => setNewSale(false)}
           onConfirm={saveRecibo}
         />
       ) : null}

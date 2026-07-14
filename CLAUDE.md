@@ -10,17 +10,12 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **DEC-01 RESOLVIDO — markup nunca incide sobre o custo fixo; toggle
-  removido.** O fixo passa a ser só repassado (`variableCost × markup + fixedCost`); apagados o
-  campo `markupOnFixed` (de `ProductInput`/`FixedCostSettings`), o toggle na UI (`FixedCostsPanel` +
-  CSS morto), a coluna "Markup no Fixo" do CSV, e todas as referências (calc, form, repo, defaults,
-  testes). Sem migração: `markupOnFixed` que sobrar no Firestore é ignorado. Como o default sempre
-  foi `false`, nenhum preço muda na prática. **Opção A (cirúrgica):** mantido o comportamento
-  idêntico — **pendência registrada** (ver DEC-01 abaixo): no ramo sem markup no fixo,
-  `contributionMargin` desconta o fixo → é numericamente o LUCRO por peça, não a margem de
-  contribuição clássica (preço − custo variável). Corrigir a semântica (opção B) mudaria o ponto de
-  equilíbrio — adiado. `pnpm test` = 49 verdes, `pnpm lint` limpo. Restam da auditoria: **TD-003**
-  (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
+- **Última mudança:** **UX-04 FEITO — botão "Nova venda" no topo da `/vendas`.** Header da
+  `SalesPage` ganhou botão (ícone `Plus`) que abre o `SaleModal` em **modo novo** (cesta vazia,
+  `seed={null}`) — reaproveita o seletor de catálogo e `saveRecibo` já existentes; desabilitado se
+  o catálogo estiver vazio. Estado vazio da página passou a apontar pro botão. Sem mudança de dados.
+  `pnpm lint` limpo. **Próximo da fila (Tier 0): UX-03** (telefone/Instagram clicáveis no PDF).
+  Restam da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
@@ -255,15 +250,11 @@ pendente da auditoria.
   (trocar o logo placeholder — ponta já conhecida do item 2 do backlog). **Onde:** `generateQuotePdf.ts`
   + `QuotePage`/`config/orcamento` conforme o que exigir dado novo. **Relacionado:** UX-03, FEAT-01,
   item 2 (branding).
-- ⬜ **[UX-04] Botão "Nova venda" no topo da `/vendas`** *(prioridade a definir · pequeno-médio)*.
-  Facilitar o acesso — hoje **não há** botão de nova venda na `/vendas`; o cabeçalho só tem links
-  (Calculadora/Orçamento/Impressoras/tema/sair) e o `SaleModal` da página serve **só pra editar**
-  recibo. Registrar venda nova obriga a ir na **calculadora → escolher produto → "Registrar venda"**
-  no card de preço. **Proposta:** botão "Nova venda" no topo da `/vendas` que abre o `SaleModal` em
-  **modo novo** (cesta vazia), escolhendo itens do catálogo. **O que já existe:** o `SaleModal` já é
-  cesta e já tem o seletor de itens do catálogo (`catalogItems` em `SalesPage.tsx:174`, usado na
-  edição) — é basicamente ligar esse ponto de entrada com um seed vazio. **Onde:** `SalesPage.tsx`
-  (header-actions + estado de abertura do modal).
+- ✅ **[UX-04] Botão "Nova venda" no topo da `/vendas` — FEITO.** Botão no header da `SalesPage`
+  (ícone `Plus`) abre o `SaleModal` em **modo novo** (`seed={null}`, cesta vazia; estado `newSale`
+  separado do `editRecibo`), escolhendo itens pelo seletor de catálogo já existente e gravando via
+  `saveRecibo`. Desabilitado quando o catálogo está vazio (senão não há como adicionar itens). Estado
+  vazio da página passou a apontar pro botão. Sem migração — mesmo fluxo do registro pelo card.
 
 **Ordem sugerida do backlog (jul/2026) — inclui itens antigos + ideias novas:**
 
@@ -271,9 +262,9 @@ pendente da auditoria.
 > análise; features grandes por dependência, não por valor. O dono ajusta quando quiser.
 
 - **Tier 0 (limpar já — pequenos/baratos, alguns destravam):** (1) ~~**DEC-01**~~ ✅ FEITO
-  (markup nunca no fixo, toggle removido); (2) **UX-04** botão "Nova venda" na `/vendas`;
-  (3) **UX-03** telefone/Instagram clicáveis no PDF; (4) **UX-02** tempo em h+min; (5) **UX-01**
-  zero à esquerda. **Próximo da fila: UX-04.**
+  (markup nunca no fixo, toggle removido); (2) ~~**UX-04**~~ ✅ FEITO (botão "Nova venda" na
+  `/vendas`); (3) **UX-03** telefone/Instagram clicáveis no PDF; (4) **UX-02** tempo em h+min;
+  (5) **UX-01** zero à esquerda. **Próximo da fila: UX-03.**
 - **Tier 1 (grande próximo passo):** (6) **Item 3 — Estoque** (`/estoque`, desbloqueado, destrava
   FEAT-02); (7) **FEAT-02** gasto por cor/multicor — ALTA, mas depende do Estoque → desenhar junto.
 - **Tier 2 (features comerciais):** (8) **FEAT-01** preço/subitens por etapa (depois do DEC-01);
