@@ -196,6 +196,87 @@ pendente da auditoria.
   **Também quer:** poder **agrupar etapas específicas num subitem** do produto (ex.: 4 etapas → 2
   subitens vendáveis), não só quebrar 1-etapa-por-linha. Isso pede um conceito de "grupo de etapas"
   no orçamento/venda. **Depende de:** produto com etapas (`stages[]`) e dados por etapa (já existem).
+- ⬜ **[FEAT-02] Gasto de filamento por cor (multicor / AMS / dual nozzle)** *(prioridade ALTA ·
+  tamanho a definir)*. Permitir marcar a impressão como **monocolor ou colorida**; se colorida,
+  informar **quais filamentos/cores** (vindos do futuro Estoque, ou avulso) e **quanto de cada um**.
+  **Por quê:** casa com o Estoque — hoje o app assume 1 cor (ou soma tudo num `weightG`) e **não
+  guarda quanto de cada cor** foi gasto; sem isso não dá pra dar baixa por spool/cor. **Fluxo no
+  cadastro (calculadora):** escolher mono vs. multi; se multi, informar nº de filamentos → aparecem
+  N entradas de **peso por filamento** + seleção do filamento (do Estoque ou fora dele). A proporção
+  por cor fica salva no produto. Talvez o toggle seja dispensável se a UX ficar boa. **Fluxo na
+  venda:** confirmar os filamentos usados (default = os do cadastro), e **ao efetivar a venda deduzir
+  o peso de cada filamento do Estoque** (snapshot congelado). No **catálogo** o gasto por cor é
+  informativo e **sempre atualizado** (vivo) — só congela/deduz quando vira venda. **Custo muda:**
+  vira soma de `peso_i × preço_i` (spools de cores/preços diferentes), não `weightG` único ×
+  preço único. **Aprendizado da imagem do slicer (Bambu):** o consumo por cor tem 3 parcelas —
+  **Model** (vira peça), **Purged** e **Tower** (refugo da troca de cor). No exemplo enviado, ~43%
+  do filamento (68,45 g purga + 9,62 g tower de 157,59 g) foi **desperdício** → a baixa de estoque e
+  o custo devem usar o **Total por cor** (model+purged+tower), não só o que ficou na peça. Considerar
+  campo de purga/refugo por cor. **Depende de:** Estoque (item 3, ainda não feito) — dá pra começar o
+  modelo de dados (peso por cor no produto) antes, e plugar a baixa quando o Estoque existir.
+  **Modelo hoje:** `weightG`/`filamentPricePerKg` únicos por produto/etapa → passam a array
+  `{ filamentId/cor, weightG, pricePerKg }`, com o caso mono como array de 1.
+- ⬜ **[UX-02] Entrada de tempo de impressão em horas + minutos** *(prioridade baixa · pequeno)*. Os
+  slicers dão o tempo como `11h51m` — hoje o campo aceita só horas decimais, obrigando a converter
+  na mão. Permitir informar **h + min** (dois campos ou máscara). **Só UI:** o dado é guardado como
+  **horas decimais** (`printHours`), então os dois campos combinam para decimal ao salvar — sem
+  migração. **Onde:** os campos de entrada de tempo — `ProductForm` (produto) e `ExtraStagesSection`
+  (etapas). Demais telas só exibem/leem `printHours`, não precisam mudar.
+- ⬜ **[DEC-01] Decidir se mantém o toggle "aplicar markup sobre o custo fixo"** *(decisão · pequeno
+  se remover)*. O dono acha que **não faz sentido** aplicar markup no custo fixo. **Hoje**
+  (`calculatePricing.ts`): `markupOnFixed = true` → `totalCost × markup` (lucra também sobre o fixo);
+  `false` → `variableCost × markup + fixedCost` (fixo só repassado, sem markup). Os dois têm
+  fundamento: "markup sobre tudo" trata o fixo como custo real a marcar; "só no variável" trata o
+  fixo como overhead a recuperar. A posição do dono (não marcar o fixo) é a mais conservadora
+  (preço menor). **Se decidir que nunca faz sentido:** remover o toggle vira simplificação (limpa
+  `FixedCostRate`, `FixedCostsPanel` e o ramo do cálculo) — **atenção:** muda o preço de qualquer
+  produto hoje com `markupOnFixed = true`. **Ação:** dono decide manter vs. fixar num comportamento
+  só; se fixar, remover o toggle e o campo.
+- ⬜ **[UX-03] Telefone e Instagram clicáveis no PDF do orçamento** *(prioridade a definir ·
+  pequeno)*. No cabeçalho do PDF, tornar o **telefone** um link de **WhatsApp** (`https://wa.me/...`)
+  e o **@ do Instagram** um link pro perfil. **Hoje:** ambos são texto puro (`doc.text(...)` no loop
+  de contato, `generateQuotePdf.ts:120`). **Como:** trocar por `doc.textWithLink(texto, x, y, { url })`.
+  **WhatsApp:** `https://wa.me/<DDI+DDD+número>` — garantir o **55** na frente quando o telefone não
+  vier com código do país (`formatPhone` já trata 10/11/13 dígitos). **Instagram:**
+  `https://instagram.com/<handle>` (o `formatInstagram` já remove o `@`). Isolado em
+  `generateQuotePdf.ts`.
+- ⬜ **[FEAT-03] Melhorar o PDF do orçamento (mais informacional / melhor pro cliente)** *(guarda-chuva
+  · a concretizar)*. Item aberto — pensar em como deixar o orçamento mais útil pro cliente. **Ideias
+  semente (o dono escolhe quais viram tarefa):** (a) **prazo de entrega/produção** por item ou total
+  (dá pra estimar pelas horas de impressão que já existem); (b) **foto/thumbnail** do produto na linha
+  do item; (c) **formas de pagamento e condições** (já há taxas por forma em `config/taxas`);
+  (d) **termos/observações** mais visíveis (garantia, o que está/não incluso); (e) **QR code** do
+  WhatsApp (casa com UX-03); (f) **detalhar etapas/subitens** quando o FEAT-01 existir (cliente vê o
+  que pode tirar); (g) **desconto/acréscimo** por forma de pagamento ou volume; (h) **branding real**
+  (trocar o logo placeholder — ponta já conhecida do item 2 do backlog). **Onde:** `generateQuotePdf.ts`
+  + `QuotePage`/`config/orcamento` conforme o que exigir dado novo. **Relacionado:** UX-03, FEAT-01,
+  item 2 (branding).
+- ⬜ **[UX-04] Botão "Nova venda" no topo da `/vendas`** *(prioridade a definir · pequeno-médio)*.
+  Facilitar o acesso — hoje **não há** botão de nova venda na `/vendas`; o cabeçalho só tem links
+  (Calculadora/Orçamento/Impressoras/tema/sair) e o `SaleModal` da página serve **só pra editar**
+  recibo. Registrar venda nova obriga a ir na **calculadora → escolher produto → "Registrar venda"**
+  no card de preço. **Proposta:** botão "Nova venda" no topo da `/vendas` que abre o `SaleModal` em
+  **modo novo** (cesta vazia), escolhendo itens do catálogo. **O que já existe:** o `SaleModal` já é
+  cesta e já tem o seletor de itens do catálogo (`catalogItems` em `SalesPage.tsx:174`, usado na
+  edição) — é basicamente ligar esse ponto de entrada com um seed vazio. **Onde:** `SalesPage.tsx`
+  (header-actions + estado de abertura do modal).
+
+**Ordem sugerida do backlog (jul/2026) — inclui itens antigos + ideias novas:**
+
+> Priorização unificada acordada no chat. Guia: barato-e-destrava primeiro; captura antes de
+> análise; features grandes por dependência, não por valor. O dono ajusta quando quiser.
+
+- **Tier 0 (limpar já — pequenos/baratos, alguns destravam):** (1) **DEC-01** decidir markup no
+  fixo — alavanca, destrava FEAT-01; (2) **UX-04** botão "Nova venda" na `/vendas`; (3) **UX-03**
+  telefone/Instagram clicáveis no PDF; (4) **UX-02** tempo em h+min; (5) **UX-01** zero à esquerda.
+- **Tier 1 (grande próximo passo):** (6) **Item 3 — Estoque** (`/estoque`, desbloqueado, destrava
+  FEAT-02); (7) **FEAT-02** gasto por cor/multicor — ALTA, mas depende do Estoque → desenhar junto.
+- **Tier 2 (features comerciais):** (8) **FEAT-01** preço/subitens por etapa (depois do DEC-01);
+  (9) **FEAT-03** melhorar PDF do orçamento; (10) **branding/logo real** no PDF (overlap c/ FEAT-03).
+- **Tier 3 (adiar até ter volume de vendas):** (11) **Item 4 — Dashboard** (`/painel`) + **TD-003**
+  capacidade por-máquina; (12) **TD-006** paginação.
+- **Tier 4 (menores/oportunistas):** (13) numeração de orçamento derivada no browser;
+  (14) labor na reserva de falha.
 
 ## Resumo do projeto (contexto rápido)
 
