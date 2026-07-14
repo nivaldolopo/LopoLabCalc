@@ -10,6 +10,7 @@ import {
   PAYMENT_METHODS,
   SALE_CHANNELS,
 } from "../constants";
+import { stripFilamentIds } from "../lib/filaments";
 import { feeRateForMethod, saleItemFinancials } from "../lib/paymentFees";
 import {
   chargedWithFee,
@@ -300,6 +301,8 @@ export function SaleModal({
         machineName: item.source.machineName,
         printHours: item.source.printHours,
         machineUsage: item.source.machineUsage,
+        // FEAT-02: congela o consumo por cor (limpo p/ Firestore — sem undefined).
+        filaments: stripFilamentIds(item.source.filaments),
         quantity: qty,
         suggestedPrice: item.source.suggestedPrice,
         salePrice: unitPrice,

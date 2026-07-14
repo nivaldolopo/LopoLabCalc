@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Machine, PrintStage, ProductInput } from "../types";
 import { AccessoriesSection } from "./AccessoriesSection";
 import { ExtraStagesSection } from "./ExtraStagesSection";
+import { FilamentColorsSection } from "./FilamentColorsSection";
 import { LinksSection } from "./LinksSection";
 import { MachineSelector } from "./MachineSelector";
 import { NumberInput } from "./NumberInput";
@@ -80,20 +81,15 @@ export function ProductForm({
         />
       </div>
 
+      <FilamentColorsSection
+        filaments={product.filaments ?? []}
+        onChange={(filaments) => onChange({ filaments })}
+      />
+
       <div className="two-col">
-        <NumberField
-          label="📦 Peso da peça (g)"
-          value={product.weightG}
-          onChange={(weightG) => onChange({ weightG })}
-        />
         <PrintTimeField
           value={product.printHours}
           onChange={(printHours) => onChange({ printHours })}
-        />
-        <NumberField
-          label="Filamento (R$/kg)"
-          value={product.filamentPricePerKg}
-          onChange={(filamentPricePerKg) => onChange({ filamentPricePerKg })}
         />
         <NumberField
           label="⚡ Tarifa energia (R$/kWh)"

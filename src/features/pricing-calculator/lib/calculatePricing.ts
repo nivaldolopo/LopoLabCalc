@@ -10,7 +10,13 @@ import type {
 } from "../types";
 import { DEFAULT_FAILURE_RATE } from "../constants";
 import { roundPrice } from "./roundPrice";
+import {
+  filamentsMaterialCost,
+  mergeFilaments,
+  normalizeFilaments,
+} from "./filaments";
 import { num } from "@/lib/number";
+import type { FilamentUsage } from "../types";
 
 function findMachine(
   machines: Machine[],
@@ -76,9 +82,11 @@ export function calculateStageCost(
   fallbackLaborRate: number,
 ): StageCost {
   const { machine, found } = findMachine(machines, stage.machineId);
-  const materialCost =
-    (num(stage.weightG) / 1000) *
-    num(stage.filamentPricePerKg);
+  // FEAT-02: material = soma por cor (peso total × preço/kg). Migra o escalar
+  // legado (weightG/filamentPricePerKg) para uma cor única quando `filaments`
+  // não existe.
+  const filaments = normalizeFilaments(stage);
+  const materialCost = filamentsMaterialCost(filaments);
   const energyCost =
     num(stage.printHours) *
     (num(machine.watts) / 1000) *
@@ -97,6 +105,7 @@ export function calculateStageCost(
   return {
     machine,
     machineMissing: !found,
+    filaments,
     materialCost,
     energyCost,
     depreciationCost,
@@ -114,6 +123,7 @@ export function calculatePricing(
   const mainStage = calculateStageCost(
     {
       machineId: product.machineId,
+      filaments: product.filaments,
       weightG: product.weightG,
       printHours: product.printHours,
       filamentPricePerKg: product.filamentPricePerKg,
@@ -152,6 +162,10 @@ export function calculatePricing(
 
   let anyMachineMissing = mainStage.machineMissing;
 
+  // FEAT-02: acumula o consumo por cor de todas as etapas (principal + extras)
+  // para agregar num único array por cor no resultado (pesos por impressão).
+  const allFilaments: FilamentUsage[] = [...mainStage.filaments];
+
   const stagesList = normalizeStages(product);
   let stagesMaterial = 0;
   let stagesEnergy = 0;
@@ -174,6 +188,7 @@ export function calculatePricing(
     stagesLabor += cost.laborCost;
     stagesHours += num(stage.printHours);
     if (cost.machineMissing) anyMachineMissing = true;
+    allFilaments.push(...cost.filaments);
     addUsage(cost.machine, num(stage.printHours), cost.depreciationCost);
   });
 
@@ -283,6 +298,7 @@ export function calculatePricing(
     pieces,
     stagesCount: stagesList.length,
     contributionMargin,
+    filaments: mergeFilaments(allFilaments),
     machineUsage,
     machineMissing: anyMachineMissing,
   };

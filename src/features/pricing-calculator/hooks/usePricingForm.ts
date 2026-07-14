@@ -2,19 +2,36 @@
 
 import { useState } from "react";
 import { DEFAULT_PRODUCT_INPUT } from "../constants";
+import { makeFilament, normalizeFilaments } from "../lib/filaments";
 import type {
   Accessory,
+  FilamentUsage,
   FixedCostSettings,
   PrintStage,
   ProductInput,
   SavedProduct,
 } from "../types";
 
+// As cores no estado do formulário ganham um `id` só para servir de chave de
+// lista estável (descartado ao persistir). `normalizeFilaments` migra dado
+// legado (escalar) ou já usa o array salvo.
+let filamentSeq = 0;
+function withFilamentIds(filaments: FilamentUsage[]): FilamentUsage[] {
+  return filaments.map((f) => {
+    filamentSeq += 1;
+    return {
+      ...makeFilament(f),
+      id: f.id ?? `fil_${Date.now()}_${filamentSeq}`,
+    };
+  });
+}
+
 function cloneDefaultProduct(): ProductInput {
   return {
     ...DEFAULT_PRODUCT_INPUT,
     stages: [],
     accessories: [],
+    filaments: withFilamentIds(normalizeFilaments(DEFAULT_PRODUCT_INPUT)),
   };
 }
 
@@ -23,12 +40,13 @@ function createStage(index: number, data?: Partial<PrintStage>): PrintStage {
     id: `stage_${Date.now()}_${index}`,
     name: data?.name ?? "",
     machineId: data?.machineId ?? "a1",
-    weightG: data?.weightG ?? 0,
     printHours: data?.printHours ?? 0,
-    filamentPricePerKg: data?.filamentPricePerKg ?? 110,
     laborMinutes: data?.laborMinutes ?? 0,
     energyTariff: data?.energyTariff,
     laborRate: data?.laborRate,
+    filaments: withFilamentIds(
+      normalizeFilaments(data ?? { filamentPricePerKg: 110 }),
+    ),
   };
 }
 
@@ -120,6 +138,7 @@ export function usePricingForm() {
     setProduct({
       ...cloneDefaultProduct(),
       ...savedProduct,
+      filaments: withFilamentIds(normalizeFilaments(savedProduct)),
       stages: (loadedStages ?? []).map((stage, index) =>
         createStage(index, stage),
       ),

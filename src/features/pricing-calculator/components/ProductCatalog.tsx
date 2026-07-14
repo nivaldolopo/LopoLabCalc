@@ -15,6 +15,7 @@ import type {
 } from "../types";
 import { calculatePricing } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
+import { filamentsTotalG, normalizeFilaments } from "../lib/filaments";
 import {
   downloadCsv,
   exportProductsCsv,
@@ -320,9 +321,14 @@ function CatalogDetails({
     ["📁 Arquivo STL/gcode ↗", product.linkFile],
   ].filter(([, href]) => Boolean(href));
 
-  const totalWeight = round2(
-    product.weightG + stages.reduce((sum, stage) => sum + (stage.weightG || 0), 0),
-  );
+  // FEAT-02: peso total = soma por cor do produto inteiro (etapa principal +
+  // extras). `result.filaments` já agrega tudo por cor (pesos por impressão).
+  const totalWeight = round2(filamentsTotalG(result.filaments));
+  // Rótulo de filamento: preço/kg quando mono; "N cores" quando multicolor.
+  const filamentLabel =
+    result.filaments.length > 1
+      ? `${result.filaments.length} cores`
+      : `${formatCurrency(result.filaments[0]?.pricePerKg ?? 0)}/kg`;
   const totalHours = round2(
     product.printHours +
       stages.reduce((sum, stage) => sum + (stage.printHours || 0), 0),
@@ -373,8 +379,7 @@ function CatalogDetails({
           <span className="db-label">Peças/impressão</span> {result.pieces}
         </span>
         <span>
-          <span className="db-label">Filamento</span>{" "}
-          {formatCurrency(product.filamentPricePerKg)}/kg
+          <span className="db-label">Filamento</span> {filamentLabel}
         </span>
         <span>
           <span className="db-label">Mão de obra</span> {product.laborMinutes}min
@@ -488,14 +493,16 @@ function CatalogDetails({
             <span>
               1. {product.mainStageName || "Principal"}{" "}
               <em>
-                ({product.printHours}h · {product.weightG}g)
+                ({product.printHours}h ·{" "}
+                {round2(filamentsTotalG(normalizeFilaments(product)))}g)
               </em>
             </span>
             {stages.map((stage, index) => (
               <span key={`${stage.name}-${index}`}>
                 {index + 2}. {stage.name || `Etapa ${index + 2}`}{" "}
                 <em>
-                  ({stage.printHours || 0}h · {stage.weightG || 0}g)
+                  ({stage.printHours || 0}h ·{" "}
+                  {round2(filamentsTotalG(normalizeFilaments(stage)))}g)
                 </em>
               </span>
             ))}

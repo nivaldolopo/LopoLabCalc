@@ -126,6 +126,63 @@
   color: var(--muted);
 }
 
+/* Filamento por cor (FEAT-02): lista de cores da etapa. */
+.filament-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filament-row {
+  border: 1px solid var(--field-border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--chip-bg);
+}
+
+.filament-main {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.filament-cell {
+  flex: 1 1 90px;
+  min-width: 0;
+}
+
+.filament-cell.grow {
+  flex: 2 1 130px;
+}
+
+.filament-remove {
+  flex: 0 0 auto;
+  margin-bottom: 2px;
+}
+
+.filament-total-value {
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: var(--font-jetbrains-mono), monospace;
+  color: var(--muted);
+  border: 1.5px dashed var(--field-border);
+  border-radius: 8px;
+  background: var(--field-bg);
+}
+
+.filament-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+  align-items: end;
+}
+
+.filament-detail-toggle {
+  margin-top: 8px;
+}
+
 .machine-row {
   display: flex;
   gap: 8px;

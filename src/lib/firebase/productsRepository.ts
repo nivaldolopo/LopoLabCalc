@@ -25,6 +25,9 @@ function toSavedProduct(id: string, data: DocumentData): SavedProduct {
     weightG: Number(data.weightG) || 0,
     printHours: Number(data.printHours) || 0,
     machineId: data.machineId ?? "a1",
+    // FEAT-02: cores por produto (etapa principal). Ausente em docs legados →
+    // `calculatePricing`/form migram a partir do escalar `weightG`/preço abaixo.
+    filaments: Array.isArray(data.filaments) ? data.filaments : undefined,
     filamentPricePerKg: Number(data.filamentPricePerKg) || 0,
     energyTariff: Number(data.energyTariff) || 0,
     laborMinutes: Number(data.laborMinutes) || 0,

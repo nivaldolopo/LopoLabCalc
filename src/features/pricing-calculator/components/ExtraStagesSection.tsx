@@ -2,6 +2,7 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import type { Machine, PrintStage } from "../types";
+import { FilamentColorsSection } from "./FilamentColorsSection";
 import { NumberInput } from "./NumberInput";
 import { PrintTimeField } from "./ProductForm";
 
@@ -80,18 +81,13 @@ export function ExtraStagesSection({
               ))}
             </div>
           </div>
+          <FilamentColorsSection
+            filaments={stage.filaments ?? []}
+            onChange={(filaments) =>
+              onUpdateStage(stage.id ?? "", { filaments })
+            }
+          />
           <div className="two-col no-margin">
-            <div>
-              <label className="section-label">📦 Peso (g)</label>
-              <NumberInput
-                className="field-input"
-                min={0}
-                value={stage.weightG}
-                onChange={(weightG) =>
-                  onUpdateStage(stage.id ?? "", { weightG })
-                }
-              />
-            </div>
             <PrintTimeField
               label="⏱ Tempo"
               value={stage.printHours}
@@ -99,17 +95,6 @@ export function ExtraStagesSection({
                 onUpdateStage(stage.id ?? "", { printHours })
               }
             />
-            <div>
-              <label className="section-label">Filamento (R$/kg)</label>
-              <NumberInput
-                className="field-input"
-                min={0}
-                value={stage.filamentPricePerKg}
-                onChange={(filamentPricePerKg) =>
-                  onUpdateStage(stage.id ?? "", { filamentPricePerKg })
-                }
-              />
-            </div>
             <div>
               <label className="section-label">Mão de obra (min)</label>
               <NumberInput

@@ -137,6 +137,81 @@ describe("calculatePricing — múltiplas etapas / máquinas", () => {
   });
 });
 
+describe("calculatePricing — filamento por cor (FEAT-02)", () => {
+  it("material multicolor soma cada cor (peso × preço)", () => {
+    const r = calculatePricing(
+      makeProduct({
+        filaments: [
+          { filamentId: null, colorName: "Preto", totalG: 40, pricePerKg: 110 },
+          { filamentId: null, colorName: "Vermelho", totalG: 20, pricePerKg: 200 },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    // 40/1000*110 + 20/1000*200 = 4,4 + 4 = 8,4
+    expect(r.materialCost).toBeCloseTo(8.4, 6);
+    expect(r.filaments).toHaveLength(2); // multicolor
+  });
+
+  it("torre e purga entram no custo (usa o Total por cor)", () => {
+    const r = calculatePricing(
+      makeProduct({
+        filaments: [
+          {
+            filamentId: null,
+            colorName: "Preto",
+            modelG: 80,
+            purgedG: 68,
+            towerG: 10,
+            totalG: 0,
+            pricePerKg: 100,
+          },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    // Total = 80+68+10 = 158 g → 158/1000*100 = 15,8 (não só os 80 g da peça).
+    expect(r.materialCost).toBeCloseTo(15.8, 6);
+    expect(r.filaments[0].totalG).toBe(158);
+  });
+
+  it("agrega a mesma cor da etapa principal + extra num só item", () => {
+    const r = calculatePricing(
+      makeProduct({
+        filaments: [
+          { filamentId: null, colorName: "Preto", totalG: 40, pricePerKg: 110 },
+        ],
+        stages: [
+          {
+            machineId: "a1",
+            printHours: 1,
+            laborMinutes: 0,
+            filaments: [
+              { filamentId: null, colorName: "Preto", totalG: 20, pricePerKg: 110 },
+            ],
+          },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    expect(r.filaments).toHaveLength(1); // mesma cor/preço → merge
+    expect(r.filaments[0].totalG).toBe(60);
+  });
+
+  it("produto legado (escalar) vira uma cor única — mesmo custo", () => {
+    const legado = calculatePricing(
+      makeProduct({ weightG: 40, filamentPricePerKg: 110, filaments: undefined }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    expect(legado.filaments).toHaveLength(1);
+    expect(legado.materialCost).toBeCloseTo(4.4, 6);
+  });
+});
+
 describe("calculatePricing — máquina órfã (TD-009)", () => {
   it("não sinaliza quando o machineId existe", () => {
     const r = calculatePricing(makeProduct(), DEFAULT_MACHINES, NO_FIXED);

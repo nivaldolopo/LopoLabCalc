@@ -10,22 +10,21 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **UX-01 FEITO — zero à esquerda nos campos numéricos.** Novo componente
-  compartilhado `NumberInput` (`components/NumberInput.tsx`): input controlado que guarda a **string
-  exibida** em estado local (pode ficar vazio ao apagar, sem virar `0`), emite número **clampado**
-  por `min`/`max`, normaliza a exibição **no blur**, e resync com o valor externo via padrão "ajustar
-  estado no render" (mesmo idioma do `PrintTimeField`). Trocado em **8 telas** (`NumberField` do
-  `ProductForm` passou a usá-lo → cobre todos os campos do form; `AccessoriesSection`,
-  `ExtraStagesSection`, `CapacityPanel`, `FixedCostsPanel`, `SaleModal`, `QuotePage`,
-  `MachineManagerModal`). Clamps de call-site redundantes removidos (o `min`/`max` do `NumberInput`
-  cuida). Só UI — nenhum dado/valor muda. `pnpm lint` + `pnpm build` limpos. **Tier 0 fechado.**
-  **Próximo passo (Tier 1 REAVALIADO jul/2026):** o dono confirmou que **imprime multicolor com
-  frequência** e que **mantém a disciplina** de marcar venda/baixa. Logo o par Estoque+FEAT-02 foi
-  **desmembrado e reordenado**: (1) **FEAT-02 lado-produto** (peso/custo por cor — model+purged+tower)
-  vem PRIMEIRO, pois conserta precificação real já e **não depende do Estoque**; (2) **Estoque
-  `/estoque`** (CRUD); (3) **FEAT-02 baixa na venda** (deduz por cor). Amarração crítica do passo 1:
-  o array por cor referencia `filamentId` (spool do Estoque) OU cor avulsa → passo 3 pluga a baixa sem
-  migração. **Desenhar o modelo de dados (FEAT-02+Estoque) e aprovar antes de codar.**
+- **Última mudança:** **FEAT-02 lado-produto FEITO — filamento por cor (multicolor).** Novo modelo
+  `FilamentUsage` (`{filamentId|null, colorName, pricePerKg, totalG, modelG?/purgedG?/towerG?}`):
+  `totalG` é **canônico** (já inclui torre+purga); Model/Purga/Torre são detalhe **opcional** que, quando
+  preenchido, **trava** `totalG` = soma. `PrintStage`/`ProductInput` ganharam `filaments[]` (mono = array
+  de 1); os escalares `weightG`/`filamentPricePerKg` viraram **LEGADO só-leitura** (migrados por
+  `normalizeFilaments` — o peso legado já era o total → **nenhum preço muda**). Helpers puros em
+  `lib/filaments.ts` (make/normalize/merge/materialCost/stripIds). Custo de material = Σ(peso_cor ×
+  preço_cor). Novo componente `FilamentColorsSection` (lista de cores + "detalhar refugo") na etapa
+  principal (`ProductForm`) e nas extras (`ExtraStagesSection`). A **venda congela `filaments[]`** no
+  snapshot (histórico sabe mono vs multi + cores/pesos; base da baixa futura). CSV faz round-trip por
+  coluna `Filamentos JSON`. `pnpm lint`+`test` (**62 verdes, +16**)+`build` limpos. **Só produto —
+  baixa de estoque é o passo 8.**
+  **Próximo passo (Tier 1):** (7) **Estoque `/estoque`** (CRUD de spools de filamento) → (8) **FEAT-02
+  baixa na venda** (deduz o peso por cor do spool; snapshot já congelado — `filamentId` já referencia o
+  spool, sem migração). **Desenhar o modelo de dados do Estoque e aprovar antes de codar.**
   Restam da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
@@ -200,8 +199,12 @@ pendente da auditoria.
   **Também quer:** poder **agrupar etapas específicas num subitem** do produto (ex.: 4 etapas → 2
   subitens vendáveis), não só quebrar 1-etapa-por-linha. Isso pede um conceito de "grupo de etapas"
   no orçamento/venda. **Depende de:** produto com etapas (`stages[]`) e dados por etapa (já existem).
-- ⬜ **[FEAT-02] Gasto de filamento por cor (multicor / AMS / dual nozzle)** *(prioridade ALTA ·
-  tamanho a definir)*. Permitir marcar a impressão como **monocolor ou colorida**; se colorida,
+- 🟡 **[FEAT-02] Gasto de filamento por cor (multicor / AMS / dual nozzle)** — **LADO-PRODUTO ✅ FEITO
+  (jul/2026); baixa de estoque = passo 8 (pendente, depende do Estoque).** Modelo `FilamentUsage`
+  (`totalG` canônico + model/purga/torre opcional), `filaments[]` em produto/etapa, `lib/filaments.ts`,
+  `FilamentColorsSection`, custo por cor no cálculo, e **snapshot da venda congela as cores**. Falta só
+  deduzir do spool ao efetivar a venda (passo 8). *Contexto original abaixo mantido:* Permitir marcar a
+  impressão como **monocolor ou colorida**; se colorida,
   informar **quais filamentos/cores** (vindos do futuro Estoque, ou avulso) e **quanto de cada um**.
   **Por quê:** casa com o Estoque — hoje o app assume 1 cor (ou soma tudo num `weightG`) e **não
   guarda quanto de cada cor** foi gasto; sem isso não dá pra dar baixa por spool/cor. **Fluxo no
@@ -278,11 +281,11 @@ pendente da auditoria.
   `/vendas`); (3) ~~**UX-03**~~ FEITO (telefone/Instagram clicáveis no PDF); (4) ~~**UX-02**~~
   FEITO (tempo em h+min); (5) ~~**UX-01**~~ FEITO (zero à esquerda, componente `NumberInput`).
   **Próximo: Tier 1.**
-- **Tier 1 (precisão de custo + fundação) — próximo:** (6) **FEAT-02 lado-produto** (peso/custo por
-  cor — model+purged+tower; array `{filamentId|cor, peso, preço}`, mono = array de 1) — **1º, independe
-  do Estoque**, conserta precificação multicolor já; (7) **Item 3 — Estoque** (`/estoque`, CRUD dos
-  insumos); (8) **FEAT-02 baixa na venda** (deduz peso por cor do spool, snapshot congelado). **Passo 6
-  amarra tudo:** desenhar o modelo de dados dos dois juntos e aprovar antes de codar.
+- **Tier 1 (precisão de custo + fundação):** (6) ~~**FEAT-02 lado-produto**~~ **✅ FEITO** (cores no
+  produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); (7) **Item 3 — Estoque**
+  (`/estoque`, CRUD dos spools) — **próximo**; (8) **FEAT-02 baixa na venda** (deduz peso por cor do
+  spool; snapshot já congelado, `filamentId` já plugado). **Desenhar o modelo do Estoque e aprovar
+  antes de codar.**
 - **Tier 2 (features comerciais, independentes):** (9) **FEAT-01** preço/subitens por etapa (rateio
   exato/aditivo); (10) **FEAT-03** melhorar PDF (quick wins soltos podem vir antes; "detalhar etapas"
   espera FEAT-01); (11) **branding/logo real** no PDF (overlap c/ FEAT-03).

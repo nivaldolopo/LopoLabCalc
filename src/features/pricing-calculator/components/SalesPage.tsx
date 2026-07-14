@@ -96,6 +96,8 @@ function contextFromSale(
     roundingMode,
     unitCost: sale.unitCost,
     costBreakdown: sale.costBreakdown,
+    // FEAT-02: preserva o consumo por cor congelado (vazio nas vendas antigas).
+    filaments: sale.filaments ?? [],
   };
 }
 

@@ -63,6 +63,11 @@ function toSale(id: string, data: DocumentData): Sale {
     machineName: data.machineName ?? "",
     printHours: num(data.printHours),
     ...(machineUsage ? { machineUsage } : {}),
+    // FEAT-02: consumo por cor congelado (vendas novas). Ausente nas antigas →
+    // undefined (tratadas como monocolor pelo costBreakdown.material).
+    ...(Array.isArray(data.filaments) && data.filaments.length > 0
+      ? { filaments: data.filaments }
+      : {}),
     quantity: Math.max(1, num(data.quantity) || 1),
     suggestedPrice: num(data.suggestedPrice),
     salePrice: num(data.salePrice),

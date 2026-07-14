@@ -1,6 +1,7 @@
 import { formatDecimal } from "@/lib/formatting/currency";
 import type {
   Accessory,
+  FilamentUsage,
   FixedCostSettings,
   Machine,
   ProductPayload,
@@ -9,6 +10,11 @@ import type {
   SavedProduct,
 } from "../types";
 import { calculatePricing } from "./calculatePricing";
+import {
+  filamentsTotalG,
+  normalizeFilaments,
+  stripFilamentIds,
+} from "./filaments";
 import { ROUNDING_OPTIONS } from "./roundPrice";
 import { DEFAULT_FAILURE_RATE } from "../constants";
 
@@ -55,6 +61,7 @@ const CSV_HEADERS = [
   "Link Arquivo",
   "Etapas JSON",
   "Acessorios JSON",
+  "Filamentos JSON",
 ];
 
 function csvCell(value: unknown): string {
@@ -134,16 +141,23 @@ function parseJsonArray(value: string | undefined): unknown[] {
 function parseStages(value: string | undefined, fallbackMachineId: string): PrintStage[] {
   return parseJsonArray(value).map((stage) => {
     const item = stage as Partial<PrintStage>;
-    return {
+    const base: PrintStage = {
       name: item.name ?? "",
       machineId: item.machineId ?? fallbackMachineId,
-      weightG: Number(item.weightG) || 0,
       printHours: Number(item.printHours) || 0,
-      filamentPricePerKg: Number(item.filamentPricePerKg) || 0,
       energyTariff: Number(item.energyTariff) || undefined,
       laborMinutes: Number(item.laborMinutes) || 0,
       laborRate: Number(item.laborRate) || undefined,
     };
+    // FEAT-02: usa as cores quando presentes; senão mantém os escalares legados
+    // (migrados no cálculo por `normalizeFilaments`).
+    if (Array.isArray(item.filaments) && item.filaments.length > 0) {
+      base.filaments = item.filaments as FilamentUsage[];
+    } else {
+      base.weightG = Number(item.weightG) || 0;
+      base.filamentPricePerKg = Number(item.filamentPricePerKg) || 0;
+    }
+    return base;
   });
 }
 
@@ -179,12 +193,15 @@ export function exportProductsCsv(
   const rows = products.map((product) => {
     const result = calculatePricing(product, machines, fixedCosts);
     const includeFixed = Boolean(product.includeFixed);
+    // FEAT-02: cores da etapa principal (mono = 1). Os escalares "Peso (g)" e
+    // "Filamento (R$/kg)" viram resumo humano; o round-trip exato vai no JSON.
+    const mainFilaments = stripFilamentIds(normalizeFilaments(product));
 
     return [
       csvCell(product.name),
       csvCell(product.mainStageName || ""),
       result.machine.name,
-      product.weightG,
+      formatDecimal(filamentsTotalG(mainFilaments)),
       product.printHours,
       product.piecesCount || 1,
       formatDecimal(result.materialCost),
@@ -202,7 +219,7 @@ export function exportProductsCsv(
       result.margin.toFixed(1),
       `${product.markup}x`,
       product.failureRate ?? DEFAULT_FAILURE_RATE,
-      product.filamentPricePerKg,
+      mainFilaments[0]?.pricePerKg ?? 0,
       product.energyTariff,
       product.laborMinutes,
       product.laborRate,
@@ -212,6 +229,7 @@ export function exportProductsCsv(
       csvCell(product.linkFile || ""),
       csvCell(JSON.stringify(product.stages || [])),
       csvCell(JSON.stringify(product.accessories || [])),
+      csvCell(JSON.stringify(mainFilaments)),
     ].join(";");
   });
 
@@ -251,6 +269,7 @@ export function parseProductsCsv(
   const indexLinkFile = findColumn(headers, "link arquivo");
   const indexStages = findColumn(headers, "etapas json");
   const indexAccessories = findColumn(headers, "acessorios json");
+  const indexFilaments = findColumn(headers, "filamentos json");
 
   if (indexName < 0) {
     throw new Error('Coluna "Produto" não encontrada.');
@@ -265,6 +284,12 @@ export function parseProductsCsv(
     const machineId = machineNameToId(columns[indexMachine], machines);
     const stages = parseStages(columns[indexStages], machineId);
     const accessories = parseAccessories(columns[indexAccessories]);
+    // FEAT-02: cores da etapa principal quando o CSV as traz; senão os escalares
+    // "Peso (g)"/"Filamento (R$/kg)" migram no cálculo (`normalizeFilaments`).
+    const filaments =
+      indexFilaments >= 0
+        ? (parseJsonArray(columns[indexFilaments]) as FilamentUsage[])
+        : [];
 
     return [
       {
@@ -302,6 +327,7 @@ export function parseProductsCsv(
         linkFile: indexLinkFile >= 0 ? columns[indexLinkFile]?.trim() ?? "" : "",
         stages,
         accessories,
+        ...(filaments.length > 0 ? { filaments } : {}),
         createdAt: Date.now(),
         fixedCostPerHour: null,
         combineEnabled: null,

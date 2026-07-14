@@ -2,6 +2,7 @@ import { round2 } from "@/lib/number";
 import { grossUpForFee } from "./paymentFees";
 import { roundPrice } from "./roundPrice";
 import type {
+  FilamentUsage,
   MachineUsage,
   PricingResult,
   RoundingMode,
@@ -27,6 +28,9 @@ export type SaleModalContext = {
   roundingMode: RoundingMode;
   unitCost: number;
   costBreakdown: SaleCostBreakdown;
+  // FEAT-02: consumo por cor (pesos por impressão) para congelar no snapshot da
+  // venda. mono vs multicolor = `filaments.length`.
+  filaments: FilamentUsage[];
 };
 
 // Monta a foto congelada de UM produto a partir do resultado de precificação.
@@ -58,6 +62,7 @@ export function saleContextFromResult(
       failureReserve: result.failureReserve,
       fixed: result.fixedCost,
     },
+    filaments: result.filaments,
   };
 }
 

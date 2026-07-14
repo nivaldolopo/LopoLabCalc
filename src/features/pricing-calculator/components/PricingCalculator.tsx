@@ -26,6 +26,7 @@ import {
   calculatePricing,
 } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
+import { stripFilamentIds } from "../lib/filaments";
 import { validateProduct } from "../lib/validateProduct";
 import { saveRecibo } from "@/lib/firebase/salesRepository";
 import { FixedCostsPanel } from "./FixedCostsPanel";
@@ -154,20 +155,25 @@ export function PricingCalculator() {
   }
 
   function buildPayload(includeCreatedAt: boolean): ProductPayload {
+    // Produtos novos gravam `filaments` (FEAT-02) e não persistem os escalares
+    // legados `weightG`/`filamentPricePerKg` — removidos aqui do spread.
+    const base = { ...form.product };
+    delete base.weightG;
+    delete base.filamentPricePerKg;
     return {
-      ...form.product,
+      ...base,
       name: form.product.name.trim(),
       mainStageName: form.product.mainStageName.trim(),
       includeFixed: fixedCosts.enabled,
+      filaments: stripFilamentIds(form.product.filaments),
       stages: form.product.stages.map((stage) => ({
         name: stage.name ?? "",
         machineId: stage.machineId,
-        weightG: stage.weightG,
         printHours: stage.printHours,
-        filamentPricePerKg: stage.filamentPricePerKg,
         energyTariff: form.product.energyTariff,
         laborMinutes: stage.laborMinutes,
         laborRate: form.product.laborRate,
+        filaments: stripFilamentIds(stage.filaments),
       })),
       accessories: form.product.accessories.map((accessory) => ({
         desc: accessory.desc ?? "",

@@ -13,16 +13,40 @@ export type Machine = {
   maintenancePerHour: number;
 };
 
+// Um filamento/cor consumido numa impressão (FEAT-02). `totalG` é o campo
+// CANÔNICO — é o que vale para custo e para a baixa de estoque (passo 8), e já
+// inclui torre + purga (o refugo da troca de cor). Model/Purga/Torre são
+// detalhe OPCIONAL: quando preenchidos, o form trava `totalG` = model+purga+torre;
+// quando ausentes, o usuário digita só o `totalG`. `filamentId` referencia um
+// spool do futuro Estoque (ou `null` = cor avulsa). `id` só existe no estado do
+// formulário (chave de lista) e é descartado ao persistir.
+export type FilamentUsage = {
+  id?: string;
+  filamentId: string | null;
+  colorName: string;
+  pricePerKg: number;
+  totalG: number;
+  modelG?: number;
+  purgedG?: number;
+  towerG?: number;
+};
+
 export type PrintStage = {
   id?: string;
   name?: string;
   machineId: string;
-  weightG: number;
   printHours: number;
-  filamentPricePerKg: number;
   energyTariff?: number;
   laborMinutes: number;
   laborRate?: number;
+  // FEAT-02: filamentos por cor (mono = array de 1). Fonte da verdade do custo
+  // de material. Ausente em etapas legadas → migrado a partir dos escalares
+  // abaixo por `normalizeFilaments`.
+  filaments?: FilamentUsage[];
+  // LEGADO (só-leitura, migração): antes cada etapa tinha um peso/preço únicos.
+  // Produtos novos gravam `filaments` e deixam estes ausentes.
+  weightG?: number;
+  filamentPricePerKg?: number;
 };
 
 export type Accessory = {
@@ -35,11 +59,16 @@ export type Accessory = {
 export type ProductInput = {
   name: string;
   mainStageName: string;
-  weightG: number;
   printHours: number;
   machineId: string;
-  filamentPricePerKg: number;
   energyTariff: number;
+  // FEAT-02: filamentos por cor da ETAPA PRINCIPAL (mono = array de 1). Fonte da
+  // verdade do custo de material. Ausente em produtos legados → migrado a partir
+  // dos escalares `weightG`/`filamentPricePerKg` por `normalizeFilaments`.
+  filaments?: FilamentUsage[];
+  // LEGADO (só-leitura, migração): peso/preço únicos da etapa principal.
+  weightG?: number;
+  filamentPricePerKg?: number;
   laborMinutes: number;
   laborRate: number;
   markup: number;
@@ -100,6 +129,9 @@ export type StageCost = {
   // cálculo caiu no fallback (1ª máquina). Sinaliza dado órfão em vez de
   // mascarar em silêncio (ver TD-009).
   machineMissing: boolean;
+  // Filamentos por cor desta etapa, normalizados (legado migrado). Usado para
+  // agregar o consumo por cor no resultado do produto.
+  filaments: FilamentUsage[];
   materialCost: number;
   energyCost: number;
   depreciationCost: number;
@@ -138,6 +170,12 @@ export type PricingResult = {
   pieces: number;
   stagesCount: number;
   contributionMargin: number;
+  // FEAT-02: consumo de filamento por cor do produto inteiro (etapa principal +
+  // extras), agregado por cor. Pesos POR IMPRESSÃO (o que o spool perde de fato,
+  // incluindo torre/purga) — não divididos por peça. mono vs multicolor =
+  // `filaments.length`. Alimenta o card informativo e o snapshot congelado da
+  // venda; a baixa de estoque (passo 8) consome estes pesos.
+  filaments: FilamentUsage[];
   // Repartição por máquina (por unidade), para atribuir horas/vida/lucro à
   // impressora certa quando o produto usa mais de uma.
   machineUsage: MachineUsage[];
@@ -225,6 +263,11 @@ export type SaleInput = {
   // Repartição por máquina (por unidade). Presente nas vendas novas; ausente
   // nas antigas (o ROI cai no fallback: tudo na máquina principal acima).
   machineUsage?: MachineUsage[];
+  // FEAT-02: consumo de filamento por cor CONGELADO no momento da venda (pesos
+  // por impressão, incluindo torre/purga). Presente nas vendas novas; ausente
+  // nas antigas (tratadas como monocolor pelo `costBreakdown.material`). É o que
+  // a baixa de estoque (passo 8) vai deduzir do spool.
+  filaments?: FilamentUsage[];
   quantity: number;
   suggestedPrice: number; // unitário, o que a calculadora sugeria
   salePrice: number; // unitário, o preço real cobrado ao cliente (editável)
