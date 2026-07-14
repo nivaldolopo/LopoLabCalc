@@ -10,11 +10,12 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **UX-04 FEITO — botão "Nova venda" no topo da `/vendas`.** Header da
-  `SalesPage` ganhou botão (ícone `Plus`) que abre o `SaleModal` em **modo novo** (cesta vazia,
-  `seed={null}`) — reaproveita o seletor de catálogo e `saveRecibo` já existentes; desabilitado se
-  o catálogo estiver vazio. Estado vazio da página passou a apontar pro botão. Sem mudança de dados.
-  `pnpm lint` limpo. **Próximo da fila (Tier 0): UX-03** (telefone/Instagram clicáveis no PDF).
+- **Última mudança:** **UX-03 FEITO — telefone/Instagram clicáveis no PDF do orçamento.** No
+  cabeçalho do PDF (`generateQuotePdf.ts`) o telefone virou link de WhatsApp (`wa.me`, com o DDI
+  55 garantido via novo `whatsappUrl`) e o @ do Instagram virou link pro perfil (novo
+  `instagramUrl`); o loop de contato passou a usar `doc.textWithLink` quando há URL. Só o PDF —
+  sem mudança de dados/outras telas. `pnpm lint` limpo. **Próximo da fila (Tier 0): UX-02**
+  (tempo em h+min), depois **UX-01** (zero à esquerda).
   Restam da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
@@ -231,14 +232,12 @@ pendente da auditoria.
   equilíbrio **diminuir** (margem maior) → é mudança de comportamento, mantida fora do DEC-01.
   Decidir depois se vale corrigir o cálculo do break-even ou só renomear a variável. Ver a NOTA no
   `calculatePricing.ts` (linha do `contributionPrice`).
-- ⬜ **[UX-03] Telefone e Instagram clicáveis no PDF do orçamento** *(prioridade a definir ·
-  pequeno)*. No cabeçalho do PDF, tornar o **telefone** um link de **WhatsApp** (`https://wa.me/...`)
-  e o **@ do Instagram** um link pro perfil. **Hoje:** ambos são texto puro (`doc.text(...)` no loop
-  de contato, `generateQuotePdf.ts:120`). **Como:** trocar por `doc.textWithLink(texto, x, y, { url })`.
-  **WhatsApp:** `https://wa.me/<DDI+DDD+número>` — garantir o **55** na frente quando o telefone não
-  vier com código do país (`formatPhone` já trata 10/11/13 dígitos). **Instagram:**
-  `https://instagram.com/<handle>` (o `formatInstagram` já remove o `@`). Isolado em
-  `generateQuotePdf.ts`.
+- ✅ **[UX-03] Telefone e Instagram clicáveis no PDF do orçamento — FEITO.** No cabeçalho do PDF,
+  o **telefone** virou link de **WhatsApp** (`https://wa.me/...`, novo helper `whatsappUrl` garante
+  o DDI **55** quando o número vem só com DDD — 10/11 díg.) e o **@ do Instagram** virou link pro
+  perfil (`https://instagram.com/<handle>`, novo `instagramUrl`). O loop de contato passou a usar
+  `doc.textWithLink(texto, x, y, { url })` quando há URL (e-mail segue texto puro). Isolado em
+  `generateQuotePdf.ts`; sem mudança de dados.
 - ⬜ **[FEAT-03] Melhorar o PDF do orçamento (mais informacional / melhor pro cliente)** *(guarda-chuva
   · a concretizar)*. Item aberto — pensar em como deixar o orçamento mais útil pro cliente. **Ideias
   semente (o dono escolhe quais viram tarefa):** (a) **prazo de entrega/produção** por item ou total
@@ -263,8 +262,8 @@ pendente da auditoria.
 
 - **Tier 0 (limpar já — pequenos/baratos, alguns destravam):** (1) ~~**DEC-01**~~ ✅ FEITO
   (markup nunca no fixo, toggle removido); (2) ~~**UX-04**~~ ✅ FEITO (botão "Nova venda" na
-  `/vendas`); (3) **UX-03** telefone/Instagram clicáveis no PDF; (4) **UX-02** tempo em h+min;
-  (5) **UX-01** zero à esquerda. **Próximo da fila: UX-03.**
+  `/vendas`); (3) ~~**UX-03**~~ ✅ FEITO (telefone/Instagram clicáveis no PDF); (4) **UX-02** tempo
+  em h+min; (5) **UX-01** zero à esquerda. **Próximo da fila: UX-02.**
 - **Tier 1 (grande próximo passo):** (6) **Item 3 — Estoque** (`/estoque`, desbloqueado, destrava
   FEAT-02); (7) **FEAT-02** gasto por cor/multicor — ALTA, mas depende do Estoque → desenhar junto.
 - **Tier 2 (features comerciais):** (8) **FEAT-01** preço/subitens por etapa (depois do DEC-01);

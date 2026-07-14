@@ -50,6 +50,23 @@ function formatInstagram(raw: string): string {
   return `@${value.replace(/^@+/, "")}`;
 }
 
+// Link de WhatsApp a partir do telefone. Garante o DDI 55 quando o número vier
+// só com DDD (10/11 díg.); se já vier com o 55 (13 díg.), usa como está.
+function whatsappUrl(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  const withCountry =
+    digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
+  return `https://wa.me/${withCountry}`;
+}
+
+// Link do perfil no Instagram a partir do handle (sem o @).
+function instagramUrl(raw: string): string {
+  const handle = raw.trim().replace(/^@+/, "");
+  if (!handle) return "";
+  return `https://instagram.com/${handle}`;
+}
+
 // Logo placeholder: quadrado arredondado laranja com uma impressora branca
 // simplificada (mesma cara do ícone do app). Quando existir a marca, trocar a
 // chamada por doc.addImage(logoDataUrl, "PNG", x, y, size, size).
@@ -111,13 +128,17 @@ export function generateQuotePdf(data: QuotePdfData): void {
   doc.setTextColor(90);
   let contactY = logoY + 35;
   [
-    formatPhone(data.business.phone),
-    formatInstagram(data.business.instagram),
-    data.business.email.trim(),
+    { text: formatPhone(data.business.phone), url: whatsappUrl(data.business.phone) },
+    { text: formatInstagram(data.business.instagram), url: instagramUrl(data.business.instagram) },
+    { text: data.business.email.trim(), url: "" },
   ]
-    .filter((line) => line)
+    .filter((line) => line.text)
     .forEach((line) => {
-      doc.text(line, textX, contactY);
+      if (line.url) {
+        doc.textWithLink(line.text, textX, contactY, { url: line.url });
+      } else {
+        doc.text(line.text, textX, contactY);
+      }
       contactY += 13;
     });
 
