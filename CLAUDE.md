@@ -19,7 +19,13 @@
   `ExtraStagesSection`, `CapacityPanel`, `FixedCostsPanel`, `SaleModal`, `QuotePage`,
   `MachineManagerModal`). Clamps de call-site redundantes removidos (o `min`/`max` do `NumberInput`
   cuida). Só UI — nenhum dado/valor muda. `pnpm lint` + `pnpm build` limpos. **Tier 0 fechado.**
-  **Próximo passo: Tier 1 — Estoque (`/estoque`)** + FEAT-02 (gasto por cor), desenhados juntos.
+  **Próximo passo (Tier 1 REAVALIADO jul/2026):** o dono confirmou que **imprime multicolor com
+  frequência** e que **mantém a disciplina** de marcar venda/baixa. Logo o par Estoque+FEAT-02 foi
+  **desmembrado e reordenado**: (1) **FEAT-02 lado-produto** (peso/custo por cor — model+purged+tower)
+  vem PRIMEIRO, pois conserta precificação real já e **não depende do Estoque**; (2) **Estoque
+  `/estoque`** (CRUD); (3) **FEAT-02 baixa na venda** (deduz por cor). Amarração crítica do passo 1:
+  o array por cor referencia `filamentId` (spool do Estoque) OU cor avulsa → passo 3 pluga a baixa sem
+  migração. **Desenhar o modelo de dados (FEAT-02+Estoque) e aprovar antes de codar.**
   Restam da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
@@ -262,20 +268,28 @@ pendente da auditoria.
 
 > Priorização unificada acordada no chat. Guia: barato-e-destrava primeiro; captura antes de
 > análise; features grandes por dependência, não por valor. O dono ajusta quando quiser.
+> **REAVALIADA (jul/2026):** o dono confirmou **multicolor frequente** + **disciplina de marcar
+> venda/baixa OK**. Consequência: o par Estoque+FEAT-02 foi **desmembrado** — a correção de custo
+> por cor (dinheiro real, subprecificação hoje) **sobe e destrava-se do Estoque**; o Estoque vem
+> logo atrás. FEAT-03 deixa de ser bloco monolítico: seus quick wins podem entrar em paralelo.
 
 - **Tier 0 (limpar já — pequenos/baratos, alguns destravam) — ✅ FECHADO:** (1) ~~**DEC-01**~~ FEITO
   (markup nunca no fixo, toggle removido); (2) ~~**UX-04**~~ FEITO (botão "Nova venda" na
   `/vendas`); (3) ~~**UX-03**~~ FEITO (telefone/Instagram clicáveis no PDF); (4) ~~**UX-02**~~
   FEITO (tempo em h+min); (5) ~~**UX-01**~~ FEITO (zero à esquerda, componente `NumberInput`).
   **Próximo: Tier 1.**
-- **Tier 1 (grande próximo passo):** (6) **Item 3 — Estoque** (`/estoque`, desbloqueado, destrava
-  FEAT-02); (7) **FEAT-02** gasto por cor/multicor — ALTA, mas depende do Estoque → desenhar junto.
-- **Tier 2 (features comerciais):** (8) **FEAT-01** preço/subitens por etapa (depois do DEC-01);
-  (9) **FEAT-03** melhorar PDF do orçamento; (10) **branding/logo real** no PDF (overlap c/ FEAT-03).
-- **Tier 3 (adiar até ter volume de vendas):** (11) **Item 4 — Dashboard** (`/painel`) + **TD-003**
-  capacidade por-máquina; (12) **TD-006** paginação.
-- **Tier 4 (menores/oportunistas):** (13) numeração de orçamento derivada no browser;
-  (14) labor na reserva de falha.
+- **Tier 1 (precisão de custo + fundação) — próximo:** (6) **FEAT-02 lado-produto** (peso/custo por
+  cor — model+purged+tower; array `{filamentId|cor, peso, preço}`, mono = array de 1) — **1º, independe
+  do Estoque**, conserta precificação multicolor já; (7) **Item 3 — Estoque** (`/estoque`, CRUD dos
+  insumos); (8) **FEAT-02 baixa na venda** (deduz peso por cor do spool, snapshot congelado). **Passo 6
+  amarra tudo:** desenhar o modelo de dados dos dois juntos e aprovar antes de codar.
+- **Tier 2 (features comerciais, independentes):** (9) **FEAT-01** preço/subitens por etapa (rateio
+  exato/aditivo); (10) **FEAT-03** melhorar PDF (quick wins soltos podem vir antes; "detalhar etapas"
+  espera FEAT-01); (11) **branding/logo real** no PDF (overlap c/ FEAT-03).
+- **Tier 3 (adiar até ter volume de vendas):** (12) **Item 4 — Dashboard** (`/painel`) + **TD-003**
+  capacidade por-máquina; (13) **TD-006** paginação.
+- **Tier 4 (menores/oportunistas):** (14) numeração de orçamento derivada no browser;
+  (15) labor na reserva de falha.
 
 ## Resumo do projeto (contexto rápido)
 
