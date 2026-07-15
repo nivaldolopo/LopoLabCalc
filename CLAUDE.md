@@ -22,9 +22,10 @@
   snapshot (histórico sabe mono vs multi + cores/pesos; base da baixa futura). CSV faz round-trip por
   coluna `Filamentos JSON`. `pnpm lint`+`test` (**62 verdes, +16**)+`build` limpos. **Só produto —
   baixa de estoque é o passo 8.**
-  **Próximo passo (Tier 1):** (7) **Estoque `/estoque`** (CRUD de spools de filamento) → (8) **FEAT-02
-  baixa na venda** (deduz o peso por cor do spool; snapshot já congelado — `filamentId` já referencia o
-  spool, sem migração). **Desenhar o modelo de dados do Estoque e aprovar antes de codar.**
+  **Próximo passo (Tier 1):** **Estoque — modelo APROVADO pelo dono (jul/2026), pronto pra codar.**
+  Ver "Item 3 — Estoque" no backlog: 4 etapas (7a modelo/repo → 7b rota `/estoque` → 7c dropdown no
+  produto → 8 baixa na venda), **uma por chat**. Insumos (ímãs/parafusos/embalagem) viram item
+  separado (7e), depois do filamento.
   Restam da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
@@ -43,9 +44,9 @@
   (2) ROI/payback da máquina ✅ FEITO (`/maquinas`); (3) conversão peso↔metragem de filamento
   **descartada** (o dono decidiu não implementar). Foco volta ao backlog antigo
   (**item 3 — Estoque** `/estoque`, já desbloqueado).
-- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — o "business settings persistido"
-  (TD-001) já está pronto (`config/negocio`); o Estoque agrega campos nesse mesmo doc, sem
-  migração; (b) item 4 — **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
+- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — modelo **aprovado**, coleção própria
+  `estoque` (um doc por SKU de filamento); decisões D1-D4 e as 4 etapas no item 3 do backlog;
+  (b) item 4 — **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
   TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
   **Auditoria do GPT: TD-001/004/005/007/008/009 FEITOS; restam TD-003 e TD-006** (no backlog, não
   descartados). Menores mantidos no backlog: numeração de orçamento derivada no browser, labor na
@@ -90,11 +91,69 @@
    (impressora). **Histórico** já FEITO (coleção `orcamentos`, re-baixar/excluir na `/orcamento`;
    numeração derivada do histórico). Dados do negócio no Firestore (`config/orcamento`). Opcional
    que sobrou: **branding** real (trocar o placeholder pela logo — já há comentário no código).
-3. **Controle de estoque** *(rota `/estoque`)* — cadastrar spools de filamento, ímãs, parafusos,
-   rolamentos, chaveiros, embalagem. Como o app já sabe o que cada job consome, dar **baixa
-   automática** ao marcar a venda concluída — unindo custo + venda + estoque num fluxo só.
-   **Depende do item 1.** Alto valor no dia a dia, mas exige disciplina (estoque desatualizado
-   é pior que nenhum).
+3. **Controle de estoque** *(rota `/estoque`)* — **MODELO APROVADO (jul/2026), a codar.** Cadastrar
+   filamento (e depois insumos: ímãs, parafusos, rolamentos, chaveiros, embalagem) e dar **baixa
+   automática** ao registrar a venda — unindo custo + venda + estoque num fluxo só. **Depende do
+   item 1** (feito) e do **FEAT-02 lado-produto** (feito — `filamentId` já existe em todo
+   `FilamentUsage`, hoje `null` → **nenhuma migração**).
+
+   **Decisões do dono (fechadas — não rediscutir sem ele):**
+   - **(D1) Filamento e insumos são entregas SEPARADAS**, uma por chat. Filamento primeiro (o
+     `filamentId` já está plugado); insumos depois (item 7e), porque `Accessory` é `{desc, qty,
+     unitPrice}` **texto livre, sem gancho** — ligá-lo ao estoque é um FEAT-02 inteiro do lado do
+     acessório (tipo novo, migração texto→referência, UI, snapshot, baixa por unidade).
+   - **(D2) Filamento = SKU simples, SEM lotes.** Um registro por marca+material+cor, com um
+     `pricePerKg` e um `stockG` diretos. O dono **não compra em lote**, então lote/FIFO/média
+     ponderada seriam complexidade sem retorno (o híbrido chegou a ser escolhido e foi **revertido**
+     por ele). **Comprar = somar gramas + (se mudou) digitar o preço novo, que sobrescreve.** Se um
+     dia lote virar rotina, dá pra empilhar lotes por cima **sem migração**: `pricePerKg`/`stockG`
+     do SKU continuam a fonte, passando a ser derivados.
+   - **(D3) Preço/kg é VIVO, vem do estoque.** O produto guarda só o `filamentId`; o preço sai do
+     SKU na hora do cálculo — **igual às máquinas hoje** (produto guarda `machineId`, watts vêm
+     vivos). Reajustar uma cor recalcula todos os produtos dela. O `pricePerKg` gravado no
+     `FilamentUsage` vira **fallback** (filamento avulso, fora do estoque, ou SKU excluído).
+   - **(D4) Saldo negativo é PERMITIDO, com aviso.** A venda é um fato consumado — bloquear o
+     registro por falta de saldo perderia dado real, e negativo é justamente o sintoma de contagem
+     furada que se quer enxergar. Nunca "deduzir até zero" (esconde o tamanho do furo).
+
+   **Modelo (SKU simples):**
+   ```ts
+   type StockFilament = {
+     id: string;          // vira o filamentId do FilamentUsage
+     material: string; brand: string; colorName: string; colorHex?: string;
+     pricePerKg: number;  // o preço VIVO, direto (D3) — sem média, sem FIFO
+     stockG: number;      // saldo; negativo permitido e sinalizado (D4)
+     minG: number;        // alerta de estoque mínimo (0 = sem alerta)
+     archived: boolean;
+   };
+   ```
+   Coleção `estoque` (um doc por SKU), padrão do `productsRepository`. Baixa via `increment()` do
+   Firestore, **dentro do mesmo `writeBatch` da `saveRecibo`** (atômico com a venda).
+
+   **Ponto mais frágil — o ESTORNO:** a venda **tem que gravar o que deduziu**
+   (`stockMoves: [{ filamentId, g }]` no próprio doc da venda), senão editar um recibo de 3 → 2
+   unidades corrompe o estoque em silêncio. Editar/excluir recibo **estorna exatamente** o que
+   consta no `stockMoves`. Vendas anteriores ao recurso não têm o campo → **não estornar**.
+
+   **Etapas (uma por chat, nesta ordem):**
+   - **7a — Modelo + repo (sem UI).** `StockFilament` em `types.ts`; `lib/stock.ts` (helpers puros:
+     consumo, estorno, aviso de mínimo/negativo) + testes; `stockRepository.ts` + hook `useStock`
+     (padrão `machinesRepository`). Nada plugado — **nenhum preço muda**.
+   - **7b — Rota `/estoque` (CRUD).** Lista com saldo, bolinha de cor e alerta de mínimo; criar
+     filamento; registrar compra (soma gramas + preço); ajuste de inventário; arquivar. Link no
+     header. Ainda **desligado** do produto.
+   - **7c — Ligar produto ↔ estoque.** O campo "Cor" do `FilamentColorsSection` vira **dropdown de
+     SKU**, e passa a aparecer **também no monocolor** (mono = array de 1 → escolhe o filamento pra
+     puxar preço e dar baixa). Opção **"avulso"** revela o texto livre + preço manual (fallback D3).
+     `calculatePricing` lê o preço vivo; badge de aviso quando o SKU sumiu, **no molde do
+     `machineMissing`/TD-009**. ⚠ **É aqui que preços podem mudar** (produto ligado a cor reajustada).
+   - **8 — Baixa na venda (fecha o FEAT-02).** `saveRecibo` deduz no batch atômico; editar/excluir
+     estorna via `stockMoves`; aviso de saldo negativo. **Fim do Tier 1.**
+   - **7e — Insumos (item próprio, depois).** `supplyId` no `Accessory`, cadastro de insumos na
+     `/estoque`, baixa por unidade. Ver D1.
+
+   Alto valor no dia a dia, mas exige disciplina (estoque desatualizado é pior que nenhum) — o dono
+   confirmou que a disciplina de marcar venda/baixa está OK.
 4. **Dashboard do negócio** *(rota `/painel`)* — **desceu para último** (ChatGPT punha em 2º):
    só vale depois de ~1-2 meses de vendas no banco, senão é gráfico vazio. Receita / custo de
    produção / lucro bruto do mês; menos custos fixos (aluguel, energia, internet…) → **lucro
@@ -287,10 +346,11 @@ pendente da auditoria.
   FEITO (tempo em h+min); (5) ~~**UX-01**~~ FEITO (zero à esquerda, componente `NumberInput`).
   **Próximo: Tier 1.**
 - **Tier 1 (precisão de custo + fundação):** (6) ~~**FEAT-02 lado-produto**~~ **✅ FEITO** (cores no
-  produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); (7) **Item 3 — Estoque**
-  (`/estoque`, CRUD dos spools) — **próximo**; (8) **FEAT-02 baixa na venda** (deduz peso por cor do
-  spool; snapshot já congelado, `filamentId` já plugado). **Desenhar o modelo do Estoque e aprovar
-  antes de codar.**
+  produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); **Item 3 — Estoque**
+  (modelo **aprovado**, detalhe e decisões D1-D4 no item 3 do backlog), quebrado em **uma etapa por
+  chat**: (7a) modelo + repo, sem UI — **próximo**; (7b) rota `/estoque` (CRUD); (7c) dropdown de SKU
+  no produto (preço vivo); (8) **FEAT-02 baixa na venda** (deduz do SKU no batch da venda, estorna via
+  `stockMoves`). Insumos = (7e), **item separado depois** do filamento.
 - **Tier 2 (features comerciais, independentes):** (9) **FEAT-01** preço/subitens por etapa (rateio
   exato/aditivo); (10) **FEAT-03** melhorar PDF (quick wins soltos podem vir antes; "detalhar etapas"
   espera FEAT-01); (11) **branding/logo real** no PDF (overlap c/ FEAT-03).
