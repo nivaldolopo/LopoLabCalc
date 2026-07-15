@@ -45,8 +45,8 @@
   **descartada** (o dono decidiu não implementar). Foco volta ao backlog antigo
   (**item 3 — Estoque** `/estoque`, já desbloqueado).
 - **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — modelo **aprovado**, coleção própria
-  `estoque` (um doc por SKU de filamento); decisões D1-D4 e as 4 etapas no item 3 do backlog;
-  (b) item 4 — **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
+  `estoque` (um doc por COR de filamento, rolos dentro); decisões D1-D5 e as 4 etapas no item 3 do
+  backlog; (b) item 4 — **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
   TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
   **Auditoria do GPT: TD-001/004/005/007/008/009 FEITOS; restam TD-003 e TD-006** (no backlog, não
   descartados). Menores mantidos no backlog: numeração de orçamento derivada no browser, labor na
@@ -101,56 +101,95 @@
    - **(D1) Filamento e insumos são entregas SEPARADAS**, uma por chat. Filamento primeiro (o
      `filamentId` já está plugado); insumos depois (item 7e), porque `Accessory` é `{desc, qty,
      unitPrice}` **texto livre, sem gancho** — ligá-lo ao estoque é um FEAT-02 inteiro do lado do
-     acessório (tipo novo, migração texto→referência, UI, snapshot, baixa por unidade).
-   - **(D2) Filamento = SKU simples, SEM lotes.** Um registro por marca+material+cor, com um
-     `pricePerKg` e um `stockG` diretos. O dono **não compra em lote**, então lote/FIFO/média
-     ponderada seriam complexidade sem retorno (o híbrido chegou a ser escolhido e foi **revertido**
-     por ele). **Comprar = somar gramas + (se mudou) digitar o preço novo, que sobrescreve.** Se um
-     dia lote virar rotina, dá pra empilhar lotes por cima **sem migração**: `pricePerKg`/`stockG`
-     do SKU continuam a fonte, passando a ser derivados.
-   - **(D3) Preço/kg é VIVO, vem do estoque.** O produto guarda só o `filamentId`; o preço sai do
-     SKU na hora do cálculo — **igual às máquinas hoje** (produto guarda `machineId`, watts vêm
-     vivos). Reajustar uma cor recalcula todos os produtos dela. O `pricePerKg` gravado no
-     `FilamentUsage` vira **fallback** (filamento avulso, fora do estoque, ou SKU excluído).
+     acessório (tipo novo, migração texto→referência, UI, snapshot, baixa por unidade). **Não dá pra
+     inverter a ordem** (o `supplyId` precisaria apontar pra um cadastro que ainda não existe), MAS
+     o `stockMoves` da venda **nasce genérico já na 7a** (`kind: 'filament' | 'supply'`) — senão a
+     7e forçaria **migrar documentos de venda já gravados**.
+   - **(D2) Filamento = COR no dropdown, ROLOS por baixo (híbrido).** O produto aponta pra **cor**
+     (`StockFilament`, id **estável**); os **rolos** (`FilamentRoll`) vivem dentro dela, cada um com
+     o preço real pago, consumidos **do mais antigo pro mais novo** (FIFO). **Por que não SKU
+     simples** (chegou a ser decidido e foi revertido): o dono cadastra **por rolo** e arquiva o rolo
+     quando acaba — se a entrada FOSSE o rolo, o `filamentId` do produto apontaria pra algo
+     descartável e **todo produto da cor ficaria órfão a cada rolo que termina** (e, com D3, cairia
+     em silêncio no preço de fallback). O híbrido dá o id estável pro produto e o descarte pro rolo.
+     Rolo zerado **fica no array** como histórico de compra (a UI esconde atrás de "rolos
+     anteriores"); serve de base pra "quanto gastei em filamento".
+   - **(D3) Preço/kg é VIVO, vem do estoque — com DOIS preços, por contexto.** O produto guarda só o
+     `filamentId`; o preço sai da cor na hora do cálculo (**igual às máquinas hoje**: produto guarda
+     `machineId`, watts vêm vivos). Mas:
+     - **Catálogo/calculadora → preço do rolo MAIS NOVO** (custo de repor). Precificar é sobre a
+       *próxima* impressão; assim nunca subprecifica em cima de um rolo velho quase vazio.
+     - **Venda → preço do(s) rolo(s) EM USO** (FIFO), custo **real**. Se a impressão atravessar
+       rolos, o custo é **misto e exato** (ex.: 100 g × R$90 + 50 g × R$110) — o consumo FIFO já diz
+       de qual rolo saiu quanto, então é só somar.
+     - ⚠ **Consequência intencional:** a **margem da venda diverge da margem do catálogo**. O dono
+       quer isso ("fiel ao custo/lucro"). A `SaleModal` **tem que mostrar** o custo real e de onde
+       veio, senão vira surpresa.
+     - O `pricePerKg` gravado no `FilamentUsage` vira **fallback**: filamento avulso (fora do
+       estoque) ou cor excluída.
    - **(D4) Saldo negativo é PERMITIDO, com aviso.** A venda é um fato consumado — bloquear o
      registro por falta de saldo perderia dado real, e negativo é justamente o sintoma de contagem
      furada que se quer enxergar. Nunca "deduzir até zero" (esconde o tamanho do furo).
+   - **(D5) Dois avisos de "cabe?", com gravidades diferentes** (pedido do dono):
+     - **Passa do rolo EM USO** → informativo: vai atravessar pro próximo rolo (custo misto). Na
+       **A1 sem AMS isso é troca manual no meio da impressão** → o dono quer ver isso ao planejar.
+     - **Passa do estoque TOTAL da cor** → aviso forte; é o negativo do D4.
+     A UI mostra **qual rolo está em uso e quanto resta nele** junto do dropdown (7c) e na venda (8).
 
-   **Modelo (SKU simples):**
+   **Modelo (híbrido cor + rolos):**
    ```ts
-   type StockFilament = {
-     id: string;          // vira o filamentId do FilamentUsage
+   type FilamentRoll = {
+     id: string;
+     purchaseDate: number;
+     initialG: number;      // 1000 normalmente
+     remainingG: number;    // drena FIFO; o excedente vira negativo no rolo mais novo (D4)
+     pricePerKg: number;    // preço REAL pago neste rolo
+     note?: string;         // NF/fornecedor
+   };
+
+   type StockFilament = {   // = a COR; é o que o produto aponta (filamentId ESTÁVEL)
+     id: string;
      material: string; brand: string; colorName: string; colorHex?: string;
-     pricePerKg: number;  // o preço VIVO, direto (D3) — sem média, sem FIFO
-     stockG: number;      // saldo; negativo permitido e sinalizado (D4)
-     minG: number;        // alerta de estoque mínimo (0 = sem alerta)
-     archived: boolean;
+     minG: number;          // alerta de estoque mínimo (0 = sem alerta)
+     archived: boolean;     // "parei de usar essa cor" (raro; NÃO é "rolo acabou")
+     rolls: FilamentRoll[]; // saldo = Σ remainingG
+     createdAt: number;
    };
    ```
-   Coleção `estoque` (um doc por SKU), padrão do `productsRepository`. Baixa via `increment()` do
-   Firestore, **dentro do mesmo `writeBatch` da `saveRecibo`** (atômico com a venda).
+   Coleção `estoque` (um doc por COR, rolos em array dentro — poucos por cor, mantém a escrita
+   atômica), padrão do `productsRepository`. Baixa **dentro do mesmo `writeBatch` da `saveRecibo`**
+   (atômica com a venda).
+
+   **`lib/stock.ts` (matemática pura, 7a)** — o miolo é uma simulação FIFO que serve aos 3 usos
+   (aviso no form, custo da venda, baixa): `simulateConsumption(cor, gramas)` → `{ moves, cost,
+   crossesRoll, shortfallG }`; `applyConsumption` / `reverseConsumption`; `catalogPricePerKg` (rolo
+   mais novo) e `saleCost` (FIFO, D3); `balanceG`; alerta de mínimo.
 
    **Ponto mais frágil — o ESTORNO:** a venda **tem que gravar o que deduziu**
-   (`stockMoves: [{ filamentId, g }]` no próprio doc da venda), senão editar um recibo de 3 → 2
-   unidades corrompe o estoque em silêncio. Editar/excluir recibo **estorna exatamente** o que
-   consta no `stockMoves`. Vendas anteriores ao recurso não têm o campo → **não estornar**.
+   (`stockMoves: [{ itemId, kind: 'filament', rollId, qty }]` no próprio doc da venda), senão editar
+   um recibo de 3 → 2 unidades corrompe o estoque em silêncio. Editar/excluir recibo **estorna
+   exatamente** o que consta no `stockMoves` (por rolo — inclusive rolo já zerado/arquivado).
+   Vendas anteriores ao recurso não têm o campo → **não estornar**.
 
    **Etapas (uma por chat, nesta ordem):**
-   - **7a — Modelo + repo (sem UI).** `StockFilament` em `types.ts`; `lib/stock.ts` (helpers puros:
-     consumo, estorno, aviso de mínimo/negativo) + testes; `stockRepository.ts` + hook `useStock`
-     (padrão `machinesRepository`). Nada plugado — **nenhum preço muda**.
-   - **7b — Rota `/estoque` (CRUD).** Lista com saldo, bolinha de cor e alerta de mínimo; criar
-     filamento; registrar compra (soma gramas + preço); ajuste de inventário; arquivar. Link no
-     header. Ainda **desligado** do produto.
+   - **7a — Modelo + repo (sem UI).** `StockFilament`/`FilamentRoll` em `types.ts`; `lib/stock.ts`
+     (acima) + testes (FIFO atravessando rolos, custo misto, saldo negativo, round-trip
+     consumo→estorno); `stockRepository.ts` + hook `useStock` (padrão `machinesRepository`). Nada
+     plugado — **nenhum preço muda**.
+   - **7b — Rota `/estoque` (CRUD).** Lista por cor com saldo, bolinha de cor, rolo em uso e alerta
+     de mínimo; criar cor; **registrar rolo** (compra: gramas + preço + data); ajuste de inventário;
+     arquivar cor; "rolos anteriores" (histórico). Link no header. Ainda **desligado** do produto.
    - **7c — Ligar produto ↔ estoque.** O campo "Cor" do `FilamentColorsSection` vira **dropdown de
-     SKU**, e passa a aparecer **também no monocolor** (mono = array de 1 → escolhe o filamento pra
-     puxar preço e dar baixa). Opção **"avulso"** revela o texto livre + preço manual (fallback D3).
-     `calculatePricing` lê o preço vivo; badge de aviso quando o SKU sumiu, **no molde do
-     `machineMissing`/TD-009**. ⚠ **É aqui que preços podem mudar** (produto ligado a cor reajustada).
-   - **8 — Baixa na venda (fecha o FEAT-02).** `saveRecibo` deduz no batch atômico; editar/excluir
-     estorna via `stockMoves`; aviso de saldo negativo. **Fim do Tier 1.**
+     cor**, e passa a aparecer **também no monocolor** (mono = array de 1 → escolhe a cor pra puxar
+     preço e dar baixa). Opção **"avulso"** revela o texto livre + preço manual (fallback D3).
+     `calculatePricing` usa o **preço do rolo mais novo** (D3); mostra **rolo em uso + quanto resta**
+     e os avisos do D5; badge quando a cor sumiu, **no molde do `machineMissing`/TD-009**.
+     ⚠ **É aqui que preços podem mudar** (produto ligado a cor reajustada).
+   - **8 — Baixa na venda (fecha o FEAT-02).** `saveRecibo` deduz FIFO no batch atômico; custo real
+     recalculado pelo consumo (D3) e **exibido na `SaleModal`**; editar/excluir estorna via
+     `stockMoves`; avisos D4/D5. **Fim do Tier 1.**
    - **7e — Insumos (item próprio, depois).** `supplyId` no `Accessory`, cadastro de insumos na
-     `/estoque`, baixa por unidade. Ver D1.
+     `/estoque`, baixa por unidade (`kind: 'supply'`, já previsto no `stockMoves`). Ver D1.
 
    Alto valor no dia a dia, mas exige disciplina (estoque desatualizado é pior que nenhum) — o dono
    confirmou que a disciplina de marcar venda/baixa está OK.
@@ -261,10 +300,11 @@ pendente da auditoria.
 - 🟡 **[FEAT-02] Gasto de filamento por cor (multicor / AMS / dual nozzle)** — **LADO-PRODUTO ✅ FEITO
   (jul/2026); baixa de estoque = passo 8 (pendente, depende do Estoque).** **DECISÃO p/ o Estoque
   (passo 7/8):** o campo **"Cor"** (texto livre, hoje só no multicolor) vira um **dropdown de seleção
-  do spool cadastrado no Estoque** e passa a aparecer **também no monocolor** (mono = array de 1 →
-  também escolhe qual filamento do estoque, pra puxar preço e dar baixa). O `filamentId` já existe em
-  TODO `FilamentUsage` (inclusive mono), hoje `null` → não precisa migração, só ligar o dropdown; o
-  texto `colorName` fica como **fallback de filamento avulso** (fora do estoque). Modelo `FilamentUsage`
+  da COR cadastrada no Estoque** (a cor, NÃO o rolo — ver D2 no item 3 do backlog) e passa a aparecer
+  **também no monocolor** (mono = array de 1 → também escolhe qual filamento do estoque, pra puxar
+  preço e dar baixa). O `filamentId` já existe em TODO `FilamentUsage` (inclusive mono), hoje `null`
+  → não precisa migração, só ligar o dropdown; o texto `colorName` fica como **fallback de filamento
+  avulso** (fora do estoque). Modelo `FilamentUsage`
   (`totalG` canônico + model/purga/torre opcional), `filaments[]` em produto/etapa, `lib/filaments.ts`,
   `FilamentColorsSection`, custo por cor no cálculo, e **snapshot da venda congela as cores**. Falta só
   deduzir do spool ao efetivar a venda (passo 8). *Contexto original abaixo mantido:* Permitir marcar a
@@ -348,9 +388,9 @@ pendente da auditoria.
 - **Tier 1 (precisão de custo + fundação):** (6) ~~**FEAT-02 lado-produto**~~ **✅ FEITO** (cores no
   produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); **Item 3 — Estoque**
   (modelo **aprovado**, detalhe e decisões D1-D4 no item 3 do backlog), quebrado em **uma etapa por
-  chat**: (7a) modelo + repo, sem UI — **próximo**; (7b) rota `/estoque` (CRUD); (7c) dropdown de SKU
-  no produto (preço vivo); (8) **FEAT-02 baixa na venda** (deduz do SKU no batch da venda, estorna via
-  `stockMoves`). Insumos = (7e), **item separado depois** do filamento.
+  chat**: (7a) modelo + repo, sem UI — **próximo**; (7b) rota `/estoque` (CRUD de cores + rolos);
+  (7c) dropdown de cor no produto (preço vivo); (8) **FEAT-02 baixa na venda** (deduz FIFO no batch
+  da venda, estorna via `stockMoves`). Insumos = (7e), **item separado depois** do filamento.
 - **Tier 2 (features comerciais, independentes):** (9) **FEAT-01** preço/subitens por etapa (rateio
   exato/aditivo); (10) **FEAT-03** melhorar PDF (quick wins soltos podem vir antes; "detalhar etapas"
   espera FEAT-01); (11) **branding/logo real** no PDF (overlap c/ FEAT-03).
