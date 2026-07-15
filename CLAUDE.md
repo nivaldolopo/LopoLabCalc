@@ -403,6 +403,25 @@ pendente da auditoria.
   são influenciadas**. Encaixar aqui faz o passo 8 nascer sabendo vender etapa, sem parar 3 chats de
   trabalho pronto enquanto o rateio (decisão aberta, poste longo) é decidido.
 
+  **UX exigida pelo dono (jul/2026):** a etapa a orçar é **SELECIONADA entre as etapas já
+  cadastradas do produto — nunca digitada à mão**. E o **"Item livre" CONTINUA existindo** (item
+  genérico, fora do catálogo). Os dois convivem: não são o mesmo controle.
+  - **Lado orçamento = barato.** Item de catálogo e item livre **já são a mesma forma**:
+    `QuoteItemSnapshot = {description, quantity, unitPrice}` (`types.ts` ~313) — o orçamento **nem
+    guarda `productId`**. "Adicionar do catálogo" é um `<select>` que só preenche descrição+preço
+    (`QuotePage.tsx` ~494); "Item livre" é botão separado (~508). → **selecionar etapa = 3º modo de
+    preencher a mesma forma**; o item livre não é ameaçado (controles independentes).
+  - **Lado venda = estrutural.** Na `SaleModal` o item guarda `productId` + snapshot congelado +
+    `filaments[]` e dirige a **baixa** (passo 8). Selecionar etapa ali muda o dado, não só a tela.
+    É aqui que mora o trabalho real — mesma UI, profundidades diferentes.
+  - **⚠ Depende do rateio:** o seletor precisa **exibir um preço por etapa/grupo** na lista. Sem a
+    regra de rateio decidida, não há o que mostrar → reforça que o rateio é o poste longo.
+  - **❓ EM ABERTO — onde mora o "grupo de etapas"?** O dono quer agrupar etapas num subitem (4
+    etapas → 2 subitens). Se o grupo for montado **no orçamento**, ele re-agrupa a cada cotação —
+    exatamente o trabalho manual que ele recusou. **Proposta (a confirmar):** o grupo é definido
+    **no PRODUTO** (`ProductForm`, uma vez), e orçamento/venda só **selecionam** entre etapas e
+    grupos já prontos. Confirmar com o dono antes de codar.
+
   **Escape hatch NÃO necessário:** cogitou-se copiar o "Item livre" da `QuotePage` pra `SaleModal`
   como curativo. Descartado — o FEAT-01 já vem antes do marco, e item livre captura só **preço**
   (sem `filaments[]`, sem baixa, sem "lucro por material"). Retomar só se uma venda de etapa
