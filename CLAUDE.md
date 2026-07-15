@@ -36,8 +36,11 @@
   (Diretriz 7); o `SaleInput.material` órfão ganhou dono (passo 8).
   **FEAT-01 SOBE pro Tier 1, entre a 7c e a 8** (`7a → 7b → 7c → FEAT-01 → 8`) — o dono apontou que
   cotar etapa separada leva a **vender** etapa separada, e a `SaleModal` **não tem item livre**
-  (catálogo-only) → é **captura**, não conveniência. Vira **gate do marco**. Ver o item FEAT-01.
-  Insumos (ímãs/parafusos/embalagem) viram item separado (7e), depois do filamento.
+  (catálogo-only) → é **captura**, não conveniência. Fica antes da 8 por **dependência técnica** (a
+  baixa precisa saber o que um item de venda pode ser), **não** por causa do marco — este vem só
+  depois do backlog inteiro (Diretriz 7). **Não dividir o FEAT-01**; sai inteiro. Ver o item FEAT-01.
+  Insumos (ímãs/parafusos/embalagem) viram item separado (7e), depois do filamento — **sem migração**
+  (o marco recadastra acessório também; Diretriz 7).
   Restam da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
@@ -266,7 +269,8 @@
    - **FEAT-01 — Preço/subitens por etapa (ENTRA AQUI, antes da 8).** Não é do Estoque, mas o passo 8
      depende dele: se um item de venda pode ser "uma etapa"/"um grupo de etapas", isso muda o que a
      baixa deduz. Fazer antes evita nascer o passo 8 sabendo só vender produto inteiro e refazê-lo.
-     **Decisão do rateio (exato/aditivo) ainda em aberto — resolver enquanto 7a/7b/7c andam.**
+     **Decisão do rateio (exato/aditivo) ainda em aberto — o dono decidiu resolver no PRÓPRIO chat
+     do FEAT-01** (não em paralelo com 7a/7b/7c). Não cobrar a decisão antes: 7a/7b/7c não dependem dela.
      Detalhe no item FEAT-01 (seção "Ideias/ajustes trazidos pelo dono").
    - **8 — Baixa na venda (fecha o FEAT-02).** `saveRecibo` deduz FIFO no batch atômico; custo real
      recalculado pelo consumo (D3) e **exibido na `SaleModal`**; editar/excluir estorna via
@@ -364,7 +368,7 @@ pendente da auditoria.
   `ExtraStagesSection`, `CapacityPanel`, `FixedCostsPanel`, `SaleModal`, `QuotePage`,
   `MachineManagerModal`). Clamps de call-site redundantes removidos. Só UI, sem migração.
 - ⬜ **[FEAT-01] Preço por etapa (etapa como item opcional no orçamento/venda)** *(**Tier 1, entre a
-  7c e a 8** · tamanho médio · **gate do marco**)*. Salvar/mostrar o preço calculado e proporcional de **cada etapa** do
+  7c e a 8** · tamanho médio · **pré-requisito técnico da 8**)*. Salvar/mostrar o preço calculado e proporcional de **cada etapa** do
   produto (considerando máquina, mão de obra, filamento, tempo de cada etapa). **Por quê:** uma
   etapa pode ser um acessório opcional pro cliente (ex.: peça base + adorno impresso à parte) — o
   dono quer poder cotar as etapas separadamente e deixar o cliente escolher tudo ou só uma parte.
@@ -421,6 +425,13 @@ pendente da auditoria.
     exatamente o trabalho manual que ele recusou. **Proposta (a confirmar):** o grupo é definido
     **no PRODUTO** (`ProductForm`, uma vez), e orçamento/venda só **selecionam** entre etapas e
     grupos já prontos. Confirmar com o dono antes de codar.
+
+  **⚠ NÃO DIVIDIR em "orçamento primeiro, venda depois" (decidido jul/2026).** É tentador, porque o
+  lado-orçamento é barato e o lado-venda é estrutural (ver os dois bullets acima) — mas entregar só a
+  metade do orçamento faz o dono **cotar** etapa separada sem poder **registrar** a venda dela na
+  `SaleModal` (catálogo-only), criando ativamente o buraco de captura que este item existe pra fechar.
+  O FEAT-01 sai **inteiro** (orçamento + venda) ou não sai. A tentação de fatiar vai voltar — é esta
+  nota que a responde.
 
   **Escape hatch NÃO necessário:** cogitou-se copiar o "Item livre" da `QuotePage` pra `SaleModal`
   como curativo. Descartado — o FEAT-01 já vem antes do marco, e item livre captura só **preço**
@@ -660,6 +671,13 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 - **O histórico de hoje (catálogo, vendas, orçamentos) NÃO é o dado real/final** — é teste. O dono
   recadastra tudo (impressões já feitas e vendas) num **marco futuro que ele mesmo vai anunciar**,
   e a partir daí a guarda de dados começa pra valer. Um CSV de produtos mockup é trivial de refazer.
+- **QUANDO é o marco (dono, jul/2026):** decisão **totalmente dele**, quando **ele** considerar a
+  ferramenta madura — **provavelmente só depois de fechar o backlog atual inteiro**. Recadastra
+  **tudo, inclusive os acessórios** (não só produtos/filamentos). **Consequência:** esta diretriz
+  cobre o **backlog inteiro**, não só o Tier 1 → **nenhum item do backlog precisa de migração**,
+  incluindo o **7e** (o `Accessory` texto→referência sai de graça: o dono cadastra acessório uma vez
+  só, já ligado ao estoque, no marco). Não reordenar nada por causa de migração. **Nunca presumir a
+  data do marco** — só o dono anuncia.
 - **Consequência prática:** quando compatibilidade retroativa custar trabalho extra ou complicar o
   design, **não pague esse preço**. Prefira o modelo mais limpo. Vale abrir mão de: migração de
   documentos antigos, campos legado só-leitura, fallbacks pra dado sem o campo novo, round-trip de
