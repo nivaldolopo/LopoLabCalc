@@ -23,19 +23,20 @@
   coluna `Filamentos JSON`. `pnpm lint`+`test` (**62 verdes, +16**)+`build` limpos. **Só produto —
   baixa de estoque é o passo 8.**
   **Próximo passo (Tier 1): 7a — Estoque: modelo + repo (sem UI). APROVADO, pronto pra codar** —
-  nada foi codado ainda. Ver "Item 3 — Estoque" no backlog: 4 etapas (7a modelo/repo → 7b rota
-  `/estoque` → 7c dropdown no produto → 8 baixa na venda), **uma por chat**; o plano interno da 7a
-  (4 sub-etapas) está na própria 7a. **Decisões novas (jul/2026), já no item 3:** **D6** ajuste de
+  nada foi codado ainda. Ver "Item 3 — Estoque" no backlog: **5 etapas, uma por chat —
+  `7a modelo/repo → 7b rota /estoque → 7c dropdown no produto → FEAT-01 preço por etapa → 8 baixa na
+  venda`**; o plano interno da 7a (4 sub-etapas) está na própria 7a. **Decisões novas (jul/2026), já no item 3:** **D6** ajuste de
   inventário com rastro (`StockAdjustment` + `adjustRoll`; nunca editar `remainingG` na mão);
   **D6.1** não duplicar consumo no doc da cor (extrato monta na tela); **D7** `material` na cor e no
   snapshot, **nunca no rolo** → `material`/`brand` entram no `FilamentUsage`; **D8** `material` é
   input próprio (cor não tem campo de nome) = dropdown dos já cadastrados + digitar novo.
-  **Revisão de prioridade (jul/2026): ordem e tiers CONFIRMADOS, só o recorte das etapas mudou** —
-  extrato da cor sai em 2 partes (7b = compra+ajuste; consumo na 8); "quanto resta no rolo" + avisos
-  D5 **saem da 7c e vão pra 8** (entre elas nada deduz → o número seria ficção); a 7c mata o legado
-  do FEAT-02 de carona (Diretriz 7); o `SaleInput.material` órfão ganhou dono (passo 8).
-  **FEAT-01 fica no Tier 2** — o dono pode precisar *orçamentar* peça separada, mas orçamento não
-  congela histórico e a `/orcamento` já aceita item livre → é conveniência, não perda de dado.
+  **Revisão de prioridade (jul/2026) — recorte das etapas:** extrato da cor sai em 2 partes
+  (7b = compra+ajuste; consumo na 8); "quanto resta no rolo" + avisos D5 **saem da 7c e vão pra 8**
+  (entre elas nada deduz → o número seria ficção); a 7c mata o legado do FEAT-02 de carona
+  (Diretriz 7); o `SaleInput.material` órfão ganhou dono (passo 8).
+  **FEAT-01 SOBE pro Tier 1, entre a 7c e a 8** (`7a → 7b → 7c → FEAT-01 → 8`) — o dono apontou que
+  cotar etapa separada leva a **vender** etapa separada, e a `SaleModal` **não tem item livre**
+  (catálogo-only) → é **captura**, não conveniência. Vira **gate do marco**. Ver o item FEAT-01.
   Insumos (ímãs/parafusos/embalagem) viram item separado (7e), depois do filamento.
   Restam da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
@@ -56,7 +57,7 @@
   **descartada** (o dono decidiu não implementar). Foco volta ao backlog antigo
   (**item 3 — Estoque** `/estoque`, já desbloqueado).
 - **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — modelo **aprovado**, coleção própria
-  `estoque` (um doc por COR de filamento, rolos dentro); decisões D1-D5 e as 4 etapas no item 3 do
+  `estoque` (um doc por COR de filamento, rolos dentro); decisões D1-D8 e as 5 etapas no item 3 do
   backlog; (b) item 4 — **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
   TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
   **Auditoria do GPT: TD-001/004/005/007/008/009 FEITOS; restam TD-003 e TD-006** (no backlog, não
@@ -262,6 +263,11 @@
      `weightG`/`filamentPricePerKg` só-leitura, `normalizeFilaments` e o round-trip do CSV velho
      viram peso morto assim que a cor vem do estoque. A 7c já reescreve o `FilamentColorsSection` e
      mexe no CSV → custo quase zero agora, tarefa inteira depois. Avisar o dono o que ele recadastra.
+   - **FEAT-01 — Preço/subitens por etapa (ENTRA AQUI, antes da 8).** Não é do Estoque, mas o passo 8
+     depende dele: se um item de venda pode ser "uma etapa"/"um grupo de etapas", isso muda o que a
+     baixa deduz. Fazer antes evita nascer o passo 8 sabendo só vender produto inteiro e refazê-lo.
+     **Decisão do rateio (exato/aditivo) ainda em aberto — resolver enquanto 7a/7b/7c andam.**
+     Detalhe no item FEAT-01 (seção "Ideias/ajustes trazidos pelo dono").
    - **8 — Baixa na venda (fecha o FEAT-02).** `saveRecibo` deduz FIFO no batch atômico; custo real
      recalculado pelo consumo (D3) e **exibido na `SaleModal`**; editar/excluir estorna via
      `stockMoves`; avisos D4/D5 + **"rolo em uso e quanto resta"** (herdado da 7c: só faz sentido
@@ -357,8 +363,8 @@ pendente da auditoria.
   nas 8 telas (`NumberField` do `ProductForm` passou a usá-lo; + `AccessoriesSection`,
   `ExtraStagesSection`, `CapacityPanel`, `FixedCostsPanel`, `SaleModal`, `QuotePage`,
   `MachineManagerModal`). Clamps de call-site redundantes removidos. Só UI, sem migração.
-- ⬜ **[FEAT-01] Preço por etapa (etapa como item opcional no orçamento/venda)** *(prioridade a
-  definir · tamanho médio)*. Salvar/mostrar o preço calculado e proporcional de **cada etapa** do
+- ⬜ **[FEAT-01] Preço por etapa (etapa como item opcional no orçamento/venda)** *(**Tier 1, entre a
+  7c e a 8** · tamanho médio · **gate do marco**)*. Salvar/mostrar o preço calculado e proporcional de **cada etapa** do
   produto (considerando máquina, mão de obra, filamento, tempo de cada etapa). **Por quê:** uma
   etapa pode ser um acessório opcional pro cliente (ex.: peça base + adorno impresso à parte) — o
   dono quer poder cotar as etapas separadamente e deixar o cliente escolher tudo ou só uma parte.
@@ -377,6 +383,30 @@ pendente da auditoria.
   **Também quer:** poder **agrupar etapas específicas num subitem** do produto (ex.: 4 etapas → 2
   subitens vendáveis), não só quebrar 1-etapa-por-linha. Isso pede um conceito de "grupo de etapas"
   no orçamento/venda. **Depende de:** produto com etapas (`stages[]`) e dados por etapa (já existem).
+
+  **⚠ Isto é CAPTURA, não conveniência (revisão jul/2026 — corrige análise errada anterior).** Cotar
+  etapa separada leva a **vender** etapa separada. A `QuotePage` tem "Item livre" (~linha 513), mas a
+  **`SaleModal` NÃO tem** — ela só monta itens a partir de `catalogItems` e todo item exige
+  `source.productId` (~linha 298). Ou seja: **o orçamento da etapa sai hoje; a venda dela não tem como
+  ser registrada como ela mesma.** As 3 saídas atuais são todas ruins — registrar o produto inteiro
+  (custo/preço/peso errados), criar produto-fantasma no catálogo (duplica dado), ou não registrar
+  (perde a venda). **Pior depois do passo 8:** a baixa deduz FIFO a partir do `filaments[]` do
+  snapshot → registrar o produto inteiro numa venda de uma etapa **dá baixa do filamento do produto
+  inteiro**, e o erro sai do histórico e entra no **estoque físico** (o único dado que a Diretriz 7
+  NÃO deixa descartar — os rolos são reais).
+
+  **Por que entre a 7c e a 8, e não antes da 7a** (decisão do dono, jul/2026): o acoplamento
+  FEAT-01 ↔ Estoque é **só no passo 8** — se um item de venda pode ser "uma etapa"/"um grupo", muda
+  o que a baixa deduz. A 7a (FIFO puro; o `itemId` do `StockMove` já é id opaco genérico por D1),
+  a 7b (CRUD de cor/rolo) e a 7c (dropdown; FEAT-01 é camada de preço/agrupamento sobre etapas que
+  já existem — não muda onde o filamento é declarado, `PrintStage.filaments[]` já é por etapa) **não
+  são influenciadas**. Encaixar aqui faz o passo 8 nascer sabendo vender etapa, sem parar 3 chats de
+  trabalho pronto enquanto o rateio (decisão aberta, poste longo) é decidido.
+
+  **Escape hatch NÃO necessário:** cogitou-se copiar o "Item livre" da `QuotePage` pra `SaleModal`
+  como curativo. Descartado — o FEAT-01 já vem antes do marco, e item livre captura só **preço**
+  (sem `filaments[]`, sem baixa, sem "lucro por material"). Retomar só se uma venda de etapa
+  aparecer antes do FEAT-01 ficar pronto.
 - 🟡 **[FEAT-02] Gasto de filamento por cor (multicor / AMS / dual nozzle)** — **LADO-PRODUTO ✅ FEITO
   (jul/2026); baixa de estoque = passo 8 (pendente, depende do Estoque).** **DECISÃO p/ o Estoque
   (passo 7/8):** o campo **"Cor"** (texto livre, hoje só no multicolor) vira um **dropdown de seleção
@@ -469,11 +499,14 @@ pendente da auditoria.
   produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); **Item 3 — Estoque**
   (modelo **aprovado**, detalhe e decisões D1-D4 no item 3 do backlog), quebrado em **uma etapa por
   chat**: (7a) modelo + repo, sem UI — **próximo**; (7b) rota `/estoque` (CRUD de cores + rolos);
-  (7c) dropdown de cor no produto (preço vivo); (8) **FEAT-02 baixa na venda** (deduz FIFO no batch
-  da venda, estorna via `stockMoves`). Insumos = (7e), **item separado depois** do filamento.
-- **Tier 2 (features comerciais, independentes):** (9) **FEAT-01** preço/subitens por etapa (rateio
-  exato/aditivo); (10) **FEAT-03** melhorar PDF (quick wins soltos podem vir antes; "detalhar etapas"
-  espera FEAT-01); (11) **branding/logo real** no PDF (overlap c/ FEAT-03).
+  (7c) dropdown de cor no produto (preço vivo); **(9) FEAT-01** preço/subitens por etapa
+  (rateio exato/aditivo) — **subiu do Tier 2 (jul/2026): é captura, e o passo 8 depende dele**;
+  (8) **FEAT-02 baixa na venda** (deduz FIFO no batch da venda, estorna via `stockMoves`).
+  Insumos = (7e), **item separado depois** do filamento.
+  **Ordem final do Tier 1: 7a → 7b → 7c → FEAT-01 → 8.**
+- **Tier 2 (features comerciais, independentes):** (10) **FEAT-03** melhorar PDF (quick wins soltos
+  podem vir antes; "detalhar etapas" espera FEAT-01); (11) **branding/logo real** no PDF (overlap c/
+  FEAT-03).
 - **Tier 3 (adiar até ter volume de vendas):** (12) **Item 4 — Dashboard** (`/painel`) + **TD-003**
   capacidade por-máquina; (13) **TD-006** paginação.
 - **Tier 4 (menores/oportunistas):** (14) numeração de orçamento derivada no browser;
