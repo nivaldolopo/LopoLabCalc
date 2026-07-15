@@ -67,6 +67,13 @@ export function Header({ theme, status, onToggleTheme }: HeaderProps) {
           >
             <span aria-hidden="true">🖨️</span> Impressoras
           </Link>
+          <Link
+            className="icon-label-button"
+            href="/estoque"
+            title="Estoque de filamento por cor"
+          >
+            <span aria-hidden="true">📦</span> Estoque
+          </Link>
           <button
             className="icon-label-button"
             type="button"

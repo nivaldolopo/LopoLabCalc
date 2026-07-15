@@ -3,6 +3,7 @@ import type {
   ConsumptionMove,
   ConsumptionResult,
   FilamentRoll,
+  FilamentUsage,
   StockAdjustment,
   StockFilament,
   StockMove,
@@ -246,5 +247,155 @@ export function adjustRoll(
       item.id === rollId ? { ...item, remainingG: afterG } : item,
     ),
     adjustments: [...color.adjustments, adjustment],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Derivações para a tela (7b). São conta, não JSX: se a etiqueta da cor ou a
+// numeração dos rolos fosse montada dentro do componente, a 7c montaria de novo
+// e as duas divergiriam no primeiro ajuste.
+// ---------------------------------------------------------------------------
+
+// D8: a cor NÃO tem campo de nome — o nome exibido é derivado de
+// material+brand+colorName. É isso que permite agrupar por material sem parsear
+// texto. Partes vazias são omitidas (cor recém-criada, sem marca).
+export function filamentLabel(
+  color: Pick<StockFilament, "material" | "brand" | "colorName">,
+): string {
+  const parts = [color.material, color.colorName, color.brand]
+    .map((part) => (part ?? "").trim())
+    .filter((part) => part.length > 0);
+  return parts.length > 0 ? parts.join(" · ") : "(sem nome)";
+}
+
+// A metade "dropdown dos já cadastrados" do D8. Case-insensitive na comparação
+// para "PLA" e "pla" não virarem duas opções — mas devolve a grafia da primeira
+// cor cadastrada, sem inventar capitalização.
+export function materialOptions(filaments: StockFilament[]): string[] {
+  const seen = new Map<string, string>();
+  for (const color of filaments) {
+    const material = (color.material ?? "").trim();
+    if (!material) continue;
+    const key = material.toLowerCase();
+    if (!seen.has(key)) seen.set(key, material);
+  }
+  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+// Posição FIFO de cada rolo (1 = o mais antigo, o primeiro a ser consumido).
+// Dá nome ao rolo na tela ("Rolo #2") sem que ele precise de um campo de nome.
+export function rollNumbers(color: StockFilament): Map<string, number> {
+  const numbers = new Map<string, number>();
+  fifoRolls(color).forEach((roll, index) => numbers.set(roll.id, index + 1));
+  return numbers;
+}
+
+// Uma linha do extrato da cor. `deltaG` é sempre o efeito no saldo, com sinal —
+// é o que faz compra e ajuste serem legíveis na mesma coluna.
+export type StatementEntry =
+  | {
+      kind: "purchase";
+      id: string;
+      at: number;
+      rollId: string;
+      deltaG: number;
+      pricePerKg: number;
+      note?: string;
+    }
+  | {
+      kind: "adjustment";
+      id: string;
+      at: number;
+      rollId: string;
+      deltaG: number;
+      beforeG: number;
+      afterG: number;
+      reason: string;
+    };
+
+/**
+ * Extrato da cor, em ordem cronológica.
+ *
+ * D6.1 — o extrato se MONTA aqui, juntando as fontes que já existem; nada é
+ * duplicado dentro do doc da cor. Cada evento tem um dono só: a compra É o
+ * próprio `FilamentRoll`, o ajuste É o `StockAdjustment`.
+ *
+ * ⚠ v1 = 2 das 3 fontes. O CONSUMO mora no `stockMoves` do doc da VENDA, que só
+ * passa a existir no passo 8 — até lá não há dado, e inventar a terceira fonte
+ * aqui seria ficção. A 8 acrescenta um `kind: "consumption"` a esta união.
+ */
+export function colorStatement(color: StockFilament): StatementEntry[] {
+  const entries: StatementEntry[] = [
+    ...color.rolls.map(
+      (roll): StatementEntry => ({
+        kind: "purchase",
+        id: `roll_${roll.id}`,
+        at: num(roll.purchaseDate),
+        rollId: roll.id,
+        deltaG: num(roll.initialG),
+        pricePerKg: num(roll.pricePerKg),
+        ...(roll.note ? { note: roll.note } : {}),
+      }),
+    ),
+    ...color.adjustments.map(
+      (adjustment): StatementEntry => ({
+        kind: "adjustment",
+        id: `adj_${adjustment.id}`,
+        at: num(adjustment.at),
+        rollId: adjustment.rollId,
+        deltaG: num(adjustment.afterG) - num(adjustment.beforeG),
+        beforeG: num(adjustment.beforeG),
+        afterG: num(adjustment.afterG),
+        reason: adjustment.reason,
+      }),
+    ),
+  ];
+  // Sort estável (garantido pela spec): eventos do mesmo instante mantêm a ordem
+  // acima, então a compra do rolo nunca aparece depois do ajuste dele.
+  return entries.sort((a, b) => a.at - b.at);
+}
+
+// Fontes que podem apontar para uma cor. Estruturais de propósito: o que importa
+// é ter `filaments`, não ser um `SavedProduct`.
+type FilamentHolder = { filaments?: FilamentUsage[] | null };
+type ProductLike = FilamentHolder & {
+  name?: string;
+  stages?: FilamentHolder[] | null;
+};
+
+function holderUses(holder: FilamentHolder, colorId: string): boolean {
+  return (holder.filaments ?? []).some((f) => f.filamentId === colorId);
+}
+
+/**
+ * Quem ainda aponta para esta cor. É o guarda do EXCLUIR (7b): arquivar é a ação
+ * normal; excluir só é liberado quando ninguém referencia mais.
+ *
+ * Produto conta porque, a partir da 7c, ele lê o preço da cor VIVA — apagá-la
+ * deixaria o `filamentId` órfão (exatamente o que o D2 evitou ao dar id estável
+ * à cor em vez de ao rolo). Venda conta porque o passo 8 estorna pelo
+ * `stockMoves`, que aponta para o doc da cor: sem ele, editar o recibo depois
+ * não teria onde devolver as gramas.
+ *
+ * Hoje todo `filamentId` é `null` (a 7c é quem liga o dropdown), então nada
+ * bloqueia ainda — o guarda nasce junto do botão para não ficar faltando quando
+ * as referências passarem a existir.
+ */
+export function filamentReferences(
+  colorId: string,
+  products: ProductLike[],
+  sales: FilamentHolder[],
+): { productNames: string[]; salesCount: number } {
+  const productNames = products
+    .filter(
+      (product) =>
+        holderUses(product, colorId) ||
+        (product.stages ?? []).some((stage) => holderUses(stage, colorId)),
+    )
+    .map((product) => (product.name ?? "").trim() || "(sem nome)");
+
+  return {
+    productNames,
+    salesCount: sales.filter((sale) => holderUses(sale, colorId)).length,
   };
 }

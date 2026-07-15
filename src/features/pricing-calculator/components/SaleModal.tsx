@@ -3,6 +3,11 @@
 import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
+import {
+  toDateInput,
+  todayInputValue,
+  toTimestamp,
+} from "@/lib/formatting/date";
 import { round2 } from "@/lib/number";
 import {
   DEFAULT_PAYMENT_METHOD,
@@ -78,21 +83,6 @@ type SaleModalProps = {
   onClose: () => void;
   onConfirm: (upserts: ReciboUpsert[], removedIds: string[]) => Promise<void>;
 };
-
-function toDateInput(ms: number): string {
-  const date = new Date(ms);
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
-}
-
-function todayInputValue(): string {
-  return toDateInput(Date.now());
-}
-
-function toTimestamp(dateStr: string): number {
-  const parsed = new Date(`${dateStr}T12:00:00`).getTime();
-  return Number.isFinite(parsed) ? parsed : Date.now();
-}
 
 // Percentual enxuto (4.5 → "4,5", 2 → "2") para rótulos de taxa.
 function formatDecimalPct(value: number): string {

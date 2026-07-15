@@ -5,9 +5,14 @@ import {
   applyConsumption,
   balanceG,
   catalogPricePerKg,
+  colorStatement,
+  filamentLabel,
+  filamentReferences,
   isBelowMin,
+  materialOptions,
   newestRoll,
   reverseConsumption,
+  rollNumbers,
   saleCost,
   simulateConsumption,
 } from "./stock";
@@ -279,5 +284,114 @@ describe("adjustRoll", () => {
     adjustRoll(color, "velho", 70, "contagem", DIA);
     expect(color.rolls[0].remainingG).toBe(100);
     expect(color.adjustments).toEqual([]);
+  });
+});
+
+describe("filamentLabel / materialOptions (D8)", () => {
+  it("nome exibido é derivado de material + cor + marca", () => {
+    expect(filamentLabel(doisRolos())).toBe("PLA Basic · Preto · Bambu");
+  });
+
+  it("omite as partes vazias em vez de deixar separador solto", () => {
+    expect(
+      filamentLabel({ material: "PETG", brand: "", colorName: "Azul" }),
+    ).toBe("PETG · Azul");
+  });
+
+  it("lista materiais únicos, em ordem, sem duplicar por caixa", () => {
+    const cores = [
+      { ...doisRolos(), id: "a", material: "PLA" },
+      { ...doisRolos(), id: "b", material: "pla" },
+      { ...doisRolos(), id: "c", material: "PETG" },
+      { ...doisRolos(), id: "d", material: "  " },
+    ];
+    // "pla" some (mesmo material) e a grafia da 1ª cadastrada é a que fica.
+    expect(materialOptions(cores)).toEqual(["PETG", "PLA"]);
+  });
+});
+
+describe("rollNumbers", () => {
+  it("numera na ordem FIFO, não na ordem do array", () => {
+    const color = makeColor([
+      makeRoll({ id: "novo", purchaseDate: 2 * DIA }),
+      makeRoll({ id: "velho", purchaseDate: DIA }),
+    ]);
+    const numeros = rollNumbers(color);
+    expect(numeros.get("velho")).toBe(1);
+    expect(numeros.get("novo")).toBe(2);
+  });
+});
+
+describe("colorStatement (extrato v1 — D6.1)", () => {
+  it("junta compra e ajuste em ordem cronológica, com o delta com sinal", () => {
+    const color = adjustRoll(doisRolos(), "velho", 70, "contagem", 3 * DIA);
+    const extrato = colorStatement(color);
+
+    expect(extrato.map((e) => e.kind)).toEqual([
+      "purchase",
+      "purchase",
+      "adjustment",
+    ]);
+    expect(extrato[0]).toMatchObject({ rollId: "velho", deltaG: 1000 });
+    // O ajuste contou 70 g onde o sistema achava 100 → o extrato mostra −30.
+    expect(extrato[2]).toMatchObject({
+      rollId: "velho",
+      deltaG: -30,
+      beforeG: 100,
+      afterG: 70,
+    });
+  });
+
+  it("a compra do rolo vem antes do ajuste feito no mesmo instante", () => {
+    const color = adjustRoll(doisRolos(), "novo", 45, "veio com menos", 2 * DIA);
+    const extrato = colorStatement(color);
+    const noInstante = extrato.filter((e) => e.at === 2 * DIA);
+    expect(noInstante.map((e) => e.kind)).toEqual(["purchase", "adjustment"]);
+  });
+
+  it("v1 não tem consumo: só compra e ajuste existem como fonte", () => {
+    const consumida = applyConsumption(
+      doisRolos(),
+      simulateConsumption(doisRolos(), 120).moves,
+    );
+    // O saldo caiu (a baixa aconteceria), mas o extrato não inventa a 3ª fonte:
+    // ela mora no doc da venda e só nasce no passo 8.
+    expect(balanceG(consumida)).toBe(30);
+    expect(colorStatement(consumida).every((e) => e.kind === "purchase")).toBe(
+      true,
+    );
+  });
+});
+
+describe("filamentReferences (guarda do excluir)", () => {
+  const usa = (id: string | null) => ({
+    filaments: [{ filamentId: id, colorName: "", pricePerKg: 0, totalG: 100 }],
+  });
+
+  it("acha a cor usada no produto e na etapa", () => {
+    const refs = filamentReferences(
+      "cor-preto",
+      [
+        { name: "Vaso", ...usa("cor-preto") },
+        { name: "Caneca", ...usa(null), stages: [usa("cor-preto")] },
+        { name: "Chaveiro", ...usa("outra-cor") },
+      ],
+      [],
+    );
+    expect(refs.productNames).toEqual(["Vaso", "Caneca"]);
+  });
+
+  it("conta as vendas que congelaram a cor", () => {
+    const refs = filamentReferences(
+      "cor-preto",
+      [],
+      [usa("cor-preto"), usa("cor-preto"), usa("outra-cor")],
+    );
+    expect(refs.salesCount).toBe(2);
+  });
+
+  it("cor avulsa (filamentId null) não referencia ninguém", () => {
+    const refs = filamentReferences("cor-preto", [usa(null)], [usa(null)]);
+    expect(refs).toEqual({ productNames: [], salesCount: 0 });
   });
 });

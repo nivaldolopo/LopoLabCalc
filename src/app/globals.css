@@ -21,3 +21,4 @@
 @import "./styles/cesta-recibo.css"; /* cesta no modal + recibos agrupados */
 @import "./styles/quote.css"; /* página de orçamento (/orcamento) e histórico de PDFs */
 @import "./styles/machines.css"; /* página de ROI/payback das impressoras (/maquinas) */
+@import "./styles/stock.css"; /* estoque de filamento por cor (/estoque) + modais de cor/rolo/ajuste */

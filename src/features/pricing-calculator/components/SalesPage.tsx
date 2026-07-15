@@ -357,6 +357,9 @@ export function SalesPage() {
           <Link className="icon-label-button" href="/maquinas">
             <span aria-hidden="true">🖨️</span> Impressoras
           </Link>
+          <Link className="icon-label-button" href="/estoque">
+            <span aria-hidden="true">📦</span> Estoque
+          </Link>
           <button
             className="icon-label-button"
             type="button"

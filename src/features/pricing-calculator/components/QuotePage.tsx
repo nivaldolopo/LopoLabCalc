@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Download, FileText, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
+import { formatDate, todayInputValue, toTimestamp } from "@/lib/formatting/date";
 import {
   DEFAULT_FIXED_COSTS,
   DEFAULT_QUOTE_BUSINESS,
@@ -30,21 +31,6 @@ type QuoteItem = {
 
 function round2(value: number): number {
   return Math.round((Number(value) || 0) * 100) / 100;
-}
-
-function todayInputValue(): string {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60000;
-  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
-}
-
-function toTimestamp(dateStr: string): number {
-  const parsed = new Date(`${dateStr}T12:00:00`).getTime();
-  return Number.isFinite(parsed) ? parsed : Date.now();
-}
-
-function formatDate(ms: number): string {
-  return new Date(ms).toLocaleDateString("pt-BR");
 }
 
 let itemSeq = 0;
