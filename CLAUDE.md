@@ -200,7 +200,12 @@ pendente da auditoria.
   subitens vendáveis), não só quebrar 1-etapa-por-linha. Isso pede um conceito de "grupo de etapas"
   no orçamento/venda. **Depende de:** produto com etapas (`stages[]`) e dados por etapa (já existem).
 - 🟡 **[FEAT-02] Gasto de filamento por cor (multicor / AMS / dual nozzle)** — **LADO-PRODUTO ✅ FEITO
-  (jul/2026); baixa de estoque = passo 8 (pendente, depende do Estoque).** Modelo `FilamentUsage`
+  (jul/2026); baixa de estoque = passo 8 (pendente, depende do Estoque).** **DECISÃO p/ o Estoque
+  (passo 7/8):** o campo **"Cor"** (texto livre, hoje só no multicolor) vira um **dropdown de seleção
+  do spool cadastrado no Estoque** e passa a aparecer **também no monocolor** (mono = array de 1 →
+  também escolhe qual filamento do estoque, pra puxar preço e dar baixa). O `filamentId` já existe em
+  TODO `FilamentUsage` (inclusive mono), hoje `null` → não precisa migração, só ligar o dropdown; o
+  texto `colorName` fica como **fallback de filamento avulso** (fora do estoque). Modelo `FilamentUsage`
   (`totalG` canônico + model/purga/torre opcional), `filaments[]` em produto/etapa, `lib/filaments.ts`,
   `FilamentColorsSection`, custo por cor no cálculo, e **snapshot da venda congela as cores**. Falta só
   deduzir do spool ao efetivar a venda (passo 8). *Contexto original abaixo mantido:* Permitir marcar a
