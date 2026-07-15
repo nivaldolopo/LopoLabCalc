@@ -520,6 +520,23 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
   passo lógico e continuar em chat novo — mas **sem prometer precisão de tokens**
   (não há medidor ao vivo; o gatilho confiável é "tarefa concluída", não contagem).
 
+### 7. Dados atuais são descartáveis — priorize velocidade sobre compatibilidade
+- **O histórico de hoje (catálogo, vendas, orçamentos) NÃO é o dado real/final** — é teste. O dono
+  recadastra tudo (impressões já feitas e vendas) num **marco futuro que ele mesmo vai anunciar**,
+  e a partir daí a guarda de dados começa pra valer. Um CSV de produtos mockup é trivial de refazer.
+- **Consequência prática:** quando compatibilidade retroativa custar trabalho extra ou complicar o
+  design, **não pague esse preço**. Prefira o modelo mais limpo. Vale abrir mão de: migração de
+  documentos antigos, campos legado só-leitura, fallbacks pra dado sem o campo novo, round-trip de
+  CSV velho, backfill.
+- **Como agir:** escolha o design certo primeiro; se ele quebrar o dado atual, **avise o dono no
+  chat** (o que quebra e o que ele precisa recadastrar) e siga — não peça permissão a cada campo.
+  Nada de `window.confirm` extra nem código defensivo pra dado que vai ser jogado fora.
+- **Ainda vale a pena:** o que protege o dado **futuro**. Escrita atômica, estorno correto
+  (`stockMoves`), snapshot congelado da venda, testes da matemática — isso é a fundação que o marco
+  vai usar, não é compatibilidade com o passado.
+- **Esta diretriz expira** quando o dono declarar a ferramenta madura e recadastrar. **Depois disso,
+  migração volta a ser obrigatória** — reler esta diretriz antes de assumir que ela ainda vale.
+
 ## Infra / referência de deploy
 
 - **Projeto Vercel:** `lopo-lab/lopolabcalc` (time `lopo-lab`, plano Hobby).
