@@ -30,6 +30,12 @@
   **D6.1** não duplicar consumo no doc da cor (extrato monta na tela); **D7** `material` na cor e no
   snapshot, **nunca no rolo** → `material`/`brand` entram no `FilamentUsage`; **D8** `material` é
   input próprio (cor não tem campo de nome) = dropdown dos já cadastrados + digitar novo.
+  **Revisão de prioridade (jul/2026): ordem e tiers CONFIRMADOS, só o recorte das etapas mudou** —
+  extrato da cor sai em 2 partes (7b = compra+ajuste; consumo na 8); "quanto resta no rolo" + avisos
+  D5 **saem da 7c e vão pra 8** (entre elas nada deduz → o número seria ficção); a 7c mata o legado
+  do FEAT-02 de carona (Diretriz 7); o `SaleInput.material` órfão ganhou dono (passo 8).
+  **FEAT-01 fica no Tier 2** — o dono pode precisar *orçamentar* peça separada, mas orçamento não
+  congela histórico e a `/orcamento` já aceita item livre → é conveniência, não perda de dado.
   Insumos (ímãs/parafusos/embalagem) viram item separado (7e), depois do filamento.
   Restam da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
@@ -152,8 +158,11 @@
      **compra** = o próprio `FilamentRoll` (data/preço/nota); **consumo** = `stockMoves` no doc da
      VENDA (é de lá que o estorno lê); **ajuste** = `StockAdjustment` (D6). Copiar o consumo pra cor
      criaria 2ª fonte da verdade do mesmo fato — e num rastro de auditoria, 2 fontes que divergem são
-     piores que 1. O "extrato da cor" (compra → consumo → ajuste em ordem) se **monta na tela** (7b)
-     juntando as 3 fontes, sem duplicar dado.
+     piores que 1. O "extrato da cor" (compra → consumo → ajuste em ordem) se **monta na tela**
+     juntando as 3 fontes, sem duplicar dado. ⚠ **Mas o extrato nasce em DUAS partes:** o consumo
+     mora no `stockMoves` do doc da VENDA, que só passa a existir no **passo 8** — então o **extrato
+     v1 da 7b tem só compra + ajuste** (2 das 3 fontes), e o consumo entra na 8. Não tentar construir
+     a 3ª fonte na 7b: não há dado.
    - **(D7) `material` fica na COR e no SNAPSHOT — NUNCA no rolo.** A cor **é** material+marca+cor,
      então todo rolo dentro de "PLA Basic Preto" é PLA por construção. Pôr `material` no rolo
      permitiria um rolo de PETG dentro da cor PLA → o FIFO consumiria PETG numa impressão de PLA (o
@@ -164,7 +173,8 @@
      material, então o histórico dependeria de consultar a cor VIVA (que pode ter sido arquivada),
      violando a foto congelada. **Solução:** `material` e `brand` entram no **`FilamentUsage`**,
      preenchidos automático pela cor escolhida (7c) e **congelados na venda** (8), por cor. O campo
-     de texto da venda vira derivado (ou sai).
+     de texto da venda vira derivado (ou sai) — **dono: passo 8** (era um buraco sem etapa
+     responsável; sem isso o `SaleInput.material` fica órfão pra sempre).
    - **(D8) `material` é INPUT PRÓPRIO — a cor não tem campo de "nome".** O nome exibido
      ("PLA Basic · Preto · Bambu") é **derivado** de material+brand+colorName. É isso que deixa
      agrupar por material sem parsear texto. **Decisão da 7b:** o input é **dropdown dos materiais
@@ -235,17 +245,29 @@
    - **7b — Rota `/estoque` (CRUD).** Lista por cor com saldo, bolinha de cor, rolo em uso e alerta
      de mínimo; criar cor (**material = dropdown dos já cadastrados + digitar novo**, D8); **registrar
      rolo** (compra: gramas + preço + data); **ajuste de inventário via `adjustRoll`** (D6);
-     arquivar cor; "rolos anteriores" (histórico) e **extrato da cor** montado na tela juntando
-     compra+consumo+ajuste (D6.1). Link no header. Ainda **desligado** do produto.
+     arquivar cor; "rolos anteriores" (histórico) e **extrato da cor v1** montado na tela juntando
+     **compra + ajuste** (o consumo é a 3ª fonte e só existe a partir da 8 — ver D6.1). Link no
+     header. Ainda **desligado** do produto.
    - **7c — Ligar produto ↔ estoque.** O campo "Cor" do `FilamentColorsSection` vira **dropdown de
      cor**, e passa a aparecer **também no monocolor** (mono = array de 1 → escolhe a cor pra puxar
      preço e dar baixa). Opção **"avulso"** revela o texto livre + preço manual (fallback D3).
-     `calculatePricing` usa o **preço do rolo mais novo** (D3); mostra **rolo em uso + quanto resta**
-     e os avisos do D5; badge quando a cor sumiu, **no molde do `machineMissing`/TD-009**.
-     ⚠ **É aqui que preços podem mudar** (produto ligado a cor reajustada).
+     `calculatePricing` usa o **preço do rolo mais novo** (D3); badge quando a cor sumiu, **no molde
+     do `machineMissing`/TD-009**. ⚠ **É aqui que preços podem mudar** (produto ligado a cor
+     reajustada).
+     ⚠ **NÃO mostrar "rolo em uso + quanto resta" nem os avisos do D5 aqui** — entre a 7c e a 8
+     **nada deduz nada**, então o saldo só se move por compra ou ajuste manual e o número exibido
+     seria ficção crescente. Esse display **é da 8** (ou a 7c e a 8 saem em sequência imediata, sem
+     janela). Recorte da 7c = dropdown + preço vivo + badge de cor sumida.
+     **Aproveitar o chat p/ matar o legado do FEAT-02** (Diretriz 7 — o FEAT-02 é anterior a ela):
+     `weightG`/`filamentPricePerKg` só-leitura, `normalizeFilaments` e o round-trip do CSV velho
+     viram peso morto assim que a cor vem do estoque. A 7c já reescreve o `FilamentColorsSection` e
+     mexe no CSV → custo quase zero agora, tarefa inteira depois. Avisar o dono o que ele recadastra.
    - **8 — Baixa na venda (fecha o FEAT-02).** `saveRecibo` deduz FIFO no batch atômico; custo real
      recalculado pelo consumo (D3) e **exibido na `SaleModal`**; editar/excluir estorna via
-     `stockMoves`; avisos D4/D5. **Fim do Tier 1.**
+     `stockMoves`; avisos D4/D5 + **"rolo em uso e quanto resta"** (herdado da 7c: só faz sentido
+     quando a dedução existe). **Consumo entra no extrato da cor** (3ª fonte, fecha o D6.1/7b).
+     **`SaleInput.material` (texto livre) vira derivado do `FilamentUsage.material` congelado, ou
+     sai** (D7). **Fim do Tier 1.**
    - **7e — Insumos (item próprio, depois).** `supplyId` no `Accessory`, cadastro de insumos na
      `/estoque`, baixa por unidade (`kind: 'supply'`, já previsto no `stockMoves`). Ver D1.
 
