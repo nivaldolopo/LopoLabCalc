@@ -22,10 +22,15 @@
   snapshot (histórico sabe mono vs multi + cores/pesos; base da baixa futura). CSV faz round-trip por
   coluna `Filamentos JSON`. `pnpm lint`+`test` (**62 verdes, +16**)+`build` limpos. **Só produto —
   baixa de estoque é o passo 8.**
-  **Próximo passo (Tier 1):** **Estoque — modelo APROVADO pelo dono (jul/2026), pronto pra codar.**
-  Ver "Item 3 — Estoque" no backlog: 4 etapas (7a modelo/repo → 7b rota `/estoque` → 7c dropdown no
-  produto → 8 baixa na venda), **uma por chat**. Insumos (ímãs/parafusos/embalagem) viram item
-  separado (7e), depois do filamento.
+  **Próximo passo (Tier 1): 7a — Estoque: modelo + repo (sem UI). APROVADO, pronto pra codar** —
+  nada foi codado ainda. Ver "Item 3 — Estoque" no backlog: 4 etapas (7a modelo/repo → 7b rota
+  `/estoque` → 7c dropdown no produto → 8 baixa na venda), **uma por chat**; o plano interno da 7a
+  (4 sub-etapas) está na própria 7a. **Decisões novas (jul/2026), já no item 3:** **D6** ajuste de
+  inventário com rastro (`StockAdjustment` + `adjustRoll`; nunca editar `remainingG` na mão);
+  **D6.1** não duplicar consumo no doc da cor (extrato monta na tela); **D7** `material` na cor e no
+  snapshot, **nunca no rolo** → `material`/`brand` entram no `FilamentUsage`; **D8** `material` é
+  input próprio (cor não tem campo de nome) = dropdown dos já cadastrados + digitar novo.
+  Insumos (ímãs/parafusos/embalagem) viram item separado (7e), depois do filamento.
   Restam da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
@@ -135,6 +140,38 @@
        **A1 sem AMS isso é troca manual no meio da impressão** → o dono quer ver isso ao planejar.
      - **Passa do estoque TOTAL da cor** → aviso forte; é o negativo do D4.
      A UI mostra **qual rolo está em uso e quanto resta nele** junto do dropdown (7c) e na venda (8).
+   - **(D6) Ajuste de inventário tem RASTRO** (pedido do dono: "histórico mais fiel possível").
+     Contar o rolo e corrigir o saldo **não** é editar `remainingG` na mão — é `adjustRoll(cor,
+     rollId, countedG, reason, at)` (puro, em `lib/stock.ts`), que anexa um `StockAdjustment` ao doc
+     da cor. **Nenhum outro caminho** muda `remainingG` manualmente, senão o rastro fura no primeiro
+     atalho. Guarda `beforeG` **e** `afterG` (o delta se deriva; o inverso não — um rastro que só diz
+     "−70 g" perde qual era o furo). **Rolo arquivado/zerado também pode ser ajustado** (achou o spool
+     na gaveta e não estava vazio). **Ajuste é o remédio do D4:** com saldo negativo por overdraft, a
+     contagem gera delta positivo e o `beforeG` negativo **fica gravado como prova do tamanho do furo**.
+   - **(D6.1) NÃO duplicar o consumo dentro do doc da cor.** Os 3 eventos de uma cor já têm dono:
+     **compra** = o próprio `FilamentRoll` (data/preço/nota); **consumo** = `stockMoves` no doc da
+     VENDA (é de lá que o estorno lê); **ajuste** = `StockAdjustment` (D6). Copiar o consumo pra cor
+     criaria 2ª fonte da verdade do mesmo fato — e num rastro de auditoria, 2 fontes que divergem são
+     piores que 1. O "extrato da cor" (compra → consumo → ajuste em ordem) se **monta na tela** (7b)
+     juntando as 3 fontes, sem duplicar dado.
+   - **(D7) `material` fica na COR e no SNAPSHOT — NUNCA no rolo.** A cor **é** material+marca+cor,
+     então todo rolo dentro de "PLA Basic Preto" é PLA por construção. Pôr `material` no rolo
+     permitiria um rolo de PETG dentro da cor PLA → o FIFO consumiria PETG numa impressão de PLA (o
+     cadastro passaria a poder mentir), sem ganhar expressividade nenhuma. **O buraco real** que o
+     pedido do dono ("saber o que imprime em qual material") achou é outro: o campo "Material" da
+     venda é **texto livre digitado à mão**, opcional (`SaleModal.tsx`, ~linha 546), **um só por
+     item** (multicolor em PLA+PETG não é representável) — e `FilamentUsage` **não congela** o
+     material, então o histórico dependeria de consultar a cor VIVA (que pode ter sido arquivada),
+     violando a foto congelada. **Solução:** `material` e `brand` entram no **`FilamentUsage`**,
+     preenchidos automático pela cor escolhida (7c) e **congelados na venda** (8), por cor. O campo
+     de texto da venda vira derivado (ou sai).
+   - **(D8) `material` é INPUT PRÓPRIO — a cor não tem campo de "nome".** O nome exibido
+     ("PLA Basic · Preto · Bambu") é **derivado** de material+brand+colorName. É isso que deixa
+     agrupar por material sem parsear texto. **Decisão da 7b:** o input é **dropdown dos materiais
+     já cadastrados + opção de digitar um novo** (que passa a aparecer na lista). Texto livre puro
+     deixaria "PLA"/"pla"/"PLA Basic" virarem 3 materiais no agrupamento — o "lucro por material" do
+     Dashboard mentiria calado (mesmo furo do campo digitado à mão do D7). Lista fixa também não:
+     trava no dia que entrar material fora dela.
 
    **Modelo (híbrido cor + rolos):**
    ```ts
@@ -147,12 +184,23 @@
      note?: string;         // NF/fornecedor
    };
 
+   type StockAdjustment = { // D6: rastro da contagem de inventário
+     id: string;
+     at: number;            // quando a contagem foi feita
+     rollId: string;        // qual rolo foi contado
+     beforeG: number;       // o que o sistema achava que tinha (pode ser NEGATIVO — D4)
+     afterG: number;        // o que foi contado de verdade
+     reason: string;        // "contagem", "sobrou no bico", "rolo veio com menos"...
+   };
+
    type StockFilament = {   // = a COR; é o que o produto aponta (filamentId ESTÁVEL)
      id: string;
+     // SEM campo de nome — o nome exibido é derivado destes 3 (D8).
      material: string; brand: string; colorName: string; colorHex?: string;
      minG: number;          // alerta de estoque mínimo (0 = sem alerta)
      archived: boolean;     // "parei de usar essa cor" (raro; NÃO é "rolo acabou")
      rolls: FilamentRoll[]; // saldo = Σ remainingG
+     adjustments: StockAdjustment[]; // D6
      createdAt: number;
    };
    ```
@@ -162,7 +210,8 @@
 
    **`lib/stock.ts` (matemática pura, 7a)** — o miolo é uma simulação FIFO que serve aos 3 usos
    (aviso no form, custo da venda, baixa): `simulateConsumption(cor, gramas)` → `{ moves, cost,
-   crossesRoll, shortfallG }`; `applyConsumption` / `reverseConsumption`; `catalogPricePerKg` (rolo
+   crossesRoll, shortfallG }` (puro: descreve o que aconteceria, não muda a cor);
+   `applyConsumption` / `reverseConsumption`; `adjustRoll` (D6); `catalogPricePerKg` (rolo
    mais novo) e `saleCost` (FIFO, D3); `balanceG`; alerta de mínimo.
 
    **Ponto mais frágil — o ESTORNO:** a venda **tem que gravar o que deduziu**
@@ -172,13 +221,22 @@
    Vendas anteriores ao recurso não têm o campo → **não estornar**.
 
    **Etapas (uma por chat, nesta ordem):**
-   - **7a — Modelo + repo (sem UI).** `StockFilament`/`FilamentRoll` em `types.ts`; `lib/stock.ts`
-     (acima) + testes (FIFO atravessando rolos, custo misto, saldo negativo, round-trip
-     consumo→estorno); `stockRepository.ts` + hook `useStock` (padrão `machinesRepository`). Nada
-     plugado — **nenhum preço muda**.
+   - **7a — Modelo + repo (sem UI).** Plano em 4 sub-etapas (aprovado): **(1) tipos** —
+     `FilamentRoll`/`StockFilament`/`StockAdjustment` (D6) em `types.ts`, mais `StockMove`
+     (`{ itemId, kind: 'filament'|'supply', rollId, qty }` — nasce **genérico já aqui**, D1, mesmo
+     sem uso na 7a) e `ConsumptionResult` (contrato dos 3 consumidores: aviso 7c, custo da venda,
+     baixa 8); **+ `material`/`brand` no `FilamentUsage`** (D7 — preenchidos na 7c, congelados na 8);
+     **(2)** `lib/stock.ts` (acima); **(3)** `stockRepository.ts` (coleção `estoque`, padrão
+     `productsRepository`) + hook `useStock` (padrão `useMachines`, **sem** o semeio de localStorage —
+     lá é herança, aqui não há o que migrar); **(4)** testes (FIFO atravessando rolos, custo misto,
+     saldo negativo, round-trip consumo→estorno, `adjustRoll`) + lint/test/build + commit.
+     Regras do Firestore **não mudam** (são wildcard `/{document=**}`). Nada plugado — **nenhum
+     preço muda**; o app fica idêntico pro usuário.
    - **7b — Rota `/estoque` (CRUD).** Lista por cor com saldo, bolinha de cor, rolo em uso e alerta
-     de mínimo; criar cor; **registrar rolo** (compra: gramas + preço + data); ajuste de inventário;
-     arquivar cor; "rolos anteriores" (histórico). Link no header. Ainda **desligado** do produto.
+     de mínimo; criar cor (**material = dropdown dos já cadastrados + digitar novo**, D8); **registrar
+     rolo** (compra: gramas + preço + data); **ajuste de inventário via `adjustRoll`** (D6);
+     arquivar cor; "rolos anteriores" (histórico) e **extrato da cor** montado na tela juntando
+     compra+consumo+ajuste (D6.1). Link no header. Ainda **desligado** do produto.
    - **7c — Ligar produto ↔ estoque.** O campo "Cor" do `FilamentColorsSection` vira **dropdown de
      cor**, e passa a aparecer **também no monocolor** (mono = array de 1 → escolhe a cor pra puxar
      preço e dar baixa). Opção **"avulso"** revela o texto livre + preço manual (fallback D3).
