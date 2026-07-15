@@ -10,22 +10,27 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **FEAT-02 lado-produto FEITO — filamento por cor (multicolor).** Novo modelo
-  `FilamentUsage` (`{filamentId|null, colorName, pricePerKg, totalG, modelG?/purgedG?/towerG?}`):
-  `totalG` é **canônico** (já inclui torre+purga); Model/Purga/Torre são detalhe **opcional** que, quando
-  preenchido, **trava** `totalG` = soma. `PrintStage`/`ProductInput` ganharam `filaments[]` (mono = array
-  de 1); os escalares `weightG`/`filamentPricePerKg` viraram **LEGADO só-leitura** (migrados por
-  `normalizeFilaments` — o peso legado já era o total → **nenhum preço muda**). Helpers puros em
-  `lib/filaments.ts` (make/normalize/merge/materialCost/stripIds). Custo de material = Σ(peso_cor ×
-  preço_cor). Novo componente `FilamentColorsSection` (lista de cores + "detalhar refugo") na etapa
-  principal (`ProductForm`) e nas extras (`ExtraStagesSection`). A **venda congela `filaments[]`** no
-  snapshot (histórico sabe mono vs multi + cores/pesos; base da baixa futura). CSV faz round-trip por
-  coluna `Filamentos JSON`. `pnpm lint`+`test` (**62 verdes, +16**)+`build` limpos. **Só produto —
-  baixa de estoque é o passo 8.**
-  **Próximo passo (Tier 1): 7a — Estoque: modelo + repo (sem UI). APROVADO, pronto pra codar** —
-  nada foi codado ainda. Ver "Item 3 — Estoque" no backlog: **5 etapas, uma por chat —
-  `7a modelo/repo → 7b rota /estoque → 7c dropdown no produto → FEAT-01 preço por etapa → 8 baixa na
-  venda`**; o plano interno da 7a (4 sub-etapas) está na própria 7a. **Decisões novas (jul/2026), já no item 3:** **D6** ajuste de
+- **Última mudança:** **7a FEITA — Estoque: modelo + repo (sem UI).** Tipos do modelo híbrido
+  cor+rolos em `types.ts` (`FilamentRoll`, `StockAdjustment`, `StockFilament`(+`Input`/`Payload`)),
+  mais os dois contratos que a 7a existe pra fixar: **`StockMove`** (`{itemId, kind:'filament'|'supply',
+  **stockId**, rollId, qty}` — genérico já aqui por D1; **`stockId` foi ADICIONADO ao spec do backlog e
+  aprovado pelo dono**: sem ele o estorno da 8 teria que varrer todas as cores atrás do `rollId`) e
+  **`ConsumptionResult`**. `FilamentUsage` ganhou `material?`/`brand?` (D7, opcionais — ninguém preenche
+  até a 7c). **`lib/stock.ts`** (puro, imutável): `simulateConsumption` (FIFO por `purchaseDate`, empate
+  pela ordem do array; excedente vira negativo **engrossando o move do rolo mais novo**, D4; `crossesRoll`
+  = moves>1, D5), `applyConsumption`/`reverseConsumption` (por `RollDelta` — shape que `ConsumptionMove` e
+  `StockMove` satisfazem, então o estorno lê o doc da venda sem depender do preço; move de outra cor passa
+  batido), `adjustRoll` (D6 — **lança erro** em rolo inexistente: engolir contagem em silêncio é o furo que
+  o D6 evita), `catalogPricePerKg`/`saleCost` (os 2 preços do D3), `balanceG`, `activeRoll`/`newestRoll`,
+  `isBelowMin`. **`stockRepository.ts`** (coleção `estoque`, doc montado campo a campo — `colorHex`/`note`
+  opcionais e o Firestore rejeita `undefined`) + **`useStock`** (molde `useSales`, sem semeio de
+  localStorage). `pnpm lint`+`test` (**92 verdes, +30**)+`build` limpos. **Nada plugado — app idêntico pro
+  usuário, nenhum preço muda.**
+  **Próximo passo (Tier 1): 7b — rota `/estoque` (CRUD de cores + rolos).** Ver "Item 3 — Estoque" no
+  backlog: **`7a ✅ → 7b rota /estoque → 7c dropdown no produto → FEAT-01 preço por etapa → 8 baixa na
+  venda`**. Lembretes da 7b: material = **dropdown dos já cadastrados + digitar novo** (D8); **extrato da
+  cor v1 = compra + ajuste só** (o consumo é a 3ª fonte e só nasce na 8 — D6.1); `activeRoll`/`isBelowMin`
+  já existem prontos pra lista. **Decisões (jul/2026), no item 3:** **D6** ajuste de
   inventário com rastro (`StockAdjustment` + `adjustRoll`; nunca editar `remainingG` na mão);
   **D6.1** não duplicar consumo no doc da cor (extrato monta na tela); **D7** `material` na cor e no
   snapshot, **nunca no rolo** → `material`/`brand` entram no `FilamentUsage`; **D8** `material` é
@@ -118,8 +123,9 @@
      unitPrice}` **texto livre, sem gancho** — ligá-lo ao estoque é um FEAT-02 inteiro do lado do
      acessório (tipo novo, migração texto→referência, UI, snapshot, baixa por unidade). **Não dá pra
      inverter a ordem** (o `supplyId` precisaria apontar pra um cadastro que ainda não existe), MAS
-     o `stockMoves` da venda **nasce genérico já na 7a** (`kind: 'filament' | 'supply'`) — senão a
-     7e forçaria **migrar documentos de venda já gravados**.
+     o `stockMoves` da venda **nasceu genérico já na 7a** (`kind: 'filament' | 'supply'`, e o
+     `stockId` aponta pra cor OU pro insumo) — senão a 7e forçaria **migrar documentos de venda já
+     gravados**.
    - **(D2) Filamento = COR no dropdown, ROLOS por baixo (híbrido).** O produto aponta pra **cor**
      (`StockFilament`, id **estável**); os **rolos** (`FilamentRoll`) vivem dentro dela, cada um com
      o preço real pago, consumidos **do mais antigo pro mais novo** (FIFO). **Por que não SKU
@@ -229,23 +235,19 @@
    mais novo) e `saleCost` (FIFO, D3); `balanceG`; alerta de mínimo.
 
    **Ponto mais frágil — o ESTORNO:** a venda **tem que gravar o que deduziu**
-   (`stockMoves: [{ itemId, kind: 'filament', rollId, qty }]` no próprio doc da venda), senão editar
+   (`stockMoves: [{ itemId, kind: 'filament', stockId, rollId, qty }]` no próprio doc da venda —
+   `stockId` = a cor de origem, **sem ele o estorno teria que varrer todas as cores atrás do
+   `rollId`**; decidido na 7a), senão editar
    um recibo de 3 → 2 unidades corrompe o estoque em silêncio. Editar/excluir recibo **estorna
    exatamente** o que consta no `stockMoves` (por rolo — inclusive rolo já zerado/arquivado).
    Vendas anteriores ao recurso não têm o campo → **não estornar**.
 
    **Etapas (uma por chat, nesta ordem):**
-   - **7a — Modelo + repo (sem UI).** Plano em 4 sub-etapas (aprovado): **(1) tipos** —
-     `FilamentRoll`/`StockFilament`/`StockAdjustment` (D6) em `types.ts`, mais `StockMove`
-     (`{ itemId, kind: 'filament'|'supply', rollId, qty }` — nasce **genérico já aqui**, D1, mesmo
-     sem uso na 7a) e `ConsumptionResult` (contrato dos 3 consumidores: aviso 7c, custo da venda,
-     baixa 8); **+ `material`/`brand` no `FilamentUsage`** (D7 — preenchidos na 7c, congelados na 8);
-     **(2)** `lib/stock.ts` (acima); **(3)** `stockRepository.ts` (coleção `estoque`, padrão
-     `productsRepository`) + hook `useStock` (padrão `useMachines`, **sem** o semeio de localStorage —
-     lá é herança, aqui não há o que migrar); **(4)** testes (FIFO atravessando rolos, custo misto,
-     saldo negativo, round-trip consumo→estorno, `adjustRoll`) + lint/test/build + commit.
-     Regras do Firestore **não mudam** (são wildcard `/{document=**}`). Nada plugado — **nenhum
-     preço muda**; o app fica idêntico pro usuário.
+   - **7a — Modelo + repo (sem UI). ✅ FEITA (jul/2026).** Entregue: tipos (`FilamentRoll`,
+     `StockAdjustment`, `StockFilament`+`Input`/`Payload`, `StockMove` genérico com **`stockId`**,
+     `ConsumptionResult`) + `material?`/`brand?` no `FilamentUsage` (D7); `lib/stock.ts` puro;
+     `stockRepository.ts` (coleção `estoque`) + `useStock`; 30 testes. Regras do Firestore não
+     mudaram (wildcard `/{document=**}`). Nada plugado — nenhum preço mudou. Detalhe no "Status atual".
    - **7b — Rota `/estoque` (CRUD).** Lista por cor com saldo, bolinha de cor, rolo em uso e alerta
      de mínimo; criar cor (**material = dropdown dos já cadastrados + digitar novo**, D8); **registrar
      rolo** (compra: gramas + preço + data); **ajuste de inventário via `adjustRoll`** (D6);
@@ -527,8 +529,9 @@ pendente da auditoria.
   **Próximo: Tier 1.**
 - **Tier 1 (precisão de custo + fundação):** (6) ~~**FEAT-02 lado-produto**~~ **✅ FEITO** (cores no
   produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); **Item 3 — Estoque**
-  (modelo **aprovado**, detalhe e decisões D1-D4 no item 3 do backlog), quebrado em **uma etapa por
-  chat**: (7a) modelo + repo, sem UI — **próximo**; (7b) rota `/estoque` (CRUD de cores + rolos);
+  (modelo **aprovado**, detalhe e decisões D1-D8 no item 3 do backlog), quebrado em **uma etapa por
+  chat**: ~~(7a) modelo + repo, sem UI~~ **✅ FEITA**; (7b) rota `/estoque` (CRUD de cores + rolos)
+  — **próximo**;
   (7c) dropdown de cor no produto (preço vivo); **(9) FEAT-01** preço/subitens por etapa
   (rateio exato/aditivo) — **subiu do Tier 2 (jul/2026): é captura, e o passo 8 depende dele**;
   (8) **FEAT-02 baixa na venda** (deduz FIFO no batch da venda, estorna via `stockMoves`).
@@ -577,9 +580,11 @@ src/
                             #     ProfitSummary (rentabilidade compartilhada), AuthGate (login)
     hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
                             #     useAuth, useQuoteConfig (negócio), useQuotes (histórico),
-                            #     useFees (taxas de pagamento)
+                            #     useFees (taxas de pagamento), useStock (estoque de filamento)
     lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv,
                             #     saleContext (foto congelada da venda — helpers puros do SaleModal),
+                            #     filaments (cores por impressão, FEAT-02), stock (FIFO do estoque:
+                            #     simulate/apply/reverse/adjustRoll — matemática pura, item 3),
                             #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento,
                             #     testado em paymentFees.test.ts via vitest)
     constants.ts, types.ts
@@ -589,7 +594,8 @@ src/
                             #   salesRepository.ts (coleção `vendas`, snapshots congelados),
                             #   quoteConfigRepository.ts (doc config/orcamento: dados do negócio),
                             #   quotesRepository.ts (coleção `orcamentos`: histórico de orçamentos),
-                            #   feesRepository.ts (doc config/taxas: taxa % por forma de pagamento)
+                            #   feesRepository.ts (doc config/taxas: taxa % por forma de pagamento),
+                            #   stockRepository.ts (coleção `estoque`: um doc por COR, rolos dentro)
     formatting/currency.ts
 ```
 

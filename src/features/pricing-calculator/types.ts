@@ -17,9 +17,10 @@ export type Machine = {
 // CANÔNICO — é o que vale para custo e para a baixa de estoque (passo 8), e já
 // inclui torre + purga (o refugo da troca de cor). Model/Purga/Torre são
 // detalhe OPCIONAL: quando preenchidos, o form trava `totalG` = model+purga+torre;
-// quando ausentes, o usuário digita só o `totalG`. `filamentId` referencia um
-// spool do futuro Estoque (ou `null` = cor avulsa). `id` só existe no estado do
-// formulário (chave de lista) e é descartado ao persistir.
+// quando ausentes, o usuário digita só o `totalG`. `filamentId` referencia a COR
+// cadastrada no Estoque (`StockFilament.id`, estável — ver D2) ou `null` = cor
+// avulsa. `id` só existe no estado do formulário (chave de lista) e é descartado
+// ao persistir.
 export type FilamentUsage = {
   id?: string;
   filamentId: string | null;
@@ -29,6 +30,13 @@ export type FilamentUsage = {
   modelG?: number;
   purgedG?: number;
   towerG?: number;
+  // D7: material/marca vivem na COR e no SNAPSHOT — nunca no rolo. Preenchidos
+  // automaticamente pela cor escolhida (7c) e congelados na venda (8), por cor.
+  // É o que permite agrupar "lucro por material" sem consultar a cor viva (que
+  // pode ter sido arquivada) nem parsear texto digitado à mão. Ausentes em cor
+  // avulsa e em todo dado anterior à 7c.
+  material?: string;
+  brand?: string;
 };
 
 export type PrintStage = {
@@ -333,3 +341,95 @@ export type QuoteRecordInput = {
 export type QuoteRecordPayload = QuoteRecordInput & { createdAt: number };
 
 export type QuoteRecord = QuoteRecordInput & { id: string; createdAt: number };
+
+// ---------------------------------------------------------------------------
+// Estoque (item 3) — modelo híbrido COR + ROLOS (D2). O produto aponta para a
+// COR (id estável); os ROLOS vivem dentro dela e são consumidos do mais antigo
+// para o mais novo (FIFO), cada um com o preço real pago. Rolo zerado NÃO é
+// removido: fica como histórico de compra. A matemática pura vive em
+// `lib/stock.ts`; a coleção é `estoque` (um doc por cor).
+// ---------------------------------------------------------------------------
+
+// Uma compra: um rolo físico. O preço é o REAL pago neste rolo — é daqui que
+// sai tanto o custo de repor (rolo mais novo) quanto o custo real da venda
+// (FIFO), os dois preços do D3.
+export type FilamentRoll = {
+  id: string;
+  purchaseDate: number;
+  initialG: number; // 1000 normalmente
+  remainingG: number; // drena FIFO; o excedente vira NEGATIVO no rolo mais novo (D4)
+  pricePerKg: number;
+  note?: string; // NF/fornecedor
+};
+
+// D6: rastro da contagem de inventário. Contar o rolo e corrigir o saldo não é
+// editar `remainingG` na mão — passa por `adjustRoll`, que anexa um destes.
+// Guarda `beforeG` E `afterG` porque o delta se deriva mas o inverso não: um
+// rastro que só dissesse "−70 g" perderia qual era o furo.
+export type StockAdjustment = {
+  id: string;
+  at: number; // quando a contagem foi feita
+  rollId: string; // qual rolo foi contado
+  beforeG: number; // o que o sistema achava que tinha (pode ser NEGATIVO — D4)
+  afterG: number; // o que foi contado de verdade
+  reason: string; // "contagem", "sobrou no bico", "rolo veio com menos"...
+};
+
+// A COR — é o que o produto aponta (`FilamentUsage.filamentId`). SEM campo de
+// nome: o nome exibido ("PLA Basic · Preto · Bambu") é DERIVADO de
+// material+brand+colorName (D8), o que permite agrupar por material sem parsear
+// texto. `archived` = "parei de usar essa cor" (raro); NÃO é "o rolo acabou".
+export type StockFilamentInput = {
+  material: string;
+  brand: string;
+  colorName: string;
+  colorHex?: string;
+  minG: number; // alerta de estoque mínimo (0 = sem alerta)
+  archived: boolean;
+  rolls: FilamentRoll[]; // saldo = Σ remainingG
+  adjustments: StockAdjustment[]; // D6
+};
+
+export type StockFilamentPayload = StockFilamentInput & { createdAt: number };
+
+export type StockFilament = StockFilamentInput & {
+  id: string;
+  createdAt: number;
+};
+
+// O que a VENDA grava sobre o que deduziu — é de onde o estorno lê (editar um
+// recibo de 3 → 2 unidades tem que devolver exatamente o que saiu, por rolo,
+// inclusive rolo já zerado/arquivado). Nasce GENÉRICO (`kind`) já aqui, sem uso
+// na 7a, para os insumos (7e) não forçarem migração de vendas já gravadas (D1).
+// `stockId` é o doc de origem (a cor, ou o insumo na 7e): sem ele o estorno teria
+// que varrer todas as cores procurando o `rollId`.
+export type StockMove = {
+  itemId: string; // item da venda que consumiu (id opaco para o estoque)
+  kind: "filament" | "supply";
+  stockId: string;
+  rollId: string;
+  qty: number; // gramas (filamento) ou unidades (insumo)
+};
+
+// Uma fatia do consumo FIFO: quanto saiu de UM rolo, e a que preço. `pricePerKg`
+// e `cost` são o preço real daquele rolo — é o que a SaleModal mostra para
+// explicar o custo misto (D3: "100 g × R$90 + 50 g × R$110"). O passo 8
+// acrescenta `itemId`/`kind` e grava o `StockMove`.
+export type ConsumptionMove = {
+  stockId: string;
+  rollId: string;
+  qty: number;
+  pricePerKg: number;
+  cost: number;
+};
+
+// Contrato dos TRÊS consumidores do FIFO: o aviso no form (7c), o custo real da
+// venda (8) e a baixa (8). `crossesRoll` = vai atravessar para o próximo rolo
+// (D5 informativo: na A1 sem AMS isso é troca manual no meio da impressão);
+// `shortfallG` = passou do estoque total da cor (D5 forte / o negativo do D4).
+export type ConsumptionResult = {
+  moves: ConsumptionMove[];
+  cost: number;
+  crossesRoll: boolean;
+  shortfallG: number;
+};
