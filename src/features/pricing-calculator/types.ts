@@ -28,6 +28,7 @@ export type FilamentUsage = {
   pricePerKg: number;
   totalG: number;
   modelG?: number;
+  supportG?: number;
   purgedG?: number;
   towerG?: number;
   // D7: material/marca vivem na COR e no SNAPSHOT — nunca no rolo. Preenchidos

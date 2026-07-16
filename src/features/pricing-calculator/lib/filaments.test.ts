@@ -17,11 +17,23 @@ describe("filaments — makeFilament / totalG", () => {
     expect(filamentTotalG(f)).toBe(40);
   });
 
-  it("com detalhamento, o Total trava na soma model+purga+torre", () => {
+  it("com detalhamento, o Total trava na soma model+suporte+purga+torre", () => {
+    const f = makeFilament({
+      modelG: 88,
+      supportG: 24,
+      purgedG: 68,
+      towerG: 10,
+      totalG: 5,
+    });
+    // O totalG informado (5) é ignorado: soma = 190.
+    expect(f.totalG).toBe(190);
+    expect(filamentTotalG(f)).toBe(190);
+  });
+
+  it("detalhar sem campo de suporte é como suporte 0", () => {
     const f = makeFilament({ modelG: 88, purgedG: 68, towerG: 10, totalG: 5 });
-    // O totalG informado (5) é ignorado: soma = 166.
     expect(f.totalG).toBe(166);
-    expect(filamentTotalG(f)).toBe(166);
+    expect(f.supportG).toBeUndefined();
   });
 
   it("filamentTotalG cai na soma do detalhe quando totalG não veio", () => {
@@ -31,10 +43,11 @@ describe("filaments — makeFilament / totalG", () => {
       pricePerKg: 100,
       totalG: 0,
       modelG: 10,
+      supportG: 3,
       purgedG: 5,
       towerG: 0,
     };
-    expect(filamentTotalG(f)).toBe(15);
+    expect(filamentTotalG(f)).toBe(18);
   });
 });
 
@@ -94,11 +107,18 @@ describe("filaments — stripFilamentIds (persistência)", () => {
     expect(clean.totalG).toBe(40);
   });
 
-  it("mantém o detalhe quando presente", () => {
+  it("mantém o detalhe quando presente (inclui suporte)", () => {
     const [clean] = stripFilamentIds([
-      makeFilament({ modelG: 10, purgedG: 5, towerG: 0, pricePerKg: 100 }),
+      makeFilament({
+        modelG: 10,
+        supportG: 4,
+        purgedG: 5,
+        towerG: 0,
+        pricePerKg: 100,
+      }),
     ]);
     expect(clean.modelG).toBe(10);
-    expect(clean.totalG).toBe(15);
+    expect(clean.supportG).toBe(4);
+    expect(clean.totalG).toBe(19);
   });
 });

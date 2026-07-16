@@ -14,29 +14,36 @@ type FilamentSource = {
   filamentPricePerKg?: number | null;
 };
 
-// true quando ao menos um campo de detalhe (model/purga/torre) foi informado.
+// true quando ao menos um campo de detalhe (model/suporte/purga/torre) foi
+// informado.
 function hasBreakdown(data: Partial<FilamentUsage>): boolean {
   return (
     data.modelG !== undefined ||
+    data.supportG !== undefined ||
     data.purgedG !== undefined ||
     data.towerG !== undefined
   );
 }
 
 // Peso total (g) de UMA cor: o `totalG` canônico. Fallback para a soma do
-// detalhe quando o total não veio (ex.: dado que só trouxe model/purga/torre).
+// detalhe quando o total não veio (ex.: dado que só trouxe model/suporte/
+// purga/torre).
 export function filamentTotalG(f: FilamentUsage): number {
   const total = num(f.totalG);
   if (total > 0) return total;
-  return num(f.modelG) + num(f.purgedG) + num(f.towerG);
+  return num(f.modelG) + num(f.supportG) + num(f.purgedG) + num(f.towerG);
 }
 
 // Normaliza UMA cor: garante os campos e mantém `totalG` coerente — quando há
-// detalhamento, `totalG` passa a ser a soma model+purga+torre (o form trava
-// assim); sem detalhamento, usa o `totalG` informado.
+// detalhamento, `totalG` passa a ser a soma model+suporte+purga+torre (o form
+// trava assim); sem detalhamento, usa o `totalG` informado.
 export function makeFilament(data: Partial<FilamentUsage> = {}): FilamentUsage {
   const detailed = hasBreakdown(data);
-  const detailSum = num(data.modelG) + num(data.purgedG) + num(data.towerG);
+  const detailSum =
+    num(data.modelG) +
+    num(data.supportG) +
+    num(data.purgedG) +
+    num(data.towerG);
   return {
     ...(data.id ? { id: data.id } : {}),
     filamentId: data.filamentId ?? null,
@@ -44,6 +51,7 @@ export function makeFilament(data: Partial<FilamentUsage> = {}): FilamentUsage {
     pricePerKg: num(data.pricePerKg),
     totalG: detailed ? detailSum : num(data.totalG),
     modelG: data.modelG,
+    supportG: data.supportG,
     purgedG: data.purgedG,
     towerG: data.towerG,
   };
@@ -92,6 +100,8 @@ export function mergeFilaments(filaments: FilamentUsage[]): FilamentUsage[] {
     if (prev) {
       prev.totalG += total;
       if (f.modelG !== undefined) prev.modelG = num(prev.modelG) + num(f.modelG);
+      if (f.supportG !== undefined)
+        prev.supportG = num(prev.supportG) + num(f.supportG);
       if (f.purgedG !== undefined)
         prev.purgedG = num(prev.purgedG) + num(f.purgedG);
       if (f.towerG !== undefined) prev.towerG = num(prev.towerG) + num(f.towerG);
@@ -102,6 +112,7 @@ export function mergeFilaments(filaments: FilamentUsage[]): FilamentUsage[] {
         pricePerKg: num(f.pricePerKg),
         totalG: total,
         modelG: f.modelG,
+        supportG: f.supportG,
         purgedG: f.purgedG,
         towerG: f.towerG,
       });
@@ -125,6 +136,7 @@ export function stripFilamentIds(
       totalG: f.totalG,
     };
     if (f.modelG !== undefined) clean.modelG = num(f.modelG);
+    if (f.supportG !== undefined) clean.supportG = num(f.supportG);
     if (f.purgedG !== undefined) clean.purgedG = num(f.purgedG);
     if (f.towerG !== undefined) clean.towerG = num(f.towerG);
     return clean;

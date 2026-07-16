@@ -15,6 +15,7 @@ function filamentError(
     if (
       num(f.totalG) < 0 ||
       num(f.modelG) < 0 ||
+      num(f.supportG) < 0 ||
       num(f.purgedG) < 0 ||
       num(f.towerG) < 0
     ) {

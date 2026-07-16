@@ -10,17 +10,17 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **7b FEITA — rota `/estoque` (CRUD de cores + rolos).** `StockPage` + 3 modais
-  (cor / rolo / ajuste), `styles/stock.css`, link 📦 no header. Cartão por cor com saldo, rolo em uso,
-  preço de repor e alerta de mínimo; arquivar/reativar/excluir; detalhe com rolos, "rolos anteriores"
-  e extrato v1 (compra + ajuste — o consumo é a 3ª fonte e só nasce na 8, D6.1). 5 helpers puros
-  novos no `lib/stock.ts` (`filamentLabel`, `materialOptions`, `rollNumbers`, `colorStatement`,
-  `filamentReferences`) — a tela não monta nada derivado no JSX, senão a 7c remonta e diverge.
-  `adjustRoll` é o **único caminho da tela que toca `remainingG`** (D6). De carona: os helpers de
-  data saíram duplicados de `SaleModal`+`QuotePage` pra **`lib/formatting/date.ts`** (o estoque seria
-  a 3ª cópia). `lint`+`test` (**102 verdes, +10**)+`build` limpos. Decisões da etapa e recorte: item 3
-  do backlog. **Ainda desligada do produto — nenhum preço muda.**
-  **Próximo passo (Tier 1): 7c — dropdown de cor no produto (preço vivo).**
+- **Última mudança:** **`supportG` no detalhamento do filamento (FEAT-02, precursor da 7c).** O
+  "detalhar refugo" virou **Model + Suporte + Purga + Torre** (antes o suporte ficava de fora e,
+  como o form trava `totalG` = soma do detalhe, detalhar uma peça com suporte **subcontava** o
+  filamento — usar "só o total" já incluía). Campo `supportG?` opcional em `FilamentUsage`; somado
+  em `filamentTotalG`/`makeFilament`/`mergeFilaments`/`stripFilamentIds`, guardado em
+  `validateProduct`, UI + nota + grid `auto-fit` no `FilamentColorsSection`. Sem migração (D7).
+  `lint`+`test` (**103 verdes**)+`build` limpos. **7b (rota `/estoque`, CRUD de cores+rolos) segue
+  como antes** — ver "Concluído (macro)".
+  **Próximo passo (Tier 1): 7c — dropdown de cor no produto (preço vivo). NÃO iniciar sem o dono.**
+  Decisão reafirmada no chat da 7c: **manter os dois preços do D3** (rolo mais novo no catálogo =
+  custo de repor; FIFO na venda = custo real) — não igualar tudo no rolo antigo.
   **`7a ✅ → 7b ✅ → 7c → FEAT-01 → 8`** (detalhe e decisões D1-D8: item 3 do backlog). Lembretes da
   7c: **é onde preços PODEM mudar**; **não** mostrar "quanto resta no rolo" nem avisos D5 ali (entre
   7c e 8 nada deduz → seria ficção); matar o legado do FEAT-02 de carona (Diretriz 7);

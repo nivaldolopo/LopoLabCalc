@@ -154,7 +154,7 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
     expect(r.filaments).toHaveLength(2); // multicolor
   });
 
-  it("torre e purga entram no custo (usa o Total por cor)", () => {
+  it("suporte, torre e purga entram no custo (usa o Total por cor)", () => {
     const r = calculatePricing(
       makeProduct({
         filaments: [
@@ -162,6 +162,7 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
             filamentId: null,
             colorName: "Preto",
             modelG: 80,
+            supportG: 22,
             purgedG: 68,
             towerG: 10,
             totalG: 0,
@@ -172,9 +173,9 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
       DEFAULT_MACHINES,
       NO_FIXED,
     );
-    // Total = 80+68+10 = 158 g → 158/1000*100 = 15,8 (não só os 80 g da peça).
-    expect(r.materialCost).toBeCloseTo(15.8, 6);
-    expect(r.filaments[0].totalG).toBe(158);
+    // Total = 80+22+68+10 = 180 g → 180/1000*100 = 18 (não só os 80 g da peça).
+    expect(r.materialCost).toBeCloseTo(18, 6);
+    expect(r.filaments[0].totalG).toBe(180);
   });
 
   it("agrega a mesma cor da etapa principal + extra num só item", () => {

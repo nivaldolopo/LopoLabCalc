@@ -20,7 +20,10 @@ let addSeq = 0;
 
 function isDetailed(f: FilamentUsage): boolean {
   return (
-    f.modelG !== undefined || f.purgedG !== undefined || f.towerG !== undefined
+    f.modelG !== undefined ||
+    f.supportG !== undefined ||
+    f.purgedG !== undefined ||
+    f.towerG !== undefined
   );
 }
 
@@ -58,15 +61,20 @@ export function FilamentColorsSection({
     onChange(filaments.filter((_, i) => i !== index));
   }
 
-  // Abre o detalhamento: semeia Model com o total atual (Purga/Torre em 0), sem
-  // mudar o Total.
+  // Abre o detalhamento: semeia Model com o total atual (Suporte/Purga/Torre em
+  // 0), sem mudar o Total.
   function openDetail(index: number) {
     const f = filaments[index];
-    updateAt(index, { modelG: filamentTotalG(f), purgedG: 0, towerG: 0 });
+    updateAt(index, {
+      modelG: filamentTotalG(f),
+      supportG: 0,
+      purgedG: 0,
+      towerG: 0,
+    });
   }
 
-  // Fecha o detalhamento: volta a só-Total (limpa Model/Purga/Torre), mantendo
-  // o peso total já somado.
+  // Fecha o detalhamento: volta a só-Total (limpa Model/Suporte/Purga/Torre),
+  // mantendo o peso total já somado.
   function closeDetail(index: number) {
     const total = filamentTotalG(filaments[index]);
     onChange(
@@ -98,9 +106,9 @@ export function FilamentColorsSection({
       </div>
       {multi ? (
         <div className="section-note">
-          Multicolor: informe o peso de cada filamento. O Total já inclui a purga
-          e a torre da troca de cor — use &ldquo;detalhar refugo&rdquo; para
-          separar.
+          Multicolor: informe o peso de cada filamento. O Total já inclui o
+          suporte e a purga/torre da troca de cor — use &ldquo;detalhar
+          refugo&rdquo; para separar.
         </div>
       ) : null}
       <div className="filament-list">
@@ -135,7 +143,10 @@ export function FilamentColorsSection({
                 {detailed ? (
                   <div className="filament-cell">
                     <label className="section-label">Total (g)</label>
-                    <div className="filament-total-value" title="Model + Purga + Torre">
+                    <div
+                      className="filament-total-value"
+                      title="Model + Suporte + Purga + Torre"
+                    >
                       {round2(filamentTotalG(f))} g
                     </div>
                   </div>
@@ -175,6 +186,15 @@ export function FilamentColorsSection({
                       />
                     </div>
                     <div className="filament-cell">
+                      <label className="section-label">Suporte (g)</label>
+                      <NumberInput
+                        className="field-input"
+                        min={0}
+                        value={f.supportG ?? 0}
+                        onChange={(supportG) => updateAt(index, { supportG })}
+                      />
+                    </div>
+                    <div className="filament-cell">
                       <label className="section-label">Purga (g)</label>
                       <NumberInput
                         className="field-input"
@@ -207,7 +227,7 @@ export function FilamentColorsSection({
                   type="button"
                   onClick={() => openDetail(index)}
                 >
-                  detalhar refugo (model + purga + torre)
+                  detalhar refugo (model + suporte + purga + torre)
                 </button>
               )}
             </div>
