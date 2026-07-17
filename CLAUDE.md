@@ -10,23 +10,23 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **`supportG` no detalhamento do filamento (FEAT-02, precursor da 7c).** O
-  "detalhar refugo" virou **Model + Suporte + Purga + Torre** (antes o suporte ficava de fora e,
-  como o form trava `totalG` = soma do detalhe, detalhar uma peça com suporte **subcontava** o
-  filamento — usar "só o total" já incluía). Campo `supportG?` opcional em `FilamentUsage`; somado
-  em `filamentTotalG`/`makeFilament`/`mergeFilaments`/`stripFilamentIds`, guardado em
-  `validateProduct`, UI + nota + grid `auto-fit` no `FilamentColorsSection`. Sem migração (D7).
-  `lint`+`test` (**103 verdes**)+`build` limpos. **7b (rota `/estoque`, CRUD de cores+rolos) segue
-  como antes** — ver "Concluído (macro)".
-  **Próximo passo (Tier 1): 7c — dropdown de cor no produto (preço vivo). NÃO iniciar sem o dono.**
-  Decisão reafirmada no chat da 7c: **manter os dois preços do D3** (rolo mais novo no catálogo =
-  custo de repor; FIFO na venda = custo real) — não igualar tudo no rolo antigo.
-  **`7a ✅ → 7b ✅ → 7c → FEAT-01 → 8`** (detalhe e decisões D1-D8: item 3 do backlog). Lembretes da
-  7c: **é onde preços PODEM mudar**; **não** mostrar "quanto resta no rolo" nem avisos D5 ali (entre
-  7c e 8 nada deduz → seria ficção); matar o legado do FEAT-02 de carona (Diretriz 7);
-  ⚠ `makeFilament`/`stripFilamentIds` (`lib/filaments.ts`) **descartam `material`/`brand`** — a 7c
-  precisa passá-los adiante, senão o D7 morre calado. Restam da auditoria: **TD-003** (capacidade
-  por-máquina, casar com Dashboard) e **TD-006** (paginação).
+- **Última mudança:** **7c — produto ligado ao Estoque (dropdown de cor + preço vivo).** O campo
+  "Cor" do `FilamentColorsSection` virou **dropdown das cores do Estoque** (mono E multi) + opção
+  **"Avulso"** (texto livre + preço manual, fallback D3). Ligada a uma cor, o **preço/kg vem vivo do
+  rolo mais novo** (D3 catálogo) e fica só-leitura; cor sem rolo/removida cai no preço salvo.
+  `calculatePricing(product, machines, fixed, **stock**)` resolve o preço vivo e devolve
+  **`filamentMissing`** → badge no molde do `machineMissing`/TD-009 (`PricingResultCard` +
+  `ProductCatalog`). `useStock` plugado no `PricingCalculator`, propagado a `ProductForm`/
+  `ProductCatalog`/`exportProductsCsv`. **SÓ O NÚCLEO (decisão do dono):** o legado escalar do
+  FEAT-02 (`weightG`/`filamentPricePerKg`, `normalizeFilaments`, CSV velho) foi **mantido** — a
+  faxina vira tarefa própria depois. **NÃO** há display de "rolo em uso/quanto resta" nem avisos D5
+  aqui (é da 8). `lint`+`test` (**108 verdes**)+`build` limpos.
+  ⚠ **Recadastro:** produtos atuais seguem "Avulso" (preço salvo) até o dono abrir cada um e
+  escolher a cor no dropdown — nada quebra; só não puxam preço vivo enquanto forem avulsos.
+  **Próximo passo (Tier 1): FEAT-01 — preço/subitens por etapa (rateio exato/aditivo). NÃO iniciar
+  sem o dono.** Decisão do rateio (exato/aditivo) resolve-se no PRÓPRIO chat do FEAT-01.
+  **`7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 → 8`** (detalhe e decisões D1-D8: item 3 do backlog). Restam da
+  auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
@@ -40,8 +40,8 @@
 - **Infra pronta:** subdomínio `calculadora.lopolab.com.br` **NO AR** (CNAME "DNS only" no
   Cloudflare + SSL Let's Encrypt + Authorized domain no Firebase). **E-mail `@lopolab.com.br`
   configurado** (DNS no Cloudflare; contexto no chat "abertura da loja", fora do repo).
-- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — **EM ANDAMENTO: 7a ✅ + 7b ✅**,
-  próximo é a **7c**; coleção `estoque` (um doc por COR, rolos dentro); decisões D1-D8 e as etapas
+- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — **EM ANDAMENTO: 7a ✅ + 7b ✅ + 7c ✅**,
+  próximo é a **FEAT-01** (e depois a **8**, baixa na venda); coleção `estoque` (um doc por COR, rolos dentro); decisões D1-D8 e as etapas
   no item 3 do backlog; (b) item 4 — **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
   TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
   **Auditoria do GPT: TD-001/004/005/007/008/009 FEITOS; restam TD-003 e TD-006** (no backlog, não
@@ -236,20 +236,17 @@
      `filamentReferences` é o guarda — inerte até a 7c, quando os `filamentId` deixam de ser `null`);
      **editar cor liberado** (inclusive `material`, que re-agrupa retroativo — ok por Diretriz 7);
      rolo default 1000 g. Ainda **desligado** do produto. Detalhe no "Status atual".
-   - **7c — Ligar produto ↔ estoque.** O campo "Cor" do `FilamentColorsSection` vira **dropdown de
-     cor**, e passa a aparecer **também no monocolor** (mono = array de 1 → escolhe a cor pra puxar
-     preço e dar baixa). Opção **"avulso"** revela o texto livre + preço manual (fallback D3).
-     `calculatePricing` usa o **preço do rolo mais novo** (D3); badge quando a cor sumiu, **no molde
-     do `machineMissing`/TD-009**. ⚠ **É aqui que preços podem mudar** (produto ligado a cor
-     reajustada).
-     ⚠ **NÃO mostrar "rolo em uso + quanto resta" nem os avisos do D5 aqui** — entre a 7c e a 8
-     **nada deduz nada**, então o saldo só se move por compra ou ajuste manual e o número exibido
-     seria ficção crescente. Esse display **é da 8** (ou a 7c e a 8 saem em sequência imediata, sem
-     janela). Recorte da 7c = dropdown + preço vivo + badge de cor sumida.
-     **Aproveitar o chat p/ matar o legado do FEAT-02** (Diretriz 7 — o FEAT-02 é anterior a ela):
-     `weightG`/`filamentPricePerKg` só-leitura, `normalizeFilaments` e o round-trip do CSV velho
-     viram peso morto assim que a cor vem do estoque. A 7c já reescreve o `FilamentColorsSection` e
-     mexe no CSV → custo quase zero agora, tarefa inteira depois. Avisar o dono o que ele recadastra.
+   - **7c — Ligar produto ↔ estoque. ✅ FEITA (jul/2026).** Entregue: campo "Cor" virou **dropdown
+     das cores do Estoque** (mono E multi) + opção **"Avulso"** (texto livre + preço manual, fallback
+     D3). `calculatePricing(..., stock)` resolve o **preço do rolo mais novo** (D3 catálogo,
+     só-leitura quando ligada) e devolve **`filamentMissing`** → badge no molde do
+     `machineMissing`/TD-009 (`PricingResultCard` + `ProductCatalog`). `useStock` no
+     `PricingCalculator`, propagado a `ProductForm`/`ExtraStagesSection`/`ProductCatalog`/
+     `exportProductsCsv`. **NÃO** mostra "rolo em uso/quanto resta" nem avisos D5 (é da 8). +5 testes
+     (108 verdes). **Decisão do dono: SÓ O NÚCLEO** — a **faxina do legado FEAT-02 foi ADIADA**
+     (`weightG`/`filamentPricePerKg` escalares, `normalizeFilaments`, round-trip do CSV velho
+     **mantidos** como peso morto inofensivo) → vira **tarefa própria** depois (Diretriz 7 segue
+     cobrindo). Detalhe no "Status atual".
    - **FEAT-01 — Preço/subitens por etapa (ENTRA AQUI, antes da 8).** Não é do Estoque, mas o passo 8
      depende dele: se um item de venda pode ser "uma etapa"/"um grupo de etapas", isso muda o que a
      baixa deduz. Fazer antes evita nascer o passo 8 sabendo só vender produto inteiro e refazê-lo.
@@ -513,9 +510,9 @@ pendente da auditoria.
   produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); **Item 3 — Estoque**
   (modelo **aprovado**, detalhe e decisões D1-D8 no item 3 do backlog), quebrado em **uma etapa por
   chat**: ~~(7a) modelo + repo, sem UI~~ **✅ FEITA**; ~~(7b) rota `/estoque` (CRUD de cores +
-  rolos)~~ **✅ FEITA**;
-  (7c) dropdown de cor no produto (preço vivo) — **próximo**; **(9) FEAT-01** preço/subitens por etapa
-  (rateio exato/aditivo) — **subiu do Tier 2 (jul/2026): é captura, e o passo 8 depende dele**;
+  rolos)~~ **✅ FEITA**; ~~(7c) dropdown de cor no produto (preço vivo)~~ **✅ FEITA**;
+  **(9) FEAT-01** preço/subitens por etapa (rateio exato/aditivo) — **próximo; é captura, e o passo 8
+  depende dele**;
   (8) **FEAT-02 baixa na venda** (deduz FIFO no batch da venda, estorna via `stockMoves`).
   Insumos = (7e), **item separado depois** do filamento.
   **Ordem final do Tier 1: 7a → 7b → 7c → FEAT-01 → 8.**

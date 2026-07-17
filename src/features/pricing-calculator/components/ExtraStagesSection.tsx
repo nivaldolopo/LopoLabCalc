@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
-import type { Machine, PrintStage } from "../types";
+import type { Machine, PrintStage, StockFilament } from "../types";
 import { FilamentColorsSection } from "./FilamentColorsSection";
 import { NumberInput } from "./NumberInput";
 import { PrintTimeField } from "./ProductForm";
@@ -9,6 +9,7 @@ import { PrintTimeField } from "./ProductForm";
 type ExtraStagesSectionProps = {
   stages: PrintStage[];
   machines: Machine[];
+  stock: StockFilament[];
   onAddStage: () => void;
   onRemoveStage: (stageId: string) => void;
   onUpdateStage: (stageId: string, patch: Partial<PrintStage>) => void;
@@ -17,6 +18,7 @@ type ExtraStagesSectionProps = {
 export function ExtraStagesSection({
   stages,
   machines,
+  stock,
   onAddStage,
   onRemoveStage,
   onUpdateStage,
@@ -83,6 +85,7 @@ export function ExtraStagesSection({
           </div>
           <FilamentColorsSection
             filaments={stage.filaments ?? []}
+            stock={stock}
             onChange={(filaments) =>
               onUpdateStage(stage.id ?? "", { filaments })
             }

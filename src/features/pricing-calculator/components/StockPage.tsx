@@ -505,9 +505,9 @@ export function StockPage() {
       <div className="stock-bar">
         <p className="stock-intro">
           Cada cor guarda os rolos que você comprou, com o preço real de cada um.
-          O consumo é do rolo mais antigo para o mais novo. Ainda desligado da
-          calculadora: escolher a cor no produto e a baixa na venda vêm nos
-          próximos passos.
+          O consumo é do rolo mais antigo para o mais novo. Já dá para escolher a
+          cor no produto (o preço/kg sai daqui, do rolo mais novo); a baixa
+          automática na venda vem no próximo passo.
         </p>
         <button
           className="btn primary"

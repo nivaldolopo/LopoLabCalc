@@ -12,6 +12,7 @@ import type {
   PricingResult,
   SavedProduct,
   SortMode,
+  StockFilament,
 } from "../types";
 import { calculatePricing } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
@@ -33,6 +34,7 @@ function formatCount(value: number): string {
 type ProductCatalogProps = {
   products: SavedProduct[];
   machines: Machine[];
+  stock: StockFilament[];
   fixedCosts: FixedCostSettings;
   pricingByProduct: Map<string, PricingResult>;
   capacitySettings: CapacitySettings;
@@ -48,6 +50,7 @@ type ProductCatalogProps = {
 export function ProductCatalog({
   products,
   machines,
+  stock,
   fixedCosts,
   pricingByProduct,
   capacitySettings,
@@ -71,8 +74,8 @@ export function ProductCatalog({
   const resultFor = useCallback(
     (product: SavedProduct) =>
       pricingByProduct.get(product.id) ??
-      calculatePricing(product, machines, fixedCosts),
-    [pricingByProduct, machines, fixedCosts],
+      calculatePricing(product, machines, fixedCosts, stock),
+    [pricingByProduct, machines, fixedCosts, stock],
   );
 
   const sortedProducts = useMemo(() => {
@@ -103,7 +106,7 @@ export function ProductCatalog({
   if (products.length === 0) return null;
 
   function exportCsv() {
-    const csv = exportProductsCsv(products, machines, fixedCosts);
+    const csv = exportProductsCsv(products, machines, fixedCosts, stock);
     downloadCsv("catalogo-precos-3d.csv", csv);
   }
 
@@ -380,6 +383,15 @@ function CatalogDetails({
         </span>
         <span>
           <span className="db-label">Filamento</span> {filamentLabel}
+          {result.filamentMissing ? (
+            <span
+              className="machine-missing-badge"
+              title="Cor removida do Estoque — usando o preço salvo. Reatribua a cor do produto (o custo pode estar errado)."
+            >
+              {" "}
+              ⚠ cor removida
+            </span>
+          ) : null}
         </span>
         <span>
           <span className="db-label">Mão de obra</span> {product.laborMinutes}min

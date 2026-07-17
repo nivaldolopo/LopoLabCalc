@@ -4,10 +4,40 @@ import {
   calculatePricing,
 } from "./calculatePricing";
 import { DEFAULT_PRODUCT_INPUT, DEFAULT_MACHINES } from "../constants";
-import type { FixedCostSettings, ProductInput } from "../types";
+import type {
+  FilamentRoll,
+  FixedCostSettings,
+  ProductInput,
+  StockFilament,
+} from "../types";
 
 function makeProduct(overrides: Partial<ProductInput> = {}): ProductInput {
   return { ...DEFAULT_PRODUCT_INPUT, ...overrides };
+}
+
+// Cor do Estoque para os testes de preço vivo (7c). Rolos na ordem informada.
+function makeColor(
+  id: string,
+  rolls: Array<Partial<FilamentRoll>>,
+): StockFilament {
+  return {
+    id,
+    material: "PLA",
+    brand: "Bambu",
+    colorName: "Preto",
+    minG: 0,
+    archived: false,
+    rolls: rolls.map((roll, index) => ({
+      id: `${id}_r${index}`,
+      purchaseDate: index,
+      initialG: 1000,
+      remainingG: 1000,
+      pricePerKg: 100,
+      ...roll,
+    })),
+    adjustments: [],
+    createdAt: 0,
+  };
 }
 
 const NO_FIXED: FixedCostSettings = {
@@ -247,5 +277,96 @@ describe("calculatePricing — máquina órfã (TD-009)", () => {
       NO_FIXED,
     );
     expect(r.machineMissing).toBe(true);
+  });
+});
+
+describe("calculatePricing — preço vivo do Estoque (7c)", () => {
+  it("cor ligada usa o preço do rolo MAIS NOVO (D3), não o salvo", () => {
+    const stock = [
+      makeColor("cor1", [
+        { purchaseDate: 1, pricePerKg: 90 },
+        { purchaseDate: 2, pricePerKg: 130 }, // mais novo → custo de repor
+      ]),
+    ];
+    const r = calculatePricing(
+      makeProduct({
+        filaments: [
+          { filamentId: "cor1", colorName: "Preto", totalG: 100, pricePerKg: 50 },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      stock,
+    );
+    // Usa 130 (rolo mais novo), ignorando o pricePerKg salvo (50): 100/1000*130.
+    expect(r.materialCost).toBeCloseTo(13, 6);
+    expect(r.filamentMissing).toBe(false);
+  });
+
+  it("cor sem rolo cai no preço salvo (fallback D3), sem marcar missing", () => {
+    const stock = [makeColor("cor1", [])];
+    const r = calculatePricing(
+      makeProduct({
+        filaments: [
+          { filamentId: "cor1", colorName: "Preto", totalG: 100, pricePerKg: 80 },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      stock,
+    );
+    expect(r.materialCost).toBeCloseTo(8, 6); // 100/1000*80 (salvo)
+    expect(r.filamentMissing).toBe(false);
+  });
+
+  it("cor removida do Estoque marca filamentMissing e usa o preço salvo", () => {
+    const r = calculatePricing(
+      makeProduct({
+        filaments: [
+          { filamentId: "sumiu", colorName: "Preto", totalG: 100, pricePerKg: 70 },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      [], // estoque vazio → a cor "sumiu" não existe
+    );
+    expect(r.materialCost).toBeCloseTo(7, 6); // fallback no salvo
+    expect(r.filamentMissing).toBe(true);
+  });
+
+  it("avulso (filamentId null) usa o preço digitado e não marca missing", () => {
+    const r = calculatePricing(
+      makeProduct({
+        filaments: [
+          { filamentId: null, colorName: "Avulso", totalG: 100, pricePerKg: 60 },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      [makeColor("cor1", [{ pricePerKg: 999 }])],
+    );
+    expect(r.materialCost).toBeCloseTo(6, 6); // 100/1000*60
+    expect(r.filamentMissing).toBe(false);
+  });
+
+  it("cor removida numa etapa extra também sinaliza", () => {
+    const r = calculatePricing(
+      makeProduct({
+        stages: [
+          {
+            machineId: "a1",
+            printHours: 1,
+            laborMinutes: 0,
+            filaments: [
+              { filamentId: "sumiu", colorName: "X", totalG: 10, pricePerKg: 100 },
+            ],
+          },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      [],
+    );
+    expect(r.filamentMissing).toBe(true);
   });
 });

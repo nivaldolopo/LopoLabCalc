@@ -80,6 +80,13 @@ export function PricingResultCard({
         </div>
       ) : null}
 
+      {result.filamentMissing ? (
+        <div className="form-error machine-missing">
+          ⚠ Cor removida do Estoque — usando o preço salvo como fallback.
+          Reatribua a cor do produto (o custo pode estar errado).
+        </div>
+      ) : null}
+
       <div className="rounding-control">
         <label htmlFor="rounding-mode">Arredondar preço</label>
         <select

@@ -139,8 +139,14 @@ export type StageCost = {
   // mascarar em silêncio (ver TD-009).
   machineMissing: boolean;
   // Filamentos por cor desta etapa, normalizados (legado migrado). Usado para
-  // agregar o consumo por cor no resultado do produto.
+  // agregar o consumo por cor no resultado do produto. Com preço VIVO resolvido
+  // (7c): quando a cor está ligada ao Estoque, `pricePerKg` já é o do rolo mais
+  // novo (D3, catálogo), não o valor salvo.
   filaments: FilamentUsage[];
+  // true quando algum filamento aponta para uma COR (`filamentId`) que não existe
+  // mais no Estoque e o cálculo caiu no preço salvo de fallback (D3). Molde do
+  // `machineMissing`/TD-009: sinaliza dado órfão em vez de mascarar.
+  filamentMissing: boolean;
   materialCost: number;
   energyCost: number;
   depreciationCost: number;
@@ -192,6 +198,10 @@ export type PricingResult = {
   // não existe e o cálculo caiu no fallback. A UI usa isso para avisar em vez
   // de mascarar o dado órfão (TD-009). Opcional: ausente em snapshots antigos.
   machineMissing?: boolean;
+  // true quando algum filamento aponta para uma COR removida do Estoque (7c). A
+  // UI avisa com badge, no mesmo molde do `machineMissing`. Opcional: ausente em
+  // snapshots antigos e quando não há nada ligado ao Estoque.
+  filamentMissing?: boolean;
 };
 
 export type FixedCostSummary = {

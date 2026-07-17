@@ -2,17 +2,24 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { round2 } from "@/lib/number";
-import type { FilamentUsage } from "../types";
+import { formatCurrency } from "@/lib/formatting/currency";
+import type { FilamentUsage, StockFilament } from "../types";
 import { filamentTotalG, makeFilament } from "../lib/filaments";
+import { catalogPricePerKg, filamentLabel } from "../lib/stock";
 import { NumberInput } from "./NumberInput";
 
 // Lista de filamentos por cor (FEAT-02). Mono = 1 linha (sem toggle). Cada cor
 // tem preço/kg e um Total (g); o "detalhar refugo" abre Model/Purga/Torre e, aí,
 // o Total passa a ser a soma (travado). É usada na etapa principal (ProductForm)
 // e nas etapas extras (ExtraStagesSection).
+//
+// 7c: a "Cor" virou um dropdown das cores do Estoque (mono e multi). Ligada a uma
+// cor, o preço/kg vem VIVO do rolo mais novo (D3) e fica só-leitura; a opção
+// "Avulso" volta ao texto livre + preço manual (fallback D3).
 type FilamentColorsSectionProps = {
   filaments: FilamentUsage[];
   onChange: (filaments: FilamentUsage[]) => void;
+  stock: StockFilament[];
   label?: string;
 };
 
@@ -30,9 +37,17 @@ function isDetailed(f: FilamentUsage): boolean {
 export function FilamentColorsSection({
   filaments,
   onChange,
+  stock,
   label = "🎨 Filamento por cor",
 }: FilamentColorsSectionProps) {
   const multi = filaments.length > 1;
+
+  // Cores oferecidas no dropdown: as ativas (arquivada some da escolha, mas um
+  // produto que já aponta para uma arquivada segue mostrando-a — ver `selectFor`).
+  const stockById = new Map(stock.map((color) => [color.id, color]));
+  const activeColors = stock
+    .filter((color) => !color.archived)
+    .sort((a, b) => filamentLabel(a).localeCompare(filamentLabel(b), "pt-BR"));
 
   // Atualiza uma cor mantendo o Total coerente: `makeFilament` recalcula
   // `totalG` = model+purga+torre quando há detalhamento; senão usa o Total dado.
@@ -42,6 +57,23 @@ export function FilamentColorsSection({
         i === index ? { ...makeFilament({ ...f, ...patch }), id: f.id } : f,
       ),
     );
+  }
+
+  // Escolha no dropdown. "" = avulso (mantém nome/preço para o usuário editar);
+  // uma cor liga o `filamentId` e semeia nome (rótulo) + preço (rolo mais novo)
+  // como fallback — o cálculo usa o preço vivo, isto é só a foto salva.
+  function selectColor(index: number, value: string) {
+    if (!value) {
+      updateAt(index, { filamentId: null });
+      return;
+    }
+    const color = stockById.get(value);
+    if (!color) return;
+    updateAt(index, {
+      filamentId: color.id,
+      colorName: filamentLabel(color),
+      pricePerKg: catalogPricePerKg(color),
+    });
   }
 
   function addColor() {
@@ -114,31 +146,76 @@ export function FilamentColorsSection({
       <div className="filament-list">
         {filaments.map((f, index) => {
           const detailed = isDetailed(f);
+          const linkedColor = f.filamentId
+            ? stockById.get(f.filamentId)
+            : undefined;
+          const isLinked = Boolean(f.filamentId);
+          const missing = isLinked && !linkedColor; // cor removida do estoque
+          const livePrice = linkedColor ? catalogPricePerKg(linkedColor) : 0;
+          // Só-leitura quando há preço vivo (cor com rolo). Cor sem rolo ou
+          // removida cai no preço salvo, que permanece editável (fallback D3).
+          const showLivePrice = Boolean(linkedColor) && livePrice > 0;
           return (
             <div className="filament-row" key={f.id ?? index}>
               <div className="filament-main">
-                {multi ? (
-                  <div className="filament-cell grow">
-                    <label className="section-label">Cor</label>
+                <div className="filament-cell grow">
+                  <label className="section-label">Cor</label>
+                  <select
+                    className="field-input"
+                    value={f.filamentId ?? ""}
+                    onChange={(event) => selectColor(index, event.target.value)}
+                  >
+                    <option value="">Avulso (fora do estoque)</option>
+                    {activeColors.map((color) => (
+                      <option key={color.id} value={color.id}>
+                        {filamentLabel(color)}
+                      </option>
+                    ))}
+                    {linkedColor && linkedColor.archived ? (
+                      <option value={linkedColor.id}>
+                        {filamentLabel(linkedColor)} (arquivada)
+                      </option>
+                    ) : null}
+                    {missing ? (
+                      <option value={f.filamentId ?? ""}>
+                        ⚠ cor removida do estoque
+                      </option>
+                    ) : null}
+                  </select>
+                  {!isLinked ? (
                     <input
-                      className="field-input"
+                      className="field-input filament-freename"
                       type="text"
                       value={f.colorName}
                       onChange={(event) =>
                         updateAt(index, { colorName: event.target.value })
                       }
-                      placeholder={`Cor ${index + 1}`}
+                      placeholder="Nome da cor (opcional)"
                     />
-                  </div>
-                ) : null}
+                  ) : null}
+                  {missing ? (
+                    <div className="filament-missing-badge">
+                      ⚠ cor removida — usando o preço salvo
+                    </div>
+                  ) : null}
+                </div>
                 <div className="filament-cell">
                   <label className="section-label">Filamento (R$/kg)</label>
-                  <NumberInput
-                    className="field-input"
-                    min={0}
-                    value={f.pricePerKg}
-                    onChange={(pricePerKg) => updateAt(index, { pricePerKg })}
-                  />
+                  {showLivePrice ? (
+                    <div
+                      className="filament-total-value"
+                      title="Preço do rolo mais novo (Estoque) — atualiza sozinho"
+                    >
+                      {formatCurrency(livePrice)}
+                    </div>
+                  ) : (
+                    <NumberInput
+                      className="field-input"
+                      min={0}
+                      value={f.pricePerKg}
+                      onChange={(pricePerKg) => updateAt(index, { pricePerKg })}
+                    />
+                  )}
                 </div>
                 {detailed ? (
                   <div className="filament-cell">

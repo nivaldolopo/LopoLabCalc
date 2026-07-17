@@ -20,6 +20,7 @@ import { useFees } from "../hooks/useFees";
 import { useMachines } from "../hooks/useMachines";
 import { usePricingForm } from "../hooks/usePricingForm";
 import { useProducts } from "../hooks/useProducts";
+import { useStock } from "../hooks/useStock";
 import { useTheme } from "../hooks/useTheme";
 import {
   calculateFixedCostSummary,
@@ -47,6 +48,9 @@ export function PricingCalculator() {
   const { machines, saveMachines } = useMachines();
   const { fees, saveFees } = useFees();
   const { fixedCostRate, saveFixedCostRate } = useBusinessSettings();
+  // 7c: cores do Estoque para o dropdown de filamento e o preço vivo (D3). O
+  // produto guarda só o `filamentId`; o preço/kg sai da cor no cálculo.
+  const { filaments: stock } = useStock();
   const productsApi = useProducts();
   const form = usePricingForm();
 
@@ -95,8 +99,8 @@ export function PricingCalculator() {
   );
 
   const pricingResult = useMemo(
-    () => calculatePricing(form.product, machines, fixedCosts),
-    [fixedCosts, form.product, machines],
+    () => calculatePricing(form.product, machines, fixedCosts, stock),
+    [fixedCosts, form.product, machines, stock],
   );
 
   const capacityResult = useMemo(
@@ -111,10 +115,10 @@ export function PricingCalculator() {
   const pricingByProduct = useMemo(() => {
     const map = new Map<string, PricingResult>();
     productsApi.products.forEach((product) => {
-      map.set(product.id, calculatePricing(product, machines, fixedCosts));
+      map.set(product.id, calculatePricing(product, machines, fixedCosts, stock));
     });
     return map;
-  }, [productsApi.products, machines, fixedCosts]);
+  }, [productsApi.products, machines, fixedCosts, stock]);
 
   const fixedCostShare =
     fixedCosts.enabled && pricingResult.totalCost > 0
@@ -248,7 +252,7 @@ export function PricingCalculator() {
             product.name || product.mainStageName || "",
             product.id,
             pricingByProduct.get(product.id) ??
-              calculatePricing(product, machines, fixedCosts),
+              calculatePricing(product, machines, fixedCosts, stock),
             productPrintHours(product),
             product.roundingMode,
           ),
@@ -256,7 +260,7 @@ export function PricingCalculator() {
         .sort((a, b) =>
           a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),
-    [productsApi.products, pricingByProduct, machines, fixedCosts],
+    [productsApi.products, pricingByProduct, machines, fixedCosts, stock],
   );
 
   function openSaleFromForm() {
@@ -300,6 +304,7 @@ export function PricingCalculator() {
           <ProductForm
             product={form.product}
             machines={machines}
+            stock={stock}
             editingProductId={form.editingProductId}
             saved={saved}
             onChange={handleProductChange}
@@ -342,6 +347,7 @@ export function PricingCalculator() {
       <ProductCatalog
         products={productsApi.products}
         machines={machines}
+        stock={stock}
         fixedCosts={fixedCosts}
         pricingByProduct={pricingByProduct}
         capacitySettings={capacitySettings}

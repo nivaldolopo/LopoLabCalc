@@ -171,6 +171,19 @@
   background: var(--field-bg);
 }
 
+/* 7c: nome livre da cor avulsa (aparece sob o dropdown quando "Avulso"). */
+.filament-freename {
+  margin-top: 6px;
+}
+
+/* 7c: aviso de cor removida do Estoque (molde do machine-missing-badge). */
+.filament-missing-badge {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c4836b;
+}
+
 .filament-detail {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));

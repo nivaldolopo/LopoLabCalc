@@ -8,6 +8,7 @@ import type {
   PrintStage,
   RoundingMode,
   SavedProduct,
+  StockFilament,
 } from "../types";
 import { calculatePricing } from "./calculatePricing";
 import {
@@ -189,9 +190,10 @@ export function exportProductsCsv(
   products: SavedProduct[],
   machines: Machine[],
   fixedCosts: FixedCostSettings,
+  stock: StockFilament[] = [],
 ): string {
   const rows = products.map((product) => {
-    const result = calculatePricing(product, machines, fixedCosts);
+    const result = calculatePricing(product, machines, fixedCosts, stock);
     const includeFixed = Boolean(product.includeFixed);
     // FEAT-02: cores da etapa principal (mono = 1). Os escalares "Peso (g)" e
     // "Filamento (R$/kg)" viram resumo humano; o round-trip exato vai no JSON.

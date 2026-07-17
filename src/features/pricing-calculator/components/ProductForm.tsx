@@ -2,7 +2,7 @@
 
 import { Plus, Save, X } from "lucide-react";
 import { useState } from "react";
-import type { Machine, PrintStage, ProductInput } from "../types";
+import type { Machine, PrintStage, ProductInput, StockFilament } from "../types";
 import { AccessoriesSection } from "./AccessoriesSection";
 import { ExtraStagesSection } from "./ExtraStagesSection";
 import { FilamentColorsSection } from "./FilamentColorsSection";
@@ -13,6 +13,7 @@ import { NumberInput } from "./NumberInput";
 type ProductFormProps = {
   product: ProductInput;
   machines: Machine[];
+  stock: StockFilament[];
   editingProductId: string | null;
   saved: boolean;
   onChange: (patch: Partial<ProductInput>) => void;
@@ -32,6 +33,7 @@ type ProductFormProps = {
 export function ProductForm({
   product,
   machines,
+  stock,
   editingProductId,
   saved,
   onChange,
@@ -83,6 +85,7 @@ export function ProductForm({
 
       <FilamentColorsSection
         filaments={product.filaments ?? []}
+        stock={stock}
         onChange={(filaments) => onChange({ filaments })}
       />
 
@@ -125,6 +128,7 @@ export function ProductForm({
       <ExtraStagesSection
         stages={product.stages}
         machines={machines}
+        stock={stock}
         onAddStage={onAddStage}
         onRemoveStage={onRemoveStage}
         onUpdateStage={onUpdateStage}
