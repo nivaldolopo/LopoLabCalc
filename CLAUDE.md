@@ -25,8 +25,13 @@
   escolher a cor no dropdown — nada quebra; só não puxam preço vivo enquanto forem avulsos.
   **Próximo passo (Tier 1): FEAT-01 — preço/subitens por etapa (rateio exato/aditivo). NÃO iniciar
   sem o dono.** Decisão do rateio (exato/aditivo) resolve-se no PRÓPRIO chat do FEAT-01.
-  **`7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 → 8`** (detalhe e decisões D1-D8: item 3 do backlog). Restam da
-  auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
+  **Ordem do Tier 1 FECHADA em planejamento (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 → FEAT-04 →
+  FEAT-05 → 8`.** ⚠ **Reframe aprovado:** o passo **8 deixa de ser "o passo da baixa"** e vira
+  **reconciliação da venda** — a **primitiva de baixa migra pra PRODUÇÃO (FEAT-04)**, porque é o único
+  ponto que captura TODA impressão (inclusive teste/falha/brinde, que nunca viram venda). Detalhe e
+  decisões (D1-D8 + toggle de subitens/desfecho da impressão/estoque por subitem com lacuna) no item 3
+  e nos FEAT-01/04/05 do backlog. Restam da auditoria: **TD-003** (capacidade por-máquina, casar com
+  Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
@@ -41,8 +46,9 @@
   Cloudflare + SSL Let's Encrypt + Authorized domain no Firebase). **E-mail `@lopolab.com.br`
   configurado** (DNS no Cloudflare; contexto no chat "abertura da loja", fora do repo).
 - **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — **EM ANDAMENTO: 7a ✅ + 7b ✅ + 7c ✅**,
-  próximo é a **FEAT-01** (e depois a **8**, baixa na venda); coleção `estoque` (um doc por COR, rolos dentro); decisões D1-D8 e as etapas
-  no item 3 do backlog; (b) item 4 — **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
+  próximo é a **FEAT-01**, depois **FEAT-04 → FEAT-05 → 8** (ver "Reframe" no Status/backlog); coleção
+  `estoque` (um doc por COR, rolos dentro); decisões D1-D8 e as etapas no item 3 do backlog; (b) item 4 —
+  **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
   TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
   **Auditoria do GPT: TD-001/004/005/007/008/009 FEITOS; restam TD-003 e TD-006** (no backlog, não
   descartados). Menores mantidos no backlog: numeração de orçamento derivada no browser, labor na
@@ -247,18 +253,34 @@
      (`weightG`/`filamentPricePerKg` escalares, `normalizeFilaments`, round-trip do CSV velho
      **mantidos** como peso morto inofensivo) → vira **tarefa própria** depois (Diretriz 7 segue
      cobrindo). Detalhe no "Status atual".
-   - **FEAT-01 — Preço/subitens por etapa (ENTRA AQUI, antes da 8).** Não é do Estoque, mas o passo 8
-     depende dele: se um item de venda pode ser "uma etapa"/"um grupo de etapas", isso muda o que a
-     baixa deduz. Fazer antes evita nascer o passo 8 sabendo só vender produto inteiro e refazê-lo.
-     **Decisão do rateio (exato/aditivo) ainda em aberto — o dono decidiu resolver no PRÓPRIO chat
-     do FEAT-01** (não em paralelo com 7a/7b/7c). Não cobrar a decisão antes: 7a/7b/7c não dependem dela.
-     Detalhe no item FEAT-01 (seção "Ideias/ajustes trazidos pelo dono").
-   - **8 — Baixa na venda (fecha o FEAT-02).** `saveRecibo` deduz FIFO no batch atômico; custo real
-     recalculado pelo consumo (D3) e **exibido na `SaleModal`**; editar/excluir estorna via
-     `stockMoves`; avisos D4/D5 + **"rolo em uso e quanto resta"** (herdado da 7c: só faz sentido
-     quando a dedução existe). **Consumo entra no extrato da cor** (3ª fonte, fecha o D6.1/7b).
-     **`SaleInput.material` (texto livre) vira derivado do `FilamentUsage.material` congelado, ou
-     sai** (D7). **Fim do Tier 1.**
+   - **FEAT-01 — Preço/subitens por etapa (ENTRA AQUI, antes do FEAT-04/05/8).** Não é do Estoque, mas
+     define a **granularidade da unidade vendável** (subitem = grupo de etapas), que FEAT-04/05 e o passo
+     8 herdam. Fazer antes evita nascer produção/estoque-de-produtos em granularidade de produto inteiro
+     e refazê-los. **Toggle no produto (aprovado jul/2026):** default OFF = só vende inteiro (= hoje);
+     ON = agrupa etapas em **subitens vendáveis** (etapas fora de grupo = passos internos: entram no
+     custo, não vendem sozinhas). Vender parte E inteiro convivem. **Decisão do rateio (exato/aditivo)
+     em aberto — o dono resolve no PRÓPRIO chat do FEAT-01.** O aditivo é o que faz a soma das partes
+     fechar com o inteiro (e sustenta a "lacuna" do FEAT-05). Detalhe no item FEAT-01 (seção "Ideias/
+     ajustes trazidos pelo dono").
+   - **FEAT-04 — Registro de Produção (a primitiva de baixa migra pra cá).** O evento que gasta
+     filamento + hora é a **produção**, não a venda. Registra TODA impressão com um **desfecho**
+     (aprovado jul/2026): peça-pro-estoque / encomenda / **teste·calibração** / **falha** (dado real ≠
+     reserva de falha do pricing) / **brinde·uso interno** / **histórico** (backfill avulso, sem deduzir
+     rolo). Modos: real (deduz FIFO, D3) e histórico/avulso. `computeMachineRoi` passa a ler horas do log
+     de produção (muda `/maquinas`, casa com TD-003). Constrói FIFO + `stockMoves` + estorno **no evento
+     de produção**. Granularidade = subitem (do FEAT-01). Detalhe no item FEAT-04 do backlog.
+   - **FEAT-05 — Estoque de Produtos (acabados).** Produção **incrementa** com custo congelado; venda
+     **decrementa sem rebaixar insumo** (já saiu na produção — furo "não dobrar baixa"). Guarda saldo
+     **por subitem** (a SKU do acabado = o subitem vendável do FEAT-01); "produto inteiro disponível" é
+     **derivado = min das partes**; vender só uma parte deixa a **lacuna** ("conjunto sem X") — e
+     reimprimir a parte preenche. Saldo negativo permitido com aviso (política D4). Detalhe no item
+     FEAT-05 do backlog.
+   - **8 — Venda (RECONCILIAÇÃO, não mais "o passo da baixa"). Fecha o FEAT-02.** Depois do FEAT-04/05, a
+     venda não é o ponto de baixa: **encomenda** deduz insumo na venda (reusa a máquina FIFO/`stockMoves`
+     do FEAT-04) ou dispara produção; **peça pronta** decrementa o acabado (FEAT-05) sem rebaixar insumo.
+     Custo real exibido na `SaleModal`; editar/excluir estorna via `stockMoves` só no caminho encomenda.
+     **Consumo entra no extrato da cor** (3ª fonte, fecha o D6.1/7b). **`SaleInput.material` vira derivado
+     do `FilamentUsage.material` congelado, ou sai** (D7). **Fim do Tier 1.**
    - **7e — Insumos (item próprio, depois).** `supplyId` no `Accessory`, cadastro de insumos na
      `/estoque`, baixa por unidade (`kind: 'supply'`, já previsto no `stockMoves`). Ver D1.
 
@@ -348,8 +370,9 @@ pendente da auditoria.
   nas 8 telas (`NumberField` do `ProductForm` passou a usá-lo; + `AccessoriesSection`,
   `ExtraStagesSection`, `CapacityPanel`, `FixedCostsPanel`, `SaleModal`, `QuotePage`,
   `MachineManagerModal`). Clamps de call-site redundantes removidos. Só UI, sem migração.
-- ⬜ **[FEAT-01] Preço por etapa (etapa como item opcional no orçamento/venda)** *(**Tier 1, entre a
-  7c e a 8** · tamanho médio · **pré-requisito técnico da 8**)*. Salvar/mostrar o preço calculado e proporcional de **cada etapa** do
+- ⬜ **[FEAT-01] Preço por etapa (etapa como item opcional no orçamento/venda)** *(**Tier 1, PRÓXIMO —
+  depois da 7c, antes do FEAT-04/05/8** · tamanho médio · **define a granularidade de subitem que
+  FEAT-04/05/8 herdam**)*. Salvar/mostrar o preço calculado e proporcional de **cada etapa** do
   produto (considerando máquina, mão de obra, filamento, tempo de cada etapa). **Por quê:** uma
   etapa pode ser um acessório opcional pro cliente (ex.: peça base + adorno impresso à parte) — o
   dono quer poder cotar as etapas separadamente e deixar o cliente escolher tudo ou só uma parte.
@@ -401,11 +424,22 @@ pendente da auditoria.
     É aqui que mora o trabalho real — mesma UI, profundidades diferentes.
   - **⚠ Depende do rateio:** o seletor precisa **exibir um preço por etapa/grupo** na lista. Sem a
     regra de rateio decidida, não há o que mostrar → reforça que o rateio é o poste longo.
-  - **❓ EM ABERTO — onde mora o "grupo de etapas"?** O dono quer agrupar etapas num subitem (4
-    etapas → 2 subitens). Se o grupo for montado **no orçamento**, ele re-agrupa a cada cotação —
-    exatamente o trabalho manual que ele recusou. **Proposta (a confirmar):** o grupo é definido
-    **no PRODUTO** (`ProductForm`, uma vez), e orçamento/venda só **selecionam** entre etapas e
-    grupos já prontos. Confirmar com o dono antes de codar.
+  - **✅ RESOLVIDO (jul/2026) — o "grupo de etapas" mora NO PRODUTO, atrás de um TOGGLE.** O dono
+    aprovou: `ProductForm` ganha um **toggle "vender por subitens"** (default OFF = só vende inteiro,
+    = comportamento de hoje, zero fricção pros produtos simples). ON revela a UI de **agrupar etapas
+    em subitens vendáveis**, montada **uma vez no produto**; orçamento/venda só **selecionam** entre
+    inteiro e subitens prontos (nunca re-agrupam, nunca digitam à mão). **Nem toda etapa é vendável:**
+    etapas fora de qualquer subitem = **passos internos** (entram no custo/preço, não vendem sozinhas).
+    Descartadas: (A) sem toggle, inferir de "há ≥1 grupo" (UI de agrupar sempre visível polui produto
+    simples); (B) flag vendável-sim/não por etapa (não cobre "4 etapas → 2 subitens" que o dono pediu).
+  - **✅ Vender parte E inteiro convivem; parte vendida deixa LACUNA (jul/2026).** Produto com subitens
+    vende as partes **e** ainda o inteiro. Vender só uma parte de uma unidade pronta **deduz do conjunto
+    principal deixando uma lacuna** ("conjunto sem X"). Isso é fenômeno de **estoque de acabados
+    (FEAT-05)**: o acabado guarda saldo **por subitem**, "inteiro disponível" = **min das partes**, e a
+    lacuna é a divergência; reimprimir a parte preenche. **O rateio aditivo do FEAT-01 é o que faz o
+    dinheiro fechar** (custo do inteiro = Σ custos das partes → vender a parte tira só o custo dela, sem
+    centavo órfão). Decisão de apresentação ("conjunto faltando X" vs. peças avulsas) fica pro chat do
+    FEAT-05.
 
   **⚠ NÃO DIVIDIR em "orçamento primeiro, venda depois" (decidido jul/2026).** É tentador, porque o
   lado-orçamento é barato e o lado-venda é estrutural (ver os dois bullets acima) — mas entregar só a
@@ -487,7 +521,7 @@ pendente da auditoria.
   + `QuotePage`/`config/orcamento` conforme o que exigir dado novo. **Relacionado:** UX-03, FEAT-01,
   item 2 (branding).
 - ⬜ **[FEAT-04] Registro de Produção (log de impressão) — a primitiva de baixa** *(guarda-chuva ·
-  grande · ordem a definir, provável antes/junto da 8)*. **O quê:** um evento de **impressão/produção**
+  grande · **posição FECHADA jul/2026: depois do FEAT-01, antes do FEAT-05/8**)*. **O quê:** um evento de **impressão/produção**
   como fonte da verdade do consumo — cada impressão rodada registra **máquina + horas + filamento
   gasto**, independente de virar venda. **Por quê:** o dono vai operar um **quiosque de mall** (vende
   peça pronta na hora). Hoje o app só conhece **catálogo + venda**, e **toda hora de máquina e baixa de
@@ -496,7 +530,12 @@ pendente da auditoria.
   útil da máquina subcontam, estoque de filamento fica achando que tem mais do que tem, e não há onde
   cadastrar impressão passada nem impressão que não vira produto (teste/falha/brinde). **Reframe (o
   miolo):** o evento que gasta filamento + hora é a **produção**, NÃO a venda — a venda só reconhece
-  receita e escolhe qual unidade pronta saiu (make-to-stock vs. make-to-order). **Modos exigidos:**
+  receita e escolhe qual unidade pronta saiu (make-to-stock vs. make-to-order). **DESFECHO por impressão
+  (aprovado jul/2026 — campo obrigatório do evento):** `peça-pro-estoque` (→ incrementa FEAT-05) ·
+  `encomenda` (sai direto pra venda) · `teste·calibração` · `falha` · `brinde·uso interno` · `histórico`
+  (backfill). Só `peça-pro-estoque` alimenta o acabado; teste/falha/brinde deduzem insumo+hora mas **não**
+  produzem unidade vendável (é por isso que a baixa NÃO pode morar na venda — senão eles nunca deduziriam e
+  o estoque físico mentiria). **Modos exigidos:**
   (a) **real** — deduz dos rolos atuais (FIFO, D3); (b) **histórico/avulso** — só horas + gramas soltas,
   **sem** deduzir rolo (o dono tem o histórico das 2 impressoras e vai preenchê-lo no marco; não quer
   recadastrar rolo velho — reusa o fallback "Avulso" já existente). **Consequência:** `computeMachineRoi`
@@ -507,12 +546,20 @@ pendente da auditoria.
   estatística) — não misturar. **Relacionado:** FEAT-05 (consome este log), passo 8 (ver nota de
   ordem), TD-003, Estoque (item 3), Diretriz 7 (backfill no marco = sem migração).
 - ⬜ **[FEAT-05] Estoque de Produtos (finished goods) — peça pronta parada na loja** *(guarda-chuva ·
-  grande · depende conceptualmente do FEAT-04)*. **O quê:** um **estoque de produtos** (separado do
-  estoque de insumos de hoje) com as peças **já impressas mas ainda não vendidas** — quantidade em mãos
-  por produto, com **custo congelado no momento da produção**. **Por quê:** no quiosque o dono precisa de
+  grande · **posição FECHADA jul/2026: depois do FEAT-04, antes da 8** · depende conceptualmente do
+  FEAT-04)*. **O quê:** um **estoque de produtos** (separado do
+  estoque de insumos de hoje) com as peças **já impressas mas ainda não vendidas** — quantidade em mãos,
+  com **custo congelado no momento da produção**. **SKU = o subitem vendável do FEAT-01** (não o produto
+  inteiro): guarda saldo **por subitem**; "produto inteiro disponível" é **derivado = min das partes**.
+  **Por quê:** no quiosque o dono precisa de
   produto físico pronto pra vender na hora; hoje não há representação disso (só catálogo vivo + venda).
-  **Fluxo:** produção (FEAT-04) **incrementa** o estoque de produtos com o custo congelado; a **venda
+  **Fluxo:** produção (FEAT-04) **incrementa** o estoque com o custo congelado; a **venda
   decrementa** a quantidade e reconhece receita **sem rebaixar insumo** (o filamento já saiu na produção).
+  **Lacuna (aprovado jul/2026):** vender **só uma parte** de uma unidade pronta deduz aquele subitem →
+  o conjunto principal fica incompleto, mostrado como **"conjunto sem X"** (a divergência entre os saldos
+  das partes); **reimprimir a parte preenche a lacuna**. Sustentado pelo **rateio aditivo do FEAT-01**
+  (custo do inteiro = Σ partes, sem centavo órfão). Decisão de apresentação ("conjunto faltando X" vs.
+  peças avulsas) é deste chat.
   **Furos:** (1) a unidade carrega "insumo/hora já deduzidos" pra a venda não dobrar; (2) COGS da venda =
   **custo da produção** (congelado), não preço do rolo do dia da venda; (3) **saldo negativo permitido com
   aviso** (vender 2 com 1 em estoque — mesma política do D4 do filamento), nunca bloquear. **Onde
@@ -544,16 +591,19 @@ pendente da auditoria.
   (modelo **aprovado**, detalhe e decisões D1-D8 no item 3 do backlog), quebrado em **uma etapa por
   chat**: ~~(7a) modelo + repo, sem UI~~ **✅ FEITA**; ~~(7b) rota `/estoque` (CRUD de cores +
   rolos)~~ **✅ FEITA**; ~~(7c) dropdown de cor no produto (preço vivo)~~ **✅ FEITA**;
-  **(9) FEAT-01** preço/subitens por etapa (rateio exato/aditivo) — **próximo; é captura, e o passo 8
-  depende dele**;
-  (8) **FEAT-02 baixa na venda** (deduz FIFO no batch da venda, estorna via `stockMoves`).
+  **FEAT-01** preço/subitens por etapa (rateio exato/aditivo; **toggle de subitens no produto**) —
+  **próximo; é captura, define a granularidade que FEAT-04/05 herdam**;
+  **FEAT-04** Registro de Produção (a **primitiva de baixa** migra pra produção; desfecho por impressão);
+  **FEAT-05** Estoque de Produtos (acabado por subitem, lacuna); depois **8** (venda = **reconciliação**,
+  não mais baixa; estorna via `stockMoves` no caminho encomenda).
   Insumos = (7e), **item separado depois** do filamento.
-  **Ordem final do Tier 1: 7a → 7b → 7c → FEAT-01 → 8.**
-  ⚠ **A posicionar (decisão do dono, próximo chat):** **FEAT-04 (Registro de Produção)** e
-  **FEAT-05 (Estoque de Produtos)** — quiosque de mall exige vender peça pronta na hora. FEAT-04 muda a
-  **primitiva de baixa** (produção, não venda) → **provável que entre antes/junto da 8** pra a 8 não
-  nascer assumindo "venda = único ponto de baixa" e ter que ser refeita (mesmo argumento do FEAT-01↔8).
-  Ordem exata fica pro chat de planejamento. Detalhe nos itens FEAT-04/FEAT-05.
+  **Ordem final do Tier 1 (FECHADA em planejamento, jul/2026): 7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 → FEAT-04
+  → FEAT-05 → 8.**
+  ⚠ **Reframe aprovado (jul/2026):** o quiosque de mall exige vender **peça pronta na hora**. FEAT-04
+  move a **primitiva de baixa** pra produção (é o único ponto que captura teste/falha/brinde — impressões
+  que nunca viram venda), então **entra antes da 8**, e a **8 deixa de ser "o passo da baixa"** e vira
+  **reconciliação da venda** (encomenda deduz insumo; peça pronta decrementa o acabado do FEAT-05, sem
+  dobrar baixa). Detalhe nos itens FEAT-01/FEAT-04/FEAT-05.
 - **Tier 2 (features comerciais, independentes):** (10) **FEAT-03** melhorar PDF (quick wins soltos
   podem vir antes; "detalhar etapas" espera FEAT-01); (11) **branding/logo real** no PDF (overlap c/
   FEAT-03).
