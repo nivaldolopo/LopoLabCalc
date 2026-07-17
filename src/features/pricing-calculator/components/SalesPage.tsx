@@ -76,6 +76,8 @@ function contextFromSale(
   return {
     defaultProductName: sale.productName,
     productId: sale.productId,
+    // FEAT-01: preserva o subitem vendido ao reabrir para editar.
+    ...(sale.subitemId ? { subitemId: sale.subitemId } : {}),
     machineId: sale.machineId,
     machineName: sale.machineName,
     printHours: sale.printHours,

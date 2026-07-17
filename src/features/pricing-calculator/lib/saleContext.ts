@@ -8,6 +8,7 @@ import type {
   RoundingMode,
   SaleCostBreakdown,
   SavedProduct,
+  SubitemPrice,
 } from "../types";
 
 // Dados de origem de UM produto — servem tanto para o formulário ao vivo quanto
@@ -15,6 +16,9 @@ import type {
 export type SaleModalContext = {
   defaultProductName: string;
   productId: string;
+  // FEAT-01: quando a unidade vendável é um SUBITEM (parte do produto), guarda o
+  // `Subitem.id`. Ausente = produto inteiro. Congelado no snapshot da venda.
+  subitemId?: string;
   machineId: string;
   machineName: string;
   printHours: number;
@@ -63,6 +67,35 @@ export function saleContextFromResult(
       fixed: result.fixedCost,
     },
     filaments: result.filaments,
+  };
+}
+
+// FEAT-01: foto congelada de UM SUBITEM vendável a partir do seu preço rateado.
+// O subitem já carrega custo/preço/filamentos/uso-de-máquina próprios (aditivos),
+// então a venda de uma parte congela exatamente o dela — e a baixa do passo 8
+// deduz só os filamentos deste subitem. A máquina "principal" (informativa) é a
+// primeira do uso do subitem.
+export function saleContextFromSubitem(
+  baseName: string,
+  productId: string,
+  subitem: SubitemPrice,
+  roundingMode: RoundingMode,
+): SaleModalContext {
+  const primary = subitem.machineUsage[0];
+  const subName = subitem.name?.trim();
+  return {
+    defaultProductName: subName ? `${baseName} — ${subName}` : baseName,
+    productId,
+    subitemId: subitem.id,
+    machineId: primary?.machineId ?? "",
+    machineName: primary?.machineName ?? "",
+    printHours: subitem.printHours,
+    machineUsage: subitem.machineUsage,
+    suggestedPrice: subitem.price,
+    roundingMode,
+    unitCost: subitem.cost,
+    costBreakdown: subitem.costBreakdown,
+    filaments: subitem.filaments,
   };
 }
 

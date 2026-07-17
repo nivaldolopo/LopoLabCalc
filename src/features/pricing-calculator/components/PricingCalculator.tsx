@@ -40,6 +40,7 @@ import { SaleModal } from "./SaleModal";
 import {
   productPrintHours,
   saleContextFromResult,
+  saleContextFromSubitem,
   type SaleModalContext,
 } from "../lib/saleContext";
 
@@ -262,16 +263,30 @@ export function PricingCalculator() {
   const catalogSaleItems = useMemo(
     () =>
       productsApi.products
-        .map((product) =>
-          saleContextFromResult(
-            product.name || product.mainStageName || "",
-            product.id,
+        .flatMap((product) => {
+          const result =
             pricingByProduct.get(product.id) ??
-              calculatePricing(product, machines, fixedCosts, stock),
+            calculatePricing(product, machines, fixedCosts, stock);
+          const baseName = product.name || product.mainStageName || "";
+          // O produto inteiro sempre é vendável; subitens (FEAT-01) entram como
+          // itens vendáveis à parte, cada um congelando só o seu custo/consumo.
+          const whole = saleContextFromResult(
+            baseName,
+            product.id,
+            result,
             productPrintHours(product),
             product.roundingMode,
-          ),
-        )
+          );
+          const subs = (result.subitems ?? []).map((subitem) =>
+            saleContextFromSubitem(
+              baseName,
+              product.id,
+              subitem,
+              product.roundingMode,
+            ),
+          );
+          return [whole, ...subs];
+        })
         .sort((a, b) =>
           a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),

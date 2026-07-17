@@ -58,6 +58,8 @@ function toSale(id: string, data: DocumentData): Sale {
     notes: data.notes ?? "",
     status: "concluida",
     productId: data.productId ?? "",
+    // FEAT-01: subitem vendido (só em vendas de parte; ausente nas de inteiro).
+    ...(data.subitemId ? { subitemId: String(data.subitemId) } : {}),
     productName: data.productName ?? "",
     machineId: data.machineId ?? "",
     machineName: data.machineName ?? "",

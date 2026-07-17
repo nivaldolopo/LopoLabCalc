@@ -286,6 +286,11 @@ export function SaleModal({
         notes: notes.trim(),
         status: "concluida",
         productId: item.source.productId,
+        // FEAT-01: qual subitem foi vendido (só quando é venda de parte). Condi-
+        // cional — o Firestore rejeita undefined.
+        ...(item.source.subitemId
+          ? { subitemId: item.source.subitemId }
+          : {}),
         productName: item.productName.trim(),
         machineId: item.source.machineId,
         machineName: item.source.machineName,
