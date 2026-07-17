@@ -486,6 +486,39 @@ pendente da auditoria.
   (trocar o logo placeholder — ponta já conhecida do item 2 do backlog). **Onde:** `generateQuotePdf.ts`
   + `QuotePage`/`config/orcamento` conforme o que exigir dado novo. **Relacionado:** UX-03, FEAT-01,
   item 2 (branding).
+- ⬜ **[FEAT-04] Registro de Produção (log de impressão) — a primitiva de baixa** *(guarda-chuva ·
+  grande · ordem a definir, provável antes/junto da 8)*. **O quê:** um evento de **impressão/produção**
+  como fonte da verdade do consumo — cada impressão rodada registra **máquina + horas + filamento
+  gasto**, independente de virar venda. **Por quê:** o dono vai operar um **quiosque de mall** (vende
+  peça pronta na hora). Hoje o app só conhece **catálogo + venda**, e **toda hora de máquina e baixa de
+  filamento sai da venda** (`computeMachineRoi` lê horas só de `sales` — `machineRoi.ts:82`; passo 8
+  deduz filamento na venda). Logo: **impressão que não virou venda não existe pro sistema** → ROI/vida
+  útil da máquina subcontam, estoque de filamento fica achando que tem mais do que tem, e não há onde
+  cadastrar impressão passada nem impressão que não vira produto (teste/falha/brinde). **Reframe (o
+  miolo):** o evento que gasta filamento + hora é a **produção**, NÃO a venda — a venda só reconhece
+  receita e escolhe qual unidade pronta saiu (make-to-stock vs. make-to-order). **Modos exigidos:**
+  (a) **real** — deduz dos rolos atuais (FIFO, D3); (b) **histórico/avulso** — só horas + gramas soltas,
+  **sem** deduzir rolo (o dono tem o histórico das 2 impressoras e vai preenchê-lo no marco; não quer
+  recadastrar rolo velho — reusa o fallback "Avulso" já existente). **Consequência:** `computeMachineRoi`
+  passa a ler horas do log de produção, não das vendas (muda `/maquinas`; casa com TD-003). **Furos a
+  encarar:** (1) **não dobrar baixa** — se produção deduz filamento/hora, a venda de item já produzido
+  NÃO pode deduzir de novo; (2) **congelamento migra pra produção** (custo do rolo no dia da impressão,
+  não no da venda); (3) falha registrada (dado real) ≠ reserva de falha do pricing (provisão
+  estatística) — não misturar. **Relacionado:** FEAT-05 (consome este log), passo 8 (ver nota de
+  ordem), TD-003, Estoque (item 3), Diretriz 7 (backfill no marco = sem migração).
+- ⬜ **[FEAT-05] Estoque de Produtos (finished goods) — peça pronta parada na loja** *(guarda-chuva ·
+  grande · depende conceptualmente do FEAT-04)*. **O quê:** um **estoque de produtos** (separado do
+  estoque de insumos de hoje) com as peças **já impressas mas ainda não vendidas** — quantidade em mãos
+  por produto, com **custo congelado no momento da produção**. **Por quê:** no quiosque o dono precisa de
+  produto físico pronto pra vender na hora; hoje não há representação disso (só catálogo vivo + venda).
+  **Fluxo:** produção (FEAT-04) **incrementa** o estoque de produtos com o custo congelado; a **venda
+  decrementa** a quantidade e reconhece receita **sem rebaixar insumo** (o filamento já saiu na produção).
+  **Furos:** (1) a unidade carrega "insumo/hora já deduzidos" pra a venda não dobrar; (2) COGS da venda =
+  **custo da produção** (congelado), não preço do rolo do dia da venda; (3) **saldo negativo permitido com
+  aviso** (vender 2 com 1 em estoque — mesma política do D4 do filamento), nunca bloquear. **Onde
+  (provável):** rota nova (ex.: `/estoque` ganha aba "Produtos" vs. "Insumos", ou rota própria) +
+  `SaleModal` passa a poder vender **de estoque** (rápido, ~5s: custo já congelado, só escolher e
+  decrementar). **Relacionado:** FEAT-04 (fonte), passo 8, SaleModal, Estoque (item 3).
 - ✅ **[UX-04] Botão "Nova venda" no topo da `/vendas` — FEITO.** Botão no header da `SalesPage`
   (ícone `Plus`) abre o `SaleModal` em **modo novo** (`seed={null}`, cesta vazia; estado `newSale`
   separado do `editRecibo`), escolhendo itens pelo seletor de catálogo já existente e gravando via
@@ -516,6 +549,11 @@ pendente da auditoria.
   (8) **FEAT-02 baixa na venda** (deduz FIFO no batch da venda, estorna via `stockMoves`).
   Insumos = (7e), **item separado depois** do filamento.
   **Ordem final do Tier 1: 7a → 7b → 7c → FEAT-01 → 8.**
+  ⚠ **A posicionar (decisão do dono, próximo chat):** **FEAT-04 (Registro de Produção)** e
+  **FEAT-05 (Estoque de Produtos)** — quiosque de mall exige vender peça pronta na hora. FEAT-04 muda a
+  **primitiva de baixa** (produção, não venda) → **provável que entre antes/junto da 8** pra a 8 não
+  nascer assumindo "venda = único ponto de baixa" e ter que ser refeita (mesmo argumento do FEAT-01↔8).
+  Ordem exata fica pro chat de planejamento. Detalhe nos itens FEAT-04/FEAT-05.
 - **Tier 2 (features comerciais, independentes):** (10) **FEAT-03** melhorar PDF (quick wins soltos
   podem vir antes; "detalhar etapas" espera FEAT-01); (11) **branding/logo real** no PDF (overlap c/
   FEAT-03).
