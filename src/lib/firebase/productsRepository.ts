@@ -45,6 +45,10 @@ function toSavedProduct(id: string, data: DocumentData): SavedProduct {
     piecesCount: Math.max(1, Number(data.piecesCount) || 1),
     stages: Array.isArray(data.stages) ? data.stages : [],
     accessories: Array.isArray(data.accessories) ? data.accessories : [],
+    // FEAT-01: modo de venda por subitens. Ausente em docs legados → produto
+    // só-inteiro (comportamento de hoje).
+    sellBySubitems: Boolean(data.sellBySubitems),
+    subitems: Array.isArray(data.subitems) ? data.subitems : [],
     linkModel: data.linkModel ?? "",
     linkCompetitor: data.linkCompetitor ?? "",
     linkFile: data.linkFile ?? "",

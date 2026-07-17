@@ -170,7 +170,10 @@ export function PricingCalculator() {
       mainStageName: form.product.mainStageName.trim(),
       includeFixed: fixedCosts.enabled,
       filaments: stripFilamentIds(form.product.filaments),
-      stages: form.product.stages.map((stage) => ({
+      stages: form.product.stages.map((stage, index) => ({
+        // FEAT-01: persiste o id (chave estável dos subitens); sempre presente
+        // no estado do form, com fallback por posição por segurança.
+        id: stage.id ?? `stage_${index}`,
         name: stage.name ?? "",
         machineId: stage.machineId,
         printHours: stage.printHours,
@@ -183,6 +186,18 @@ export function PricingCalculator() {
         desc: accessory.desc ?? "",
         qty: accessory.qty || 0,
         unitPrice: accessory.unitPrice || 0,
+        // FEAT-01: atribuição a subitem (null = produto, rateado). Firestore não
+        // aceita undefined, por isso o ?? null.
+        subitemId: accessory.subitemId ?? null,
+      })),
+      // FEAT-01: modo de venda por subitens + os grupos. Limpa `markup` ausente
+      // (Firestore rejeita undefined) — ausente = herda o markup do produto.
+      sellBySubitems: form.product.sellBySubitems ?? false,
+      subitems: (form.product.subitems ?? []).map((subitem) => ({
+        id: subitem.id,
+        name: subitem.name ?? "",
+        stageKeys: subitem.stageKeys ?? [],
+        ...(subitem.markup !== undefined ? { markup: subitem.markup } : {}),
       })),
       linkModel: form.product.linkModel.trim(),
       linkCompetitor: form.product.linkCompetitor.trim(),

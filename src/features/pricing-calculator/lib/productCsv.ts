@@ -329,6 +329,10 @@ export function parseProductsCsv(
         linkFile: indexLinkFile >= 0 ? columns[indexLinkFile]?.trim() ?? "" : "",
         stages,
         accessories,
+        // FEAT-01: o CSV velho não descreve subitens — importa como produto só-
+        // inteiro (Diretriz 7: round-trip do formato antigo é descartável).
+        sellBySubitems: false,
+        subitems: [],
         ...(filaments.length > 0 ? { filaments } : {}),
         createdAt: Date.now(),
         fixedCostPerHour: null,

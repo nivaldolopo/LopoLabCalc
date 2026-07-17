@@ -63,6 +63,24 @@ export type Accessory = {
   desc: string;
   qty: number;
   unitPrice: number;
+  // FEAT-01: atribuição opcional a um subitem vendável (`Subitem.id`). Quando
+  // preenchido, o custo do acessório vai 100% para aquele subitem; quando ausente
+  // (null/undefined), fica no nível do produto e é RATEADO entre os subitens.
+  subitemId?: string | null;
+};
+
+// FEAT-01: um SUBITEM vendável = um grupo de etapas do produto que pode ser
+// cotado/vendido à parte (ex.: "peça base" e "adorno" impressos separadamente).
+// `stageKeys` referencia as etapas do grupo pela sua identidade estável: a etapa
+// principal é a sentinela `"main"`; as etapas extras usam o próprio `PrintStage.id`
+// (persistido a partir da FEAT-01). Etapas fora de qualquer subitem = passos
+// internos (entram no custo, não vendem sozinhas). `markup` é um override opcional
+// por subitem — ausente = herda o markup do produto (botão discreto no form).
+export type Subitem = {
+  id: string;
+  name: string;
+  stageKeys: string[];
+  markup?: number;
 };
 
 export type ProductInput = {
@@ -89,6 +107,10 @@ export type ProductInput = {
   piecesCount: number;
   stages: PrintStage[];
   accessories: Accessory[];
+  // FEAT-01: quando ON, o produto pode ser vendido por SUBITENS (grupos de
+  // etapas), não só inteiro. OFF (default) = comportamento de hoje (só inteiro).
+  sellBySubitems: boolean;
+  subitems: Subitem[];
   linkModel: string;
   linkCompetitor: string;
   linkFile: string;
@@ -165,6 +187,25 @@ export type MachineUsage = {
   depreciation: number; // depreciação embutida desta máquina (R$, por unidade)
 };
 
+// FEAT-01: preço/custo de UM subitem vendável, resultado do rateio ADITIVO
+// (Σ subitens = inteiro). Todos os valores monetários são POR UNIDADE (mesma base
+// do produto inteiro), exceto `filaments` (pesos por impressão, não divididos por
+// peça — é o que a baixa do passo 8 vai deduzir). O rateio distribui passos
+// internos, reserva de falha, custo fixo e acessórios não atribuídos pelo peso
+// (custo de impressão) de cada subitem; acessório atribuído vai 100% no subitem.
+export type SubitemPrice = {
+  id: string;
+  name: string;
+  price: number; // arredondado (roundingMode do produto)
+  exactPrice: number; // antes do arredondamento
+  cost: number; // custo total por unidade (variável + fixo)
+  markup: number; // markup EFETIVO (override do subitem ou o do produto)
+  printHours: number; // horas das etapas do subitem (total, como o inteiro)
+  filaments: FilamentUsage[]; // cores das etapas do subitem (pesos por impressão)
+  machineUsage: MachineUsage[]; // por unidade
+  costBreakdown: SaleCostBreakdown; // por unidade, para o snapshot da venda
+};
+
 export type PricingResult = {
   machine: Machine;
   materialCost: number;
@@ -202,6 +243,10 @@ export type PricingResult = {
   // UI avisa com badge, no mesmo molde do `machineMissing`. Opcional: ausente em
   // snapshots antigos e quando não há nada ligado ao Estoque.
   filamentMissing?: boolean;
+  // FEAT-01: preço por subitem (rateio aditivo). Presente só quando o produto tem
+  // `sellBySubitems` ligado com subitens válidos; nesse caso `suggestedPrice`/
+  // `exactPrice` acima passam a ser a SOMA dos subitens (o inteiro = Σ partes).
+  subitems?: SubitemPrice[];
 };
 
 export type FixedCostSummary = {
@@ -275,6 +320,10 @@ export type SaleInput = {
   status: "concluida";
   // Snapshot congelado do produto/precificação:
   productId: string; // referência (informativa) ao produto do catálogo
+  // FEAT-01: qual SUBITEM foi vendido (`Subitem.id`), quando a venda é de uma
+  // parte e não do produto inteiro. Ausente = venda do produto inteiro (ou item
+  // livre). Informativo aqui; vira a SKU do estoque de acabados no FEAT-05.
+  subitemId?: string;
   productName: string;
   machineId: string; // máquina PRINCIPAL (informativa/compat)
   machineName: string;

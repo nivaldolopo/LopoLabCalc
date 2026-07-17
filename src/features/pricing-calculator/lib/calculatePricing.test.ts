@@ -243,6 +243,187 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
   });
 });
 
+describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
+  // Produto de 2 etapas: principal (main) + 1 extra ("s1"), cada uma num subitem.
+  function twoSubitemProduct(overrides: Partial<ProductInput> = {}): ProductInput {
+    return makeProduct({
+      markup: 3,
+      failureRate: 0,
+      roundingMode: "exact",
+      sellBySubitems: true,
+      stages: [
+        {
+          id: "s1",
+          machineId: "a1",
+          printHours: 1,
+          laborMinutes: 0,
+          filaments: [
+            { filamentId: null, colorName: "X", totalG: 20, pricePerKg: 110 },
+          ],
+        },
+      ],
+      subitems: [
+        { id: "A", name: "Base", stageKeys: ["main"] },
+        { id: "B", name: "Adorno", stageKeys: ["s1"] },
+      ],
+      ...overrides,
+    });
+  }
+
+  it("OFF: sem subitens no resultado e preço inalterado", () => {
+    const r = calculatePricing(
+      makeProduct({ markup: 3, failureRate: 0, roundingMode: "exact" }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    expect(r.subitems).toBeUndefined();
+    expect(r.suggestedPrice).toBeCloseTo(r.variableCost * 3, 6);
+  });
+
+  it("Σ preço dos subitens = preço do inteiro; Σ custo = custo total", () => {
+    const r = calculatePricing(twoSubitemProduct(), DEFAULT_MACHINES, NO_FIXED);
+    expect(r.subitems).toHaveLength(2);
+    const sumPrice = r.subitems!.reduce((s, x) => s + x.price, 0);
+    const sumCost = r.subitems!.reduce((s, x) => s + x.cost, 0);
+    expect(sumPrice).toBeCloseTo(r.suggestedPrice, 6);
+    expect(sumCost).toBeCloseTo(r.totalCost, 6);
+  });
+
+  it("aditividade se mantém com custo fixo e arredondamento", () => {
+    const fixed: FixedCostSettings = {
+      enabled: true,
+      rent: 1500,
+      other: 150,
+      machines: 2,
+      hoursDay: 20,
+      daysMonth: 26,
+    };
+    const r = calculatePricing(
+      twoSubitemProduct({ includeFixed: true, roundingMode: "1", failureRate: 5 }),
+      DEFAULT_MACHINES,
+      fixed,
+    );
+    const sumPrice = r.subitems!.reduce((s, x) => s + x.price, 0);
+    const sumCost = r.subitems!.reduce((s, x) => s + x.cost, 0);
+    // O inteiro é DEFINIDO como a soma das partes arredondadas.
+    expect(sumPrice).toBeCloseTo(r.suggestedPrice, 6);
+    expect(sumCost).toBeCloseTo(r.totalCost, 6);
+  });
+
+  it("passo interno (etapa fora de subitem) é rateado — Σ ainda = inteiro", () => {
+    const r = calculatePricing(
+      twoSubitemProduct({
+        stages: [
+          {
+            id: "s1",
+            machineId: "a1",
+            printHours: 1,
+            laborMinutes: 0,
+            filaments: [
+              { filamentId: null, colorName: "X", totalG: 20, pricePerKg: 110 },
+            ],
+          },
+          {
+            id: "s2", // interna: não está em nenhum subitem
+            machineId: "a1",
+            printHours: 2,
+            laborMinutes: 0,
+            filaments: [
+              { filamentId: null, colorName: "Y", totalG: 30, pricePerKg: 110 },
+            ],
+          },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    const sumCost = r.subitems!.reduce((s, x) => s + x.cost, 0);
+    expect(sumCost).toBeCloseTo(r.totalCost, 6); // custo interno foi distribuído
+    // Cada subitem custa mais que só o próprio material (recebeu fatia da interna).
+    expect(r.subitems![0].cost).toBeGreaterThan(4.4);
+  });
+
+  it("markup próprio por subitem sobrepõe o do produto", () => {
+    const r = calculatePricing(
+      twoSubitemProduct({
+        subitems: [
+          { id: "A", name: "Base", stageKeys: ["main"] },
+          { id: "B", name: "Adorno", stageKeys: ["s1"], markup: 5 },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    const a = r.subitems!.find((s) => s.id === "A")!;
+    const b = r.subitems!.find((s) => s.id === "B")!;
+    expect(a.markup).toBe(3);
+    expect(b.markup).toBe(5);
+    // Sem fixo, o preço exato do subitem = custo × markup.
+    expect(b.exactPrice).toBeCloseTo(b.cost * 5, 6);
+  });
+
+  it("acessório atribuído vai 100% no subitem; não atribuído é rateado", () => {
+    const atribuido = calculatePricing(
+      twoSubitemProduct({
+        accessories: [{ desc: "Ímã", qty: 1, unitPrice: 4, subitemId: "A" }],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    const a = atribuido.subitems!.find((s) => s.id === "A")!;
+    const b = atribuido.subitems!.find((s) => s.id === "B")!;
+    expect(a.costBreakdown.accessories).toBeCloseTo(4, 6); // tudo na Base
+    expect(b.costBreakdown.accessories).toBeCloseTo(0, 6);
+
+    const rateado = calculatePricing(
+      twoSubitemProduct({
+        accessories: [{ desc: "Ímã", qty: 1, unitPrice: 4 }], // sem subitemId
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    const sumAcc = rateado.subitems!.reduce(
+      (s, x) => s + x.costBreakdown.accessories,
+      0,
+    );
+    expect(sumAcc).toBeCloseTo(4, 6); // rateado, mas soma fecha
+    expect(rateado.subitems![0].costBreakdown.accessories).toBeGreaterThan(0);
+    expect(rateado.subitems![1].costBreakdown.accessories).toBeGreaterThan(0);
+  });
+
+  it("subitem sem custo de impressão não quebra (divisão por zero → peso igual)", () => {
+    const r = calculatePricing(
+      twoSubitemProduct({
+        // Zera o custo de impressão de ambas as etapas (sem peso, sem tempo/labor).
+        printHours: 0,
+        laborMinutes: 0,
+        weightG: 0,
+        filaments: [{ filamentId: null, colorName: "X", totalG: 0, pricePerKg: 0 }],
+        stages: [
+          {
+            id: "s1",
+            machineId: "a1",
+            printHours: 0,
+            laborMinutes: 0,
+            filaments: [
+              { filamentId: null, colorName: "X", totalG: 0, pricePerKg: 0 },
+            ],
+          },
+        ],
+        accessories: [{ desc: "Ímã", qty: 1, unitPrice: 4 }],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    expect(r.subitems).toHaveLength(2);
+    const sumCost = r.subitems!.reduce((s, x) => s + x.cost, 0);
+    expect(sumCost).toBeCloseTo(r.totalCost, 6);
+    // Acessório de R$4 rateado em pesos iguais → R$2 em cada.
+    expect(r.subitems![0].costBreakdown.accessories).toBeCloseTo(2, 6);
+    expect(r.subitems![1].costBreakdown.accessories).toBeCloseTo(2, 6);
+  });
+});
+
 describe("calculatePricing — máquina órfã (TD-009)", () => {
   it("não sinaliza quando o machineId existe", () => {
     const r = calculatePricing(makeProduct(), DEFAULT_MACHINES, NO_FIXED);

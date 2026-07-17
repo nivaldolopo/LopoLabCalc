@@ -37,7 +37,9 @@ function cloneDefaultProduct(): ProductInput {
 
 function createStage(index: number, data?: Partial<PrintStage>): PrintStage {
   return {
-    id: `stage_${Date.now()}_${index}`,
+    // FEAT-01: preserva o id salvo (os `stageKeys` dos subitens referenciam-no);
+    // só gera um novo quando a etapa nasce sem id.
+    id: data?.id ?? `stage_${Date.now()}_${index}`,
     name: data?.name ?? "",
     machineId: data?.machineId ?? "a1",
     printHours: data?.printHours ?? 0,
@@ -56,6 +58,8 @@ function createAccessory(index: number, data?: Partial<Accessory>): Accessory {
     desc: data?.desc ?? "",
     qty: data?.qty ?? 1,
     unitPrice: data?.unitPrice ?? 0,
+    // FEAT-01: atribuição a um subitem (null = nível do produto, rateado).
+    subitemId: data?.subitemId ?? null,
   };
 }
 

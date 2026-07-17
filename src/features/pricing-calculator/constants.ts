@@ -101,6 +101,8 @@ export const DEFAULT_PRODUCT_INPUT: ProductInput = {
   piecesCount: 1,
   stages: [],
   accessories: [],
+  sellBySubitems: false,
+  subitems: [],
   linkModel: "",
   linkCompetitor: "",
   linkFile: "",
