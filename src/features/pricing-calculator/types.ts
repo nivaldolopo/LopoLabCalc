@@ -493,3 +493,68 @@ export type ConsumptionResult = {
   crossesRoll: boolean;
   shortfallG: number;
 };
+
+// ---------------------------------------------------------------------------
+// Produção (FEAT-04) — o evento que gasta filamento + hora. É a PRIMITIVA DE
+// BAIXA: toda impressão rodada é registrada aqui, independente de virar venda —
+// inclusive teste/falha/brinde, que nunca geram receita e por isso NÃO poderiam
+// ter a baixa presa à venda (senão nunca deduziriam, e o estoque físico mentiria).
+// A venda (passo 8) deixa de ser o ponto de baixa e vira reconciliação. Coleção
+// `producao`; a baixa entra no MESMO `writeBatch` do evento (atômica), reusando
+// o FIFO de `lib/stock.ts`. Granularidade = subitem (FEAT-01).
+// ---------------------------------------------------------------------------
+
+// Desfecho da impressão (campo obrigatório do evento). Só `estoque` alimenta o
+// estoque de acabados (FEAT-05); `encomenda` sai direto para a venda; teste/
+// falha/brinde deduzem insumo+hora mas NÃO produzem unidade vendável; `historico`
+// é backfill avulso (dado real ≠ reserva de falha do pricing — não misturar).
+export type ProductionOutcome =
+  | "estoque"
+  | "encomenda"
+  | "teste"
+  | "falha"
+  | "brinde"
+  | "historico";
+
+// Modo de consumo. `real` deduz dos rolos atuais (FIFO, D3) e grava `stockMoves`
+// para o estorno (04c); `historico` são gramas soltas (backfill do histórico das
+// máquinas) — NÃO toca rolo nem gera `stockMoves`, e o custo sai do `pricePerKg`
+// congelado (mesmo fallback do "Avulso").
+export type ProductionMode = "real" | "historico";
+
+// Um evento de produção CONGELADO no momento da impressão (foto, como a venda):
+// não referencia o produto vivo. `frozenCost` é o custo de produção do dia
+// (material FIFO + energia + depreciação + manutenção + labor); a parcela de
+// material sai do FIFO (`planProduction`), o resto do pricing no momento (04b).
+export type ProductionInput = {
+  at: number; // timestamp (ms) da impressão, editável
+  outcome: ProductionOutcome;
+  mode: ProductionMode;
+  // Referências informativas ao catálogo (a SKU é o subitem do FEAT-01). Ausentes
+  // em impressão avulsa/histórica sem produto cadastrado.
+  productId?: string;
+  subitemId?: string;
+  productName: string;
+  // Máquina da impressão (04b escolhe uma). 04c lê estas horas para o ROI —
+  // migrando a fonte das horas da venda para a produção (casa com TD-003).
+  machineId: string;
+  machineName: string;
+  printHours: number;
+  // Cores consumidas, CONGELADAS: pesos por impressão (incluindo torre/purga) e
+  // material/marca por cor (D7). `pricePerKg` = o resolvido no momento (custo
+  // misto FIFO no modo real; avulso no historico).
+  filaments: FilamentUsage[];
+  frozenCost: number;
+  // O que a baixa deduziu, por rolo — de onde o estorno (04c) lê, exatamente como
+  // o `stockMoves` da venda. Vazio no modo historico/avulso (nada foi deduzido).
+  // `itemId` = o id do próprio evento (a produção é a unidade que consumiu).
+  stockMoves: StockMove[];
+  notes?: string;
+};
+
+export type ProductionPayload = ProductionInput & { createdAt: number };
+
+export type ProductionEvent = ProductionInput & {
+  id: string;
+  createdAt: number;
+};

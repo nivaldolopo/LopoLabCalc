@@ -75,6 +75,13 @@ function rollToDocument(roll: FilamentRoll): DocumentData {
   };
 }
 
+// Serializa o array de rolos de uma cor. Exportado para a baixa da produção
+// (FEAT-04): ela atualiza só o campo `rolls` do doc da cor no mesmo `writeBatch`
+// do evento, e reusa esta serialização para não divergir da escrita normal.
+export function serializeRolls(rolls: FilamentRoll[]): DocumentData[] {
+  return rolls.map(rollToDocument);
+}
+
 function adjustmentToDocument(adjustment: StockAdjustment): DocumentData {
   return {
     id: adjustment.id,
