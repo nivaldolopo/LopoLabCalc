@@ -26,7 +26,18 @@
   ⚠ **CSV:** export/import **não** carregam subitens (round-trip do formato velho é descartável,
   Diretriz 7 — recadastro no marco cobre). ⚠ **Faxina do legado FEAT-02 segue adiada.**
   **Próximo passo (Tier 1): FEAT-04 — Registro de Produção (a primitiva de baixa migra pra cá).
-  NÃO iniciar sem o dono.**
+  ✅ APROVADA pelo dono (jul/2026) — começar pela FEAT-04a.** Decisões do dono fechadas: **3 fases,
+  uma por chat** (padrão 7a/7b/7c); **rota própria `/producao`** (link no header); **escopo = só
+  produção + baixa de insumo** (saldo de acabado é a FEAT-05; `peça-pro-estoque` só grava o rótulo);
+  **ROI migra pra produção na 04c**. Fases: **04a** modelo + `productionRepository` (coleção
+  `producao`) + lib puro + baixa no MESMO `writeBatch` (reusa `applyConsumption`/`simulateConsumption`
+  do `lib/stock.ts`, grava `stockMoves` `kind:'filament'`, `itemId`=id do evento), sem UI; **04b**
+  tela `/producao` (produto/subitem → máquina → h+min → filamento default editável → desfecho → modo);
+  **04c** `computeMachineRoi` lê horas da produção (muda `/maquinas`, casa TD-003) + estorno via
+  `stockMoves` (`reverseConsumption`) + consumo entra no extrato da cor (fecha a 3ª fonte do D6.1).
+  Modelo do evento: `outcome` (estoque·encomenda·teste·falha·brinde·historico) + `mode` (real deduz
+  FIFO/D3 com avisos D5; historico = gramas soltas, não toca rolo) + `productId?`/`subitemId?` +
+  `filaments[]`/`machineName`/`frozenCost` congelados. Detalhe no item FEAT-04 do backlog.
   **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 → FEAT-05 → 8`.**
   ⚠ **Reframe aprovado:** o passo **8 deixa de ser "o passo da baixa"** e vira **reconciliação da
   venda** — a **primitiva de baixa migra pra PRODUÇÃO (FEAT-04)**, porque é o único ponto que captura
