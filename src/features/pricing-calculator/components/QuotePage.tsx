@@ -104,15 +104,21 @@ export function QuotePage() {
   }, [nextNumber]);
 
   // Produtos do catálogo como opções (com preço sugerido), em ordem alfabética.
+  // FEAT-01: produtos com subitens contribuem TAMBÉM uma opção por subitem
+  // (preço aditivo), além do inteiro — o dono pode cotar só uma parte.
   const catalogOptions = useMemo(
     () =>
       products
-        .map((product) => ({
-          name: product.name || product.mainStageName || "Produto",
-          price: round2(
-            calculatePricing(product, machines, fixedCosts).suggestedPrice,
-          ),
-        }))
+        .flatMap((product) => {
+          const result = calculatePricing(product, machines, fixedCosts);
+          const baseName = product.name || product.mainStageName || "Produto";
+          const whole = { name: baseName, price: round2(result.suggestedPrice) };
+          const subs = (result.subitems ?? []).map((subitem, index) => ({
+            name: `${baseName} — ${subitem.name || `Subitem ${index + 1}`}`,
+            price: round2(subitem.price),
+          }));
+          return [whole, ...subs];
+        })
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
     [products, machines, fixedCosts],
   );
