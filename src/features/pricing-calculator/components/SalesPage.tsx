@@ -23,6 +23,7 @@ import { SaleModal, type EditReciboSeed } from "./SaleModal";
 import {
   productPrintHours,
   saleContextFromResult,
+  saleContextFromSubitem,
   type SaleModalContext,
 } from "../lib/saleContext";
 
@@ -179,15 +180,28 @@ export function SalesPage() {
   const catalogItems = useMemo<SaleModalContext[]>(
     () =>
       products
-        .map((product) =>
-          saleContextFromResult(
-            product.name || product.mainStageName || "",
+        .flatMap((product) => {
+          const result = calculatePricing(product, machines, fixedCosts);
+          const baseName = product.name || product.mainStageName || "";
+          // FEAT-01: inteiro + um item vendável por subitem (mesma lista do
+          // modal aberto pela calculadora).
+          const whole = saleContextFromResult(
+            baseName,
             product.id,
-            calculatePricing(product, machines, fixedCosts),
+            result,
             productPrintHours(product),
             product.roundingMode,
-          ),
-        )
+          );
+          const subs = (result.subitems ?? []).map((subitem) =>
+            saleContextFromSubitem(
+              baseName,
+              product.id,
+              subitem,
+              product.roundingMode,
+            ),
+          );
+          return [whole, ...subs];
+        })
         .sort((a, b) =>
           a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),
