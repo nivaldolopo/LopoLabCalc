@@ -72,6 +72,29 @@ export function validateProduct(product: ProductInput): string | null {
     if (stageError) return stageError;
   }
 
+  // FEAT-01: subitens vendáveis. Só valida quando o modo está ligado. Cada
+  // subitem precisa de nome e ao menos uma etapa; o markup override (se houver)
+  // respeita o mínimo de 1x, como o do produto.
+  if (product.sellBySubitems) {
+    const subitems = product.subitems ?? [];
+    if (subitems.length === 0) {
+      return "⚠️ Adicione ao menos um subitem ou desligue a venda por subitens.";
+    }
+    for (let index = 0; index < subitems.length; index += 1) {
+      const subitem = subitems[index];
+      const label = subitem.name?.trim() || `Subitem ${index + 1}`;
+      if (!subitem.name?.trim()) {
+        return `⚠️ Dê um nome ao ${label}.`;
+      }
+      if ((subitem.stageKeys ?? []).length === 0) {
+        return `⚠️ "${label}" não tem nenhuma etapa. Marque ao menos uma.`;
+      }
+      if (subitem.markup !== undefined && subitem.markup < 1) {
+        return `⚠️ O markup de "${label}" deve ser no mínimo 1x.`;
+      }
+    }
+  }
+
   // Acessórios: quantidade e preço unitário não podem ser negativos. A UI já
   // trava a digitação, mas um CSV importado ou produto legado pode furar isso.
   const accessories = product.accessories ?? [];

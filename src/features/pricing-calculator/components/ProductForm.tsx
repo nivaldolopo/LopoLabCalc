@@ -2,13 +2,21 @@
 
 import { Plus, Save, X } from "lucide-react";
 import { useState } from "react";
-import type { Machine, PrintStage, ProductInput, StockFilament } from "../types";
+import type {
+  Machine,
+  PrintStage,
+  ProductInput,
+  StockFilament,
+  Subitem,
+  SubitemPrice,
+} from "../types";
 import { AccessoriesSection } from "./AccessoriesSection";
 import { ExtraStagesSection } from "./ExtraStagesSection";
 import { FilamentColorsSection } from "./FilamentColorsSection";
 import { LinksSection } from "./LinksSection";
 import { MachineSelector } from "./MachineSelector";
 import { NumberInput } from "./NumberInput";
+import { SubitemsSection } from "./SubitemsSection";
 
 type ProductFormProps = {
   product: ProductInput;
@@ -24,6 +32,16 @@ type ProductFormProps = {
   onAddAccessory: () => void;
   onRemoveAccessory: (accessoryId: string) => void;
   onUpdateAccessory: (accessoryId: string, patch: Partial<ProductInput["accessories"][number]>) => void;
+  subitemPrices?: SubitemPrice[];
+  onToggleSellBySubitems: (on: boolean) => void;
+  onAddSubitem: () => void;
+  onRemoveSubitem: (subitemId: string) => void;
+  onUpdateSubitem: (subitemId: string, patch: Partial<Subitem>) => void;
+  onToggleStageInSubitem: (
+    subitemId: string,
+    stageKey: string,
+    include: boolean,
+  ) => void;
   onSave: () => void;
   onSaveAsNew: () => void;
   onCancelEdit: () => void;
@@ -44,6 +62,12 @@ export function ProductForm({
   onAddAccessory,
   onRemoveAccessory,
   onUpdateAccessory,
+  subitemPrices,
+  onToggleSellBySubitems,
+  onAddSubitem,
+  onRemoveSubitem,
+  onUpdateSubitem,
+  onToggleStageInSubitem,
   onSave,
   onSaveAsNew,
   onCancelEdit,
@@ -134,8 +158,19 @@ export function ProductForm({
         onUpdateStage={onUpdateStage}
       />
 
+      <SubitemsSection
+        product={product}
+        subitemPrices={subitemPrices}
+        onToggle={onToggleSellBySubitems}
+        onAddSubitem={onAddSubitem}
+        onRemoveSubitem={onRemoveSubitem}
+        onUpdateSubitem={onUpdateSubitem}
+        onToggleStage={onToggleStageInSubitem}
+      />
+
       <AccessoriesSection
         accessories={product.accessories}
+        subitems={product.sellBySubitems ? product.subitems : []}
         onAddAccessory={onAddAccessory}
         onRemoveAccessory={onRemoveAccessory}
         onUpdateAccessory={onUpdateAccessory}

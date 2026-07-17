@@ -330,6 +330,12 @@ export function PricingCalculator() {
             onAddAccessory={form.addAccessory}
             onRemoveAccessory={form.removeAccessory}
             onUpdateAccessory={form.updateAccessory}
+            subitemPrices={pricingResult.subitems}
+            onToggleSellBySubitems={form.setSellBySubitems}
+            onAddSubitem={form.addSubitem}
+            onRemoveSubitem={form.removeSubitem}
+            onUpdateSubitem={form.updateSubitem}
+            onToggleStageInSubitem={form.toggleStageInSubitem}
             onSave={saveCurrentProduct}
             onSaveAsNew={saveAsNewProduct}
             onCancelEdit={resetFormKeepingFixedCosts}

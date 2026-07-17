@@ -64,4 +64,56 @@ describe("validateProduct", () => {
     );
     expect(erro).toContain("Ímã");
   });
+
+  it("subitens: exige nome e ao menos uma etapa; aceita válido (FEAT-01)", () => {
+    // Sem subitem com o modo ligado.
+    expect(
+      validateProduct(makeProduct({ sellBySubitems: true, subitems: [] })),
+    ).toContain("ao menos um subitem");
+    // Subitem sem nome.
+    expect(
+      validateProduct(
+        makeProduct({
+          sellBySubitems: true,
+          subitems: [{ id: "A", name: "", stageKeys: ["main"] }],
+        }),
+      ),
+    ).toContain("nome");
+    // Subitem sem etapa.
+    expect(
+      validateProduct(
+        makeProduct({
+          sellBySubitems: true,
+          subitems: [{ id: "A", name: "Base", stageKeys: [] }],
+        }),
+      ),
+    ).toContain("etapa");
+    // Markup override abaixo de 1.
+    expect(
+      validateProduct(
+        makeProduct({
+          sellBySubitems: true,
+          subitems: [{ id: "A", name: "Base", stageKeys: ["main"], markup: 0.5 }],
+        }),
+      ),
+    ).toContain("markup");
+    // Válido.
+    expect(
+      validateProduct(
+        makeProduct({
+          sellBySubitems: true,
+          subitems: [{ id: "A", name: "Base", stageKeys: ["main"] }],
+        }),
+      ),
+    ).toBeNull();
+    // Modo desligado ignora subitens malformados.
+    expect(
+      validateProduct(
+        makeProduct({
+          sellBySubitems: false,
+          subitems: [{ id: "A", name: "", stageKeys: [] }],
+        }),
+      ),
+    ).toBeNull();
+  });
 });

@@ -10,6 +10,7 @@ import type {
   PrintStage,
   ProductInput,
   SavedProduct,
+  Subitem,
 } from "../types";
 
 // As cores no estado do formulário ganham um `id` só para servir de chave de
@@ -60,6 +61,14 @@ function createAccessory(index: number, data?: Partial<Accessory>): Accessory {
     unitPrice: data?.unitPrice ?? 0,
     // FEAT-01: atribuição a um subitem (null = nível do produto, rateado).
     subitemId: data?.subitemId ?? null,
+  };
+}
+
+function createSubitem(index: number): Subitem {
+  return {
+    id: `sub_${Date.now()}_${index}`,
+    name: "",
+    stageKeys: [],
   };
 }
 
@@ -124,6 +133,75 @@ export function usePricingForm() {
     }));
   }
 
+  // FEAT-01 — subitens vendáveis.
+  function setSellBySubitems(on: boolean) {
+    setProduct((current) => ({
+      ...current,
+      sellBySubitems: on,
+      // Ao ligar sem nenhum subitem, semeia um para a UI não abrir vazia.
+      subitems:
+        on && current.subitems.length === 0
+          ? [createSubitem(0)]
+          : current.subitems,
+    }));
+  }
+
+  function addSubitem() {
+    setProduct((current) => ({
+      ...current,
+      subitems: [...current.subitems, createSubitem(current.subitems.length)],
+    }));
+  }
+
+  function removeSubitem(subitemId: string) {
+    setProduct((current) => ({
+      ...current,
+      subitems: current.subitems.filter((s) => s.id !== subitemId),
+      // Acessórios que apontavam para o subitem removido voltam ao nível do
+      // produto (rateado).
+      accessories: current.accessories.map((a) =>
+        a.subitemId === subitemId ? { ...a, subitemId: null } : a,
+      ),
+    }));
+  }
+
+  function updateSubitem(subitemId: string, patch: Partial<Subitem>) {
+    setProduct((current) => ({
+      ...current,
+      subitems: current.subitems.map((s) =>
+        s.id === subitemId ? { ...s, ...patch } : s,
+      ),
+    }));
+  }
+
+  // Inclui/remove uma etapa num subitem. Uma etapa pertence a NO MÁXIMO um
+  // subitem (peça física num grupo só): ao incluir aqui, sai dos outros.
+  function toggleStageInSubitem(
+    subitemId: string,
+    stageKey: string,
+    include: boolean,
+  ) {
+    setProduct((current) => ({
+      ...current,
+      subitems: current.subitems.map((s) => {
+        if (s.id === subitemId) {
+          const has = s.stageKeys.includes(stageKey);
+          if (include && !has) {
+            return { ...s, stageKeys: [...s.stageKeys, stageKey] };
+          }
+          if (!include && has) {
+            return { ...s, stageKeys: s.stageKeys.filter((k) => k !== stageKey) };
+          }
+          return s;
+        }
+        if (include && s.stageKeys.includes(stageKey)) {
+          return { ...s, stageKeys: s.stageKeys.filter((k) => k !== stageKey) };
+        }
+        return s;
+      }),
+    }));
+  }
+
   function resetForm() {
     setEditingProductId(null);
     setProduct(cloneDefaultProduct());
@@ -170,6 +248,11 @@ export function usePricingForm() {
     updateAccessory,
     addAccessory,
     removeAccessory,
+    setSellBySubitems,
+    addSubitem,
+    removeSubitem,
+    updateSubitem,
+    toggleStageInSubitem,
     resetForm,
     loadProduct,
   };

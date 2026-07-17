@@ -465,3 +465,94 @@
   color: var(--accent);
 }
 
+/* FEAT-01 — subitens vendáveis (montagem no produto) */
+.subitems-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.subitems-body {
+  margin-top: 12px;
+}
+
+.subitem-card {
+  border-style: dashed;
+}
+
+.subitem-head-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.subitem-price {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.subitem-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.subitem-stage-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--field-bg);
+  border: 1.5px solid var(--field-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.subitem-stage-check input {
+  cursor: pointer;
+}
+
+.subitem-markup {
+  margin-top: 10px;
+}
+
+.subitem-markup-open,
+.subitem-markup-reset {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.subitem-internal {
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* Atribuição de acessório a um subitem */
+.accessory-block {
+  margin-bottom: 10px;
+}
+
+.accessory-block .accessory-row {
+  margin-bottom: 0;
+}
+
+.accessory-subitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted2);
+}
+
+.accessory-subitem select {
+  flex: 1;
+  max-width: 260px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
