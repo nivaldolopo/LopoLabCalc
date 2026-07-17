@@ -412,6 +412,47 @@ td {
   font-style: normal;
 }
 
+/* FEAT-01 — quebra de preço por subitem no detalhe do catálogo */
+.subitem-price-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subitem-price-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  background: var(--markup-row-bg);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.subitem-price-row.total {
+  background: transparent;
+  border-top: 1px dashed var(--border-soft);
+  border-radius: 0;
+  margin-top: 2px;
+  padding-top: 8px;
+  color: var(--muted);
+}
+
+.subitem-price-row .sp-name {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.subitem-price-row .sp-meta {
+  color: var(--muted2);
+}
+
+.subitem-price-row .sp-price {
+  font-weight: 700;
+}
+
 .details-links a {
   color: var(--accent);
   font-size: 12px;

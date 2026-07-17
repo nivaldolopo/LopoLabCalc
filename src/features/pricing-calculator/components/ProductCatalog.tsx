@@ -498,6 +498,35 @@ function CatalogDetails({
         </div>
       </div>
 
+      {result.subitems && result.subitems.length > 0 ? (
+        <div className="details-span">
+          <div className="db-label">🧩 Subitens vendáveis</div>
+          <div className="subitem-price-list">
+            {result.subitems.map((subitem, index) => (
+              <div className="subitem-price-row" key={subitem.id}>
+                <span className="sp-name">
+                  {subitem.name || `Subitem ${index + 1}`}
+                </span>
+                <span className="sp-meta">
+                  {round2(subitem.printHours)}h · markup{" "}
+                  {subitem.markup.toFixed(1)}x
+                </span>
+                <span className="sp-price mono sg">
+                  {formatCurrency(subitem.price)}
+                </span>
+              </div>
+            ))}
+            <div className="subitem-price-row total">
+              <span className="sp-name">Produto inteiro (Σ partes)</span>
+              <span className="sp-meta" />
+              <span className="sp-price mono">
+                {formatCurrency(result.suggestedPrice)}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {stages.length > 0 ? (
         <div className="details-span">
           <div className="db-label">🔗 Etapas de impressão</div>
