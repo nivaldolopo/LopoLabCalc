@@ -10,28 +10,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **7c — produto ligado ao Estoque (dropdown de cor + preço vivo).** O campo
-  "Cor" do `FilamentColorsSection` virou **dropdown das cores do Estoque** (mono E multi) + opção
-  **"Avulso"** (texto livre + preço manual, fallback D3). Ligada a uma cor, o **preço/kg vem vivo do
-  rolo mais novo** (D3 catálogo) e fica só-leitura; cor sem rolo/removida cai no preço salvo.
-  `calculatePricing(product, machines, fixed, **stock**)` resolve o preço vivo e devolve
-  **`filamentMissing`** → badge no molde do `machineMissing`/TD-009 (`PricingResultCard` +
-  `ProductCatalog`). `useStock` plugado no `PricingCalculator`, propagado a `ProductForm`/
-  `ProductCatalog`/`exportProductsCsv`. **SÓ O NÚCLEO (decisão do dono):** o legado escalar do
-  FEAT-02 (`weightG`/`filamentPricePerKg`, `normalizeFilaments`, CSV velho) foi **mantido** — a
-  faxina vira tarefa própria depois. **NÃO** há display de "rolo em uso/quanto resta" nem avisos D5
-  aqui (é da 8). `lint`+`test` (**108 verdes**)+`build` limpos.
-  ⚠ **Recadastro:** produtos atuais seguem "Avulso" (preço salvo) até o dono abrir cada um e
-  escolher a cor no dropdown — nada quebra; só não puxam preço vivo enquanto forem avulsos.
-  **Próximo passo (Tier 1): FEAT-01 — preço/subitens por etapa (rateio exato/aditivo). NÃO iniciar
-  sem o dono.** Decisão do rateio (exato/aditivo) resolve-se no PRÓPRIO chat do FEAT-01.
-  **Ordem do Tier 1 FECHADA em planejamento (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 → FEAT-04 →
-  FEAT-05 → 8`.** ⚠ **Reframe aprovado:** o passo **8 deixa de ser "o passo da baixa"** e vira
-  **reconciliação da venda** — a **primitiva de baixa migra pra PRODUÇÃO (FEAT-04)**, porque é o único
-  ponto que captura TODA impressão (inclusive teste/falha/brinde, que nunca viram venda). Detalhe e
-  decisões (D1-D8 + toggle de subitens/desfecho da impressão/estoque por subitem com lacuna) no item 3
-  e nos FEAT-01/04/05 do backlog. Restam da auditoria: **TD-003** (capacidade por-máquina, casar com
-  Dashboard) e **TD-006** (paginação).
+- **Última mudança:** **FEAT-01 — preço/subitens por etapa (rateio ADITIVO).** Produto ganhou um
+  **toggle "vender por subitens"** (default OFF = só inteiro, comportamento de hoje). ON: agrupa etapas
+  em **subitens vendáveis** (`SubitemsSection`: checkbox por etapa com exclusividade mútua; etapas fora
+  de grupo = **passos internos**, entram no custo mas não vendem). Rateio em `calculatePricing`
+  (`computeSubitems`): peso = custo de impressão do subitem; **passos internos, reserva de falha, custo
+  fixo e acessórios não atribuídos são rateados** por esse peso; **acessório atribuído** (box discreto
+  na `AccessoriesSection`) vai 100% no subitem; **markup por subitem** (botão discreto → slider override,
+  senão herda o do produto); **fixo sem markup** (DEC-01). **Inteiro = Σ subitens** (exato). Decisões do
+  dono: markup por subitem atrás de botão discreto; acessório atribuível por box. Superfícies: catálogo
+  mostra a quebra por subitem; `/orcamento` e `SaleModal` listam inteiro + cada subitem como linha
+  vendável (subitem congela só o SEU custo/filamentos → **baixa do passo 8 correta por construção**);
+  `SaleInput.subitemId` grava a parte vendida (SKU do FEAT-05). Identidade estável: `PrintStage.id`
+  agora persiste. `lint`+`build`+`test` (**116 verdes**) limpos.
+  ⚠ **CSV:** export/import **não** carregam subitens (round-trip do formato velho é descartável,
+  Diretriz 7 — recadastro no marco cobre). ⚠ **Faxina do legado FEAT-02 segue adiada.**
+  **Próximo passo (Tier 1): FEAT-04 — Registro de Produção (a primitiva de baixa migra pra cá).
+  NÃO iniciar sem o dono.**
+  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 → FEAT-05 → 8`.**
+  ⚠ **Reframe aprovado:** o passo **8 deixa de ser "o passo da baixa"** e vira **reconciliação da
+  venda** — a **primitiva de baixa migra pra PRODUÇÃO (FEAT-04)**, porque é o único ponto que captura
+  TODA impressão (inclusive teste/falha/brinde, que nunca viram venda). Detalhe e decisões (D1-D8 +
+  desfecho da impressão/estoque por subitem com lacuna) no item 3 e nos FEAT-04/05 do backlog. Restam
+  da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
 - **Contexto do ROI (`/maquinas`):** rota `MachinesPage` (linkada no header) cruza
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
@@ -45,8 +46,8 @@
 - **Infra pronta:** subdomínio `calculadora.lopolab.com.br` **NO AR** (CNAME "DNS only" no
   Cloudflare + SSL Let's Encrypt + Authorized domain no Firebase). **E-mail `@lopolab.com.br`
   configurado** (DNS no Cloudflare; contexto no chat "abertura da loja", fora do repo).
-- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — **EM ANDAMENTO: 7a ✅ + 7b ✅ + 7c ✅**,
-  próximo é a **FEAT-01**, depois **FEAT-04 → FEAT-05 → 8** (ver "Reframe" no Status/backlog); coleção
+- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — **EM ANDAMENTO: 7a ✅ + 7b ✅ + 7c ✅ +
+  FEAT-01 ✅**, próximo é a **FEAT-04**, depois **FEAT-05 → 8** (ver "Reframe" no Status/backlog); coleção
   `estoque` (um doc por COR, rolos dentro); decisões D1-D8 e as etapas no item 3 do backlog; (b) item 4 —
   **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
   TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
@@ -253,15 +254,15 @@
      (`weightG`/`filamentPricePerKg` escalares, `normalizeFilaments`, round-trip do CSV velho
      **mantidos** como peso morto inofensivo) → vira **tarefa própria** depois (Diretriz 7 segue
      cobrindo). Detalhe no "Status atual".
-   - **FEAT-01 — Preço/subitens por etapa (ENTRA AQUI, antes do FEAT-04/05/8).** Não é do Estoque, mas
-     define a **granularidade da unidade vendável** (subitem = grupo de etapas), que FEAT-04/05 e o passo
-     8 herdam. Fazer antes evita nascer produção/estoque-de-produtos em granularidade de produto inteiro
-     e refazê-los. **Toggle no produto (aprovado jul/2026):** default OFF = só vende inteiro (= hoje);
-     ON = agrupa etapas em **subitens vendáveis** (etapas fora de grupo = passos internos: entram no
-     custo, não vendem sozinhas). Vender parte E inteiro convivem. **Decisão do rateio (exato/aditivo)
-     em aberto — o dono resolve no PRÓPRIO chat do FEAT-01.** O aditivo é o que faz a soma das partes
-     fechar com o inteiro (e sustenta a "lacuna" do FEAT-05). Detalhe no item FEAT-01 (seção "Ideias/
-     ajustes trazidos pelo dono").
+   - **FEAT-01 — Preço/subitens por etapa. ✅ FEITA (jul/2026).** Toggle "vender por subitens" no
+     produto (default OFF); `SubitemsSection` agrupa etapas (exclusividade mútua; fora de grupo = passos
+     internos). Rateio ADITIVO em `computeSubitems` (peso = custo de impressão; internos/falha/fixo/
+     acessórios-não-atribuídos rateados; acessório atribuído 100%; markup por subitem via botão discreto;
+     fixo sem markup). **Inteiro = Σ subitens.** Catálogo/`/orcamento`/`SaleModal` vendem inteiro + cada
+     subitem; `SaleInput.subitemId` grava a parte; `PrintStage.id` persiste. **Decisão do rateio (a que
+     estava em aberto):** aditivo por custo, markup por subitem atrás de botão discreto, acessório
+     atribuível por box. CSV **não** carrega subitem (Diretriz 7). +8 testes (116 verdes). Detalhe no
+     "Status atual" e no item FEAT-01 abaixo.
    - **FEAT-04 — Registro de Produção (a primitiva de baixa migra pra cá).** O evento que gasta
      filamento + hora é a **produção**, não a venda. Registra TODA impressão com um **desfecho**
      (aprovado jul/2026): peça-pro-estoque / encomenda / **teste·calibração** / **falha** (dado real ≠
@@ -370,8 +371,10 @@ pendente da auditoria.
   nas 8 telas (`NumberField` do `ProductForm` passou a usá-lo; + `AccessoriesSection`,
   `ExtraStagesSection`, `CapacityPanel`, `FixedCostsPanel`, `SaleModal`, `QuotePage`,
   `MachineManagerModal`). Clamps de call-site redundantes removidos. Só UI, sem migração.
-- ⬜ **[FEAT-01] Preço por etapa (etapa como item opcional no orçamento/venda)** *(**Tier 1, PRÓXIMO —
-  depois da 7c, antes do FEAT-04/05/8** · tamanho médio · **define a granularidade de subitem que
+- ✅ **[FEAT-01] Preço/subitens por etapa — FEITA (jul/2026).** Rateio aditivo (inteiro = Σ subitens),
+  toggle no produto, markup por subitem (botão discreto), acessório atribuível por box, venda/orçamento
+  por subitem. Núcleo em `computeSubitems`/`SubitemsSection`. **Contexto histórico abaixo** *(**era**
+  Tier 1, depois da 7c, antes do FEAT-04/05/8 · **definiu a granularidade de subitem que
   FEAT-04/05/8 herdam**)*. Salvar/mostrar o preço calculado e proporcional de **cada etapa** do
   produto (considerando máquina, mão de obra, filamento, tempo de cada etapa). **Por quê:** uma
   etapa pode ser um acessório opcional pro cliente (ex.: peça base + adorno impresso à parte) — o
@@ -591,13 +594,13 @@ pendente da auditoria.
   (modelo **aprovado**, detalhe e decisões D1-D8 no item 3 do backlog), quebrado em **uma etapa por
   chat**: ~~(7a) modelo + repo, sem UI~~ **✅ FEITA**; ~~(7b) rota `/estoque` (CRUD de cores +
   rolos)~~ **✅ FEITA**; ~~(7c) dropdown de cor no produto (preço vivo)~~ **✅ FEITA**;
-  **FEAT-01** preço/subitens por etapa (rateio exato/aditivo; **toggle de subitens no produto**) —
-  **próximo; é captura, define a granularidade que FEAT-04/05 herdam**;
-  **FEAT-04** Registro de Produção (a **primitiva de baixa** migra pra produção; desfecho por impressão);
+  ~~**FEAT-01** preço/subitens por etapa (rateio aditivo; toggle de subitens)~~ **✅ FEITA**;
+  **FEAT-04** Registro de Produção (a **primitiva de baixa** migra pra produção; desfecho por impressão)
+  — **próximo**;
   **FEAT-05** Estoque de Produtos (acabado por subitem, lacuna); depois **8** (venda = **reconciliação**,
   não mais baixa; estorna via `stockMoves` no caminho encomenda).
   Insumos = (7e), **item separado depois** do filamento.
-  **Ordem final do Tier 1 (FECHADA em planejamento, jul/2026): 7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 → FEAT-04
+  **Ordem final do Tier 1 (jul/2026): 7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04
   → FEAT-05 → 8.**
   ⚠ **Reframe aprovado (jul/2026):** o quiosque de mall exige vender **peça pronta na hora**. FEAT-04
   move a **primitiva de baixa** pra produção (é o único ponto que captura teste/falha/brinde — impressões
@@ -643,7 +646,8 @@ src/
     components/             # UI: PricingCalculator (raiz), ProductForm, ProductCatalog,
                             #     PricingResultCard, CapacityPanel, MachineSelector,
                             #     MachineManagerModal, FixedCostsPanel, AccessoriesSection,
-                            #     ExtraStagesSection, LinksSection, Header,
+                            #     ExtraStagesSection, SubitemsSection (subitens vendáveis),
+                            #     LinksSection, Header,
                             #     SaleModal (registrar venda), SalesPage (rota /vendas),
                             #     QuotePage (/orcamento), MachinesPage (/maquinas),
                             #     StockPage (/estoque) + StockColorModal/StockRollModal/
