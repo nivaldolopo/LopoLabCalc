@@ -8,8 +8,10 @@ import {
 } from "firebase/firestore";
 import { db } from "./client";
 import { serializeRolls } from "./stockRepository";
+import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import type {
   FilamentUsage,
+  FinishedGoodPayload,
   ProductionEvent,
   ProductionMode,
   ProductionOutcome,
@@ -18,6 +20,12 @@ import type {
   StockMove,
 } from "@/features/pricing-calculator/types";
 import { num } from "@/lib/number";
+
+// Incremento/estorno do Estoque de Produtos junto do evento (FEAT-05b): o estado
+// FINAL do doc do acabado (já com a camada empilhada OU já sem as camadas do
+// evento), gravado no MESMO `writeBatch`. `null`/ausente quando a submissão não
+// mexe em acabado (desfecho ≠ estoque, avulso, ou evento que não criou camada).
+export type FinishedUpdate = { productId: string; payload: FinishedGoodPayload };
 
 // Registro de Produção (FEAT-04): a coleção `producao` é a fonte da verdade do
 // consumo de filamento + hora. A baixa entra no MESMO `writeBatch` do evento
@@ -160,9 +168,12 @@ export function subscribeProduction(
 // máquinas diferentes (um evento por máquina, baixa encadeada — ver 04b).
 // `colorUpdates` é o estado FINAL das cores afetadas (já decrementado por todos
 // os eventos); no modo historico é `[]`. Só o campo `rolls` da cor é reescrito.
+// `finished` (FEAT-05b) é o doc do acabado já incrementado pela submissão, quando
+// o desfecho é `estoque`; grava no mesmo batch (id do doc = productId).
 export async function saveProduction(
   events: { id: string; payload: ProductionPayload }[],
   colorUpdates: StockFilament[],
+  finished?: FinishedUpdate | null,
 ): Promise<void> {
   const batch = writeBatch(db);
   for (const { id, payload } of events) {
@@ -173,17 +184,26 @@ export async function saveProduction(
       rolls: serializeRolls(color.rolls),
     });
   }
+  if (finished) {
+    batch.set(
+      doc(db, "acabados", finished.productId),
+      finishedGoodToDocument(finished.payload),
+    );
+  }
   await batch.commit();
 }
 
 // Exclui um evento e estorna a baixa no mesmo batch. `colorUpdates` vem de
-// `reverseProduction` (cores com os rolos restaurados). Evento historico tem
-// `colorUpdates` vazio → só apaga o doc.
+// `reverseProduction` (cores com os rolos restaurados). `finished` (FEAT-05b) é o
+// doc do acabado já SEM as camadas do evento (`removeEventLayers`), quando o
+// evento havia incrementado o estoque de produtos. Sem nada a estornar (evento
+// historico, sem acabado) → só apaga o doc.
 export async function removeProduction(
   eventId: string,
   colorUpdates: StockFilament[] = [],
+  finished?: FinishedUpdate | null,
 ): Promise<void> {
-  if (colorUpdates.length === 0) {
+  if (colorUpdates.length === 0 && !finished) {
     await deleteDoc(doc(db, "producao", eventId));
     return;
   }
@@ -193,6 +213,12 @@ export async function removeProduction(
     batch.update(doc(db, "estoque", color.id), {
       rolls: serializeRolls(color.rolls),
     });
+  }
+  if (finished) {
+    batch.set(
+      doc(db, "acabados", finished.productId),
+      finishedGoodToDocument(finished.payload),
+    );
   }
   await batch.commit();
 }

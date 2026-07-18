@@ -10,26 +10,24 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **FEAT-05a — modelo + lib pura + repo do Estoque de Produtos (acabados), sem UI.**
-  Fundação (molde da 7a), nada plugado ainda — nenhum saldo muda. Decisões do dono neste chat: FEAT-05
-  = **só o lado estoque** (a venda que DECREMENTA fica pro passo 8, fiel ao reframe); **camadas FIFO**
-  (não custo médio); apresentação **híbrida** (saldo por subitem + inteiros montáveis + lacuna).
-  Entregue: tipos (`FinishedLayer`/`FinishedSku`/`FinishedGood`+Input/Payload; `FinishedMove`/
-  `FinishedConsumptionResult` prontos pro passo 8); **`lib/finishedGoods.ts`** puro — a produção
-  EMPILHA camada (custo congelado por unidade, `sourceEventId`), a venda CONSOME FIFO (`consumeFifo`,
-  COGS pelo custo congelado + `shortfall`/D4); `addProductionLayers` (cria/incrementa, id de camada
-  determinístico evento+SKU), `removeEventLayers` (estorno round-trip), `assemblableWholes` (min das
-  partes, recebe os subitens VIVOS do produto); `finishedGoodsRepository` (coleção **`acabados`**, um
-  doc por PRODUTO, **id do doc = productId** — a baixa acha sem query; `serializeSkus` exportado pro
-  batch da 05b) + `useFinishedGoods`. **SKU = subitem (FEAT-01); só desfecho `estoque` incrementa.**
-  +15 testes (**151 verdes**), `lint`+`build` limpos. Regras do Firestore não mudaram (wildcard cobre
-  `acabados`). ⚠ **Faxina do legado FEAT-02 segue adiada.**
-  **Próximo passo: FEAT-05b** — ligar a produção: `saveProduction`/`removeProduction` incrementam/
-  estornam o acabado no MESMO `writeBatch` do evento quando `outcome === "estoque"`; `ProductionPage`
-  computa o delta do acabado por SUBMISSÃO (dedup multi-máquina = 1 unidade; split por subitem no
-  inteiro-com-subitens, rateando o `frozenCost` real pelas proporções do `SubitemPrice.cost`). Depois
-  **05c** (tela: aba "Produtos" na `/estoque`, híbrido) e **8**. Detalhe no item FEAT-05 do backlog.
-  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅ → FEAT-05 (05a ✅ · 05b · 05c) → 8`.**
+- **Última mudança:** **FEAT-05b — a produção liga no Estoque de Produtos (acabados).** Quando o
+  desfecho é **`estoque`**, cada SUBMISSÃO da `/producao` **incrementa** o acabado no MESMO `writeBatch`
+  do evento; excluir a produção **estorna** (round-trip). Entregue: `submissionEntries` (puro,
+  `lib/finishedGoods.ts`) — 1 unidade por submissão (dedup multi-máquina), 3 formas: inteiro sem
+  subitens (1 SKU, custo cheio) · inteiro COM subitens (1 SKU por subitem, **rateio aditivo** do
+  `frozenCost` pelas proporções do `SubitemPrice.cost`; Σcost=0 divide igual) · subitem avulso (1 SKU).
+  `saveProduction`/`removeProduction` + `useProduction` ganharam `finished?: FinishedUpdate`; a
+  `ProductionPage` computa via `addProductionLayers`/`removeEventLayers` lendo `useFinishedGoods`.
+  **Camadas ancoradas no PRIMEIRO evento** da submissão (decisão do dono): excluir aquele card estorna
+  o acabado inteiro; card de máquina secundária só estorna filamento. Só `estoque` incrementa (modo
+  real OU historico — o acabado nasce independente da baixa de rolo). Avulso não vira acabado. Aviso
+  no resumo ("→ entra no Estoque de Produtos"). +5 testes (**156 verdes**), `lint`+`build` limpos.
+  Regras do Firestore não mudaram (wildcard cobre `acabados`). **Nenhuma UI de leitura ainda** (a aba
+  "Produtos" é a 05c). ⚠ **Faxina do legado FEAT-02 segue adiada.**
+  **Próximo passo: FEAT-05c** — tela: aba "Produtos" na `/estoque` (apresentação híbrida: saldo por
+  subitem + inteiros montáveis = min das partes + lacuna; saldo negativo com aviso). Depois **8**
+  (venda = reconciliação: decrementa o acabado via `consumeFifo`, já pronto). Detalhe no FEAT-05.
+  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅ → FEAT-05 (05a ✅ · 05b ✅ · 05c) → 8`.**
   ⚠ **Reframe aprovado:** o passo **8 deixa de ser "o passo da baixa"** e vira **reconciliação da
   venda** — a **primitiva de baixa migrou pra PRODUÇÃO (FEAT-04)**, porque é o único ponto que captura
   TODA impressão (inclusive teste/falha/brinde, que nunca viram venda). Detalhe e decisões (D1-D8 +
@@ -50,8 +48,8 @@
   Cloudflare + SSL Let's Encrypt + Authorized domain no Firebase). **E-mail `@lopolab.com.br`
   configurado** (DNS no Cloudflare; contexto no chat "abertura da loja", fora do repo).
 - **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — **EM ANDAMENTO: 7a ✅ + 7b ✅ + 7c ✅ +
-  FEAT-01 ✅ + FEAT-04 ✅ (04a·04b·04c) + FEAT-05 05a ✅**, próximo é a **FEAT-05 05b** (ligar a produção
-  ao acabado), depois **05c** (tela) e **8** (ver "Reframe" no Status/backlog); coleção
+  FEAT-01 ✅ + FEAT-04 ✅ (04a·04b·04c) + FEAT-05 (05a ✅ · 05b ✅)**, próximo é a **FEAT-05 05c** (tela:
+  aba "Produtos" na `/estoque`), depois **8** (ver "Reframe" no Status/backlog); coleção
   `estoque` (um doc por COR, rolos dentro); decisões D1-D8 e as etapas no item 3 do backlog; (b) item 4 —
   **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
   TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
@@ -592,8 +590,9 @@ pendente da auditoria.
   `SubitemPrice.cost` (aditivo/FEAT-01). Só `estoque` incrementa. **Fases:**
   ~~**05a** modelo (`types.ts`) + `lib/finishedGoods.ts` puro + `finishedGoodsRepository` (coleção
   `acabados`, doc por produto) + `useFinishedGoods` + 15 testes, SEM UI/wiring~~ **✅ FEITA (jul/2026)**;
-  **05b** ligar a produção (incremento/estorno atômico no `writeBatch` do evento; delta por submissão
-  na `ProductionPage`); **05c** tela (aba "Produtos" na `/estoque`, híbrido + negativo com aviso).
+  ~~**05b** ligar a produção (incremento/estorno atômico no `writeBatch` do evento; delta por submissão
+  na `ProductionPage` via `submissionEntries`; camadas ancoradas no 1º evento; só desfecho `estoque`)~~
+  **✅ FEITA (jul/2026)**; **05c** tela (aba "Produtos" na `/estoque`, híbrido + negativo com aviso).
 - ✅ **[UX-04] Botão "Nova venda" no topo da `/vendas` — FEITO.** Botão no header da `SalesPage`
   (ícone `Plus`) abre o `SaleModal` em **modo novo** (`seed={null}`, cesta vazia; estado `newSale`
   separado do `editRecibo`), escolhendo itens pelo seletor de catálogo já existente e gravando via
@@ -626,7 +625,7 @@ pendente da auditoria.
   não mais baixa; estorna via `stockMoves` no caminho encomenda).
   Insumos = (7e), **item separado depois** do filamento.
   **Ordem final do Tier 1 (jul/2026): 7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅
-  (04a · 04b · 04c) → FEAT-05 (05a ✅ · 05b · 05c) → 8.**
+  (04a · 04b · 04c) → FEAT-05 (05a ✅ · 05b ✅ · 05c) → 8.**
   ⚠ **Reframe aprovado (jul/2026):** o quiosque de mall exige vender **peça pronta na hora**. FEAT-04
   move a **primitiva de baixa** pra produção (é o único ponto que captura teste/falha/brinde — impressões
   que nunca viram venda), então **entra antes da 8**, e a **8 deixa de ser "o passo da baixa"** e vira

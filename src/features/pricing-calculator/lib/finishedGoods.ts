@@ -27,6 +27,58 @@ export type FinishedEntry = {
   unitCost: number;
 };
 
+/**
+ * Delta do acabado de UMA submissão da /producao (FEAT-05b). PURA. Só chamada
+ * quando `outcome === "estoque"` e há produto (avulso não vira acabado). Uma
+ * submissão = UMA unidade física (dedup multi-máquina: N eventos, mas 1 peça),
+ * então toda entrada tem `qty: 1`. O `totalFrozenCost` é a soma do `frozenCost`
+ * de TODOS os eventos da submissão (o custo real da unidade inteira).
+ *
+ * Três formas:
+ *  - subitem avulso selecionado (`subitemId` dado) → 1 SKU daquele subitem, custo
+ *    inteiro;
+ *  - inteiro COM subitens (`subitems` não vazio) → 1 SKU por subitem, rateando o
+ *    `totalFrozenCost` pelas proporções do `SubitemPrice.cost` (aditivo/FEAT-01;
+ *    se Σcost = 0, divide igual — degenerado);
+ *  - inteiro SEM subitens → 1 SKU do inteiro, custo inteiro.
+ */
+export function submissionEntries(
+  productName: string,
+  totalFrozenCost: number,
+  opts: {
+    subitemId?: string;
+    subitemName?: string;
+    subitems?: { id: string; name: string; cost: number }[];
+  } = {},
+): FinishedEntry[] {
+  const total = num(totalFrozenCost);
+
+  if (opts.subitemId) {
+    return [
+      {
+        subitemId: opts.subitemId,
+        name: opts.subitemName || productName,
+        qty: 1,
+        unitCost: total,
+      },
+    ];
+  }
+
+  const subs = opts.subitems ?? [];
+  if (subs.length > 0) {
+    const sumCost = subs.reduce((sum, s) => sum + num(s.cost), 0);
+    return subs.map((s) => ({
+      subitemId: s.id,
+      name: s.name,
+      qty: 1,
+      unitCost:
+        sumCost > 0 ? total * (num(s.cost) / sumCost) : total / subs.length,
+    }));
+  }
+
+  return [{ name: productName, qty: 1, unitCost: total }];
+}
+
 // Chave estável da SKU: o subitem, ou a sentinela do inteiro. Duas entradas da
 // mesma SKU somam no mesmo saldo.
 const WHOLE_KEY = "__whole__";

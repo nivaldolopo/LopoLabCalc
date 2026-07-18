@@ -5,6 +5,7 @@ import {
   removeProduction,
   saveProduction,
   subscribeProduction,
+  type FinishedUpdate,
 } from "@/lib/firebase/productionRepository";
 import type {
   CloudStatus,
@@ -38,21 +39,25 @@ export function useProduction() {
   }, []);
 
   // Grava N eventos (o "inteiro" multi-máquina vira mais de um) + a baixa final
-  // das cores afetadas, tudo atômico.
+  // das cores afetadas + o incremento do acabado (FEAT-05b, só desfecho
+  // estoque), tudo atômico.
   async function addProduction(
     entries: { id: string; payload: ProductionPayload }[],
     colorUpdates: StockFilament[],
+    finished?: FinishedUpdate | null,
   ) {
-    await saveProduction(entries, colorUpdates);
+    await saveProduction(entries, colorUpdates, finished);
   }
 
   // Exclui um evento e estorna sua baixa. `colorUpdates` vem de
   // `reverseProduction` (cores com os rolos restaurados); vazio no historico.
+  // `finished` estorna o acabado quando o evento o havia incrementado (05b).
   async function deleteProduction(
     eventId: string,
     colorUpdates: StockFilament[],
+    finished?: FinishedUpdate | null,
   ) {
-    await removeProduction(eventId, colorUpdates);
+    await removeProduction(eventId, colorUpdates, finished);
   }
 
   return { events, status, error, addProduction, deleteProduction };

@@ -10,10 +10,18 @@ import {
   todayInputValue,
 } from "@/lib/formatting/date";
 import { num } from "@/lib/number";
-import { newProductionId } from "@/lib/firebase/productionRepository";
+import {
+  newProductionId,
+  type FinishedUpdate,
+} from "@/lib/firebase/productionRepository";
 import { DEFAULT_FIXED_COSTS, DEFAULT_PRODUCT_INPUT } from "../constants";
 import { calculatePricing, normalizeStages } from "../lib/calculatePricing";
 import { filamentTotalG, normalizeFilaments } from "../lib/filaments";
+import {
+  addProductionLayers,
+  removeEventLayers,
+  submissionEntries,
+} from "../lib/finishedGoods";
 import {
   planProduction,
   productionCost,
@@ -21,6 +29,7 @@ import {
 } from "../lib/production";
 import { catalogPricePerKg, filamentLabel } from "../lib/stock";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
+import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
 import { useProduction } from "../hooks/useProduction";
@@ -151,6 +160,9 @@ export function ProductionPage() {
   );
   const { events, status, error, addProduction, deleteProduction } =
     useProduction();
+  // Leitura viva dos acabados: a submissão empilha camada no doc do produto e a
+  // exclusão a estorna (FEAT-05b). O incremento/estorno grava no batch do evento.
+  const { goods } = useFinishedGoods();
 
   const [selectedKey, setSelectedKey] = useState("");
   const [rows, setRows] = useState<EventRow[]>([]);
@@ -451,6 +463,75 @@ export function ProductionPage() {
     [rows, mode, stock, machines, products],
   );
 
+  // Delta do acabado da submissão (FEAT-05b). Só quando o desfecho é `estoque` e
+  // há produto (avulso não vira acabado). Uma submissão = UMA unidade; o custo é a
+  // soma do `frozenCost` de todos os eventos (dedup multi-máquina). As camadas são
+  // ancoradas no PRIMEIRO evento (`built[0].id`) — excluir aquele card estorna o
+  // acabado inteiro da submissão; cards de máquina secundária só estornam filamento.
+  function finishedForSave(
+    built: ReturnType<typeof planEvents>["built"],
+    totalFrozen: number,
+    at: number,
+  ): FinishedUpdate | null {
+    if (outcome !== "estoque" || built.length === 0) return null;
+
+    let productId: string | undefined;
+    let subitemId: string | undefined;
+    if (selectedKey.startsWith("whole:")) {
+      productId = selectedKey.slice("whole:".length);
+    } else if (selectedKey.startsWith("sub:")) {
+      [, productId, subitemId] = selectedKey.split(":");
+    }
+    if (!productId) return null; // avulso
+
+    const product = products.find((p) => p.id === productId);
+    if (!product) return null;
+    const name = product.name || product.mainStageName || "(sem nome)";
+    const subitems = pricingByProduct.get(productId)?.subitems ?? [];
+
+    const entries = submissionEntries(name, totalFrozen, {
+      subitemId,
+      subitemName: subitems.find((s) => s.id === subitemId)?.name,
+      subitems:
+        !subitemId && subitems.length > 0
+          ? subitems.map((s) => ({ id: s.id, name: s.name, cost: s.cost }))
+          : undefined,
+    });
+
+    const good = goods.find((g) => g.id === productId) ?? null;
+    const payload = addProductionLayers(
+      good,
+      productId,
+      name,
+      entries,
+      built[0].id,
+      at,
+    );
+    return { productId, payload };
+  }
+
+  // Estorno do acabado ao excluir um evento (FEAT-05b): só quando aquele evento
+  // criou camadas (é o PRIMEIRO da sua submissão). Devolve o doc já sem elas.
+  function finishedForRemove(event: ProductionEvent): FinishedUpdate | null {
+    if (event.outcome !== "estoque" || !event.productId) return null;
+    const good = goods.find((g) => g.id === event.productId);
+    if (!good) return null;
+    const created = good.skus.some((sku) =>
+      sku.layers.some((layer) => layer.sourceEventId === event.id),
+    );
+    if (!created) return null;
+    const reverted = removeEventLayers(good, event.id);
+    return {
+      productId: good.productId,
+      payload: {
+        productId: good.productId,
+        productName: good.productName,
+        skus: reverted.skus,
+        createdAt: good.createdAt,
+      },
+    };
+  }
+
   async function save() {
     if (rows.length === 0) {
       setFeedback({ kind: "error", msg: "Escolha o que foi impresso." });
@@ -503,8 +584,10 @@ export function ProductionPage() {
       return { id: e.id, payload };
     });
 
+    const finished = finishedForSave(planned.built, planned.summary.frozen, at);
+
     try {
-      await addProduction(entries, planned.colorUpdates);
+      await addProduction(entries, planned.colorUpdates, finished);
       setFeedback({
         kind: "ok",
         msg:
@@ -534,7 +617,7 @@ export function ProductionPage() {
     try {
       guardOnline();
       const colorUpdates = reverseProduction(event.stockMoves, stock);
-      await deleteProduction(event.id, colorUpdates);
+      await deleteProduction(event.id, colorUpdates, finishedForRemove(event));
       setFeedback({ kind: "ok", msg: "✓ Produção excluída e estoque estornado." });
     } catch (err) {
       setFeedback({ kind: "error", msg: errorMessage(err) });
@@ -847,6 +930,12 @@ export function ProductionPage() {
                   ) : null}
                 </>
               )}
+              {outcome === "estoque" && selectedKey && selectedKey !== "avulso" ? (
+                <div className="prod-note">
+                  → Entra no <strong>Estoque de Produtos</strong> (peça pronta) com
+                  o custo desta impressão.
+                </div>
+              ) : null}
             </div>
           </>
         ) : null}

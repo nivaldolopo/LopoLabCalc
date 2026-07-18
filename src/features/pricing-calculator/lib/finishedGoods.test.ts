@@ -7,6 +7,7 @@ import {
   findSku,
   removeEventLayers,
   skuBalance,
+  submissionEntries,
 } from "./finishedGoods";
 import type { FinishedGood, FinishedSku } from "../types";
 
@@ -220,6 +221,63 @@ describe("assemblableWholes (min das partes)", () => {
       skus: [{ name: "Boneco", layers: [{ id: "e1__whole", at: 0, qty: 4, unitCost: 5, sourceEventId: "e1" }] }],
     });
     expect(assemblableWholes(whole, [])).toBe(4);
+  });
+});
+
+describe("submissionEntries (delta da submissão — FEAT-05b)", () => {
+  it("inteiro sem subitens → 1 SKU do inteiro com o custo cheio", () => {
+    const entries = submissionEntries("Boneco", 30, {});
+    expect(entries).toEqual([
+      { name: "Boneco", qty: 1, unitCost: 30 },
+    ]);
+  });
+
+  it("subitem avulso selecionado → 1 SKU daquele subitem, custo cheio", () => {
+    const entries = submissionEntries("Kit", 12, {
+      subitemId: "a",
+      subitemName: "Base",
+    });
+    expect(entries).toEqual([
+      { subitemId: "a", name: "Base", qty: 1, unitCost: 12 },
+    ]);
+  });
+
+  it("inteiro com subitens → 1 SKU por subitem, rateio pelo cost (soma = total)", () => {
+    const entries = submissionEntries("Kit", 30, {
+      subitems: [
+        { id: "a", name: "Base", cost: 6 },
+        { id: "b", name: "Topo", cost: 4 },
+      ],
+    });
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toEqual({ subitemId: "a", name: "Base", qty: 1, unitCost: 18 }); // 30×6/10
+    expect(entries[1]).toEqual({ subitemId: "b", name: "Topo", qty: 1, unitCost: 12 }); // 30×4/10
+    const soma = entries.reduce((s, e) => s + e.unitCost, 0);
+    expect(soma).toBeCloseTo(30); // o inteiro = Σ partes (aditivo)
+  });
+
+  it("Σcost = 0 (degenerado) → divide o custo igual entre os subitens", () => {
+    const entries = submissionEntries("Kit", 10, {
+      subitems: [
+        { id: "a", name: "Base", cost: 0 },
+        { id: "b", name: "Topo", cost: 0 },
+      ],
+    });
+    expect(entries[0].unitCost).toBe(5);
+    expect(entries[1].unitCost).toBe(5);
+  });
+
+  it("empilhada por addProductionLayers, o inteiro montável = 1 (min das partes)", () => {
+    // Uma submissão do inteiro com 2 subitens vira +1 em cada → 1 conjunto.
+    const entries = submissionEntries("Kit", 30, {
+      subitems: [
+        { id: "a", name: "Base", cost: 6 },
+        { id: "b", name: "Topo", cost: 4 },
+      ],
+    });
+    const payload = addProductionLayers(null, "prod-1", "Kit", entries, "e1", 0);
+    const good: FinishedGood = { ...payload, id: "prod-1" };
+    expect(assemblableWholes(good, ["a", "b"])).toBe(1);
   });
 });
 
