@@ -598,6 +598,22 @@ pendente da auditoria.
   separado do `editRecibo`), escolhendo itens pelo seletor de catálogo já existente e gravando via
   `saveRecibo`. Desabilitado quando o catálogo está vazio (senão não há como adicionar itens). Estado
   vazio da página passou a apontar pro botão. Sem migração — mesmo fluxo do registro pelo card.
+- ⬜ **[FEAT-06] Aba Produtos rica — dados completos do produto com custo congelado** *(pedido do dono,
+  jul/2026 · melhoria de apresentação sobre a FEAT-05c · **NÃO é o passo 8**)*. **O quê:** cada card da
+  aba **Produtos** (`/estoque`) mostra **todos os dados do produto como no catálogo** (composição de
+  custo, margem, peso/horas/máquina/filamento, subitens, etapas, acessórios, links, capacidade) — mas
+  com os **custos CONGELADOS** da fabricação (a peça já foi impressa, o custo é o do dia da produção,
+  não o vivo). Hoje o card é só um resumo de saldo (conjuntos/lacuna/valor parado). **⚠ Decisão de
+  design que trava (o miolo):** o acabado só congela o **total** (`FinishedLayer.unitCost`); o evento de
+  produção congela `frozenCost` (também total) + `filaments` — **nenhum guarda a composição**
+  (material/energia/depreciação/manutenção/labor) nem markup/peso/horas. Então "barras de custo
+  congeladas" exigem escolher: **(a)** puxar a composição do **produto VIVO** (`calculatePricing`) e
+  congelar só o total — barato, mas se o produto mudou desde a impressão a composição diverge (não é
+  fiel); **(b)** passar a **congelar o breakdown na produção** — fiel, mas mexe no modelo do FEAT-04
+  (`ProductionInput`/`FinishedLayer` ganham a composição) e, por Diretriz 7, backfill no marco = sem
+  migração. Múltiplas camadas por SKU (custos diferentes) → o custo do card é média ponderada ou
+  por-camada. **Onde:** `StockPage` (aba Produtos) + reusar `CostBars`/`ProfitSummary`/`CatalogDetails`.
+  **Relacionado:** FEAT-05 (base), FEAT-04 (fonte do congelamento), Diretriz 7.
 
 **Ordem sugerida do backlog (jul/2026) — inclui itens antigos + ideias novas:**
 
@@ -633,7 +649,8 @@ pendente da auditoria.
   dobrar baixa). Detalhe nos itens FEAT-01/FEAT-04/FEAT-05.
 - **Tier 2 (features comerciais, independentes):** (10) **FEAT-03** melhorar PDF (quick wins soltos
   podem vir antes; "detalhar etapas" espera FEAT-01); (11) **branding/logo real** no PDF (overlap c/
-  FEAT-03).
+  FEAT-03); (11b) **FEAT-06** aba Produtos rica (dados completos do produto com custo congelado —
+  decidir congelar breakdown na produção vs. puxar do produto vivo; ver item FEAT-06).
 - **Tier 3 (adiar até ter volume de vendas):** (12) **Item 4 — Dashboard** (`/painel`) + **TD-003**
   capacidade por-máquina; (13) **TD-006** paginação.
 - **Tier 4 (menores/oportunistas):** (14) numeração de orçamento derivada no browser;
