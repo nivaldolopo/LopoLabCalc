@@ -10,26 +10,24 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **Passo 8 — Fase 8a (venda = reconciliação): modelo + libs puras + testes, SEM UI.**
-  `SaleInput` ganhou `origem: 'acabado'|'encomenda'` + `finishedMoves?`/`productionEventIds?` (estorno
-  por caminho). Novos puros: `finishedGoods.applyFinishedConsumption`/`reverseFinishedConsumption`
-  (baixa/estorno do acabado, molde do `stock`); **`lib/productionPlan.ts`** extraído da `ProductionPage`
-  (`wholeEventRows`/`subitemEventRows`/`planEventRows`/`buildProductionPayloads` + `resolveFilRow`/
-  `filRowToUsage`/`nextRowKey`) — a `ProductionPage` foi **refatorada pra consumir** (sem mudança de
-  comportamento); **`lib/saleReconciliation.ts`** com `planReciboReconciliation` (despacha cada item:
-  **acabado** → `consumeFifo`, COGS congelado, sem tocar filamento; **encomenda** → cria evento(s) de
-  `producao` `outcome:encomenda`/`mode:real` que deduzem filamento FIFO + horas, e a venda referencia
-  os `productionEventIds`; itens processados em ordem, threading cores/acabados; `qty` escala a baixa;
-  D4/D5 nos avisos) + `reverseReciboReconciliation`. **Decisões do dono (travadas):** caminho **por
-  item, default por saldo**; encomenda **dispara produção** (horas contam no ROI; consumo entra no
-  extrato da cor pela fonte que a 04c já lê — **nada novo no extrato**); **FIFO automático** (seleção
-  manual de rolo = backlog). COGS = custo real de produção (falha/fixo fora; ⚠ acessórios fora até o
-  7e). +15 testes (**176 verdes**), `lint`+`build` limpos. **Nada plugado** (SaleModal/repo = 8b).
-  **Próximo passo: fase 8b** — `SaleModal` ganha seletor de origem + COGS real (D3) + avisos D4/D5;
-  `saveRecibo` vira batch atômico multi-coleção (vendas + producao + estoque + acabados) com
-  estornar-e-reaplicar na edição; wiring no card/`SalesPage`. Depois **8c** (`material` derivado/D7 +
-  fecha FEAT-02 + Tier 1). Plano completo em `.claude/plans/cuddly-herding-perlis.md`.
-  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅ → FEAT-05 ✅ → 8 (8a ✅ · 8b · 8c)`.**
+- **Última mudança:** **Passo 8 — Fase 8b (venda = reconciliação): `SaleModal` + gravação atômica + wiring.**
+  Cada item da cesta ganhou **seletor de origem** (Estoque de acabados N disp. / Sob encomenda; default
+  por saldo) e mostra **custo real por item** (D3) + avisos **D4** (acabado negativo) e **D5** (encomenda
+  atravessa rolo / estoura a cor), via `planReciboReconciliation` ao vivo. Ao confirmar,
+  `reconcileReciboWrite` **estorna o recibo antigo e reaplica o novo numa passada** (baixa real, ids de
+  evento definitivos) e o novo **`reconcileRecibo`** grava num **único `writeBatch`**: vendas + `producao`
+  (eventos de encomenda) + `estoque` (rolos) + `acabados` (SKUs). `toSale` passou a ler
+  `origem`/`finishedMoves`/`productionEventIds`; `productionRepository` exporta `productionToDocument`.
+  `SalesPage.handleDelete` agora **estorna** (via `reverseReciboReconciliation`) e apaga os eventos, atômico.
+  `saleReconciliation` refatorado p/ estado compartilhado (reverse+forward). Wiring:
+  `PricingCalculator`/`SalesPage` passam `goods`/`stock`/`products`/`machines`/`fixedCosts`/`production`
+  e ligam `onConfirm` em `reconcileRecibo`. CSS `cesta-origem`/`cesta-warn`. +3 testes (**179 verdes**),
+  `lint`+`build` limpos. ⚠ **COGS armazenado = custo real (unitCost/lucro/margem); `costBreakdown` fica o
+  do snapshot (informativo) — acessórios ainda fora do COGS até o 7e.** Testes visuais pendentes (login/dados
+  reais) — o dono valida.
+  **Próximo passo: fase 8c** — `SaleInput.material` vira **derivado** do `FilamentUsage.material` (D7,
+  tira o input de texto livre) + **fecha FEAT-02 + Tier 1**. Plano em `.claude/plans/cuddly-herding-perlis.md`.
+  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅ → FEAT-05 ✅ → 8 (8a ✅ · 8b ✅ · 8c)`.**
   ⚠ **Reframe aprovado:** o passo **8 deixa de ser "o passo da baixa"** e vira **reconciliação da
   venda** — a **primitiva de baixa migrou pra PRODUÇÃO (FEAT-04)**, porque é o único ponto que captura
   TODA impressão (inclusive teste/falha/brinde, que nunca viram venda). Detalhe e decisões (D1-D8 +
@@ -299,9 +297,11 @@
      ~~**8a** modelo (`SaleInput`+`SaleItemOrigin`) + `finishedGoods` apply/reverse + `lib/productionPlan.ts`
      (builder extraído, `ProductionPage` refatorada) + `lib/saleReconciliation.ts`
      (`planReciboReconciliation`/`reverseReciboReconciliation`) + 15 testes, sem UI~~ **✅ FEITA (jul/2026)**;
-     **8b** `SaleModal` (seletor de origem + COGS real + avisos D4/D5) + `saveRecibo` batch atômico
-     multi-coleção (vendas+producao+estoque+acabados, estornar-e-reaplicar) + wiring; **8c** `material`
-     derivado (D7) + fecha FEAT-02 + Tier 1. **Fim do Tier 1.**
+     ~~**8b** `SaleModal` (seletor de origem + COGS real + avisos D4/D5) + `reconcileRecibo` batch atômico
+     multi-coleção (vendas+producao+estoque+acabados, `reconcileReciboWrite` estorna-e-reaplica) + wiring
+     (`handleDelete` estorna)~~ **✅ FEITA (jul/2026)**; **8c** `material` derivado (D7, tira o texto livre)
+     + fecha FEAT-02 + Tier 1. **Fim do Tier 1.** ⚠ **COGS armazenado = custo real; `costBreakdown` fica
+     o do snapshot (informativo); acessórios fora do COGS até 7e.**
    - **7e — Insumos (item próprio, depois).** `supplyId` no `Accessory`, cadastro de insumos na
      `/estoque`, baixa por unidade (`kind: 'supply'`, já previsto no `stockMoves`). Ver D1.
 
@@ -652,7 +652,7 @@ pendente da auditoria.
   não mais baixa; estorna via `stockMoves` no caminho encomenda).
   Insumos = (7e), **item separado depois** do filamento.
   **Ordem final do Tier 1 (jul/2026): 7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅
-  (04a · 04b · 04c) → FEAT-05 ✅ (05a · 05b · 05c) → 8 (8a ✅ · 8b · 8c).**
+  (04a · 04b · 04c) → FEAT-05 ✅ (05a · 05b · 05c) → 8 (8a ✅ · 8b ✅ · 8c).**
   ⚠ **Reframe aprovado (jul/2026):** o quiosque de mall exige vender **peça pronta na hora**. FEAT-04
   move a **primitiva de baixa** pra produção (é o único ponto que captura teste/falha/brinde — impressões
   que nunca viram venda), então **entra antes da 8**, e a **8 deixa de ser "o passo da baixa"** e vira
@@ -734,7 +734,8 @@ src/
   lib/
     firebase/               # client.ts (init + db), productsRepository.ts (CRUD + subscribe),
                             #   machinesRepository.ts (doc config/machines, realtime),
-                            #   salesRepository.ts (coleção `vendas`, snapshots congelados),
+                            #   salesRepository.ts (coleção `vendas`, snapshots congelados;
+                            #     reconcileRecibo = batch atômico vendas+producao+estoque+acabados — passo 8),
                             #   quoteConfigRepository.ts (doc config/orcamento: dados do negócio),
                             #   quotesRepository.ts (coleção `orcamentos`: histórico de orçamentos),
                             #   feesRepository.ts (doc config/taxas: taxa % por forma de pagamento),

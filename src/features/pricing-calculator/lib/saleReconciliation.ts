@@ -108,37 +108,82 @@ function scaleRow(row: EventRow, qty: number): EventRow {
   };
 }
 
-export function planReciboReconciliation(
-  items: ReconItem[],
-  ctx: ReconContext,
-): ReciboReconciliation {
-  const goodsById = new Map(ctx.goods.map((g) => [g.productId, g]));
-  const colorsById = new Map(ctx.colors.map((c) => [c.id, c]));
-  const productsById = new Map(ctx.products.map((p) => [p.id, p]));
-  const touchedGoods = new Set<string>();
-  const touchedColors = new Set<string>();
-  const productionPayloads: { id: string; payload: ProductionPayload }[] = [];
+// Estado mutável do estoque durante a reconciliação (cores + acabados), com o
+// conjunto do que foi TOCADO — é o que permite o estorno-e-reaplicação da edição
+// somar reverse (recibo antigo) e forward (recibo novo) sobre o MESMO saldo.
+type ReconState = {
+  goodsById: Map<string, FinishedGood>;
+  colorsById: Map<string, StockFilament>;
+  touchedGoods: Set<string>;
+  touchedColors: Set<string>;
+};
 
-  // Subitens do produto (preço/rateio vivo) — cacheado por produto. O preço de
-  // catálogo (rolo mais novo) não muda com a baixa, então o cache é seguro.
-  const subitemsCache = new Map<string, SubitemPrice[]>();
-  const subitemsOf = (productId: string): SubitemPrice[] => {
-    const cached = subitemsCache.get(productId);
+function newState(ctx: ReconContext): ReconState {
+  return {
+    goodsById: new Map(ctx.goods.map((g) => [g.productId, g])),
+    colorsById: new Map(ctx.colors.map((c) => [c.id, c])),
+    touchedGoods: new Set(),
+    touchedColors: new Set(),
+  };
+}
+
+// Resolve os subitens (preço/rateio vivo) por produto, cacheado. O preço de
+// catálogo (rolo mais novo) não muda com a baixa, então parte de `ctx.colors`.
+function makeSubitemsResolver(ctx: ReconContext): (id: string) => SubitemPrice[] {
+  const productsById = new Map(ctx.products.map((p) => [p.id, p]));
+  const cache = new Map<string, SubitemPrice[]>();
+  return (productId: string) => {
+    const cached = cache.get(productId);
     if (cached) return cached;
     const product = productsById.get(productId);
     const subs = product
-      ? calculatePricing(
-          product,
-          ctx.machines,
-          ctx.fixedCosts,
-          Array.from(colorsById.values()),
-        ).subitems ?? []
+      ? calculatePricing(product, ctx.machines, ctx.fixedCosts, ctx.colors)
+          .subitems ?? []
       : [];
-    subitemsCache.set(productId, subs);
+    cache.set(productId, subs);
     return subs;
   };
+}
 
-  const results: ReconItemResult[] = items.map((item) => {
+// Devolve ao estado o que o recibo ANTIGO consumiu (edição/exclusão), sobre os
+// mesmos mapas do forward. Filamento vem dos `stockMoves` dos eventos de produção
+// antigos; acabado, dos `finishedMoves` das vendas antigas.
+function applyReverse(
+  state: ReconState,
+  finishedMoves: FinishedMove[],
+  productionStockMoves: StockMove[],
+): void {
+  for (const productId of new Set(finishedMoves.map((m) => m.productId))) {
+    const good = state.goodsById.get(productId);
+    if (!good) continue;
+    state.goodsById.set(productId, reverseFinishedConsumption(good, finishedMoves));
+    state.touchedGoods.add(productId);
+  }
+  const reverted = reverseProduction(
+    productionStockMoves,
+    Array.from(state.colorsById.values()),
+  );
+  for (const color of reverted) {
+    state.colorsById.set(color.id, color);
+    state.touchedColors.add(color.id);
+  }
+}
+
+// Reconcilia cada item do recibo NOVO, mutando o estado. Devolve o resultado por
+// item + os eventos de produção das encomendas.
+function applyForward(
+  state: ReconState,
+  items: ReconItem[],
+  ctx: ReconContext,
+  subitemsOf: (id: string) => SubitemPrice[],
+): {
+  results: ReconItemResult[];
+  productionCreates: { id: string; payload: ProductionPayload }[];
+} {
+  const productsById = new Map(ctx.products.map((p) => [p.id, p]));
+  const productionCreates: { id: string; payload: ProductionPayload }[] = [];
+
+  const results = items.map((item): ReconItemResult => {
     const qty = Math.max(0, num(item.quantity));
     const base: ReconItemResult = {
       key: item.key,
@@ -154,11 +199,14 @@ export function planReciboReconciliation(
     };
 
     if (item.origem === "acabado") {
-      const good = goodsById.get(item.productId) ?? null;
+      const good = state.goodsById.get(item.productId) ?? null;
       const res = consumeFifo(good, item.subitemId, qty);
       if (good && res.moves.length > 0) {
-        goodsById.set(item.productId, applyFinishedConsumption(good, res.moves));
-        touchedGoods.add(item.productId);
+        state.goodsById.set(
+          item.productId,
+          applyFinishedConsumption(good, res.moves),
+        );
+        state.touchedGoods.add(item.productId);
       }
       return {
         ...base,
@@ -175,7 +223,7 @@ export function planReciboReconciliation(
     const product = productsById.get(item.productId);
     if (!product) return { ...base, missingProduct: true };
 
-    const colorsNow = Array.from(colorsById.values());
+    const colorsNow = Array.from(state.colorsById.values());
     let rows: EventRow[];
     if (item.subitemId) {
       const sub = subitemsOf(item.productId).find((s) => s.id === item.subitemId);
@@ -185,16 +233,10 @@ export function planReciboReconciliation(
     }
 
     const scaled = rows.map((row) => scaleRow(row, qty));
-    const planned = planEventRows(
-      scaled,
-      "real",
-      colorsNow,
-      ctx.machines,
-      ctx.genId,
-    );
+    const planned = planEventRows(scaled, "real", colorsNow, ctx.machines, ctx.genId);
     for (const color of planned.colorUpdates) {
-      colorsById.set(color.id, color);
-      touchedColors.add(color.id);
+      state.colorsById.set(color.id, color);
+      state.touchedColors.add(color.id);
     }
     const payloads = buildProductionPayloads(planned.built, {
       at: ctx.at,
@@ -203,7 +245,7 @@ export function planReciboReconciliation(
       notes: ctx.notes,
       createdAt: ctx.createdAt,
     });
-    productionPayloads.push(...payloads);
+    productionCreates.push(...payloads);
 
     return {
       ...base,
@@ -215,13 +257,93 @@ export function planReciboReconciliation(
     };
   });
 
+  return { results, productionCreates };
+}
+
+function collectColorUpdates(state: ReconState): StockFilament[] {
+  return Array.from(state.touchedColors).map((id) => state.colorsById.get(id)!);
+}
+
+function collectFinishedUpdates(state: ReconState): FinishedGoodPayload[] {
+  return Array.from(state.touchedGoods).map((id) =>
+    toPayload(state.goodsById.get(id)!),
+  );
+}
+
+/**
+ * Reconciliação FORWARD de um recibo NOVO (sem estorno). PURA. É o preview vivo
+ * da `SaleModal` (custo real por item, avisos) e a base do registro de venda nova.
+ */
+export function planReciboReconciliation(
+  items: ReconItem[],
+  ctx: ReconContext,
+): ReciboReconciliation {
+  const state = newState(ctx);
+  const { results, productionCreates } = applyForward(
+    state,
+    items,
+    ctx,
+    makeSubitemsResolver(ctx),
+  );
   return {
     items: results,
-    productionPayloads,
-    colorUpdates: Array.from(touchedColors).map((id) => colorsById.get(id)!),
-    finishedUpdates: Array.from(touchedGoods).map((id) =>
-      toPayload(goodsById.get(id)!),
-    ),
+    productionPayloads: productionCreates,
+    colorUpdates: collectColorUpdates(state),
+    finishedUpdates: collectFinishedUpdates(state),
+  };
+}
+
+// O que o recibo ANTIGO consumiu, para estornar antes de reaplicar (edição). Os
+// `stockMoves` das encomendas vêm dos eventos de produção lidos da coleção (o doc
+// da venda só guarda os `productionEventIds`); os `finishedMoves`, das vendas.
+export type OldReciboState = {
+  finishedMoves: FinishedMove[];
+  productionEvents: { id: string; stockMoves: StockMove[] }[];
+};
+
+// Plano completo de escrita de um recibo — o que o `reconcileRecibo` grava num
+// único `writeBatch`. `productionDeleteIds` são os eventos das encomendas do
+// recibo antigo, apagados junto (idempotente se algum já sumiu).
+export type ReciboWritePlan = {
+  items: ReconItemResult[];
+  productionCreates: { id: string; payload: ProductionPayload }[];
+  productionDeleteIds: string[];
+  colorUpdates: StockFilament[];
+  finishedUpdates: FinishedGoodPayload[];
+};
+
+/**
+ * Plano de escrita de um recibo com ESTORNO-E-REAPLICAÇÃO: reverte o recibo antigo
+ * (`old`) e reaplica o novo (`items`) sobre o MESMO saldo, numa passada só. PURA.
+ * `old` null = venda nova (nada a estornar). É como editar 3 → 2 unidades devolve
+ * exatamente 1 ao estoque sem corromper nada.
+ */
+export function reconcileReciboWrite(
+  items: ReconItem[],
+  old: OldReciboState | null,
+  ctx: ReconContext,
+): ReciboWritePlan {
+  const state = newState(ctx);
+  const productionDeleteIds = old ? old.productionEvents.map((e) => e.id) : [];
+  if (old) {
+    applyReverse(
+      state,
+      old.finishedMoves,
+      old.productionEvents.flatMap((e) => e.stockMoves),
+    );
+  }
+  const { results, productionCreates } = applyForward(
+    state,
+    items,
+    ctx,
+    makeSubitemsResolver(ctx),
+  );
+  return {
+    items: results,
+    productionCreates,
+    productionDeleteIds,
+    colorUpdates: collectColorUpdates(state),
+    finishedUpdates: collectFinishedUpdates(state),
   };
 }
 

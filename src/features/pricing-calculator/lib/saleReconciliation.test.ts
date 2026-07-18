@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   planReciboReconciliation,
+  reconcileReciboWrite,
   reverseReciboReconciliation,
   type ReconContext,
   type ReconItem,
@@ -305,5 +306,67 @@ describe("recibo misto + estorno (round-trip)", () => {
 
     expect(balanceOf({ ...back.finishedUpdates[0], id: "p1" }, undefined)).toBe(4);
     expect(balanceG(back.colorUpdates[0])).toBe(1000);
+  });
+});
+
+describe("reconcileReciboWrite — estornar-e-reaplicar (edição)", () => {
+  it("old=null é igual ao forward, sem eventos a apagar", () => {
+    const good = makeGood([
+      { name: "Boneco", layers: [{ id: "e0__whole", at: 0, qty: 5, unitCost: 5, sourceEventId: "e0" }] },
+    ]);
+    const plan = reconcileReciboWrite(
+      [acabadoItem({ quantity: 2 })],
+      null,
+      ctx({ goods: [good] }),
+    );
+    expect(plan.productionDeleteIds).toEqual([]);
+    expect(balanceOf({ ...plan.finishedUpdates[0], id: "p1" }, undefined)).toBe(3);
+  });
+
+  it("editar acabado 3 → 2 devolve exatamente 1 ao estoque", () => {
+    // Estado ATUAL (pós-venda antiga de 3): e1 zerada, e2 com 2 (saldo 2).
+    const currentGood = makeGood([
+      {
+        name: "Boneco",
+        layers: [
+          { id: "e1__whole", at: 0, qty: 0, unitCost: 5, sourceEventId: "e1" },
+          { id: "e2__whole", at: 10, qty: 2, unitCost: 7, sourceEventId: "e2" },
+        ],
+      },
+    ]);
+    const oldMoves = [
+      { productId: "p1", layerId: "e1__whole", qty: 2, unitCost: 5, cost: 10 },
+      { productId: "p1", layerId: "e2__whole", qty: 1, unitCost: 7, cost: 7 },
+    ];
+    const plan = reconcileReciboWrite(
+      [acabadoItem({ quantity: 2 })],
+      { finishedMoves: oldMoves, productionEvents: [] },
+      ctx({ goods: [currentGood] }),
+    );
+    // Reverte +3 (saldo 5), reaplica −2 → saldo 3 (era 2, devolveu 1 líquido).
+    expect(balanceOf({ ...plan.finishedUpdates[0], id: "p1" }, undefined)).toBe(3);
+  });
+
+  it("editar encomenda estorna o evento antigo (delete + filamento de volta) e cria o novo", () => {
+    const product = makeProduct({
+      filaments: [{ filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 }],
+    });
+    // Cor ATUAL já decrementada pela encomenda antiga (900); o evento antigo tirou 100.
+    const currentColor = makeColor("preto", [{ remainingG: 900 }]);
+    const oldEvent = {
+      id: "old1",
+      stockMoves: [
+        { itemId: "old1", kind: "filament" as const, stockId: "preto", rollId: "preto_r0", qty: 100 },
+      ],
+    };
+    const plan = reconcileReciboWrite(
+      [encomendaItem({ quantity: 1 })],
+      { finishedMoves: [], productionEvents: [oldEvent] },
+      ctx({ products: [product], colors: [currentColor] }),
+    );
+    expect(plan.productionDeleteIds).toEqual(["old1"]);
+    expect(plan.productionCreates).toHaveLength(1);
+    // Reverte +100 (volta a 1000), reaplica −100 → 900 (o novo evento).
+    expect(balanceG(plan.colorUpdates[0])).toBe(900);
   });
 });

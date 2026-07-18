@@ -17,9 +17,11 @@ import type {
 } from "../types";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useFees } from "../hooks/useFees";
+import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useMachines } from "../hooks/useMachines";
 import { usePricingForm } from "../hooks/usePricingForm";
 import { useProducts } from "../hooks/useProducts";
+import { useProduction } from "../hooks/useProduction";
 import { useStock } from "../hooks/useStock";
 import { useTheme } from "../hooks/useTheme";
 import {
@@ -29,7 +31,7 @@ import {
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { stripFilamentIds } from "../lib/filaments";
 import { validateProduct } from "../lib/validateProduct";
-import { saveRecibo } from "@/lib/firebase/salesRepository";
+import { reconcileRecibo } from "@/lib/firebase/salesRepository";
 import { FixedCostsPanel } from "./FixedCostsPanel";
 import { Header } from "./Header";
 import { MachineManagerModal } from "./MachineManagerModal";
@@ -52,6 +54,9 @@ export function PricingCalculator() {
   // 7c: cores do Estoque para o dropdown de filamento e o preço vivo (D3). O
   // produto guarda só o `filamentId`; o preço/kg sai da cor no cálculo.
   const { filaments: stock } = useStock();
+  // Passo 8: acabados + produção para a reconciliação da venda pelo card.
+  const { goods } = useFinishedGoods();
+  const { events: production } = useProduction();
   const productsApi = useProducts();
   const form = usePricingForm();
 
@@ -411,8 +416,14 @@ export function PricingCalculator() {
           catalogItems={catalogSaleItems}
           fees={fees}
           onFeesChange={saveFees}
+          goods={goods}
+          stock={stock}
+          products={productsApi.products}
+          machines={machines}
+          fixedCosts={fixedCosts}
+          production={production}
           onClose={() => setSaleOpen(false)}
-          onConfirm={saveRecibo}
+          onConfirm={reconcileRecibo}
         />
       ) : null}
     </main>

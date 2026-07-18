@@ -12,12 +12,16 @@ import {
 import { calculatePricing } from "../lib/calculatePricing";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useFees } from "../hooks/useFees";
+import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
+import { useProduction } from "../hooks/useProduction";
 import { useSales } from "../hooks/useSales";
+import { useStock } from "../hooks/useStock";
 import { useTheme } from "../hooks/useTheme";
-import type { CloudStatus, RoundingMode, Sale } from "../types";
-import { saveRecibo } from "@/lib/firebase/salesRepository";
+import { reverseReciboReconciliation } from "../lib/saleReconciliation";
+import type { CloudStatus, ProductionEvent, RoundingMode, Sale } from "../types";
+import { reconcileRecibo } from "@/lib/firebase/salesRepository";
 import { LogoutButton } from "./LogoutButton";
 import { SaleModal, type EditReciboSeed } from "./SaleModal";
 import {
@@ -159,11 +163,15 @@ function buildCsv(sales: Sale[]): string {
 
 export function SalesPage() {
   const { theme, toggleTheme } = useTheme();
-  const { sales, status, error, deleteSale } = useSales();
+  const { sales, status, error } = useSales();
   const { products } = useProducts();
   const { machines } = useMachines();
   const { fixedCostRate } = useBusinessSettings();
   const { fees, saveFees } = useFees();
+  // Passo 8: dados vivos para a reconciliação (custo real + baixa por caminho).
+  const { filaments: stock } = useStock();
+  const { goods } = useFinishedGoods();
+  const { events: production } = useProduction();
   const [editRecibo, setEditRecibo] = useState<EditReciboSeed | null>(null);
   const [newSale, setNewSale] = useState(false);
   const [sortMode, setSortMode] = useState<SalesSortMode>("recent");
@@ -300,12 +308,36 @@ export function SalesPage() {
     URL.revokeObjectURL(url);
   }
 
+  // Eventos de produção (encomendas) de uma venda, resolvidos na coleção para o
+  // estorno. Um evento já apagado à mão some da lista → não estorna em dobro.
+  function eventsOf(sale: Sale): ProductionEvent[] {
+    return (sale.productionEventIds ?? [])
+      .map((id) => production.find((event) => event.id === id))
+      .filter((event): event is ProductionEvent => Boolean(event));
+  }
+
   async function handleDelete(sale: Sale) {
     const ok = window.confirm(
       `Excluir "${sale.productName}" (${formatDate(sale.saleDate)})? Isso não pode ser desfeito.`,
     );
     if (!ok) return;
-    await deleteSale(sale.id);
+    // Passo 8: excluir uma venda estorna o que ela consumiu — acabado (finishedMoves)
+    // e/ou filamento das encomendas — e apaga os eventos de produção, tudo atômico.
+    const events = eventsOf(sale);
+    const { colorUpdates, finishedUpdates } = reverseReciboReconciliation(
+      sale.finishedMoves ?? [],
+      events.flatMap((event) => event.stockMoves),
+      goods,
+      stock,
+    );
+    await reconcileRecibo({
+      saleUpserts: [],
+      saleRemovedIds: [sale.id],
+      productionCreates: [],
+      productionDeleteIds: events.map((event) => event.id),
+      colorUpdates,
+      finishedUpdates,
+    });
   }
 
   function openEdit(recibo: Recibo) {
@@ -332,6 +364,12 @@ export function SalesPage() {
         quantity: sale.quantity,
         salePrice: sale.salePrice,
         createdAt: sale.createdAt,
+        // Passo 8: carrega o rastro da reconciliação salva para o estorno da edição.
+        ...(sale.origem ? { origem: sale.origem } : {}),
+        ...(sale.finishedMoves ? { finishedMoves: sale.finishedMoves } : {}),
+        ...(sale.productionEventIds
+          ? { productionEventIds: sale.productionEventIds }
+          : {}),
       })),
     });
   }
@@ -577,8 +615,14 @@ export function SalesPage() {
           catalogItems={catalogItems}
           fees={fees}
           onFeesChange={saveFees}
+          goods={goods}
+          stock={stock}
+          products={products}
+          machines={machines}
+          fixedCosts={fixedCosts}
+          production={production}
           onClose={() => setEditRecibo(null)}
-          onConfirm={saveRecibo}
+          onConfirm={reconcileRecibo}
         />
       ) : null}
 
@@ -588,8 +632,14 @@ export function SalesPage() {
           catalogItems={catalogItems}
           fees={fees}
           onFeesChange={saveFees}
+          goods={goods}
+          stock={stock}
+          products={products}
+          machines={machines}
+          fixedCosts={fixedCosts}
+          production={production}
           onClose={() => setNewSale(false)}
-          onConfirm={saveRecibo}
+          onConfirm={reconcileRecibo}
         />
       ) : null}
     </main>

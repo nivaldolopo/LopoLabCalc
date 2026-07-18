@@ -15,19 +15,36 @@ import {
   PAYMENT_METHODS,
   SALE_CHANNELS,
 } from "../constants";
+import { newProductionId } from "@/lib/firebase/productionRepository";
+import type { ReciboWrite } from "@/lib/firebase/salesRepository";
+import { balanceOf } from "../lib/finishedGoods";
 import { stripFilamentIds } from "../lib/filaments";
 import { feeRateForMethod, saleItemFinancials } from "../lib/paymentFees";
+import {
+  planReciboReconciliation,
+  reconcileReciboWrite,
+  type OldReciboState,
+  type ReconItem,
+} from "../lib/saleReconciliation";
 import {
   chargedWithFee,
   type SaleModalContext,
 } from "../lib/saleContext";
 import { NumberInput } from "./NumberInput";
 import type {
+  FinishedGood,
+  FinishedMove,
+  FixedCostSettings,
+  Machine,
   PaymentFeeSettings,
   PaymentMethod,
+  ProductionEvent,
   ReciboUpsert,
   SaleChannel,
+  SaleItemOrigin,
   SalePayload,
+  SavedProduct,
+  StockFilament,
 } from "../types";
 
 // Um item já salvo de um recibo, para o modo edição. `source` é reconstruído a
@@ -40,6 +57,10 @@ export type SaleModalEditItem = {
   quantity: number;
   salePrice: number;
   createdAt: number;
+  // Passo 8: reconciliação da venda salva, para o estorno-e-reaplicação da edição.
+  origem?: SaleItemOrigin;
+  finishedMoves?: FinishedMove[];
+  productionEventIds?: string[];
 };
 
 // Recibo existente aberto para edição (campos compartilhados + itens salvos).
@@ -65,6 +86,8 @@ type CestaItem = {
   material: string;
   quantity: number;
   salePrice: number;
+  // Passo 8: caminho de reconciliação deste item (default por saldo do acabado).
+  origem: SaleItemOrigin;
 };
 
 type SaleModalProps = {
@@ -80,8 +103,19 @@ type SaleModalProps = {
   // Taxas por forma de pagamento (config global) + callback para editá-las ali.
   fees: PaymentFeeSettings;
   onFeesChange?: (fees: PaymentFeeSettings) => void;
+  // Passo 8: dados vivos para a reconciliação (custo real + baixa por caminho).
+  goods: FinishedGood[];
+  stock: StockFilament[];
+  products: SavedProduct[];
+  machines: Machine[];
+  fixedCosts: FixedCostSettings;
+  // Eventos de produção — para resolver os `stockMoves` das encomendas do recibo
+  // antigo ao editar (o doc da venda só guarda os `productionEventIds`).
+  production: ProductionEvent[];
   onClose: () => void;
-  onConfirm: (upserts: ReciboUpsert[], removedIds: string[]) => Promise<void>;
+  // Recebe o plano de escrita atômico completo (vendas + producao + estoque +
+  // acabados). O call site liga em `reconcileRecibo`.
+  onConfirm: (write: ReciboWrite) => Promise<void>;
 };
 
 // Percentual enxuto (4.5 → "4,5", 2 → "2") para rótulos de taxa.
@@ -92,7 +126,10 @@ function formatDecimalPct(value: number): string {
 }
 
 let itemSeq = 0;
-function itemFromContext(source: SaleModalContext): CestaItem {
+function itemFromContext(
+  source: SaleModalContext,
+  origem: SaleItemOrigin,
+): CestaItem {
   itemSeq += 1;
   return {
     key: `item_${Date.now()}_${itemSeq}`,
@@ -101,6 +138,7 @@ function itemFromContext(source: SaleModalContext): CestaItem {
     material: "",
     quantity: 1,
     salePrice: round2(source.suggestedPrice),
+    origem,
   };
 }
 
@@ -110,10 +148,27 @@ export function SaleModal({
   catalogItems,
   fees,
   onFeesChange,
+  goods,
+  stock,
+  products,
+  machines,
+  fixedCosts,
+  production,
   onClose,
   onConfirm,
 }: SaleModalProps) {
   const isEdit = Boolean(editRecibo);
+
+  // Saldo do acabado (a SKU = o subitem) deste item, e o caminho default: peça
+  // pronta quando há saldo, senão encomenda (decisão do dono — por item).
+  function balanceForItem(source: SaleModalContext): number {
+    const good = goods.find((g) => g.productId === source.productId);
+    return balanceOf(good, source.subitemId);
+  }
+  function defaultOrigin(source: SaleModalContext): SaleItemOrigin {
+    return balanceForItem(source) > 0 ? "acabado" : "encomenda";
+  }
+
   const [items, setItems] = useState<CestaItem[]>(() => {
     if (editRecibo) {
       return editRecibo.items.map((entry) => ({
@@ -125,9 +180,10 @@ export function SaleModal({
         material: entry.material,
         quantity: entry.quantity,
         salePrice: entry.salePrice,
+        origem: entry.origem ?? defaultOrigin(entry.source),
       }));
     }
-    return seed ? [itemFromContext(seed)] : [];
+    return seed ? [itemFromContext(seed, defaultOrigin(seed))] : [];
   });
   const [customer, setCustomer] = useState(editRecibo?.customer ?? "");
   const [dateStr, setDateStr] = useState(
@@ -203,7 +259,7 @@ export function SaleModal({
     const index = Number(indexStr);
     const source = catalogItems[index];
     if (!source) return;
-    const item = itemFromContext(source);
+    const item = itemFromContext(source, defaultOrigin(source));
     // Se o repasse está ligado, o item novo já nasce com o preço inflado e redondo.
     if (feePassedToCustomer && hasFee) {
       item.salePrice = chargedWithFee(source, feeRatePct);
@@ -212,13 +268,53 @@ export function SaleModal({
     setAddPick("");
   }
 
+  // Itens no formato da reconciliação (o preview vivo, com id de evento fixo — o
+  // custo não depende do id). Recalcula quando itens/estoque/catálogo mudam.
+  const reconItems = useMemo<ReconItem[]>(
+    () =>
+      items.map((item) => ({
+        key: item.key,
+        productId: item.source.productId,
+        ...(item.source.subitemId ? { subitemId: item.source.subitemId } : {}),
+        productName: item.productName,
+        quantity: Math.max(1, Number(item.quantity) || 1),
+        origem: item.origem,
+      })),
+    [items],
+  );
+
+  // Reconciliação viva: custo REAL por item (D3) + avisos, por caminho. Pura, não
+  // grava; usa id fixo pois o custo independe do id do evento.
+  const recon = useMemo(
+    () =>
+      planReciboReconciliation(reconItems, {
+        goods,
+        colors: stock,
+        products,
+        machines,
+        fixedCosts,
+        at: toTimestamp(dateStr),
+        // Preview: createdAt/genId não afetam o custo exibido (id de evento fixo).
+        createdAt: 0,
+        genId: () => "preview",
+      }),
+    [reconItems, goods, stock, products, machines, fixedCosts, dateStr],
+  );
+  const reconByKey = useMemo(
+    () => new Map(recon.items.map((r) => [r.key, r])),
+    [recon],
+  );
+  // Custo real por unidade deste item (fallback no snapshot se algo faltar).
+  const unitCostOf = (item: CestaItem): number =>
+    reconByKey.get(item.key)?.cogsUnit ?? item.source.unitCost;
+
   const totals = useMemo(() => {
     return items.reduce(
       (acc, item) => {
         const fin = saleItemFinancials({
           chargedUnitPrice: item.salePrice,
           quantity: item.quantity,
-          unitCost: item.source.unitCost,
+          unitCost: unitCostOf(item),
           feeRatePct,
         });
         acc.revenue += fin.totalRevenue;
@@ -228,7 +324,8 @@ export function SaleModal({
       },
       { revenue: 0, cost: 0, fee: 0 },
     );
-  }, [items, feeRatePct]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, feeRatePct, reconByKey]);
 
   const profit = totals.revenue - totals.cost - totals.fee;
   const margin = totals.revenue > 0 ? (profit / totals.revenue) * 100 : 0;
@@ -267,13 +364,46 @@ export function SaleModal({
       editRecibo?.reciboId ?? `r_${now}_${Math.floor(Math.random() * 1000)}`;
     const saleDate = toTimestamp(dateStr);
 
-    const upserts: ReciboUpsert[] = items.map((item) => {
+    // Estado a estornar do recibo ANTIGO (edição): os `finishedMoves` das vendas
+    // salvas + os `stockMoves` dos eventos de encomenda (resolvidos na coleção; um
+    // evento já apagado à mão some sem estorno duplo).
+    const old: OldReciboState | null = editRecibo
+      ? {
+          finishedMoves: editRecibo.items.flatMap(
+            (entry) => entry.finishedMoves ?? [],
+          ),
+          productionEvents: editRecibo.items
+            .flatMap((entry) => entry.productionEventIds ?? [])
+            .map((id) => production.find((event) => event.id === id))
+            .filter((event): event is ProductionEvent => Boolean(event))
+            .map((event) => ({ id: event.id, stockMoves: event.stockMoves })),
+        }
+      : null;
+
+    // Estorna o recibo antigo e reaplica o novo numa passada só (baixa real, ids
+    // de evento definitivos). Devolve o custo real por item + o que gravar.
+    const write = reconcileReciboWrite(reconItems, old, {
+      goods,
+      colors: stock,
+      products,
+      machines,
+      fixedCosts,
+      at: saleDate,
+      createdAt: now,
+      genId: newProductionId,
+    });
+    const wByKey = new Map(write.items.map((r) => [r.key, r]));
+
+    const saleUpserts: ReciboUpsert[] = items.map((item) => {
       const qty = Math.max(1, Number(item.quantity) || 1);
       const unitPrice = Math.max(0, Number(item.salePrice) || 0);
+      const r = wByKey.get(item.key);
+      // COGS = custo real de produção (D3): camadas do acabado ou FIFO da encomenda.
+      const unitCost = r?.cogsUnit ?? item.source.unitCost;
       const fin = saleItemFinancials({
         chargedUnitPrice: unitPrice,
         quantity: qty,
-        unitCost: item.source.unitCost,
+        unitCost,
         feeRatePct,
       });
       const payload: SalePayload = {
@@ -301,7 +431,7 @@ export function SaleModal({
         quantity: qty,
         suggestedPrice: item.source.suggestedPrice,
         salePrice: unitPrice,
-        unitCost: item.source.unitCost,
+        unitCost,
         costBreakdown: item.source.costBreakdown,
         totalCost: fin.totalCost,
         totalRevenue: fin.totalRevenue,
@@ -313,6 +443,14 @@ export function SaleModal({
         // Preserva o createdAt de itens já salvos (mantém a ordem no recibo);
         // itens novos nascem agora.
         createdAt: item.createdAt ?? now,
+        // Passo 8 — o rastro da reconciliação (para o estorno futuro).
+        origem: item.origem,
+        ...(r && r.finishedMoves.length > 0
+          ? { finishedMoves: r.finishedMoves }
+          : {}),
+        ...(r && r.productionEventIds.length > 0
+          ? { productionEventIds: r.productionEventIds }
+          : {}),
       };
       return { id: item.id, payload };
     });
@@ -323,14 +461,23 @@ export function SaleModal({
         .map((item) => item.id)
         .filter((id): id is string => Boolean(id)),
     );
-    const removedIds = editRecibo
+    const saleRemovedIds = editRecibo
       ? editRecibo.items
           .map((entry) => entry.id)
           .filter((id) => !currentIds.has(id))
       : [];
 
+    const reciboWrite: ReciboWrite = {
+      saleUpserts,
+      saleRemovedIds,
+      productionCreates: write.productionCreates,
+      productionDeleteIds: write.productionDeleteIds,
+      colorUpdates: write.colorUpdates,
+      finishedUpdates: write.finishedUpdates,
+    };
+
     try {
-      await onConfirm(upserts, removedIds);
+      await onConfirm(reciboWrite);
       onClose();
     } catch (err) {
       setError(
@@ -502,14 +649,17 @@ export function SaleModal({
           {items.map((item) => {
             const qty = Math.max(1, Number(item.quantity) || 1);
             const unitPrice = Math.max(0, Number(item.salePrice) || 0);
+            const r = reconByKey.get(item.key);
+            const unitCost = unitCostOf(item);
             const fin = saleItemFinancials({
               chargedUnitPrice: unitPrice,
               quantity: qty,
-              unitCost: item.source.unitCost,
+              unitCost,
               feeRatePct,
             });
             const itemProfit = fin.profit;
             const priceDelta = unitPrice - item.source.suggestedPrice;
+            const balance = balanceForItem(item.source);
 
             return (
               <div className="cesta-item" key={item.key}>
@@ -574,6 +724,55 @@ export function SaleModal({
                     />
                   </div>
                 </div>
+
+                <div className="cesta-origem">
+                  <select
+                    className="field-input"
+                    value={item.origem}
+                    onChange={(event) =>
+                      updateItem(item.key, {
+                        origem: event.target.value as SaleItemOrigin,
+                      })
+                    }
+                    title="De onde sai esta peça: estoque de acabados (pronta) ou produzida agora (encomenda)."
+                  >
+                    <option value="acabado">
+                      Estoque de acabados ({Math.round(balance)} disp.)
+                    </option>
+                    <option value="encomenda">Sob encomenda (produz agora)</option>
+                  </select>
+                  <span className="cesta-cost">
+                    custo real <strong>{formatCurrency(unitCost)}</strong>
+                  </span>
+                </div>
+
+                {item.origem === "acabado" && r && r.finishedShortfall > 0 ? (
+                  <div className="cesta-warn strong">
+                    ⚠ {Math.round(r.finishedShortfall)} além do estoque de acabados
+                    — o saldo fica negativo.
+                  </div>
+                ) : null}
+                {item.origem === "encomenda" && r?.missingProduct ? (
+                  <div className="cesta-warn strong">
+                    ⚠ Produto fora do catálogo — nada a produzir; sem baixa de
+                    filamento.
+                  </div>
+                ) : null}
+                {item.origem === "encomenda" && r && r.filamentShortfallG > 0 ? (
+                  <div className="cesta-warn strong">
+                    ⚠ Passa {Math.round(r.filamentShortfallG)} g do estoque da cor —
+                    saldo negativo (contagem furada?).
+                  </div>
+                ) : null}
+                {item.origem === "encomenda" &&
+                r &&
+                r.crossesRoll &&
+                r.filamentShortfallG === 0 ? (
+                  <div className="cesta-warn">
+                    Atravessa o rolo em uso — custo misto (na A1 sem AMS, é troca
+                    manual no meio da impressão).
+                  </div>
+                ) : null}
 
                 <div className="cesta-item-foot">
                   <span>

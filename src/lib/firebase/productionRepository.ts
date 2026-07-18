@@ -96,7 +96,10 @@ function moveFromDocument(data: DocumentData): StockMove {
   };
 }
 
-function toDocument(payload: ProductionPayload): DocumentData {
+// Exportado para o batch da VENDA (passo 8): a encomenda grava eventos de produção
+// na coleção `producao` dentro do mesmo `writeBatch` do recibo, reusando esta
+// serialização para não divergir da escrita da /producao.
+export function productionToDocument(payload: ProductionPayload): DocumentData {
   return {
     at: num(payload.at),
     outcome: payload.outcome,
@@ -177,7 +180,7 @@ export async function saveProduction(
 ): Promise<void> {
   const batch = writeBatch(db);
   for (const { id, payload } of events) {
-    batch.set(doc(productionCollection, id), toDocument(payload));
+    batch.set(doc(productionCollection, id), productionToDocument(payload));
   }
   for (const color of colorUpdates) {
     batch.update(doc(db, "estoque", color.id), {
