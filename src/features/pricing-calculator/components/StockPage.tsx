@@ -28,6 +28,7 @@ import {
   materialOptions,
   rollNumbers,
 } from "../lib/stock";
+import { useProduction } from "../hooks/useProduction";
 import { useProducts } from "../hooks/useProducts";
 import { useSales } from "../hooks/useSales";
 import { useStock } from "../hooks/useStock";
@@ -35,6 +36,7 @@ import { useTheme } from "../hooks/useTheme";
 import type {
   CloudStatus,
   FilamentRoll,
+  ProductionEvent,
   StockFilament,
   StockFilamentPayload,
 } from "../types";
@@ -53,6 +55,16 @@ const statusLabel: Record<CloudStatus, string> = {
 function grams(value: number): string {
   return `${Math.round(num(value))} g`;
 }
+
+// Rótulo curto do desfecho da produção, para a linha de consumo do extrato.
+const OUTCOME_SHORT: Record<ProductionEvent["outcome"], string> = {
+  estoque: "estoque",
+  encomenda: "encomenda",
+  teste: "teste",
+  falha: "falha",
+  brinde: "brinde",
+  historico: "histórico",
+};
 
 // A cor viva JÁ satisfaz o payload de gravação — o `id` sobra, mas é a chave do
 // doc, não um campo: o repo monta o documento campo a campo e não o copia.
@@ -90,6 +102,9 @@ export function StockPage() {
   // conteúdo a partir da 7c (produto) e da 8 (venda).
   const { products } = useProducts();
   const { sales } = useSales();
+  // FEAT-04c: a 3ª fonte do extrato (consumo). Vem do `stockMoves` dos eventos
+  // de produção — a produção é quem captura toda impressão que gasta filamento.
+  const { events: production } = useProduction();
 
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -399,7 +414,7 @@ export function StockPage() {
             ) : null}
 
             <div className="section-label stock-statement-label">Extrato</div>
-            {colorStatement(color).map((entry) => (
+            {colorStatement(color, production).map((entry) => (
               <div className="stock-entry" key={entry.id}>
                 <span className="stock-entry-date mono">
                   {formatDate(entry.at)}
@@ -411,7 +426,7 @@ export function StockPage() {
                       {formatCurrency(entry.pricePerKg)}/kg
                       {entry.note ? ` · ${entry.note}` : ""}
                     </>
-                  ) : (
+                  ) : entry.kind === "adjustment" ? (
                     <>
                       Ajuste do rolo #{numbers.get(entry.rollId)} ·{" "}
                       {entry.reason}
@@ -419,6 +434,14 @@ export function StockPage() {
                         sistema tinha {grams(entry.beforeG)}, contado{" "}
                         {grams(entry.afterG)}
                       </em>
+                    </>
+                  ) : (
+                    <>
+                      Produção do rolo #{numbers.get(entry.rollId)} ·{" "}
+                      {OUTCOME_SHORT[entry.outcome]}
+                      {entry.productName ? (
+                        <em className="stock-entry-sub">{entry.productName}</em>
+                      ) : null}
                     </>
                   )}
                 </span>
@@ -432,11 +455,6 @@ export function StockPage() {
                 </span>
               </div>
             ))}
-            <p className="stock-note">
-              O consumo das impressões ainda não aparece aqui: ele nasce junto da
-              baixa automática na venda. Por enquanto o saldo só se move por
-              compra e por ajuste.
-            </p>
           </div>
         ) : null}
       </div>

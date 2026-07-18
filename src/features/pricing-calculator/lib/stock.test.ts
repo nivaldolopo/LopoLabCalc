@@ -16,7 +16,12 @@ import {
   saleCost,
   simulateConsumption,
 } from "./stock";
-import type { FilamentRoll, StockFilament } from "../types";
+import type {
+  FilamentRoll,
+  ProductionEvent,
+  StockFilament,
+  StockMove,
+} from "../types";
 
 const DIA = 24 * 60 * 60 * 1000;
 
@@ -41,6 +46,26 @@ function makeColor(rolls: FilamentRoll[], minG = 0): StockFilament {
     rolls,
     adjustments: [],
     createdAt: 0,
+  };
+}
+
+// Evento de produção mínimo com os `stockMoves` que interessam ao extrato (04c).
+function prod(
+  over: Partial<ProductionEvent> & { stockMoves: StockMove[] },
+): ProductionEvent {
+  return {
+    id: "e1",
+    at: 0,
+    outcome: "estoque",
+    mode: "real",
+    productName: "Peça",
+    machineId: "a1",
+    machineName: "A1",
+    printHours: 2,
+    filaments: [],
+    frozenCost: 0,
+    createdAt: 0,
+    ...over,
   };
 }
 
@@ -322,7 +347,7 @@ describe("rollNumbers", () => {
   });
 });
 
-describe("colorStatement (extrato v1 — D6.1)", () => {
+describe("colorStatement (extrato — D6.1)", () => {
   it("junta compra e ajuste em ordem cronológica, com o delta com sinal", () => {
     const color = adjustRoll(doisRolos(), "velho", 70, "contagem", 3 * DIA);
     const extrato = colorStatement(color);
@@ -349,17 +374,54 @@ describe("colorStatement (extrato v1 — D6.1)", () => {
     expect(noInstante.map((e) => e.kind)).toEqual(["purchase", "adjustment"]);
   });
 
-  it("v1 não tem consumo: só compra e ajuste existem como fonte", () => {
-    const consumida = applyConsumption(
-      doisRolos(),
-      simulateConsumption(doisRolos(), 120).moves,
-    );
-    // O saldo caiu (a baixa aconteceria), mas o extrato não inventa a 3ª fonte:
-    // ela mora no doc da venda e só nasce no passo 8.
-    expect(balanceG(consumida)).toBe(30);
-    expect(colorStatement(consumida).every((e) => e.kind === "purchase")).toBe(
-      true,
-    );
+  it("sem produção, mostra só compra e ajuste (comportamento antigo)", () => {
+    expect(colorStatement(doisRolos()).every((e) => e.kind !== "consumption"))
+      .toBe(true);
+  });
+
+  it("o consumo (3ª fonte, 04c) vem do stockMoves do evento de produção", () => {
+    // A baixa que a produção gravaria de 120 g: sai do rolo velho (100) e
+    // atravessa 20 g pro novo (D5) — dois moves, deduzidos como consumo.
+    const sim = simulateConsumption(doisRolos(), 120);
+    const moves: StockMove[] = sim.moves.map((m) => ({
+      itemId: "e1",
+      kind: "filament",
+      stockId: "cor-preto",
+      rollId: m.rollId,
+      qty: m.qty,
+    }));
+    const evento = prod({
+      id: "e1",
+      at: 3 * DIA,
+      outcome: "falha",
+      productName: "Vaso",
+      stockMoves: moves,
+    });
+
+    const extrato = colorStatement(doisRolos(), [evento]);
+    const consumo = extrato.filter((e) => e.kind === "consumption");
+    expect(consumo).toHaveLength(2);
+    expect(consumo[0]).toMatchObject({
+      rollId: "velho",
+      deltaG: -100,
+      eventId: "e1",
+      outcome: "falha",
+      productName: "Vaso",
+    });
+    expect(consumo[1]).toMatchObject({ rollId: "novo", deltaG: -20 });
+    // Compra (dia 1/2) < consumo (dia 3): ordem cronológica preservada.
+    expect(extrato[extrato.length - 1].kind).toBe("consumption");
+  });
+
+  it("ignora moves de outra cor", () => {
+    const evento = prod({
+      stockMoves: [
+        { itemId: "e1", kind: "filament", stockId: "outra-cor", rollId: "x", qty: 50 },
+      ],
+    });
+    expect(
+      colorStatement(doisRolos(), [evento]).some((e) => e.kind === "consumption"),
+    ).toBe(false);
   });
 });
 

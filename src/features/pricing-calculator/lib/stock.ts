@@ -4,6 +4,7 @@ import type {
   ConsumptionResult,
   FilamentRoll,
   FilamentUsage,
+  ProductionEvent,
   StockAdjustment,
   StockFilament,
   StockMove,
@@ -311,20 +312,54 @@ export type StatementEntry =
       beforeG: number;
       afterG: number;
       reason: string;
+    }
+  | {
+      // FEAT-04c: a 3ª fonte do D6.1. O consumo mora no `stockMoves` do evento de
+      // PRODUÇÃO (não da venda, como a v1 supunha) — a produção é quem captura
+      // TODA impressão. `deltaG` é negativo (saiu do saldo).
+      kind: "consumption";
+      id: string;
+      at: number;
+      rollId: string;
+      deltaG: number;
+      eventId: string;
+      productName: string;
+      outcome: ProductionEvent["outcome"];
     };
 
 /**
  * Extrato da cor, em ordem cronológica.
  *
- * D6.1 — o extrato se MONTA aqui, juntando as fontes que já existem; nada é
+ * D6.1 — o extrato se MONTA aqui, juntando as 3 fontes que já existem; nada é
  * duplicado dentro do doc da cor. Cada evento tem um dono só: a compra É o
- * próprio `FilamentRoll`, o ajuste É o `StockAdjustment`.
+ * próprio `FilamentRoll`, o ajuste É o `StockAdjustment`, e o CONSUMO É o
+ * `stockMoves` do evento de PRODUÇÃO (FEAT-04c — a produção captura toda
+ * impressão, virou a fonte do consumo no lugar da venda que a v1 supunha).
  *
- * ⚠ v1 = 2 das 3 fontes. O CONSUMO mora no `stockMoves` do doc da VENDA, que só
- * passa a existir no passo 8 — até lá não há dado, e inventar a terceira fonte
- * aqui seria ficção. A 8 acrescenta um `kind: "consumption"` a esta união.
+ * `production` é opcional: sem ela o extrato mostra só compra + ajuste (é o que
+ * a `StockPage` fazia antes da 04c e o que faz sentido onde não há produção).
  */
-export function colorStatement(color: StockFilament): StatementEntry[] {
+export function colorStatement(
+  color: StockFilament,
+  production: ProductionEvent[] = [],
+): StatementEntry[] {
+  const consumption: StatementEntry[] = [];
+  for (const event of production) {
+    for (const move of event.stockMoves) {
+      if (move.stockId !== color.id) continue;
+      consumption.push({
+        kind: "consumption",
+        id: `move_${event.id}_${move.rollId}`,
+        at: num(event.at),
+        rollId: move.rollId,
+        deltaG: -num(move.qty),
+        eventId: event.id,
+        productName: event.productName ?? "",
+        outcome: event.outcome,
+      });
+    }
+  }
+
   const entries: StatementEntry[] = [
     ...color.rolls.map(
       (roll): StatementEntry => ({
@@ -349,6 +384,7 @@ export function colorStatement(color: StockFilament): StatementEntry[] {
         reason: adjustment.reason,
       }),
     ),
+    ...consumption,
   ];
   // Sort estável (garantido pela spec): eventos do mesmo instante mantêm a ordem
   // acima, então a compra do rolo nunca aparece depois do ajuste dele.

@@ -1,4 +1,4 @@
-import type { Machine, MachineUsage, Sale } from "../types";
+import type { Machine, MachineUsage, ProductionEvent, Sale } from "../types";
 import { num } from "@/lib/number";
 
 // Milissegundos em um mês médio (365,25 / 12 dias). Usado para projetar o ritmo
@@ -12,22 +12,28 @@ const MIN_HISTORY_MS = 14 * 24 * 60 * 60 * 1000;
 
 export type MachineRoi = {
   machine: Machine;
-  // Atribuição por `machineUsage` (repartição por máquina congelada na venda):
-  // cada impressora recebe as HORAS e a DEPRECIAÇÃO exatas que rodou, e uma fatia
-  // proporcional às horas do LUCRO e da RECEITA do produto. Um produto que usou 2
-  // máquinas conta como venda nas duas. Vendas antigas (sem `machineUsage`) caem
-  // no fallback: tudo na máquina principal (`machineId`).
+  // DUAS fontes, de propósito (FEAT-04c):
+  // • VIDA/HORAS vêm da PRODUÇÃO — TODA impressão desgasta a máquina, inclusive
+  //   teste/falha/brinde que nunca viram venda (é o ponto do quiosque). Cada
+  //   evento já carrega uma máquina só (a 04b quebra inteiro multi-máquina em N
+  //   eventos), então é soma direta por `machineId`, sem repartição.
+  // • DINHEIRO (payback/lucro/receita/depreciação recuperada) vem das VENDAS —
+  //   é sobre o que voltou em caixa. Atribuição por `machineUsage` (congelado na
+  //   venda): cada máquina recebe a DEPRECIAÇÃO exata que rodou e uma fatia do
+  //   LUCRO/RECEITA proporcional às suas horas; vendas antigas (sem
+  //   `machineUsage`) caem no fallback: tudo na máquina principal (`machineId`).
+  printedCount: number; // nº de impressões (eventos de produção) nesta máquina
+  printedHours: number; // Σ printHours dos eventos de produção desta máquina
   salesCount: number; // nº de vendas em que a máquina participou
-  units: number; // Σ quantity
-  printedHours: number; // Σ printHours × quantity
+  units: number; // Σ quantity vendida
   revenue: number; // Σ totalRevenue
   profit: number; // Σ profit (já líquido de taxa)
   depreciationRecovered: number; // Σ costBreakdown.depreciation × quantity
   firstSaleDate: number | null;
   lastSaleDate: number | null;
 
-  // Vida útil consumida (cruza com lifeHours). É a depreciação embutida no preço
-  // voltando hora a hora — bate com depreciationRecovered / price.
+  // Vida útil consumida (cruza com lifeHours). Horas físicas realmente impressas,
+  // da PRODUÇÃO — mede desgaste, não recuperação de caixa.
   lifeUsedFraction: number; // printedHours / lifeHours (pode passar de 1)
 
   // Payback do investimento (cruza com price). Quanto da máquina o LUCRO já pagou.
@@ -59,20 +65,32 @@ function saleShares(sale: Sale): MachineUsage[] {
   ];
 }
 
-// Cruza as máquinas com o histórico de vendas e devolve o ROI/payback de cada uma.
-// Máquina sem venda ainda aparece (zerada), para o dono ver que ela existe.
+// Cruza as máquinas com o histórico. Vida/horas saem da PRODUÇÃO (todo evento
+// desgasta a máquina); payback/lucro/receita saem das VENDAS. Máquina sem uso
+// ainda aparece (zerada), para o dono ver que ela existe.
 export function computeMachineRoi(
   machines: Machine[],
   sales: Sale[],
+  production: ProductionEvent[] = [],
   now: number = Date.now(),
 ): MachineRoi[] {
   return machines.map((machine) => {
     const price = Math.max(0, num(machine.price));
     const lifeHours = Math.max(0, num(machine.lifeHours));
 
+    // Horas físicas: soma direta dos eventos de produção desta máquina, qualquer
+    // desfecho e qualquer modo (real ou historico/backfill). Um evento = uma
+    // impressão (sem `quantity`).
+    let printedCount = 0;
+    let printedHours = 0;
+    for (const event of production) {
+      if (event.machineId !== machine.id) continue;
+      printedCount += 1;
+      printedHours += num(event.printHours);
+    }
+
     let salesCount = 0;
     let units = 0;
-    let printedHours = 0;
     let revenue = 0;
     let profit = 0;
     let depreciationRecovered = 0;
@@ -93,7 +111,6 @@ export function computeMachineRoi(
 
       salesCount += 1;
       units += qty;
-      printedHours += num(share.hours) * qty;
       depreciationRecovered += num(share.depreciation) * qty;
       revenue += num(sale.totalRevenue) * fraction;
       profit += num(sale.profit) * fraction;
@@ -130,9 +147,10 @@ export function computeMachineRoi(
 
     return {
       machine,
+      printedCount,
+      printedHours,
       salesCount,
       units,
-      printedHours,
       revenue,
       profit,
       depreciationRecovered,

@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import { computeMachineRoi, type MachineRoi } from "../lib/machineRoi";
 import { useMachines } from "../hooks/useMachines";
+import { useProduction } from "../hooks/useProduction";
 import { useSales } from "../hooks/useSales";
 import { useTheme } from "../hooks/useTheme";
 import type { CloudStatus } from "../types";
@@ -74,10 +75,11 @@ export function MachinesPage() {
   const { theme, toggleTheme } = useTheme();
   const { machines } = useMachines();
   const { sales, status, error } = useSales();
+  const { events: production } = useProduction();
 
   const rois = useMemo(
-    () => computeMachineRoi(machines, sales),
-    [machines, sales],
+    () => computeMachineRoi(machines, sales, production),
+    [machines, sales, production],
   );
 
   const totals = useMemo(() => {
@@ -147,11 +149,11 @@ export function MachinesPage() {
       </div>
 
       <p className="roi-note">
-        O payback cruza o preço de compra de cada máquina com o lucro que ela já
-        gerou nas vendas. Produtos que usam mais de uma impressora repartem horas
-        e depreciação pela máquina certa, e o lucro/receita proporcional às horas
-        de cada uma. Vendas antigas (antes desta mudança) seguem com tudo na
-        máquina principal.
+        O <strong>payback</strong> cruza o preço de compra de cada máquina com o
+        lucro que ela já gerou nas vendas (o lucro/receita/depreciação são
+        repartidos pela máquina certa quando o produto usa mais de uma). A{" "}
+        <strong>vida útil</strong> vem do registro de produção: toda impressão
+        desgasta a máquina, inclusive teste, falha e brinde que nunca viram venda.
       </p>
 
       <div className="roi-list">
@@ -193,9 +195,11 @@ export function MachinesPage() {
                 </div>
                 <div className="roi-status muted">
                   {formatDecimal(roi.printedHours)} h impressas de{" "}
-                  {formatDecimal(roi.machine.lifeHours)} h ·{" "}
+                  {formatDecimal(roi.machine.lifeHours)} h em{" "}
+                  {roi.printedCount}{" "}
+                  {roi.printedCount === 1 ? "impressão" : "impressões"} ·{" "}
                   {formatCurrency(roi.depreciationRecovered)} de depreciação já
-                  embutida nos preços.
+                  embutida nos preços de venda.
                 </div>
               </div>
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeMachineRoi } from "./machineRoi";
-import type { Machine, Sale } from "../types";
+import type { Machine, ProductionEvent, Sale } from "../types";
 
 const DAY = 24 * 60 * 60 * 1000;
 // Data-base realista (saleDate é sempre um timestamp real, nunca 0).
@@ -60,10 +60,31 @@ function sale(overrides: Partial<Sale> = {}): Sale {
   };
 }
 
+// Evento de produção (FEAT-04c): a fonte das horas/vida. Um evento = uma
+// impressão (sem `quantity`), com uma máquina só.
+function prod(overrides: Partial<ProductionEvent> = {}): ProductionEvent {
+  return {
+    id: "e1",
+    at: BASE,
+    outcome: "estoque",
+    mode: "real",
+    productName: "Peça",
+    machineId: "a1",
+    machineName: "A1 Combo",
+    printHours: 2,
+    filaments: [],
+    frozenCost: 10,
+    stockMoves: [],
+    createdAt: BASE,
+    ...overrides,
+  };
+}
+
 describe("computeMachineRoi", () => {
-  it("máquina sem vendas aparece zerada", () => {
-    const [roi] = computeMachineRoi([machine()], []);
+  it("máquina sem uso aparece zerada", () => {
+    const [roi] = computeMachineRoi([machine()], [], []);
     expect(roi.salesCount).toBe(0);
+    expect(roi.printedCount).toBe(0);
     expect(roi.printedHours).toBe(0);
     expect(roi.profit).toBe(0);
     expect(roi.paybackFraction).toBe(0);
@@ -88,28 +109,88 @@ describe("computeMachineRoi", () => {
     expect(x2d.profit).toBe(99);
   });
 
-  it("soma horas/receita/lucro/depreciação ponderando pela quantidade", () => {
+  it("soma receita/lucro/depreciação das vendas ponderando pela quantidade", () => {
     const [roi] = computeMachineRoi(
       [machine({ price: 5299, lifeHours: 10000 })],
       [
-        sale({ id: "s1", printHours: 2, quantity: 3, totalRevenue: 150, profit: 90 }),
-        sale({ id: "s2", printHours: 4, quantity: 1, totalRevenue: 60, profit: 40 }),
+        sale({ id: "s1", quantity: 3, totalRevenue: 150, profit: 90 }),
+        sale({ id: "s2", quantity: 1, totalRevenue: 60, profit: 40 }),
       ],
     );
     expect(roi.units).toBe(4);
-    expect(roi.printedHours).toBe(2 * 3 + 4 * 1); // 10
     expect(roi.revenue).toBe(210);
     expect(roi.profit).toBe(130);
     // depreciação recuperada = 1/un × (3 + 1) unidades
     expect(roi.depreciationRecovered).toBeCloseTo(4, 6);
-    // vida útil: 10h / 10000h
-    expect(roi.lifeUsedFraction).toBeCloseTo(10 / 10000, 6);
+    // Sem produção, a vida útil fica zerada (as horas não saem mais da venda).
+    expect(roi.printedHours).toBe(0);
+    expect(roi.lifeUsedFraction).toBe(0);
+  });
+
+  describe("vida útil vem da produção (FEAT-04c)", () => {
+    it("soma horas de TODOS os desfechos, inclusive teste e falha", () => {
+      const [roi] = computeMachineRoi(
+        [machine({ lifeHours: 10000 })],
+        [],
+        [
+          prod({ id: "e1", outcome: "estoque", printHours: 5 }),
+          prod({ id: "e2", outcome: "teste", printHours: 1 }),
+          prod({ id: "e3", outcome: "falha", printHours: 4 }),
+        ],
+      );
+      expect(roi.printedCount).toBe(3);
+      expect(roi.printedHours).toBe(10);
+      expect(roi.lifeUsedFraction).toBeCloseTo(10 / 10000, 6);
+    });
+
+    it("atribui horas por machineId (ignora produção de outra máquina)", () => {
+      const roi = computeMachineRoi(
+        [machine({ id: "a1" }), machine({ id: "x2d", name: "X2D" })],
+        [],
+        [
+          prod({ id: "e1", machineId: "a1", printHours: 3 }),
+          prod({ id: "e2", machineId: "x2d", printHours: 7 }),
+        ],
+      );
+      const a1 = roi.find((r) => r.machine.id === "a1")!;
+      const x2d = roi.find((r) => r.machine.id === "x2d")!;
+      expect(a1.printedHours).toBe(3);
+      expect(a1.printedCount).toBe(1);
+      expect(x2d.printedHours).toBe(7);
+      expect(x2d.printedCount).toBe(1);
+    });
+
+    it("o modo historico (backfill) também conta horas de vida", () => {
+      const [roi] = computeMachineRoi(
+        [machine({ lifeHours: 1000 })],
+        [],
+        [prod({ mode: "historico", outcome: "historico", printHours: 40 })],
+      );
+      expect(roi.printedHours).toBe(40);
+      expect(roi.lifeUsedFraction).toBeCloseTo(40 / 1000, 6);
+    });
+
+    it("produção sem venda conta vida, mas não payback", () => {
+      const [roi] = computeMachineRoi(
+        [machine({ price: 1000, lifeHours: 10000 })],
+        [],
+        [prod({ outcome: "teste", printHours: 12 })],
+      );
+      expect(roi.printedHours).toBe(12);
+      expect(roi.lifeUsedFraction).toBeCloseTo(12 / 10000, 6);
+      // Nenhuma venda → nada pago.
+      expect(roi.salesCount).toBe(0);
+      expect(roi.profit).toBe(0);
+      expect(roi.paybackFraction).toBe(0);
+      expect(roi.isPaidBack).toBe(false);
+    });
   });
 
   it("marca como pago quando o lucro cobre o preço da máquina", () => {
     const [roi] = computeMachineRoi(
       [machine({ price: 100 })],
       [sale({ profit: 150, saleDate: BASE })],
+      [],
       BASE + 30 * DAY,
     );
     expect(roi.isPaidBack).toBe(true);
@@ -124,6 +205,7 @@ describe("computeMachineRoi", () => {
     const [roi] = computeMachineRoi(
       [machine({ price: 1000 })],
       [sale({ profit: 200, saleDate: BASE })], // 200 de lucro em ~2 meses
+      [],
       now,
     );
     expect(roi.isPaidBack).toBe(false);
@@ -144,6 +226,7 @@ describe("computeMachineRoi", () => {
     const [roi] = computeMachineRoi(
       [machine({ price: 1000 })],
       [sale({ profit: 200, saleDate: BASE })],
+      [],
       now,
     );
     expect(roi.profitPerMonth).toBeNull();
@@ -155,6 +238,7 @@ describe("computeMachineRoi", () => {
     const [roi] = computeMachineRoi(
       [machine({ price: 1000 })],
       [sale({ profit: -50, saleDate: BASE })],
+      [],
       now,
     );
     expect(roi.profit).toBe(-50);
@@ -162,7 +246,7 @@ describe("computeMachineRoi", () => {
     expect(roi.monthsToPayback).toBeNull();
   });
 
-  it("reparte horas/depreciação por máquina e lucro/receita proporcional às horas", () => {
+  it("reparte depreciação por máquina e lucro/receita proporcional às horas", () => {
     const roi = computeMachineRoi(
       [machine({ id: "a1", name: "A1" }), machine({ id: "x2d", name: "X2D" })],
       [
@@ -186,9 +270,7 @@ describe("computeMachineRoi", () => {
     // A máquina participou da venda nas duas.
     expect(a1.salesCount).toBe(1);
     expect(x2d.salesCount).toBe(1);
-    // Horas e depreciação: exatas de cada máquina.
-    expect(a1.printedHours).toBe(3);
-    expect(x2d.printedHours).toBe(1);
+    // Depreciação: exata de cada máquina (congelada no `machineUsage`).
     expect(a1.depreciationRecovered).toBeCloseTo(3, 6);
     expect(x2d.depreciationRecovered).toBeCloseTo(0.5, 6);
     // Lucro/receita: proporcional às horas (3/4 e 1/4).
@@ -201,7 +283,7 @@ describe("computeMachineRoi", () => {
     expect(a1.revenue + x2d.revenue).toBeCloseTo(100, 6);
   });
 
-  it("pondera a repartição pela quantidade", () => {
+  it("pondera a repartição do dinheiro pela quantidade", () => {
     const roi = computeMachineRoi(
       [machine({ id: "a1" }), machine({ id: "x2d", name: "X2D" })],
       [
@@ -220,9 +302,7 @@ describe("computeMachineRoi", () => {
     );
     const a1 = roi.find((r) => r.machine.id === "a1")!;
     const x2d = roi.find((r) => r.machine.id === "x2d")!;
-    // Horas/depreciação × quantidade.
-    expect(a1.printedHours).toBe(2 * 5); // 10
-    expect(x2d.printedHours).toBe(1 * 5); // 5
+    // Depreciação × quantidade.
     expect(a1.depreciationRecovered).toBeCloseTo(2 * 5, 6);
     expect(x2d.depreciationRecovered).toBeCloseTo(1 * 5, 6);
     expect(a1.units).toBe(5);

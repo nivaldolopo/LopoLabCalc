@@ -10,31 +10,24 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **FEAT-04b — tela `/producao` (registro de produção), plugada.** Rota
-  `ProductionPage` (link 🏭 no header): seletor **produto inteiro · subitem · Avulso** → nome →
-  máquina → tempo (`PrintTimeField` h+min) → **filamentos default editáveis** (gramas; avulso =
-  dropdown de cor OU livre + preço/kg, multicor com "+ outra cor") → **desfecho** (estoque·encomenda·
-  teste·falha·brinde·historico) → **modo** (real/historico). **Preview ao vivo** roda a decomposição
-  + `planProduction`/`productionCost` sem gravar (custo, gramas, avisos D5). **Decisão do dono:**
-  produto **inteiro com etapas em máquinas diferentes vira N eventos** (1 por máquina; agrupa as
-  etapas por `machineId`); subitem/avulso = 1 evento. Baixa **encadeada** (2 eventos na mesma cor
-  deduzem do saldo já mexido) e **atômica** — `saveProduction(events[], colorUpdates)` grava os N
-  docs + os `rolls` num só `writeBatch`; `itemId` do `stockMoves` = id **pré-gerado** (`newProductionId`).
-  Novo helper puro **`productionCost`** (material FIFO + energia + depreciação + manutenção + labor;
-  SEM falha/fixo/acessório) para o `frozenCost`. `useProduction` (subscribe/add/remove). Lista de
-  produções recentes com **excluir** (estorno via `reverseProduction`). Congela material/brand por
-  cor (D7). **Sem tocar `machineRoi`** (é a 04c). +3 testes (**130 verdes**), `lint`+`build` limpos.
-  ⚠ **Faxina do legado FEAT-02 segue adiada.**
-  **Próximo passo: FEAT-04c** — `computeMachineRoi` lê horas da **produção** (muda `/maquinas`, casa
-  TD-003) + estorno da venda via `stockMoves` (`reverseConsumption`) + **consumo entra no extrato da
-  cor** (fecha a 3ª fonte do D6.1). Decisões do dono já fechadas: **3 fases, uma por chat**; **rota
-  própria `/producao`**; **escopo da baixa = produção** (saldo de acabado é a FEAT-05); **ROI migra
-  na 04c**. Modelo do evento: `outcome` + `mode` (real deduz FIFO/D3 com avisos D5; historico =
-  gramas soltas, não toca rolo) + `productId?`/`subitemId?` + `filaments[]`/`machineName`/`frozenCost`
-  congelados. Detalhe no item FEAT-04 do backlog.
-  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 (04a ✅ · 04b ✅ · 04c) → FEAT-05 → 8`.**
+- **Última mudança:** **FEAT-04c — ROI e extrato leem a produção. FEAT-04 FECHADA (04a·04b·04c).**
+  Duas mudanças puras + UI, sem modelo novo nem migração: (1) **`computeMachineRoi(machines, sales,
+  production)`** — a **vida útil** (`printedHours`/`lifeUsedFraction` + novo `printedCount`) agora vem
+  da **PRODUÇÃO** (toda impressão desgasta, inclusive teste/falha/brinde que nunca viram venda; soma
+  direta por `machineId` — cada evento tem 1 máquina); **payback/lucro/receita/depreciação seguem das
+  VENDAS**. `MachinesPage` puxa `useProduction`; nota e legenda da barra de vida reescritas. (2)
+  **`colorStatement(color, production)`** ganhou a 3ª fonte do D6.1 — `kind: "consumption"` (delta
+  negativo) montado do `stockMoves` dos eventos de produção; `StockPage` renderiza a linha "Produção
+  do rolo #N · desfecho" no extrato (some a nota "consumo ainda não aparece"). O **estorno** já estava
+  pronto na 04b (`reverseProduction`/`reverseConsumption`). +6 testes (**136 verdes**), `lint`+`build`
+  limpos. ⚠ **Faxina do legado FEAT-02 segue adiada.**
+  **Próximo passo: FEAT-05** — Estoque de Produtos (acabados): produção **incrementa** com custo
+  congelado, venda **decrementa sem rebaixar insumo**; SKU = subitem (FEAT-01); saldo por subitem,
+  "inteiro disponível" = min das partes; vender só uma parte deixa **lacuna** ("conjunto sem X");
+  saldo negativo permitido com aviso (D4). Detalhe no item FEAT-05 do backlog.
+  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅ (04a·04b·04c) → FEAT-05 → 8`.**
   ⚠ **Reframe aprovado:** o passo **8 deixa de ser "o passo da baixa"** e vira **reconciliação da
-  venda** — a **primitiva de baixa migra pra PRODUÇÃO (FEAT-04)**, porque é o único ponto que captura
+  venda** — a **primitiva de baixa migrou pra PRODUÇÃO (FEAT-04)**, porque é o único ponto que captura
   TODA impressão (inclusive teste/falha/brinde, que nunca viram venda). Detalhe e decisões (D1-D8 +
   desfecho da impressão/estoque por subitem com lacuna) no item 3 e nos FEAT-04/05 do backlog. Restam
   da auditoria: **TD-003** (capacidade por-máquina, casar com Dashboard) e **TD-006** (paginação).
@@ -42,7 +35,8 @@
   `price`/`lifeHours` com o histórico. Duas barras por cartão: **payback do investimento**
   (`lucro acumulado / price`, com projeção "faltam ~N meses / paga por volta de MÊS/ANO" pelo
   ritmo de lucro desde a 1ª venda — só projeta com ≥14 dias de histórico e lucro > 0) e **vida
-  útil consumida** (`horas impressas / lifeHours`). Matemática pura em `lib/machineRoi.ts`.
+  útil consumida** (`horas impressas / lifeHours` — as horas vêm do **registro de produção**, todo
+  desfecho, FEAT-04c). Matemática pura em `lib/machineRoi.ts` (recebe `sales` **e** `production`).
 - **Concluído (macro):** itens 1 e 2 do backlog — **captura de venda + histórico**
   (`/vendas`: cesta/recibo com N itens por `reciboId`, editar recibo, CSV, snapshot congelado)
   e **orçamento em PDF** (`/orcamento`: itens de catálogo/livres, `generateQuotePdf`, histórico
@@ -52,8 +46,8 @@
   Cloudflare + SSL Let's Encrypt + Authorized domain no Firebase). **E-mail `@lopolab.com.br`
   configurado** (DNS no Cloudflare; contexto no chat "abertura da loja", fora do repo).
 - **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — **EM ANDAMENTO: 7a ✅ + 7b ✅ + 7c ✅ +
-  FEAT-01 ✅ + FEAT-04a ✅ + FEAT-04b ✅**, próximo é a **FEAT-04c** (ROI lê horas da produção),
-  depois **FEAT-05 → 8** (ver "Reframe" no Status/backlog); coleção
+  FEAT-01 ✅ + FEAT-04 ✅ (04a·04b·04c)**, próximo é a **FEAT-05** (Estoque de Produtos/acabados),
+  depois **8** (ver "Reframe" no Status/backlog); coleção
   `estoque` (um doc por COR, rolos dentro); decisões D1-D8 e as etapas no item 3 do backlog; (b) item 4 —
   **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
   TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
@@ -281,8 +275,9 @@
      `writeBatch`, sem UI~~ **✅ FEITA (jul/2026)**; ~~**04b** tela `/producao` (produto/subitem →
      máquina → h+min → filamento default editável → desfecho → modo; link no header) + `productionCost`
      (frozenCost) + inteiro multi-máquina = N eventos (baixa encadeada/atômica) + lista com excluir~~
-     **✅ FEITA (jul/2026)** — **próximo é 04c**; **04c** `computeMachineRoi` lê horas da produção +
-     estorno via `stockMoves` + consumo no extrato da cor. Detalhe no item FEAT-04 do backlog.
+     **✅ FEITA (jul/2026)**; ~~**04c** `computeMachineRoi` lê horas da produção (vida útil por
+     `machineId`, todo desfecho) + consumo no extrato da cor (3ª fonte do D6.1); estorno já vinha da
+     04b~~ **✅ FEITA (jul/2026) — FEAT-04 inteira fechada**. Detalhe no item FEAT-04 do backlog.
    - **FEAT-05 — Estoque de Produtos (acabados).** Produção **incrementa** com custo congelado; venda
      **decrementa sem rebaixar insumo** (já saiu na produção — furo "não dobrar baixa"). Guarda saldo
      **por subitem** (a SKU do acabado = o subitem vendável do FEAT-01); "produto inteiro disponível" é
@@ -608,13 +603,13 @@ pendente da auditoria.
   chat**: ~~(7a) modelo + repo, sem UI~~ **✅ FEITA**; ~~(7b) rota `/estoque` (CRUD de cores +
   rolos)~~ **✅ FEITA**; ~~(7c) dropdown de cor no produto (preço vivo)~~ **✅ FEITA**;
   ~~**FEAT-01** preço/subitens por etapa (rateio aditivo; toggle de subitens)~~ **✅ FEITA**;
-  **FEAT-04** Registro de Produção (a **primitiva de baixa** migra pra produção; desfecho por impressão)
-  — **04a ✅ + 04b ✅; próximo é 04c** (ROI lê horas da produção);
-  **FEAT-05** Estoque de Produtos (acabado por subitem, lacuna); depois **8** (venda = **reconciliação**,
+  ~~**FEAT-04** Registro de Produção (a **primitiva de baixa** migra pra produção; desfecho por impressão)
+  — 04a·04b·04c~~ **✅ FEITA**; **próximo é a FEAT-05**
+  Estoque de Produtos (acabado por subitem, lacuna); depois **8** (venda = **reconciliação**,
   não mais baixa; estorna via `stockMoves` no caminho encomenda).
   Insumos = (7e), **item separado depois** do filamento.
-  **Ordem final do Tier 1 (jul/2026): 7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04
-  (04a ✅ · 04b ✅ · 04c) → FEAT-05 → 8.**
+  **Ordem final do Tier 1 (jul/2026): 7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅
+  (04a · 04b · 04c) → FEAT-05 → 8.**
   ⚠ **Reframe aprovado (jul/2026):** o quiosque de mall exige vender **peça pronta na hora**. FEAT-04
   move a **primitiva de baixa** pra produção (é o único ponto que captura teste/falha/brinde — impressões
   que nunca viram venda), então **entra antes da 8**, e a **8 deixa de ser "o passo da baixa"** e vira
