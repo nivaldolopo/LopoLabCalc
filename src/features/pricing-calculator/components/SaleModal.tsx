@@ -18,7 +18,7 @@ import {
 import { newProductionId } from "@/lib/firebase/productionRepository";
 import type { ReciboWrite } from "@/lib/firebase/salesRepository";
 import { balanceOf } from "../lib/finishedGoods";
-import { stripFilamentIds } from "../lib/filaments";
+import { freezeFilaments, materialsLabel } from "../lib/filaments";
 import { feeRateForMethod, saleItemFinancials } from "../lib/paymentFees";
 import {
   planReciboReconciliation,
@@ -53,7 +53,6 @@ export type SaleModalEditItem = {
   id: string;
   source: SaleModalContext;
   productName: string;
-  material: string;
   quantity: number;
   salePrice: number;
   createdAt: number;
@@ -83,7 +82,6 @@ type CestaItem = {
   createdAt?: number;
   source: SaleModalContext;
   productName: string;
-  material: string;
   quantity: number;
   salePrice: number;
   // Passo 8: caminho de reconciliação deste item (default por saldo do acabado).
@@ -135,7 +133,6 @@ function itemFromContext(
     key: `item_${Date.now()}_${itemSeq}`,
     source,
     productName: source.defaultProductName,
-    material: "",
     quantity: 1,
     salePrice: round2(source.suggestedPrice),
     origem,
@@ -177,7 +174,6 @@ export function SaleModal({
         createdAt: entry.createdAt,
         source: entry.source,
         productName: entry.productName,
-        material: entry.material,
         quantity: entry.quantity,
         salePrice: entry.salePrice,
         origem: entry.origem ?? defaultOrigin(entry.source),
@@ -406,11 +402,14 @@ export function SaleModal({
         unitCost,
         feeRatePct,
       });
+      // FEAT-02/D7: congela as cores resolvendo material/marca da cor viva; o
+      // "material" da venda passa a ser DERIVADO delas (não mais texto livre).
+      const frozenFilaments = freezeFilaments(item.source.filaments, stock);
       const payload: SalePayload = {
         reciboId,
         saleDate,
         customer: customer.trim(),
-        material: item.material.trim(),
+        material: materialsLabel(frozenFilaments),
         paymentMethod,
         channel,
         notes: notes.trim(),
@@ -426,8 +425,7 @@ export function SaleModal({
         machineName: item.source.machineName,
         printHours: item.source.printHours,
         machineUsage: item.source.machineUsage,
-        // FEAT-02: congela o consumo por cor (limpo p/ Firestore — sem undefined).
-        filaments: stripFilamentIds(item.source.filaments),
+        filaments: frozenFilaments,
         quantity: qty,
         suggestedPrice: item.source.suggestedPrice,
         salePrice: unitPrice,
@@ -686,20 +684,6 @@ export function SaleModal({
                 </div>
 
                 <div className="cesta-item-grid">
-                  <div className="field-block compact">
-                    <div className="section-label">
-                      Material <span className="label-hint">(opcional)</span>
-                    </div>
-                    <input
-                      className="field-input"
-                      type="text"
-                      value={item.material}
-                      onChange={(event) =>
-                        updateItem(item.key, { material: event.target.value })
-                      }
-                      placeholder="Ex.: PLA Silk"
-                    />
-                  </div>
                   <div className="field-block compact">
                     <div className="section-label">Qtd</div>
                     <NumberInput

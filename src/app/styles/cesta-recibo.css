@@ -68,7 +68,7 @@
 
 .cesta-item-grid {
   display: grid;
-  grid-template-columns: 1fr 70px 108px;
+  grid-template-columns: 100px 1fr;
   gap: 8px;
 }
 

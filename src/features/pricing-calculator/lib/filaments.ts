@@ -1,5 +1,5 @@
 import { num } from "@/lib/number";
-import type { FilamentUsage } from "../types";
+import type { FilamentUsage, StockFilament } from "../types";
 
 // Helpers de filamento por cor (FEAT-02). O modelo unifica mono e multicolor:
 // toda etapa/produto tem um array `filaments` (mono = array de 1). `totalG` é o
@@ -141,4 +141,39 @@ export function stripFilamentIds(
     if (f.towerG !== undefined) clean.towerG = num(f.towerG);
     return clean;
   });
+}
+
+// D7: congela as cores da VENDA resolvendo material/marca/nome da COR viva do
+// Estoque (pelo `filamentId`) — o produto guarda só o id; material vive na cor. É
+// o que deixa o histórico agrupar por material sem consultar a cor (que pode ser
+// arquivada depois). Avulso (sem `filamentId`) fica sem material, como esperado.
+export function freezeFilaments(
+  filaments: FilamentUsage[] | undefined,
+  stock: Pick<StockFilament, "id" | "material" | "brand" | "colorName">[],
+): FilamentUsage[] {
+  const byId = new Map(stock.map((color) => [color.id, color]));
+  return stripFilamentIds(filaments).map((f) => {
+    const color = f.filamentId ? byId.get(f.filamentId) : undefined;
+    return {
+      ...f,
+      ...(color?.colorName ? { colorName: color.colorName } : {}),
+      ...(color?.material ? { material: color.material } : {}),
+      ...(color?.brand ? { brand: color.brand } : {}),
+    };
+  });
+}
+
+// D7/D8: rótulo de material DERIVADO das cores congeladas — os materiais distintos
+// (case-insensitive, preservando a 1ª grafia), juntados por " · ". Multicolor em
+// PLA+PETG vira "PLA · PETG". Substitui o antigo campo "Material" de texto livre da
+// venda; vazio quando nenhuma cor tem material (avulso).
+export function materialsLabel(filaments: FilamentUsage[]): string {
+  const seen: string[] = [];
+  for (const f of filaments) {
+    const material = (f.material ?? "").trim();
+    if (material && !seen.some((s) => s.toLowerCase() === material.toLowerCase())) {
+      seen.push(material);
+    }
+  }
+  return seen.join(" · ");
 }

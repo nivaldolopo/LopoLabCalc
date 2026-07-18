@@ -10,24 +10,19 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **Passo 8 — Fase 8b (venda = reconciliação): `SaleModal` + gravação atômica + wiring.**
-  Cada item da cesta ganhou **seletor de origem** (Estoque de acabados N disp. / Sob encomenda; default
-  por saldo) e mostra **custo real por item** (D3) + avisos **D4** (acabado negativo) e **D5** (encomenda
-  atravessa rolo / estoura a cor), via `planReciboReconciliation` ao vivo. Ao confirmar,
-  `reconcileReciboWrite` **estorna o recibo antigo e reaplica o novo numa passada** (baixa real, ids de
-  evento definitivos) e o novo **`reconcileRecibo`** grava num **único `writeBatch`**: vendas + `producao`
-  (eventos de encomenda) + `estoque` (rolos) + `acabados` (SKUs). `toSale` passou a ler
-  `origem`/`finishedMoves`/`productionEventIds`; `productionRepository` exporta `productionToDocument`.
-  `SalesPage.handleDelete` agora **estorna** (via `reverseReciboReconciliation`) e apaga os eventos, atômico.
-  `saleReconciliation` refatorado p/ estado compartilhado (reverse+forward). Wiring:
-  `PricingCalculator`/`SalesPage` passam `goods`/`stock`/`products`/`machines`/`fixedCosts`/`production`
-  e ligam `onConfirm` em `reconcileRecibo`. CSS `cesta-origem`/`cesta-warn`. +3 testes (**179 verdes**),
-  `lint`+`build` limpos. ⚠ **COGS armazenado = custo real (unitCost/lucro/margem); `costBreakdown` fica o
-  do snapshot (informativo) — acessórios ainda fora do COGS até o 7e.** Testes visuais pendentes (login/dados
-  reais) — o dono valida.
-  **Próximo passo: fase 8c** — `SaleInput.material` vira **derivado** do `FilamentUsage.material` (D7,
-  tira o input de texto livre) + **fecha FEAT-02 + Tier 1**. Plano em `.claude/plans/cuddly-herding-perlis.md`.
-  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅ → FEAT-05 ✅ → 8 (8a ✅ · 8b ✅ · 8c)`.**
+- **Última mudança:** **Passo 8 — Fase 8c (D7): `material` derivado. FEAT-02 e TIER 1 FECHADOS.**
+  O campo "Material" de texto livre da venda **saiu**; agora é **derivado** das cores congeladas:
+  `freezeFilaments(source.filaments, stock)` resolve **material/marca/nome da cor viva** pelo `filamentId`
+  (o produto guarda só o id; material vive na cor — D7) e `materialsLabel` junta os materiais distintos
+  ("PLA · PETG"). A cesta perdeu o input (grid 2-col Qtd/Preço). Extrato da cor **já mostrava** o consumo
+  da encomenda (vem de `producao` via 04c — nada a fazer). +6 testes (**185 verdes**), `lint`+`build`
+  limpos. ⚠ **COGS armazenado = custo real (unitCost/lucro/margem); `costBreakdown` = o do snapshot
+  (stopgap informativo) até o FEAT-06 congelar a composição na produção; acessórios fora do COGS até 7e.**
+  Testes visuais do passo 8 pendentes (login/dados reais) — o dono valida.
+  **✅ FIM DO TIER 1.** Próximo: **Tier 2** — FEAT-03 (PDF), branding/logo, **FEAT-06** (aba Produtos rica
+  = congela a composição na produção, opção b decidida; ver backlog). Plano do passo 8 em
+  `.claude/plans/cuddly-herding-perlis.md`.
+  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅ → FEAT-05 ✅ → 8 ✅ (8a·8b·8c)`.**
   ⚠ **Reframe aprovado:** o passo **8 deixa de ser "o passo da baixa"** e vira **reconciliação da
   venda** — a **primitiva de baixa migrou pra PRODUÇÃO (FEAT-04)**, porque é o único ponto que captura
   TODA impressão (inclusive teste/falha/brinde, que nunca viram venda). Detalhe e decisões (D1-D8 +
@@ -47,10 +42,10 @@
 - **Infra pronta:** subdomínio `calculadora.lopolab.com.br` **NO AR** (CNAME "DNS only" no
   Cloudflare + SSL Let's Encrypt + Authorized domain no Firebase). **E-mail `@lopolab.com.br`
   configurado** (DNS no Cloudflare; contexto no chat "abertura da loja", fora do repo).
-- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — **EM ANDAMENTO: 7a ✅ + 7b ✅ + 7c ✅ +
-  FEAT-01 ✅ + FEAT-04 ✅ (04a·04b·04c) + FEAT-05 ✅ (05a · 05b · 05c)**, próximo e último é o
-  **passo 8** (venda = reconciliação; ver "Reframe" no Status/backlog); coleção
-  `estoque` (um doc por COR, rolos dentro); decisões D1-D8 e as etapas no item 3 do backlog; (b) item 4 —
+- **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — **✅ COMPLETO: 7a · 7b · 7c ·
+  FEAT-01 · FEAT-04 (04a·04b·04c) · FEAT-05 (05a·05b·05c) · passo 8 (8a·8b·8c) — TIER 1 FECHADO**
+  (venda = reconciliação; coleção `estoque` um doc por COR, rolos dentro; decisões D1-D8 no item 3;
+  falta só o **7e — insumos**, item separado depois); (b) item 4 —
   **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
   TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
   **Auditoria do GPT: TD-001/004/005/007/008/009 FEITOS; restam TD-003 e TD-006** (no backlog, não
@@ -299,9 +294,10 @@
      (`planReciboReconciliation`/`reverseReciboReconciliation`) + 15 testes, sem UI~~ **✅ FEITA (jul/2026)**;
      ~~**8b** `SaleModal` (seletor de origem + COGS real + avisos D4/D5) + `reconcileRecibo` batch atômico
      multi-coleção (vendas+producao+estoque+acabados, `reconcileReciboWrite` estorna-e-reaplica) + wiring
-     (`handleDelete` estorna)~~ **✅ FEITA (jul/2026)**; **8c** `material` derivado (D7, tira o texto livre)
-     + fecha FEAT-02 + Tier 1. **Fim do Tier 1.** ⚠ **COGS armazenado = custo real; `costBreakdown` fica
-     o do snapshot (informativo); acessórios fora do COGS até 7e.**
+     (`handleDelete` estorna)~~ **✅ FEITA (jul/2026)**; ~~**8c** `material` derivado (D7, `freezeFilaments`/
+     `materialsLabel`, tira o texto livre) + fecha FEAT-02 + Tier 1~~ **✅ FEITA (jul/2026) — PASSO 8 e
+     TIER 1 FECHADOS.** ⚠ **COGS armazenado = custo real; `costBreakdown` = o do snapshot (stopgap) até o
+     FEAT-06 congelar a composição na produção; acessórios fora do COGS até 7e.**
    - **7e — Insumos (item próprio, depois).** `supplyId` no `Accessory`, cadastro de insumos na
      `/estoque`, baixa por unidade (`kind: 'supply'`, já previsto no `stockMoves`). Ver D1.
 
@@ -475,8 +471,9 @@ pendente da auditoria.
   como curativo. Descartado — o FEAT-01 já vem antes do marco, e item livre captura só **preço**
   (sem `filaments[]`, sem baixa, sem "lucro por material"). Retomar só se uma venda de etapa
   aparecer antes do FEAT-01 ficar pronto.
-- 🟡 **[FEAT-02] Gasto de filamento por cor (multicor / AMS / dual nozzle)** — **LADO-PRODUTO ✅ FEITO
-  (jul/2026); baixa de estoque = passo 8 (pendente, depende do Estoque).** **DECISÃO p/ o Estoque
+- ✅ **[FEAT-02] Gasto de filamento por cor (multicor / AMS / dual nozzle)** — **FECHADO (jul/2026):
+  lado-produto + reconciliação da venda (passo 8) + `material` derivado (8c/D7).** A baixa de filamento
+  mora na PRODUÇÃO (FEAT-04); a venda-encomenda dispara produção, a peça pronta drena o acabado. **DECISÃO p/ o Estoque
   (passo 7/8):** o campo **"Cor"** (texto livre, hoje só no multicolor) vira um **dropdown de seleção
   da COR cadastrada no Estoque** (a cor, NÃO o rolo — ver D2 no item 3 do backlog) e passa a aparecer
   **também no monocolor** (mono = array de 1 → também escolhe qual filamento do estoque, pra puxar
@@ -625,6 +622,12 @@ pendente da auditoria.
   migração. Múltiplas camadas por SKU (custos diferentes) → o custo do card é média ponderada ou
   por-camada. **Onde:** `StockPage` (aba Produtos) + reusar `CostBars`/`ProfitSummary`/`CatalogDetails`.
   **Relacionado:** FEAT-05 (base), FEAT-04 (fonte do congelamento), Diretriz 7.
+  **✅ DECISÃO DO DONO (jul/2026): opção (b) — o acabado guarda a COMPOSIÇÃO INTEIRA congelada na
+  produção** (não puxa do produto vivo), para a aba Produtos mostrar os dados igual à calculadora, mas
+  fiéis ao dia da impressão. Consequência que casa com o passo 8: quando isto existir, o
+  **`costBreakdown` da venda de peça pronta passa a vir da camada congelada** (hoje, no 8b, é o do
+  snapshot do catálogo — stopgap informativo; ver o ⚠ do passo 8). Modelo: `FinishedLayer` (e o evento
+  de `producao`) ganham um `SaleCostBreakdown` por unidade; inteiro-com-subitens rateia como o `unitCost`.
 
 **Ordem sugerida do backlog (jul/2026) — inclui itens antigos + ideias novas:**
 
@@ -639,7 +642,7 @@ pendente da auditoria.
   (markup nunca no fixo, toggle removido); (2) ~~**UX-04**~~ FEITO (botão "Nova venda" na
   `/vendas`); (3) ~~**UX-03**~~ FEITO (telefone/Instagram clicáveis no PDF); (4) ~~**UX-02**~~
   FEITO (tempo em h+min); (5) ~~**UX-01**~~ FEITO (zero à esquerda, componente `NumberInput`).
-  **Próximo: Tier 1.**
+  **Tier 0 e Tier 1 ✅ FECHADOS — próximo: Tier 2.**
 - **Tier 1 (precisão de custo + fundação):** (6) ~~**FEAT-02 lado-produto**~~ **✅ FEITO** (cores no
   produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); **Item 3 — Estoque**
   (modelo **aprovado**, detalhe e decisões D1-D8 no item 3 do backlog), quebrado em **uma etapa por
@@ -648,11 +651,10 @@ pendente da auditoria.
   ~~**FEAT-01** preço/subitens por etapa (rateio aditivo; toggle de subitens)~~ **✅ FEITA**;
   ~~**FEAT-04** Registro de Produção (a **primitiva de baixa** migra pra produção; desfecho por impressão)
   — 04a·04b·04c~~ **✅ FEITA**; ~~**FEAT-05** Estoque de Produtos (acabado por subitem, lacuna) —
-  05a·05b·05c~~ **✅ FEITA**; **próximo e último é o passo 8** (venda = **reconciliação**,
-  não mais baixa; estorna via `stockMoves` no caminho encomenda).
-  Insumos = (7e), **item separado depois** do filamento.
+  05a·05b·05c~~ **✅ FEITA**; ~~**passo 8** (venda = **reconciliação**, não mais baixa; 8a·8b·8c)~~
+  **✅ FEITA — TIER 1 FECHADO**. Insumos = (7e), **item separado depois** do filamento.
   **Ordem final do Tier 1 (jul/2026): 7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅
-  (04a · 04b · 04c) → FEAT-05 ✅ (05a · 05b · 05c) → 8 (8a ✅ · 8b ✅ · 8c).**
+  (04a · 04b · 04c) → FEAT-05 ✅ (05a · 05b · 05c) → 8 ✅ (8a · 8b · 8c). ✅ TIER 1 FECHADO.**
   ⚠ **Reframe aprovado (jul/2026):** o quiosque de mall exige vender **peça pronta na hora**. FEAT-04
   move a **primitiva de baixa** pra produção (é o único ponto que captura teste/falha/brinde — impressões
   que nunca viram venda), então **entra antes da 8**, e a **8 deixa de ser "o passo da baixa"** e vira

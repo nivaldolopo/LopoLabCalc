@@ -360,7 +360,6 @@ export function SalesPage() {
             ?.roundingMode ?? "0.5",
         ),
         productName: sale.productName,
-        material: sale.material,
         quantity: sale.quantity,
         salePrice: sale.salePrice,
         createdAt: sale.createdAt,

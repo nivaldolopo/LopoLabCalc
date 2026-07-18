@@ -3,11 +3,14 @@ import {
   filamentTotalG,
   filamentsMaterialCost,
   filamentsTotalG,
+  freezeFilaments,
   makeFilament,
+  materialsLabel,
   mergeFilaments,
   normalizeFilaments,
   stripFilamentIds,
 } from "./filaments";
+import type { StockFilament } from "../types";
 
 describe("filaments — makeFilament / totalG", () => {
   it("sem detalhamento, o Total é o informado", () => {
@@ -120,5 +123,72 @@ describe("filaments — stripFilamentIds (persistência)", () => {
     expect(clean.modelG).toBe(10);
     expect(clean.supportG).toBe(4);
     expect(clean.totalG).toBe(19);
+  });
+});
+
+describe("freezeFilaments (D7 — congela material/marca da cor)", () => {
+  const stock = [
+    {
+      id: "preto",
+      material: "PLA Basic",
+      brand: "Bambu",
+      colorName: "Preto",
+    } as StockFilament,
+  ];
+
+  it("resolve material/marca/nome da cor viva pelo filamentId", () => {
+    const [f] = freezeFilaments(
+      [{ filamentId: "preto", colorName: "antigo", pricePerKg: 100, totalG: 50 }],
+      stock,
+    );
+    expect(f.material).toBe("PLA Basic");
+    expect(f.brand).toBe("Bambu");
+    expect(f.colorName).toBe("Preto"); // nome atualizado da cor
+    expect(f.totalG).toBe(50);
+  });
+
+  it("avulso (sem filamentId) fica sem material", () => {
+    const [f] = freezeFilaments(
+      [{ filamentId: null, colorName: "Verde", pricePerKg: 90, totalG: 30 }],
+      stock,
+    );
+    expect(f.material).toBeUndefined();
+    expect(f.brand).toBeUndefined();
+    expect(f.colorName).toBe("Verde");
+  });
+
+  it("cor removida do Estoque cai no fallback (sem material), sem quebrar", () => {
+    const [f] = freezeFilaments(
+      [{ filamentId: "sumida", colorName: "X", pricePerKg: 100, totalG: 10 }],
+      stock,
+    );
+    expect(f.material).toBeUndefined();
+    expect(f.colorName).toBe("X");
+  });
+});
+
+describe("materialsLabel (D8 — material derivado)", () => {
+  it("junta materiais distintos por ' · '", () => {
+    expect(
+      materialsLabel([
+        { filamentId: null, colorName: "", pricePerKg: 0, totalG: 1, material: "PLA" },
+        { filamentId: null, colorName: "", pricePerKg: 0, totalG: 1, material: "PETG" },
+      ]),
+    ).toBe("PLA · PETG");
+  });
+
+  it("deduplica case-insensitive, preservando a 1ª grafia", () => {
+    expect(
+      materialsLabel([
+        { filamentId: null, colorName: "", pricePerKg: 0, totalG: 1, material: "PLA" },
+        { filamentId: null, colorName: "", pricePerKg: 0, totalG: 1, material: "pla" },
+      ]),
+    ).toBe("PLA");
+  });
+
+  it("vazio quando nenhuma cor tem material (avulso)", () => {
+    expect(
+      materialsLabel([{ filamentId: null, colorName: "", pricePerKg: 0, totalG: 1 }]),
+    ).toBe("");
   });
 });
