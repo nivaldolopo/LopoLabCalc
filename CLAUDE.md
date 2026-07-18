@@ -10,24 +10,23 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **FEAT-05b — a produção liga no Estoque de Produtos (acabados).** Quando o
-  desfecho é **`estoque`**, cada SUBMISSÃO da `/producao` **incrementa** o acabado no MESMO `writeBatch`
-  do evento; excluir a produção **estorna** (round-trip). Entregue: `submissionEntries` (puro,
-  `lib/finishedGoods.ts`) — 1 unidade por submissão (dedup multi-máquina), 3 formas: inteiro sem
-  subitens (1 SKU, custo cheio) · inteiro COM subitens (1 SKU por subitem, **rateio aditivo** do
-  `frozenCost` pelas proporções do `SubitemPrice.cost`; Σcost=0 divide igual) · subitem avulso (1 SKU).
-  `saveProduction`/`removeProduction` + `useProduction` ganharam `finished?: FinishedUpdate`; a
-  `ProductionPage` computa via `addProductionLayers`/`removeEventLayers` lendo `useFinishedGoods`.
-  **Camadas ancoradas no PRIMEIRO evento** da submissão (decisão do dono): excluir aquele card estorna
-  o acabado inteiro; card de máquina secundária só estorna filamento. Só `estoque` incrementa (modo
-  real OU historico — o acabado nasce independente da baixa de rolo). Avulso não vira acabado. Aviso
-  no resumo ("→ entra no Estoque de Produtos"). +5 testes (**156 verdes**), `lint`+`build` limpos.
-  Regras do Firestore não mudaram (wildcard cobre `acabados`). **Nenhuma UI de leitura ainda** (a aba
-  "Produtos" é a 05c). ⚠ **Faxina do legado FEAT-02 segue adiada.**
-  **Próximo passo: FEAT-05c** — tela: aba "Produtos" na `/estoque` (apresentação híbrida: saldo por
-  subitem + inteiros montáveis = min das partes + lacuna; saldo negativo com aviso). Depois **8**
-  (venda = reconciliação: decrementa o acabado via `consumeFifo`, já pronto). Detalhe no FEAT-05.
-  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅ → FEAT-05 (05a ✅ · 05b ✅ · 05c) → 8`.**
+- **Última mudança:** **FEAT-05c — aba "Produtos" na `/estoque` (Estoque de Produtos, só leitura).**
+  A `/estoque` ganhou abas **Insumos** (tudo que já existia) / **Produtos** (acabados). A aba Produtos
+  lê `useFinishedGoods` + casa cada acabado com o produto vivo (`useProducts`) para a lista atual de
+  subitens. Apresentação **"conjunto + lacuna"** (decisão do dono): produto com subitens mostra em
+  destaque **conjuntos completos = min das partes** (`assemblableWholes`), o saldo por subitem, e
+  peças **avulsas** quando os saldos divergem (aviso de lacuna); produto sem subitens mostra o saldo
+  do inteiro; **saldo negativo com aviso** (D4); produto fora do catálogo aparece com nome/custo
+  congelados + aviso brando. Totais: nº com estoque, **valor parado** (COGS congelado, `goodValue`) e
+  saldo negativo. Só mostra saldo ≠ 0. **Sem baixa/venda** (é o passo 8). Helpers puros novos em
+  `lib/finishedGoods.ts`: `skuValue`, `goodValue`, `assemblyBreakdown` (+ `AssemblyBreakdown`). CSS
+  novo em `styles/stock.css` (abas + cards `fg-*`). +5 testes (**161 verdes**), `lint`+`build` limpos.
+  Regras do Firestore não mudaram. **FEAT-05 inteira fechada.** ⚠ **Faxina do legado FEAT-02 segue adiada.**
+  **Próximo passo: passo 8** — venda = **reconciliação**: peça pronta decrementa o acabado via
+  `consumeFifo` (já pronto) sem rebaixar insumo; encomenda deduz insumo (FIFO/`stockMoves`); custo real
+  na `SaleModal`; consumo entra no extrato da cor (fecha D6.1); `SaleInput.material` vira derivado (D7).
+  **Fim do Tier 1.** Detalhe no item 8 e no FEAT-05 do backlog.
+  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅ → FEAT-05 ✅ (05a ✅ · 05b ✅ · 05c ✅) → 8`.**
   ⚠ **Reframe aprovado:** o passo **8 deixa de ser "o passo da baixa"** e vira **reconciliação da
   venda** — a **primitiva de baixa migrou pra PRODUÇÃO (FEAT-04)**, porque é o único ponto que captura
   TODA impressão (inclusive teste/falha/brinde, que nunca viram venda). Detalhe e decisões (D1-D8 +
@@ -48,8 +47,8 @@
   Cloudflare + SSL Let's Encrypt + Authorized domain no Firebase). **E-mail `@lopolab.com.br`
   configurado** (DNS no Cloudflare; contexto no chat "abertura da loja", fora do repo).
 - **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — **EM ANDAMENTO: 7a ✅ + 7b ✅ + 7c ✅ +
-  FEAT-01 ✅ + FEAT-04 ✅ (04a·04b·04c) + FEAT-05 (05a ✅ · 05b ✅)**, próximo é a **FEAT-05 05c** (tela:
-  aba "Produtos" na `/estoque`), depois **8** (ver "Reframe" no Status/backlog); coleção
+  FEAT-01 ✅ + FEAT-04 ✅ (04a·04b·04c) + FEAT-05 ✅ (05a · 05b · 05c)**, próximo e último é o
+  **passo 8** (venda = reconciliação; ver "Reframe" no Status/backlog); coleção
   `estoque` (um doc por COR, rolos dentro); decisões D1-D8 e as etapas no item 3 do backlog; (b) item 4 —
   **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
   TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
@@ -592,7 +591,8 @@ pendente da auditoria.
   `acabados`, doc por produto) + `useFinishedGoods` + 15 testes, SEM UI/wiring~~ **✅ FEITA (jul/2026)**;
   ~~**05b** ligar a produção (incremento/estorno atômico no `writeBatch` do evento; delta por submissão
   na `ProductionPage` via `submissionEntries`; camadas ancoradas no 1º evento; só desfecho `estoque`)~~
-  **✅ FEITA (jul/2026)**; **05c** tela (aba "Produtos" na `/estoque`, híbrido + negativo com aviso).
+  **✅ FEITA (jul/2026)**; ~~**05c** tela (aba "Produtos" na `/estoque`, híbrido "conjunto + lacuna" +
+  negativo com aviso; helpers puros `goodValue`/`assemblyBreakdown`)~~ **✅ FEITA (jul/2026) — FEAT-05 fechada**.
 - ✅ **[UX-04] Botão "Nova venda" no topo da `/vendas` — FEITO.** Botão no header da `SalesPage`
   (ícone `Plus`) abre o `SaleModal` em **modo novo** (`seed={null}`, cesta vazia; estado `newSale`
   separado do `editRecibo`), escolhendo itens pelo seletor de catálogo já existente e gravando via
@@ -620,12 +620,12 @@ pendente da auditoria.
   rolos)~~ **✅ FEITA**; ~~(7c) dropdown de cor no produto (preço vivo)~~ **✅ FEITA**;
   ~~**FEAT-01** preço/subitens por etapa (rateio aditivo; toggle de subitens)~~ **✅ FEITA**;
   ~~**FEAT-04** Registro de Produção (a **primitiva de baixa** migra pra produção; desfecho por impressão)
-  — 04a·04b·04c~~ **✅ FEITA**; **próximo é a FEAT-05**
-  Estoque de Produtos (acabado por subitem, lacuna); depois **8** (venda = **reconciliação**,
+  — 04a·04b·04c~~ **✅ FEITA**; ~~**FEAT-05** Estoque de Produtos (acabado por subitem, lacuna) —
+  05a·05b·05c~~ **✅ FEITA**; **próximo e último é o passo 8** (venda = **reconciliação**,
   não mais baixa; estorna via `stockMoves` no caminho encomenda).
   Insumos = (7e), **item separado depois** do filamento.
   **Ordem final do Tier 1 (jul/2026): 7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅
-  (04a · 04b · 04c) → FEAT-05 (05a ✅ · 05b ✅ · 05c) → 8.**
+  (04a · 04b · 04c) → FEAT-05 ✅ (05a · 05b · 05c) → 8.**
   ⚠ **Reframe aprovado (jul/2026):** o quiosque de mall exige vender **peça pronta na hora**. FEAT-04
   move a **primitiva de baixa** pra produção (é o único ponto que captura teste/falha/brinde — impressões
   que nunca viram venda), então **entra antes da 8**, e a **8 deixa de ser "o passo da baixa"** e vira
@@ -675,7 +675,8 @@ src/
                             #     LinksSection, Header,
                             #     SaleModal (registrar venda), SalesPage (rota /vendas),
                             #     QuotePage (/orcamento), MachinesPage (/maquinas),
-                            #     StockPage (/estoque) + StockColorModal/StockRollModal/
+                            #     StockPage (/estoque: abas Insumos/Produtos — acabados FEAT-05c) +
+                            #     StockColorModal/StockRollModal/
                             #     StockAdjustModal, ProductionPage (/producao — registro de
                             #     impressão), NumberInput (compartilhado),
                             #     ProfitSummary (rentabilidade compartilhada), AuthGate (login)
@@ -693,7 +694,7 @@ src/
                             #     = frozenCost material+energia+deprec.+manut.+labor),
                             #     finishedGoods (estoque de acabados FEAT-05: camadas FIFO —
                             #     addProductionLayers/removeEventLayers/consumeFifo/
-                            #     assemblableWholes; puro, sem UI na 05a),
+                            #     assemblableWholes/goodValue/assemblyBreakdown; puro),
                             #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento,
                             #     testado em paymentFees.test.ts via vitest)
     constants.ts, types.ts

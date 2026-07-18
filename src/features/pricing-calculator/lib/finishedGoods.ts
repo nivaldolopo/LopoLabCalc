@@ -280,3 +280,55 @@ export function assemblableWholes(
   if (subitemIds.length === 0) return balanceOf(good, undefined);
   return Math.min(...subitemIds.map((id) => balanceOf(good, id)));
 }
+
+// Valor congelado de uma SKU: Σ (qty × custo congelado) das camadas. Pode ser
+// NEGATIVO se o saldo estiver negativo (D4) — reflete o buraco, não o zera.
+export function skuValue(sku: FinishedSku): number {
+  return sku.layers.reduce(
+    (sum, layer) => sum + num(layer.qty) * num(layer.unitCost),
+    0,
+  );
+}
+
+// Valor congelado de todo o acabado de um produto (Σ das SKUs). É o COGS parado
+// na loja — quanto custou produzir o que ainda não vendeu.
+export function goodValue(good: FinishedGood | null | undefined): number {
+  if (!good) return 0;
+  return good.skus.reduce((sum, sku) => sum + skuValue(sku), 0);
+}
+
+export type AssemblyPart = {
+  subitemId: string;
+  name: string;
+  balance: number;
+  leftover: number; // saldo além dos conjuntos completos (peças avulsas)
+};
+
+export type AssemblyBreakdown = {
+  wholes: number; // inteiros montáveis = min das partes
+  parts: AssemblyPart[];
+  hasGap: boolean; // alguma parte sobra (conjunto incompleto — a lacuna)
+};
+
+/**
+ * Decompõe o acabado de um produto COM subitens na apresentação "conjunto +
+ * lacuna" (05c): `wholes` = quantos conjuntos completos dá para montar (min das
+ * partes); cada parte com saldo ACIMA desse min tem `leftover` peças avulsas — a
+ * lacuna ("conjunto sem X", = as outras partes que faltam para fechar o conjunto).
+ * `subitems` é a lista VIVA do produto (o doc só guarda as SKUs já produzidas;
+ * uma parte nunca impressa conta como 0 e puxa o `wholes` para baixo).
+ */
+export function assemblyBreakdown(
+  good: FinishedGood | null | undefined,
+  subitems: { id: string; name: string }[],
+): AssemblyBreakdown {
+  const wholes = assemblableWholes(
+    good,
+    subitems.map((s) => s.id),
+  );
+  const parts: AssemblyPart[] = subitems.map((s) => {
+    const balance = balanceOf(good, s.id);
+    return { subitemId: s.id, name: s.name, balance, leftover: balance - wholes };
+  });
+  return { wholes, parts, hasGap: parts.some((p) => p.leftover > 0) };
+}

@@ -6,9 +6,11 @@ import {
   Archive,
   ArchiveRestore,
   ArrowLeft,
+  Boxes,
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
+  Package,
   Pencil,
   Plus,
   Trash2,
@@ -28,6 +30,13 @@ import {
   materialOptions,
   rollNumbers,
 } from "../lib/stock";
+import {
+  assemblyBreakdown,
+  balanceOf,
+  goodValue,
+  skuBalance,
+} from "../lib/finishedGoods";
+import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useProduction } from "../hooks/useProduction";
 import { useProducts } from "../hooks/useProducts";
 import { useSales } from "../hooks/useSales";
@@ -36,7 +45,9 @@ import { useTheme } from "../hooks/useTheme";
 import type {
   CloudStatus,
   FilamentRoll,
+  FinishedGood,
   ProductionEvent,
+  SavedProduct,
   StockFilament,
   StockFilamentPayload,
 } from "../types";
@@ -105,7 +116,11 @@ export function StockPage() {
   // FEAT-04c: a 3ª fonte do extrato (consumo). Vem do `stockMoves` dos eventos
   // de produção — a produção é quem captura toda impressão que gasta filamento.
   const { events: production } = useProduction();
+  // FEAT-05c: o Estoque de Produtos (acabados). Leitura viva; a produção é quem
+  // incrementa (05b) e o passo 8 quem vai decrementar. Aqui é só apresentação.
+  const { goods } = useFinishedGoods();
 
+  const [tab, setTab] = useState<"insumos" | "produtos">("insumos");
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [rollForId, setRollForId] = useState<string | null>(null);
@@ -145,6 +160,31 @@ export function StockPage() {
       low: active.filter(isBelowMin).length,
     };
   }, [active]);
+
+  // Casa cada acabado com o produto VIVO do catálogo (para ler a lista atual de
+  // subitens — o doc só guarda as SKUs já produzidas).
+  const productById = useMemo(() => {
+    const map = new Map<string, SavedProduct>();
+    for (const product of products) map.set(product.id, product);
+    return map;
+  }, [products]);
+
+  // Só produtos com algum saldo (≠ 0) aparecem; ordena por nome congelado.
+  const stockedGoods = useMemo(
+    () =>
+      [...goods]
+        .filter((good) => good.skus.some((sku) => skuBalance(sku) !== 0))
+        .sort((a, b) => a.productName.localeCompare(b.productName, "pt-BR")),
+    [goods],
+  );
+
+  const productTotals = useMemo(() => {
+    const value = stockedGoods.reduce((sum, good) => sum + goodValue(good), 0);
+    const negatives = stockedGoods.filter((good) =>
+      good.skus.some((sku) => skuBalance(sku) < 0),
+    ).length;
+    return { count: stockedGoods.length, value, negatives };
+  }, [stockedGoods]);
 
   async function saveColor(draft: StockColorDraft) {
     guardOnline();
@@ -461,6 +501,157 @@ export function StockPage() {
     );
   }
 
+  // FEAT-05c: card de um produto no Estoque de Produtos. Apresentação híbrida
+  // "conjunto + lacuna": o inteiro montável = min das partes, e a divergência
+  // vira peças avulsas ("conjunto sem X"). Só leitura — a baixa é o passo 8.
+  function renderProductCard(good: FinishedGood) {
+    const product = productById.get(good.productId);
+    const value = goodValue(good);
+    const negative = good.skus.some((sku) => skuBalance(sku) < 0);
+    // Subitens VIVOS do produto (o doc só guarda as SKUs já produzidas).
+    const subitems =
+      product && product.sellBySubitems ? product.subitems : [];
+    const wholeBalance = balanceOf(good, undefined);
+
+    // Produto que vende por partes: conjuntos completos + lacuna.
+    if (subitems.length > 0) {
+      const bd = assemblyBreakdown(good, subitems);
+      return (
+        <div className="stock-card fg-card" key={good.id}>
+          <div className="stock-head">
+            <span className="fg-icon" aria-hidden="true">
+              <Boxes size={18} />
+            </span>
+            <div className="stock-title">
+              <strong>{good.productName}</strong>
+              <span className="stock-sub">
+                {subitems.length} subitens · valor parado{" "}
+                {formatCurrency(value)}
+              </span>
+            </div>
+            <div className="stock-balance">
+              <strong className={`sg ${bd.wholes < 0 ? "sale-neg" : ""}`}>
+                {bd.wholes}
+              </strong>
+              <span className="sales-total-sub">
+                conjunto{bd.wholes === 1 ? "" : "s"} completo
+                {bd.wholes === 1 ? "" : "s"}
+              </span>
+            </div>
+          </div>
+
+          {negative ? (
+            <div className="fg-warn neg">
+              Saldo negativo: vendeu/consumiu mais do que produziu. Registre a
+              produção que faltou ou confira as baixas.
+            </div>
+          ) : bd.hasGap ? (
+            <div className="fg-warn">
+              Conjuntos incompletos: sobram peças avulsas. Reimprimir a parte que
+              falta fecha mais conjuntos.
+            </div>
+          ) : null}
+
+          <div className="fg-parts">
+            {bd.parts.map((part) => (
+              <div className="fg-part" key={part.subitemId}>
+                <span className="fg-part-name">{part.name}</span>
+                <span
+                  className={`mono fg-part-bal ${
+                    part.balance < 0 ? "sale-neg" : ""
+                  }`}
+                >
+                  {part.balance} em estoque
+                </span>
+                {part.leftover > 0 ? (
+                  <em className="fg-leftover">
+                    +{part.leftover} avulsa{part.leftover === 1 ? "" : "s"}
+                  </em>
+                ) : null}
+              </div>
+            ))}
+            {wholeBalance !== 0 ? (
+              <div className="fg-part">
+                <span className="fg-part-name">Inteiro (avulso)</span>
+                <span
+                  className={`mono fg-part-bal ${
+                    wholeBalance < 0 ? "sale-neg" : ""
+                  }`}
+                >
+                  {wholeBalance} em estoque
+                </span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
+
+    // Produto sem subitens (ou fora do catálogo): lista as SKUs com saldo.
+    const rows = good.skus
+      .map((sku) => ({
+        key: sku.subitemId ?? "__whole__",
+        name: sku.subitemId ? sku.name : good.productName,
+        balance: skuBalance(sku),
+      }))
+      .filter((row) => row.balance !== 0);
+    const headline = rows.length === 1 ? rows[0].balance : wholeBalance;
+
+    return (
+      <div className="stock-card fg-card" key={good.id}>
+        <div className="stock-head">
+          <span className="fg-icon" aria-hidden="true">
+            <Package size={18} />
+          </span>
+          <div className="stock-title">
+            <strong>{good.productName}</strong>
+            <span className="stock-sub">
+              {product ? "unidade inteira" : "produto fora do catálogo"} · valor
+              parado {formatCurrency(value)}
+            </span>
+          </div>
+          <div className="stock-balance">
+            <strong className={`sg ${headline < 0 ? "sale-neg" : ""}`}>
+              {rows.length === 1 ? rows[0].balance : rows.length}
+            </strong>
+            <span className="sales-total-sub">
+              {rows.length === 1 ? "em estoque" : "SKUs"}
+            </span>
+          </div>
+        </div>
+
+        {negative ? (
+          <div className="fg-warn neg">
+            Saldo negativo: vendeu/consumiu mais do que produziu. Registre a
+            produção que faltou ou confira as baixas.
+          </div>
+        ) : !product ? (
+          <div className="fg-warn">
+            Este produto não está mais no catálogo — o acabado segue aqui com o
+            nome e o custo congelados.
+          </div>
+        ) : null}
+
+        {rows.length > 1 ? (
+          <div className="fg-parts">
+            {rows.map((row) => (
+              <div className="fg-part" key={row.key}>
+                <span className="fg-part-name">{row.name}</span>
+                <span
+                  className={`mono fg-part-bal ${
+                    row.balance < 0 ? "sale-neg" : ""
+                  }`}
+                >
+                  {row.balance} em estoque
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <main className="wrap">
       <div className="header">
@@ -468,7 +659,7 @@ export function StockPage() {
           <div>
             <h1 className="sg">Estoque</h1>
             <div className="brand-meta">
-              <span>Filamento por cor — Lopo Lab</span>
+              <span>Insumos e produtos — Lopo Lab</span>
               <span className={`cloud-status ${status}`}>
                 {statusLabel[status]}
               </span>
@@ -496,6 +687,29 @@ export function StockPage() {
 
       {error ? <div className="app-error">{error}</div> : null}
 
+      <div className="stock-tabs" role="tablist">
+        <button
+          className={`stock-tab ${tab === "insumos" ? "active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={tab === "insumos"}
+          onClick={() => setTab("insumos")}
+        >
+          <Package size={15} /> Insumos
+        </button>
+        <button
+          className={`stock-tab ${tab === "produtos" ? "active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={tab === "produtos"}
+          onClick={() => setTab("produtos")}
+        >
+          <Boxes size={15} /> Produtos
+        </button>
+      </div>
+
+      {tab === "insumos" ? (
+        <>
       <div className="sales-totals stock-totals">
         <div className="sales-total-card">
           <span>Cores ativas</span>
@@ -557,6 +771,63 @@ export function StockPage() {
           <div className="stock-list">{archived.map(renderCard)}</div>
         </details>
       ) : null}
+        </>
+      ) : (
+        <>
+          <div className="sales-totals stock-totals">
+            <div className="sales-total-card">
+              <span>Produtos com estoque</span>
+              <strong className="sg">{productTotals.count}</strong>
+              <span className="sales-total-sub">peças prontas para vender</span>
+            </div>
+            <div className="sales-total-card">
+              <span>Valor parado</span>
+              <strong
+                className={`sg mono ${
+                  productTotals.value < 0 ? "sale-neg" : ""
+                }`}
+              >
+                {formatCurrency(productTotals.value)}
+              </strong>
+              <span className="sales-total-sub">custo congelado em estoque</span>
+            </div>
+            <div className="sales-total-card">
+              <span>Saldo negativo</span>
+              <strong
+                className={`sg ${productTotals.negatives > 0 ? "sale-neg" : ""}`}
+              >
+                {productTotals.negatives}
+              </strong>
+              <span className="sales-total-sub">produção a acertar</span>
+            </div>
+          </div>
+
+          <div className="stock-bar">
+            <p className="stock-intro">
+              Peças já impressas e ainda não vendidas, com o custo congelado no
+              momento da produção. A produção enche este estoque; a venda vai
+              esvaziá-lo no próximo passo. Para produtos com subitens, o número em
+              destaque é quantos conjuntos completos dá para montar (o menor saldo
+              entre as partes).
+            </p>
+          </div>
+
+          {stockedGoods.length === 0 ? (
+            <div className="sales-empty">
+              Nenhum produto em estoque ainda. Registre uma produção com desfecho
+              &ldquo;peça para o estoque&rdquo; na tela de{" "}
+              <Link className="inline-link" href="/producao">
+                Produção
+              </Link>{" "}
+              e a peça aparece aqui.
+            </div>
+          ) : (
+            <div className="stock-list">
+              {stockedGoods.map(renderProductCard)}
+            </div>
+          )}
+        </>
+      )}
 
       {creating || editing ? (
         <StockColorModal

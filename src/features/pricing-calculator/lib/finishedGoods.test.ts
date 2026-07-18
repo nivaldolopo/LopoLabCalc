@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   addProductionLayers,
   assemblableWholes,
+  assemblyBreakdown,
   balanceOf,
   consumeFifo,
   findSku,
+  goodValue,
   removeEventLayers,
   skuBalance,
+  skuValue,
   submissionEntries,
 } from "./finishedGoods";
 import type { FinishedGood, FinishedSku } from "../types";
@@ -278,6 +281,94 @@ describe("submissionEntries (delta da submissão — FEAT-05b)", () => {
     const payload = addProductionLayers(null, "prod-1", "Kit", entries, "e1", 0);
     const good: FinishedGood = { ...payload, id: "prod-1" };
     expect(assemblableWholes(good, ["a", "b"])).toBe(1);
+  });
+});
+
+describe("goodValue / skuValue (valor congelado parado)", () => {
+  it("soma qty × custo congelado das camadas, por SKU e no produto todo", () => {
+    const kit = makeGood({
+      skus: [
+        {
+          subitemId: "a",
+          name: "Base",
+          layers: [
+            { id: "e1__a", at: 0, qty: 2, unitCost: 6, sourceEventId: "e1" },
+            { id: "e2__a", at: DIA, qty: 1, unitCost: 8, sourceEventId: "e2" },
+          ],
+        },
+        {
+          subitemId: "b",
+          name: "Topo",
+          layers: [{ id: "e1__b", at: 0, qty: 1, unitCost: 4, sourceEventId: "e1" }],
+        },
+      ],
+    });
+    expect(skuValue(kit.skus[0])).toBe(2 * 6 + 1 * 8); // 20
+    expect(goodValue(kit)).toBe(20 + 4); // 24
+    expect(goodValue(null)).toBe(0);
+  });
+
+  it("saldo negativo (D4) puxa o valor para baixo, não zera", () => {
+    const good = makeGood({
+      skus: [
+        {
+          name: "Boneco",
+          layers: [{ id: "e1__whole", at: 0, qty: -2, unitCost: 5, sourceEventId: "e1" }],
+        },
+      ],
+    });
+    expect(goodValue(good)).toBe(-10);
+  });
+});
+
+describe("assemblyBreakdown (conjunto + lacuna — 05c)", () => {
+  const kit = makeGood({
+    skus: [
+      { subitemId: "a", name: "Base", layers: [{ id: "e1__a", at: 0, qty: 3, unitCost: 6, sourceEventId: "e1" }] },
+      { subitemId: "b", name: "Topo", layers: [{ id: "e1__b", at: 0, qty: 1, unitCost: 4, sourceEventId: "e1" }] },
+    ],
+  });
+
+  it("wholes = min das partes; a sobra vira leftover (a lacuna)", () => {
+    const bd = assemblyBreakdown(kit, [
+      { id: "a", name: "Base" },
+      { id: "b", name: "Topo" },
+    ]);
+    expect(bd.wholes).toBe(1); // 3 bases, 1 topo → 1 conjunto
+    expect(bd.hasGap).toBe(true); // sobram 2 bases avulsas
+    const base = bd.parts.find((p) => p.subitemId === "a")!;
+    const topo = bd.parts.find((p) => p.subitemId === "b")!;
+    expect(base).toMatchObject({ balance: 3, leftover: 2 });
+    expect(topo).toMatchObject({ balance: 1, leftover: 0 });
+  });
+
+  it("partes iguais → sem lacuna (hasGap false)", () => {
+    const par = makeGood({
+      skus: [
+        { subitemId: "a", name: "Base", layers: [{ id: "e1__a", at: 0, qty: 2, unitCost: 6, sourceEventId: "e1" }] },
+        { subitemId: "b", name: "Topo", layers: [{ id: "e1__b", at: 0, qty: 2, unitCost: 4, sourceEventId: "e1" }] },
+      ],
+    });
+    const bd = assemblyBreakdown(par, [
+      { id: "a", name: "Base" },
+      { id: "b", name: "Topo" },
+    ]);
+    expect(bd.wholes).toBe(2);
+    expect(bd.hasGap).toBe(false);
+  });
+
+  it("parte nunca produzida conta 0 → nenhum conjunto montável, resto é lacuna", () => {
+    const bd = assemblyBreakdown(kit, [
+      { id: "a", name: "Base" },
+      { id: "b", name: "Topo" },
+      { id: "c", name: "Enfeite" },
+    ]);
+    expect(bd.wholes).toBe(0);
+    expect(bd.hasGap).toBe(true);
+    expect(bd.parts.find((p) => p.subitemId === "c")).toMatchObject({
+      balance: 0,
+      leftover: 0,
+    });
   });
 });
 

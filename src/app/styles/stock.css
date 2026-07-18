@@ -323,6 +323,106 @@
   color: var(--muted);
 }
 
+/* Abas Insumos / Produtos (FEAT-05c) */
+.stock-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.stock-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.stock-tab:hover {
+  color: var(--ink);
+}
+
+.stock-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Cards do Estoque de Produtos (acabados) */
+.fg-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: var(--chip-active-bg);
+  color: var(--accent);
+}
+
+.fg-warn {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  background: var(--chip-active-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.fg-warn.neg {
+  color: #c4836b;
+  border-color: #c4836b55;
+}
+
+.fg-parts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fg-part {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  padding: 5px 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+.fg-part-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+}
+
+.fg-part-bal {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.fg-leftover {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.inline-link {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 @media (max-width: 620px) {
   .stock-totals {
     grid-template-columns: 1fr;
