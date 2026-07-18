@@ -1,0 +1,237 @@
+import { describe, expect, it } from "vitest";
+import {
+  addProductionLayers,
+  assemblableWholes,
+  balanceOf,
+  consumeFifo,
+  findSku,
+  removeEventLayers,
+  skuBalance,
+} from "./finishedGoods";
+import type { FinishedGood, FinishedSku } from "../types";
+
+const DIA = 24 * 60 * 60 * 1000;
+
+function makeGood(over: Partial<FinishedGood> & { skus: FinishedSku[] }): FinishedGood {
+  return {
+    id: "prod-1",
+    productId: "prod-1",
+    productName: "Boneco",
+    createdAt: 0,
+    ...over,
+  };
+}
+
+describe("addProductionLayers", () => {
+  it("cria o doc na 1ª produção de um produto sem subitens (SKU do inteiro)", () => {
+    const payload = addProductionLayers(
+      null,
+      "prod-1",
+      "Boneco",
+      [{ name: "Boneco", qty: 2, unitCost: 5 }],
+      "e1",
+      DIA,
+    );
+    expect(payload.productId).toBe("prod-1");
+    expect(payload.createdAt).toBe(DIA);
+    expect(payload.skus).toHaveLength(1);
+    const sku = payload.skus[0];
+    expect(sku.subitemId).toBeUndefined();
+    expect(skuBalance(sku)).toBe(2);
+    expect(sku.layers[0]).toMatchObject({
+      qty: 2,
+      unitCost: 5,
+      sourceEventId: "e1",
+      at: DIA,
+    });
+  });
+
+  it("empilha uma nova camada num doc existente (mais um evento na mesma SKU)", () => {
+    const good = makeGood({
+      skus: [
+        {
+          name: "Boneco",
+          layers: [{ id: "e1__whole", at: 0, qty: 2, unitCost: 5, sourceEventId: "e1" }],
+        },
+      ],
+    });
+    const payload = addProductionLayers(
+      good,
+      "prod-1",
+      "Boneco",
+      [{ name: "Boneco", qty: 3, unitCost: 7 }],
+      "e2",
+      DIA,
+    );
+    expect(payload.createdAt).toBe(0); // preserva o createdAt do doc existente
+    expect(payload.skus[0].layers).toHaveLength(2);
+    expect(skuBalance(payload.skus[0])).toBe(5); // 2 + 3
+  });
+
+  it("um inteiro com subitens vira +1 em cada SKU de subitem (custo rateado)", () => {
+    const payload = addProductionLayers(
+      null,
+      "prod-1",
+      "Kit",
+      [
+        { subitemId: "a", name: "Base", qty: 1, unitCost: 6 },
+        { subitemId: "b", name: "Topo", qty: 1, unitCost: 4 },
+      ],
+      "e1",
+      0,
+    );
+    expect(payload.skus).toHaveLength(2);
+    expect(balanceOf({ ...payload, id: "prod-1" }, "a")).toBe(1);
+    expect(balanceOf({ ...payload, id: "prod-1" }, "b")).toBe(1);
+  });
+
+  it("ignora entradas com qty ≤ 0", () => {
+    const payload = addProductionLayers(
+      null,
+      "prod-1",
+      "Boneco",
+      [
+        { name: "Boneco", qty: 0, unitCost: 5 },
+        { subitemId: "a", name: "Base", qty: -1, unitCost: 5 },
+      ],
+      "e1",
+      0,
+    );
+    expect(payload.skus).toHaveLength(0);
+  });
+
+  it("a camada nasce com id determinístico evento+SKU (estável p/ o estorno)", () => {
+    const payload = addProductionLayers(
+      null,
+      "prod-1",
+      "Kit",
+      [
+        { name: "Kit", qty: 1, unitCost: 5 },
+        { subitemId: "a", name: "Base", qty: 1, unitCost: 3 },
+      ],
+      "e1",
+      0,
+    );
+    const ids = payload.skus.map((sku) => sku.layers[0].id);
+    expect(ids).toContain("e1____whole__"); // SKU do inteiro
+    expect(ids).toContain("e1__a"); // SKU do subitem
+  });
+});
+
+describe("removeEventLayers (estorno)", () => {
+  it("remove exatamente as camadas do evento, mantendo as dos outros", () => {
+    const good = makeGood({
+      skus: [
+        {
+          name: "Boneco",
+          layers: [
+            { id: "e1__whole", at: 0, qty: 2, unitCost: 5, sourceEventId: "e1" },
+            { id: "e2__whole", at: DIA, qty: 3, unitCost: 7, sourceEventId: "e2" },
+          ],
+        },
+      ],
+    });
+    const after = removeEventLayers(good, "e1");
+    expect(after.skus[0].layers).toHaveLength(1);
+    expect(after.skus[0].layers[0].sourceEventId).toBe("e2");
+    expect(skuBalance(after.skus[0])).toBe(3);
+  });
+
+  it("é o round-trip de addProductionLayers (volta ao estado anterior)", () => {
+    const base = makeGood({
+      skus: [
+        {
+          name: "Boneco",
+          layers: [{ id: "e1__whole", at: 0, qty: 2, unitCost: 5, sourceEventId: "e1" }],
+        },
+      ],
+    });
+    const grown = addProductionLayers(base, "prod-1", "Boneco", [{ name: "Boneco", qty: 3, unitCost: 7 }], "e2", DIA);
+    const reverted = removeEventLayers({ ...grown, id: "prod-1" }, "e2");
+    expect(skuBalance(reverted.skus[0])).toBe(2);
+  });
+});
+
+describe("consumeFifo (passo 8 — descreve)", () => {
+  const good = makeGood({
+    skus: [
+      {
+        name: "Boneco",
+        layers: [
+          { id: "e1__whole", at: 0, qty: 2, unitCost: 5, sourceEventId: "e1" },
+          { id: "e2__whole", at: DIA, qty: 3, unitCost: 7, sourceEventId: "e2" },
+        ],
+      },
+    ],
+  });
+
+  it("consome da camada mais antiga primeiro (FIFO), COGS pelo custo congelado", () => {
+    const res = consumeFifo(good, undefined, 1);
+    expect(res.moves).toHaveLength(1);
+    expect(res.moves[0].layerId).toBe("e1__whole");
+    expect(res.cost).toBe(5); // 1 × custo congelado da 1ª camada
+    expect(res.shortfall).toBe(0);
+  });
+
+  it("atravessa camadas com custo misto exato", () => {
+    const res = consumeFifo(good, undefined, 3); // 2×5 (e1) + 1×7 (e2)
+    expect(res.moves).toHaveLength(2);
+    expect(res.cost).toBe(2 * 5 + 1 * 7);
+    expect(res.shortfall).toBe(0);
+  });
+
+  it("D4: passar do saldo total gera shortfall na camada mais nova, sem truncar", () => {
+    const res = consumeFifo(good, undefined, 7); // saldo 5; faltam 2
+    expect(res.shortfall).toBe(2);
+    // O excedente engrossa o move da camada mais nova (e2), não cria um segundo.
+    const e2 = res.moves.filter((m) => m.layerId === "e2__whole");
+    expect(e2).toHaveLength(1);
+    expect(e2[0].qty).toBe(3 + 2);
+  });
+
+  it("SKU inexistente/qtd zero → sem move; shortfall carrega o pedido", () => {
+    expect(consumeFifo(good, "nao-existe", 4)).toEqual({
+      moves: [],
+      cost: 0,
+      shortfall: 4,
+    });
+    expect(consumeFifo(good, undefined, 0).moves).toHaveLength(0);
+  });
+});
+
+describe("assemblableWholes (min das partes)", () => {
+  const kit = makeGood({
+    skus: [
+      { subitemId: "a", name: "Base", layers: [{ id: "e1__a", at: 0, qty: 3, unitCost: 6, sourceEventId: "e1" }] },
+      { subitemId: "b", name: "Topo", layers: [{ id: "e1__b", at: 0, qty: 1, unitCost: 4, sourceEventId: "e1" }] },
+    ],
+  });
+
+  it("inteiro montável = menor saldo entre os subitens (a lacuna aparece)", () => {
+    expect(assemblableWholes(kit, ["a", "b"])).toBe(1); // 3 bases, 1 topo → 1 conjunto
+  });
+
+  it("subitem nunca produzido conta como 0 (não infla o inteiro)", () => {
+    expect(assemblableWholes(kit, ["a", "b", "c"])).toBe(0);
+  });
+
+  it("produto sem subitens → saldo do inteiro", () => {
+    const whole = makeGood({
+      skus: [{ name: "Boneco", layers: [{ id: "e1__whole", at: 0, qty: 4, unitCost: 5, sourceEventId: "e1" }] }],
+    });
+    expect(assemblableWholes(whole, [])).toBe(4);
+  });
+});
+
+describe("findSku / balanceOf", () => {
+  it("acha a SKU do inteiro e a do subitem; 0 para SKU ausente", () => {
+    const good = makeGood({
+      skus: [{ subitemId: "a", name: "Base", layers: [{ id: "e1__a", at: 0, qty: 2, unitCost: 6, sourceEventId: "e1" }] }],
+    });
+    expect(findSku(good, "a")?.name).toBe("Base");
+    expect(findSku(good, "x")).toBeUndefined();
+    expect(balanceOf(good, "a")).toBe(2);
+    expect(balanceOf(good, "x")).toBe(0);
+    expect(balanceOf(null, "a")).toBe(0);
+  });
+});

@@ -558,3 +558,73 @@ export type ProductionEvent = ProductionInput & {
   id: string;
   createdAt: number;
 };
+
+// ---------------------------------------------------------------------------
+// Estoque de Produtos / acabados (FEAT-05) — a peça JÁ IMPRESSA e ainda não
+// vendida, parada na loja. Diferente do estoque de INSUMOS (filamento): aqui a
+// unidade é o produto pronto. Encher = produção com desfecho `estoque` (FEAT-04)
+// empilha uma camada com o custo CONGELADO da impressão; drenar = venda (passo 8
+// — ainda NÃO nesta fase). A SKU é o SUBITEM vendável (FEAT-01): produto com
+// subitens guarda saldo por subitem e o "inteiro disponível" é DERIVADO (min das
+// partes); produto sem subitens tem uma SKU única (o inteiro). Coleção `acabados`,
+// um doc por PRODUTO (id do doc = productId): poucas SKUs por produto, cabem no
+// doc e a escrita da baixa da produção fica atômica.
+// ---------------------------------------------------------------------------
+
+// Uma CAMADA de produção. Espelha o FilamentRoll, invertido: a produção EMPILHA
+// (como a compra de rolo), a venda CONSOME (passo 8). `qty` é o saldo RESTANTE da
+// camada (começa = produzido). `unitCost` é o custo de produção congelado por
+// unidade — é daqui que sai o COGS da venda, NÃO do preço do dia da venda.
+// `sourceEventId` amarra a camada ao evento de produção que a criou: é por ele que
+// excluir a produção estorna exatamente esta camada (round-trip, igual aos
+// `stockMoves` dos rolos).
+export type FinishedLayer = {
+  id: string;
+  at: number; // quando foi produzida (= evento.at)
+  qty: number;
+  unitCost: number;
+  sourceEventId: string;
+};
+
+// Uma SKU do acabado = uma unidade vendável. `subitemId` ausente = o produto
+// INTEIRO (produto sem subitens). Saldo = Σ qty das camadas; pode ficar NEGATIVO
+// quando a venda drenar mais do que há (D4, mesma política do filamento) — só
+// passa a acontecer no passo 8. `name` é o rótulo congelado (subitem ou produto).
+export type FinishedSku = {
+  subitemId?: string;
+  name: string;
+  layers: FinishedLayer[];
+};
+
+export type FinishedGoodInput = {
+  productId: string; // referência ao produto do catálogo (a SKU é o subitem)
+  productName: string; // nome do produto congelado (exibição)
+  skus: FinishedSku[];
+};
+
+export type FinishedGoodPayload = FinishedGoodInput & { createdAt: number };
+
+// O doc do acabado. `id` = `productId` (um doc por produto, id DETERMINÍSTICO — a
+// baixa da produção acha o doc do produto sem query).
+export type FinishedGood = FinishedGoodInput & { id: string; createdAt: number };
+
+// Uma fatia do consumo FIFO do acabado (passo 8): quanto saiu de UMA camada e a
+// que custo congelado. Molde do `ConsumptionMove` do filamento; o passo 8
+// acrescenta o que precisar para gravar/estornar a baixa.
+export type FinishedMove = {
+  productId: string;
+  subitemId?: string;
+  layerId: string;
+  qty: number;
+  unitCost: number; // custo congelado da camada consumida
+  cost: number; // qty × unitCost (COGS desta fatia)
+};
+
+// Resultado de consumir uma SKU (passo 8). `cost` é o COGS total (Σ camadas ×
+// custo congelado); `shortfall` = unidades além do saldo (D4 — o negativo do
+// acabado, permitido com aviso, nunca truncado).
+export type FinishedConsumptionResult = {
+  moves: FinishedMove[];
+  cost: number;
+  shortfall: number;
+};
