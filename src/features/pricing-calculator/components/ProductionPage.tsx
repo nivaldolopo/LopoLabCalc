@@ -15,18 +15,23 @@ import {
   type FinishedUpdate,
 } from "@/lib/firebase/productionRepository";
 import { DEFAULT_FIXED_COSTS, DEFAULT_PRODUCT_INPUT } from "../constants";
-import { calculatePricing, normalizeStages } from "../lib/calculatePricing";
-import { filamentTotalG, normalizeFilaments } from "../lib/filaments";
+import { calculatePricing } from "../lib/calculatePricing";
+import { filamentTotalG } from "../lib/filaments";
 import {
   addProductionLayers,
   removeEventLayers,
   submissionEntries,
 } from "../lib/finishedGoods";
+import { reverseProduction } from "../lib/production";
 import {
-  planProduction,
-  productionCost,
-  reverseProduction,
-} from "../lib/production";
+  buildProductionPayloads,
+  nextRowKey,
+  planEventRows,
+  subitemEventRows,
+  wholeEventRows,
+  type EventRow,
+  type FilRow,
+} from "../lib/productionPlan";
 import { catalogPricePerKg, filamentLabel } from "../lib/stock";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useFinishedGoods } from "../hooks/useFinishedGoods";
@@ -37,15 +42,10 @@ import { useStock } from "../hooks/useStock";
 import { useTheme } from "../hooks/useTheme";
 import type {
   CloudStatus,
-  FilamentUsage,
   FixedCostSettings,
-  Machine,
   ProductionEvent,
   ProductionMode,
   ProductionOutcome,
-  ProductionPayload,
-  SavedProduct,
-  StockFilament,
 } from "../types";
 import { LogoutButton } from "./LogoutButton";
 import { NumberInput } from "./NumberInput";
@@ -69,29 +69,6 @@ const OUTCOMES: { value: ProductionOutcome; label: string }[] = [
 const outcomeLabel = (value: ProductionOutcome) =>
   OUTCOMES.find((o) => o.value === value)?.label ?? value;
 
-// Uma linha de filamento sendo editada no form (default do produto ou avulsa).
-type FilRow = {
-  filamentId: string | null;
-  label: string; // exibição (cor do estoque) ou texto livre
-  colorName: string;
-  totalG: number;
-  pricePerKg: number;
-};
-
-// Uma linha = UM evento de produção a gravar. A maioria das seleções tem 1 linha;
-// um produto inteiro que roda em máquinas diferentes semeia N linhas (uma por
-// máquina), conforme decisão do dono (o ROI da 04c atribui à impressora certa).
-type EventRow = {
-  key: string;
-  productName: string;
-  productId?: string;
-  subitemId?: string;
-  machineId: string;
-  printHours: number;
-  filaments: FilRow[];
-  laborCost: number; // labor congelado da etapa/subitem (não editado aqui)
-};
-
 function grams(value: number): string {
   return `${Math.round(num(value))} g`;
 }
@@ -106,44 +83,6 @@ function guardOnline() {
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Não foi possível salvar.";
-}
-
-let rowSeq = 0;
-const rowKey = () => `row_${Date.now()}_${(rowSeq += 1)}`;
-
-// FilamentUsage (do produto/etapa) → FilRow, resolvendo nome/preço/material da COR
-// viva do Estoque quando ligada. Sem `filamentId` = avulso (mantém o texto/preço).
-function resolveFilRow(f: FilamentUsage, stock: StockFilament[]): FilRow {
-  const total = filamentTotalG(f);
-  if (f.filamentId) {
-    const color = stock.find((c) => c.id === f.filamentId);
-    if (color) {
-      const live = catalogPricePerKg(color);
-      return {
-        filamentId: color.id,
-        label: filamentLabel(color),
-        colorName: color.colorName,
-        totalG: total,
-        pricePerKg: live > 0 ? live : num(f.pricePerKg),
-      };
-    }
-  }
-  return {
-    filamentId: null,
-    label: f.colorName || "Avulso",
-    colorName: f.colorName ?? "",
-    totalG: total,
-    pricePerKg: num(f.pricePerKg),
-  };
-}
-
-// Labor congelado de uma etapa: min/60 × taxa (a da etapa, ou a do produto).
-function stageLabor(
-  laborMinutes: number,
-  laborRate: number | undefined,
-  productRate: number,
-): number {
-  return (num(laborMinutes) / 60) * num(laborRate ?? productRate);
 }
 
 export function ProductionPage() {
@@ -208,81 +147,11 @@ export function ProductionPage() {
     return list;
   }, [products, pricingByProduct]);
 
-  // Monta as linhas-evento de um produto INTEIRO: agrupa etapas (principal +
-  // extras) por máquina; cada grupo vira uma linha (hora Σ, filamentos concat,
-  // labor Σ). Mono-máquina = 1 linha; multi-máquina = N linhas (decisão do dono).
-  function wholeRows(product: SavedProduct): EventRow[] {
-    const base = product.name || product.mainStageName || "(sem nome)";
-    const stages = [
-      {
-        machineId: product.machineId,
-        printHours: num(product.printHours),
-        filaments: normalizeFilaments(product),
-        labor: stageLabor(product.laborMinutes, undefined, product.laborRate),
-      },
-      ...normalizeStages(product).map((stage) => ({
-        machineId: stage.machineId,
-        printHours: num(stage.printHours),
-        filaments: normalizeFilaments(stage),
-        labor: stageLabor(stage.laborMinutes, stage.laborRate, product.laborRate),
-      })),
-    ];
-
-    const byMachine = new Map<
-      string,
-      { printHours: number; filaments: FilamentUsage[]; labor: number }
-    >();
-    for (const stage of stages) {
-      const group = byMachine.get(stage.machineId) ?? {
-        printHours: 0,
-        filaments: [],
-        labor: 0,
-      };
-      group.printHours += stage.printHours;
-      group.filaments.push(...stage.filaments);
-      group.labor += stage.labor;
-      byMachine.set(stage.machineId, group);
-    }
-
-    const multi = byMachine.size > 1;
-    return Array.from(byMachine.entries()).map(([machineId, group]) => {
-      const machineName =
-        machines.find((m) => m.id === machineId)?.name ?? "";
-      return {
-        key: rowKey(),
-        productName: multi ? `${base} (${machineName})` : base,
-        productId: product.id,
-        machineId,
-        printHours: group.printHours,
-        filaments: group.filaments.map((f) => resolveFilRow(f, stock)),
-        laborCost: group.labor,
-      };
-    });
-  }
-
-  function subitemRow(product: SavedProduct, subitemId: string): EventRow[] {
-    const result = pricingByProduct.get(product.id);
-    const sub = result?.subitems?.find((s) => s.id === subitemId);
-    if (!sub) return [];
-    const base = product.name || product.mainStageName || "(sem nome)";
-    const primary = sub.machineUsage[0];
-    return [
-      {
-        key: rowKey(),
-        productName: `${base} — ${sub.name || "subitem"}`,
-        productId: product.id,
-        subitemId: sub.id,
-        machineId: primary?.machineId ?? product.machineId,
-        printHours: sub.printHours,
-        filaments: sub.filaments.map((f) => resolveFilRow(f, stock)),
-        laborCost: sub.costBreakdown.labor,
-      },
-    ];
-  }
-
+  // Linha avulsa (sem produto): a única montada aqui — as de produto/subitem vêm
+  // do builder compartilhado (`productionPlan`), que a encomenda do passo 8 reusa.
   function avulsoRow(): EventRow {
     return {
-      key: rowKey(),
+      key: nextRowKey(),
       productName: "",
       machineId: machines[0]?.id ?? "",
       printHours: 0,
@@ -296,6 +165,7 @@ export function ProductionPage() {
         },
       ],
       laborCost: 0,
+      energyTariff: DEFAULT_PRODUCT_INPUT.energyTariff ?? 0,
     };
   }
 
@@ -308,13 +178,16 @@ export function ProductionPage() {
     }
     if (key.startsWith("whole:")) {
       const product = products.find((p) => p.id === key.slice("whole:".length));
-      setRows(product ? wholeRows(product) : []);
+      setRows(product ? wholeEventRows(product, machines, stock) : []);
       return;
     }
     if (key.startsWith("sub:")) {
       const [, productId, subitemId] = key.split(":");
       const product = products.find((p) => p.id === productId);
-      setRows(product ? subitemRow(product, subitemId) : []);
+      const sub = pricingByProduct
+        .get(productId ?? "")
+        ?.subitems?.find((s) => s.id === subitemId);
+      setRows(product && sub ? subitemEventRows(product, sub, stock) : []);
       return;
     }
     setRows([]);
@@ -385,82 +258,16 @@ export function ProductionPage() {
     );
   }
 
-  // Converte uma FilRow em FilamentUsage congelável (material/brand da COR — D7).
-  function toUsage(f: FilRow): FilamentUsage {
-    const color = f.filamentId
-      ? stock.find((c) => c.id === f.filamentId)
-      : undefined;
-    return {
-      filamentId: f.filamentId ?? null,
-      colorName: color ? color.colorName : f.colorName,
-      pricePerKg: num(f.pricePerKg),
-      totalG: num(f.totalG),
-      ...(color?.material ? { material: color.material } : {}),
-      ...(color?.brand ? { brand: color.brand } : {}),
-    };
-  }
-
-  // Planeja TODOS os eventos das linhas com a baixa ENCADEADA (dois eventos na
-  // mesma cor deduzem do saldo já mexido). Puro em relação ao estado — não grava.
-  // `genId` gera o id de cada evento (real ao salvar; placeholder no preview).
-  function planEvents(genId: () => string) {
-    const map = new Map(stock.map((c) => [c.id, c]));
-    const touched = new Set<string>();
-    const built = rows.map((row) => {
-      const filaments = row.filaments
-        .filter((f) => num(f.totalG) > 0)
-        .map(toUsage);
-      const id = genId();
-      const plan = planProduction(filaments, Array.from(map.values()), id, mode);
-      for (const color of plan.colorUpdates) {
-        map.set(color.id, color);
-        touched.add(color.id);
-      }
-      const machine: Machine | undefined =
-        machines.find((m) => m.id === row.machineId) ?? machines[0];
-      const product = row.productId
-        ? products.find((p) => p.id === row.productId)
-        : undefined;
-      const tariff = product?.energyTariff ?? DEFAULT_PRODUCT_INPUT.energyTariff;
-      const cost = machine
-        ? productionCost(
-            machine,
-            row.printHours,
-            tariff,
-            plan.materialCost,
-            row.laborCost,
-          )
-        : {
-            material: plan.materialCost,
-            energy: 0,
-            depreciation: 0,
-            maintenance: 0,
-            labor: row.laborCost,
-            total: plan.materialCost + row.laborCost,
-          };
-      return { id, row, plan, cost, machine, filaments };
-    });
-
-    const colorUpdates = Array.from(touched).map((id) => map.get(id)!);
-    const summary = built.reduce(
-      (acc, e) => {
-        acc.material += e.plan.materialCost;
-        acc.frozen += e.cost.total;
-        acc.grams += e.filaments.reduce((s, f) => s + num(f.totalG), 0);
-        acc.crossesRoll = acc.crossesRoll || e.plan.crossesRoll;
-        acc.shortfallG += e.plan.shortfallG;
-        return acc;
-      },
-      { material: 0, frozen: 0, grams: 0, crossesRoll: false, shortfallG: 0 },
-    );
-    return { built, colorUpdates, summary };
-  }
+  // Planeja as linhas via builder compartilhado (baixa FIFO encadeada + custo
+  // congelado). `genId` gera o id de cada evento (real ao salvar; fixo no preview).
+  const planEvents = (genId: () => string) =>
+    planEventRows(rows, mode, stock, machines, genId);
 
   // Preview ao vivo (não grava): usa um id fixo — o itemId não importa aqui.
   const preview = useMemo(
     () => planEvents(() => "preview"),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, mode, stock, machines, products],
+    [rows, mode, stock, machines],
   );
 
   // Delta do acabado da submissão (FEAT-05b). Só quando o desfecho é `estoque` e
@@ -564,24 +371,12 @@ export function ProductionPage() {
     const at = toTimestamp(dateStr);
     const planned = planEvents(newProductionId);
 
-    const entries = planned.built.map((e) => {
-      const payload: ProductionPayload = {
-        at,
-        outcome,
-        mode,
-        ...(e.row.productId ? { productId: e.row.productId } : {}),
-        ...(e.row.subitemId ? { subitemId: e.row.subitemId } : {}),
-        productName: e.row.productName.trim(),
-        machineId: e.machine?.id ?? e.row.machineId,
-        machineName: e.machine?.name ?? "",
-        printHours: num(e.row.printHours),
-        filaments: e.filaments,
-        frozenCost: e.cost.total,
-        stockMoves: e.plan.moves,
-        ...(notes.trim() ? { notes: notes.trim() } : {}),
-        createdAt: now,
-      };
-      return { id: e.id, payload };
+    const entries = buildProductionPayloads(planned.built, {
+      at,
+      outcome,
+      mode,
+      notes,
+      createdAt: now,
     });
 
     const finished = finishedForSave(planned.built, planned.summary.frozen, at);

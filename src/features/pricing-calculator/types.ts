@@ -307,6 +307,12 @@ export type SaleCostBreakdown = {
   fixed: number;
 };
 
+// Passo 8: origem de reconciliação de UM item vendido. `acabado` = peça pronta,
+// decrementa o Estoque de Produtos (FEAT-05) via `consumeFifo` SEM rebaixar
+// filamento (o insumo já saiu na produção). `encomenda` = feita sob demanda, cria
+// evento(s) de produção (deduz filamento FIFO + horas) que a venda referencia.
+export type SaleItemOrigin = "acabado" | "encomenda";
+
 export type SaleInput = {
   // Agrupa itens de uma mesma compra/recibo. Na fase 1a cada venda tem o seu;
   // a fase 1b (cesta) reaproveita este campo para juntar vários produtos.
@@ -352,6 +358,16 @@ export type SaleInput = {
   feePassedToCustomer: boolean;
   profit: number; // LÍQUIDO da taxa: totalRevenue − totalCost − feeAmount
   margin: number; // profit / totalRevenue (%)
+  // Passo 8 — reconciliação. Ausentes nas vendas anteriores ao recurso (não
+  // reconciliam nada; o `toSale` as trata como legado). `origem` decide o caminho.
+  origem?: SaleItemOrigin;
+  // Caminho `acabado`: as camadas drenadas do Estoque de Produtos, para o estorno
+  // devolver exatamente o que saiu (editar/excluir o recibo). Espelha o papel do
+  // `stockMoves` do filamento, no acabado.
+  finishedMoves?: FinishedMove[];
+  // Caminho `encomenda`: o(s) evento(s) de produção criados junto da venda (a
+  // baixa de filamento + horas mora neles). O estorno apaga-os e reverte o rolo.
+  productionEventIds?: string[];
 };
 
 export type SalePayload = SaleInput & { createdAt: number };

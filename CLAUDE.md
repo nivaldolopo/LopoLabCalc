@@ -10,23 +10,26 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **FEAT-05c — aba "Produtos" na `/estoque` (Estoque de Produtos, só leitura).**
-  A `/estoque` ganhou abas **Insumos** (tudo que já existia) / **Produtos** (acabados). A aba Produtos
-  lê `useFinishedGoods` + casa cada acabado com o produto vivo (`useProducts`) para a lista atual de
-  subitens. Apresentação **"conjunto + lacuna"** (decisão do dono): produto com subitens mostra em
-  destaque **conjuntos completos = min das partes** (`assemblableWholes`), o saldo por subitem, e
-  peças **avulsas** quando os saldos divergem (aviso de lacuna); produto sem subitens mostra o saldo
-  do inteiro; **saldo negativo com aviso** (D4); produto fora do catálogo aparece com nome/custo
-  congelados + aviso brando. Totais: nº com estoque, **valor parado** (COGS congelado, `goodValue`) e
-  saldo negativo. Só mostra saldo ≠ 0. **Sem baixa/venda** (é o passo 8). Helpers puros novos em
-  `lib/finishedGoods.ts`: `skuValue`, `goodValue`, `assemblyBreakdown` (+ `AssemblyBreakdown`). CSS
-  novo em `styles/stock.css` (abas + cards `fg-*`). +5 testes (**161 verdes**), `lint`+`build` limpos.
-  Regras do Firestore não mudaram. **FEAT-05 inteira fechada.** ⚠ **Faxina do legado FEAT-02 segue adiada.**
-  **Próximo passo: passo 8** — venda = **reconciliação**: peça pronta decrementa o acabado via
-  `consumeFifo` (já pronto) sem rebaixar insumo; encomenda deduz insumo (FIFO/`stockMoves`); custo real
-  na `SaleModal`; consumo entra no extrato da cor (fecha D6.1); `SaleInput.material` vira derivado (D7).
-  **Fim do Tier 1.** Detalhe no item 8 e no FEAT-05 do backlog.
-  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅ → FEAT-05 ✅ (05a ✅ · 05b ✅ · 05c ✅) → 8`.**
+- **Última mudança:** **Passo 8 — Fase 8a (venda = reconciliação): modelo + libs puras + testes, SEM UI.**
+  `SaleInput` ganhou `origem: 'acabado'|'encomenda'` + `finishedMoves?`/`productionEventIds?` (estorno
+  por caminho). Novos puros: `finishedGoods.applyFinishedConsumption`/`reverseFinishedConsumption`
+  (baixa/estorno do acabado, molde do `stock`); **`lib/productionPlan.ts`** extraído da `ProductionPage`
+  (`wholeEventRows`/`subitemEventRows`/`planEventRows`/`buildProductionPayloads` + `resolveFilRow`/
+  `filRowToUsage`/`nextRowKey`) — a `ProductionPage` foi **refatorada pra consumir** (sem mudança de
+  comportamento); **`lib/saleReconciliation.ts`** com `planReciboReconciliation` (despacha cada item:
+  **acabado** → `consumeFifo`, COGS congelado, sem tocar filamento; **encomenda** → cria evento(s) de
+  `producao` `outcome:encomenda`/`mode:real` que deduzem filamento FIFO + horas, e a venda referencia
+  os `productionEventIds`; itens processados em ordem, threading cores/acabados; `qty` escala a baixa;
+  D4/D5 nos avisos) + `reverseReciboReconciliation`. **Decisões do dono (travadas):** caminho **por
+  item, default por saldo**; encomenda **dispara produção** (horas contam no ROI; consumo entra no
+  extrato da cor pela fonte que a 04c já lê — **nada novo no extrato**); **FIFO automático** (seleção
+  manual de rolo = backlog). COGS = custo real de produção (falha/fixo fora; ⚠ acessórios fora até o
+  7e). +15 testes (**176 verdes**), `lint`+`build` limpos. **Nada plugado** (SaleModal/repo = 8b).
+  **Próximo passo: fase 8b** — `SaleModal` ganha seletor de origem + COGS real (D3) + avisos D4/D5;
+  `saveRecibo` vira batch atômico multi-coleção (vendas + producao + estoque + acabados) com
+  estornar-e-reaplicar na edição; wiring no card/`SalesPage`. Depois **8c** (`material` derivado/D7 +
+  fecha FEAT-02 + Tier 1). Plano completo em `.claude/plans/cuddly-herding-perlis.md`.
+  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅ → FEAT-05 ✅ → 8 (8a ✅ · 8b · 8c)`.**
   ⚠ **Reframe aprovado:** o passo **8 deixa de ser "o passo da baixa"** e vira **reconciliação da
   venda** — a **primitiva de baixa migrou pra PRODUÇÃO (FEAT-04)**, porque é o único ponto que captura
   TODA impressão (inclusive teste/falha/brinde, que nunca viram venda). Detalhe e decisões (D1-D8 +
@@ -285,12 +288,20 @@
      **derivado = min das partes**; vender só uma parte deixa a **lacuna** ("conjunto sem X") — e
      reimprimir a parte preenche. Saldo negativo permitido com aviso (política D4). Detalhe no item
      FEAT-05 do backlog.
-   - **8 — Venda (RECONCILIAÇÃO, não mais "o passo da baixa"). Fecha o FEAT-02.** Depois do FEAT-04/05, a
-     venda não é o ponto de baixa: **encomenda** deduz insumo na venda (reusa a máquina FIFO/`stockMoves`
-     do FEAT-04) ou dispara produção; **peça pronta** decrementa o acabado (FEAT-05) sem rebaixar insumo.
-     Custo real exibido na `SaleModal`; editar/excluir estorna via `stockMoves` só no caminho encomenda.
-     **Consumo entra no extrato da cor** (3ª fonte, fecha o D6.1/7b). **`SaleInput.material` vira derivado
-     do `FilamentUsage.material` congelado, ou sai** (D7). **Fim do Tier 1.**
+   - **8 — Venda (RECONCILIAÇÃO, não mais "o passo da baixa"). Fecha o FEAT-02.** Cada item da venda
+     escolhe o caminho **por item, default por saldo** (decisão do dono): **peça pronta** decrementa o
+     acabado (FEAT-05, `consumeFifo`) sem rebaixar insumo; **encomenda DISPARA PRODUÇÃO** (resolvido: cria
+     evento `producao` `outcome:encomenda`/`mode:real` que deduz filamento FIFO + horas — horas contam no
+     ROI, consumo entra no extrato da cor pela fonte que a 04c já lê, **sem 3ª fonte nova no doc da
+     venda**). FIFO automático (seleção manual de rolo = backlog). Custo real na `SaleModal` (D3; falha/
+     fixo fora do COGS; ⚠ acessórios fora até 7e). **`SaleInput.material` vira derivado do
+     `FilamentUsage.material` congelado, ou sai** (D7). **3 fases:**
+     ~~**8a** modelo (`SaleInput`+`SaleItemOrigin`) + `finishedGoods` apply/reverse + `lib/productionPlan.ts`
+     (builder extraído, `ProductionPage` refatorada) + `lib/saleReconciliation.ts`
+     (`planReciboReconciliation`/`reverseReciboReconciliation`) + 15 testes, sem UI~~ **✅ FEITA (jul/2026)**;
+     **8b** `SaleModal` (seletor de origem + COGS real + avisos D4/D5) + `saveRecibo` batch atômico
+     multi-coleção (vendas+producao+estoque+acabados, estornar-e-reaplicar) + wiring; **8c** `material`
+     derivado (D7) + fecha FEAT-02 + Tier 1. **Fim do Tier 1.**
    - **7e — Insumos (item próprio, depois).** `supplyId` no `Accessory`, cadastro de insumos na
      `/estoque`, baixa por unidade (`kind: 'supply'`, já previsto no `stockMoves`). Ver D1.
 
@@ -641,7 +652,7 @@ pendente da auditoria.
   não mais baixa; estorna via `stockMoves` no caminho encomenda).
   Insumos = (7e), **item separado depois** do filamento.
   **Ordem final do Tier 1 (jul/2026): 7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 ✅
-  (04a · 04b · 04c) → FEAT-05 ✅ (05a · 05b · 05c) → 8.**
+  (04a · 04b · 04c) → FEAT-05 ✅ (05a · 05b · 05c) → 8 (8a ✅ · 8b · 8c).**
   ⚠ **Reframe aprovado (jul/2026):** o quiosque de mall exige vender **peça pronta na hora**. FEAT-04
   move a **primitiva de baixa** pra produção (é o único ponto que captura teste/falha/brinde — impressões
   que nunca viram venda), então **entra antes da 8**, e a **8 deixa de ser "o passo da baixa"** e vira
@@ -710,8 +721,13 @@ src/
                             #     reverseProduction orquestram o FIFO por evento; productionCost
                             #     = frozenCost material+energia+deprec.+manut.+labor),
                             #     finishedGoods (estoque de acabados FEAT-05: camadas FIFO —
-                            #     addProductionLayers/removeEventLayers/consumeFifo/
-                            #     assemblableWholes/goodValue/assemblyBreakdown; puro),
+                            #     addProductionLayers/removeEventLayers/consumeFifo/apply+reverse
+                            #     FinishedConsumption/assemblableWholes/goodValue/assemblyBreakdown; puro),
+                            #     productionPlan (builder puro produto/subitem→eventos: wholeEventRows/
+                            #     subitemEventRows/planEventRows/buildProductionPayloads — usado pela
+                            #     /producao E pela encomenda do passo 8),
+                            #     saleReconciliation (passo 8: planReciboReconciliation despacha item
+                            #     acabado→consumeFifo vs encomenda→dispara producao; +reverse),
                             #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento,
                             #     testado em paymentFees.test.ts via vitest)
     constants.ts, types.ts

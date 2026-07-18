@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addProductionLayers,
+  applyFinishedConsumption,
   assemblableWholes,
   assemblyBreakdown,
   balanceOf,
@@ -8,6 +9,7 @@ import {
   findSku,
   goodValue,
   removeEventLayers,
+  reverseFinishedConsumption,
   skuBalance,
   skuValue,
   submissionEntries,
@@ -369,6 +371,52 @@ describe("assemblyBreakdown (conjunto + lacuna — 05c)", () => {
       balance: 0,
       leftover: 0,
     });
+  });
+});
+
+describe("applyFinishedConsumption / reverseFinishedConsumption (passo 8)", () => {
+  const good = makeGood({
+    skus: [
+      {
+        name: "Boneco",
+        layers: [
+          { id: "e1__whole", at: 0, qty: 2, unitCost: 5, sourceEventId: "e1" },
+          { id: "e2__whole", at: DIA, qty: 3, unitCost: 7, sourceEventId: "e2" },
+        ],
+      },
+    ],
+  });
+
+  it("aplica a baixa que o consumeFifo descreveu (drena as camadas)", () => {
+    const res = consumeFifo(good, undefined, 3); // 2 de e1 + 1 de e2
+    const after = applyFinishedConsumption(good, res.moves);
+    expect(skuBalance(after.skus[0])).toBe(5 - 3);
+    expect(after.skus[0].layers[0].qty).toBe(0); // e1 zerada
+    expect(after.skus[0].layers[1].qty).toBe(2); // e2: 3 − 1
+    // Puro: o doc original não muda.
+    expect(skuBalance(good.skus[0])).toBe(5);
+  });
+
+  it("round-trip: reverter devolve exatamente o que a venda drenou", () => {
+    const res = consumeFifo(good, undefined, 4);
+    const after = applyFinishedConsumption(good, res.moves);
+    const back = reverseFinishedConsumption(after, res.moves);
+    expect(skuBalance(back.skus[0])).toBe(5);
+    expect(back.skus[0].layers.map((l) => l.qty)).toEqual([2, 3]);
+  });
+
+  it("D4: vender além do saldo deixa a camada mais nova negativa (não trunca)", () => {
+    const res = consumeFifo(good, undefined, 7); // saldo 5, faltam 2
+    const after = applyFinishedConsumption(good, res.moves);
+    expect(skuBalance(after.skus[0])).toBe(-2);
+    // e reverter cura o buraco de volta ao saldo original.
+    expect(skuBalance(reverseFinishedConsumption(after, res.moves).skus[0])).toBe(5);
+  });
+
+  it("moves de outro produto passam batido (cada doc aplica só o seu)", () => {
+    const res = consumeFifo(good, undefined, 1);
+    const alheio = res.moves.map((m) => ({ ...m, productId: "outro" }));
+    expect(applyFinishedConsumption(good, alheio)).toBe(good); // sem delta → mesmo obj
   });
 });
 

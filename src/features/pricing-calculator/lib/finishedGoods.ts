@@ -265,6 +265,65 @@ export function consumeFifo(
   };
 }
 
+// O mínimo para mexer no saldo de uma camada — satisfeito pelo `FinishedMove` que
+// `consumeFifo` descreve e que a venda grava. É o que deixa o estorno ler o doc da
+// venda e devolver por camada, sem depender do custo (molde do `RollDelta`).
+type LayerDelta = Pick<FinishedMove, "productId" | "layerId" | "qty">;
+
+function shiftLayers(
+  good: FinishedGood,
+  moves: LayerDelta[],
+  sign: 1 | -1,
+): FinishedGood {
+  const deltaByLayer = new Map<string, number>();
+  for (const move of moves) {
+    // Moves de outros produtos passam batido: um recibo drena vários acabados e
+    // cada doc só aplica o que é seu (espelha o `shiftRolls` do filamento).
+    if (move.productId !== good.productId) continue;
+    const previous = deltaByLayer.get(move.layerId) ?? 0;
+    deltaByLayer.set(move.layerId, previous + sign * num(move.qty));
+  }
+  if (deltaByLayer.size === 0) return good;
+
+  return {
+    ...good,
+    skus: good.skus.map((sku) => ({
+      ...sku,
+      layers: sku.layers.map((layer) => {
+        const delta = deltaByLayer.get(layer.id);
+        if (!delta) return layer;
+        return { ...layer, qty: num(layer.qty) + delta };
+      }),
+    })),
+  };
+}
+
+/**
+ * Aplica a baixa do acabado descrita pelos `FinishedMove` (venda registrada):
+ * subtrai a `qty` consumida da camada apontada. PURA (doc novo). Espelha
+ * `applyConsumption` do filamento; D4 = a camada pode ficar negativa (nunca
+ * trunca — o `consumeFifo` já lançou o excedente na camada mais nova).
+ */
+export function applyFinishedConsumption(
+  good: FinishedGood,
+  moves: FinishedMove[],
+): FinishedGood {
+  return shiftLayers(good, moves, -1);
+}
+
+/**
+ * Devolve ao acabado exatamente o que a venda drenou (recibo editado/excluído),
+ * camada a camada — inclusive camada já zerada. Round-trip de
+ * `applyFinishedConsumption`: é o que impede editar um recibo de 3 → 2 unidades
+ * corromper o estoque de produtos em silêncio (molde do `reverseConsumption`).
+ */
+export function reverseFinishedConsumption(
+  good: FinishedGood,
+  moves: FinishedMove[],
+): FinishedGood {
+  return shiftLayers(good, moves, 1);
+}
+
 /**
  * "Inteiros disponíveis = min das partes" (apresentação híbrida, 05c). Para um
  * produto que vende por subitens, o inteiro montável é o MENOR saldo entre TODOS
