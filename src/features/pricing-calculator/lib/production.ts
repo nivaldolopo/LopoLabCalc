@@ -7,6 +7,7 @@ import {
 import { filamentTotalG } from "./filaments";
 import type {
   FilamentUsage,
+  Machine,
   ProductionMode,
   StockFilament,
   StockMove,
@@ -140,4 +141,45 @@ export function reverseProduction(
   return colors
     .filter((color) => affected.has(color.id))
     .map((color) => reverseConsumption(color, stockMoves));
+}
+
+// Custo de produção CONGELADO de um evento (04b). Spec: material (FIFO) + energia
+// + depreciação + manutenção + labor — NÃO inclui reserva de falha, custo fixo
+// nem acessórios (são provisões de pricing, não custo físico da impressão). A
+// aritmética espelha `calculateStageCost` (energia/depreciação/manutenção saem da
+// máquina × horas); `material` e `labor` chegam prontos (material = FIFO real ou
+// fallback congelado, vindo de `planProduction`; labor = o congelado da etapa).
+export type ProductionCostBreakdown = {
+  material: number;
+  energy: number;
+  depreciation: number;
+  maintenance: number;
+  labor: number;
+  total: number;
+};
+
+export function productionCost(
+  machine: Machine,
+  printHours: number,
+  energyTariff: number,
+  materialCost: number,
+  laborCost: number,
+): ProductionCostBreakdown {
+  const hours = Math.max(0, num(printHours));
+  const material = Math.max(0, num(materialCost));
+  const labor = Math.max(0, num(laborCost));
+  const energy = hours * (num(machine.watts) / 1000) * num(energyTariff);
+  const depreciation =
+    machine.lifeHours > 0
+      ? (num(machine.price) / machine.lifeHours) * hours
+      : 0;
+  const maintenance = hours * num(machine.maintenancePerHour);
+  return {
+    material,
+    energy,
+    depreciation,
+    maintenance,
+    labor,
+    total: material + energy + depreciation + maintenance + labor,
+  };
 }

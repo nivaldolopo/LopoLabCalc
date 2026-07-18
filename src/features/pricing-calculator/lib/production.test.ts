@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { planProduction, reverseProduction } from "./production";
+import { planProduction, productionCost, reverseProduction } from "./production";
 import { balanceG } from "./stock";
-import type { FilamentRoll, FilamentUsage, StockFilament } from "../types";
+import type {
+  FilamentRoll,
+  FilamentUsage,
+  Machine,
+  StockFilament,
+} from "../types";
 
 const DIA = 24 * 60 * 60 * 1000;
 
@@ -263,5 +268,43 @@ describe("reverseProduction", () => {
       rolls: [makeRoll({ id: "r1", remainingG: 500 })],
     });
     expect(reverseProduction([], [cor])).toEqual([]);
+  });
+});
+
+describe("productionCost", () => {
+  const machine: Machine = {
+    id: "a1",
+    name: "A1",
+    price: 3000,
+    lifeHours: 3000,
+    watts: 100,
+    maintenancePerHour: 0.5,
+  };
+
+  it("soma material + energia + depreciação + manutenção + labor", () => {
+    // 2 h: energia = 2 × 0.1 kW × 0.8 = 0.16; depreciação = 3000/3000 × 2 = 2;
+    // manutenção = 2 × 0.5 = 1; material 5; labor 3.
+    const cost = productionCost(machine, 2, 0.8, 5, 3);
+    expect(cost.energy).toBeCloseTo(0.16);
+    expect(cost.depreciation).toBeCloseTo(2);
+    expect(cost.maintenance).toBeCloseTo(1);
+    expect(cost.material).toBe(5);
+    expect(cost.labor).toBe(3);
+    expect(cost.total).toBeCloseTo(5 + 0.16 + 2 + 1 + 3);
+  });
+
+  it("lifeHours 0 não deprecia (não divide por zero)", () => {
+    const cost = productionCost({ ...machine, lifeHours: 0 }, 2, 0.8, 0, 0);
+    expect(cost.depreciation).toBe(0);
+    expect(cost.total).toBeCloseTo(0.16 + 1);
+  });
+
+  it("horas negativas/lixo caem para zero nas parcelas por hora", () => {
+    const cost = productionCost(machine, -5, 0.8, 4, 2);
+    expect(cost.energy).toBe(0);
+    expect(cost.depreciation).toBe(0);
+    expect(cost.maintenance).toBe(0);
+    // material e labor não dependem de hora.
+    expect(cost.total).toBe(6);
   });
 });

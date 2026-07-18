@@ -74,6 +74,13 @@ export function Header({ theme, status, onToggleTheme }: HeaderProps) {
           >
             <span aria-hidden="true">📦</span> Estoque
           </Link>
+          <Link
+            className="icon-label-button"
+            href="/producao"
+            title="Registrar produção (impressão)"
+          >
+            <span aria-hidden="true">🏭</span> Produção
+          </Link>
           <button
             className="icon-label-button"
             type="button"

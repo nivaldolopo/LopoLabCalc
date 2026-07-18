@@ -1,0 +1,210 @@
+/* Registro de produção (/producao) — FEAT-04b. Form de impressão + lista dos
+   eventos recentes. Reusa .field-input/.btn/.two-col de forms.css. */
+
+.prod-intro {
+  margin-bottom: 18px;
+}
+
+.prod-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  margin-bottom: 26px;
+}
+
+.prod-empty {
+  font-size: 13px;
+  color: var(--muted2);
+  padding: 8px 2px;
+}
+
+/* Um evento (uma máquina) dentro do form — o "inteiro" multi-máquina tem vários. */
+.prod-event {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.prod-fil {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.prod-fil-name {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.prod-fil-free {
+  flex: 1 1 120px;
+}
+
+.prod-fil-g,
+.prod-fil-price {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prod-fil-g .field-input {
+  width: 84px;
+}
+
+.prod-fil-price .field-input {
+  width: 96px;
+}
+
+.prod-unit {
+  font-size: 12px;
+  color: var(--muted2);
+}
+
+.prod-add-fil {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+/* Resumo/preview do custo + avisos D5. */
+.prod-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.prod-summary-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.prod-summary-line strong {
+  font-size: 15px;
+  color: var(--accent);
+}
+
+.prod-note {
+  font-size: 12px;
+  color: var(--muted2);
+  line-height: 1.4;
+}
+
+.prod-warn {
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.prod-warn.info {
+  background: rgba(255, 107, 53, 0.1);
+  color: var(--accent);
+}
+
+.prod-warn.strong {
+  background: rgba(196, 79, 79, 0.14);
+  color: #c44f4f;
+  font-weight: 600;
+}
+
+/* Lista de produções recentes. */
+.prod-recent-label {
+  margin: 4px 0 12px;
+}
+
+.prod-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prod-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+}
+
+.prod-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.prod-card-main strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.prod-card-sub {
+  font-size: 11px;
+  color: var(--muted2);
+}
+
+.prod-card-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.prod-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  background: rgba(255, 107, 53, 0.12);
+  color: var(--accent);
+}
+
+/* Desfechos que não geram receita/estoque ficam neutros; falha destaca. */
+.prod-badge.teste,
+.prod-badge.brinde,
+.prod-badge.historico,
+.prod-badge.hist {
+  background: var(--border);
+  color: var(--muted);
+}
+
+.prod-badge.falha {
+  background: rgba(196, 79, 79, 0.14);
+  color: #c44f4f;
+}
+
+@media (max-width: 640px) {
+  .prod-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .prod-card-side {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

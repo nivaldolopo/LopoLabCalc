@@ -10,35 +10,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **FEAT-04a — modelo + repo + lib puro da PRODUÇÃO (a primitiva de baixa), sem UI.**
-  Novos tipos (`ProductionOutcome` estoque·encomenda·teste·falha·brinde·historico · `ProductionMode`
-  real|historico · `ProductionInput`/`Payload`/`Event`) em `types.ts`. `lib/production.ts` puro:
-  **`planProduction`** (orquestra o FIFO de `lib/stock.ts` por evento — reusa `simulateConsumption`/
-  `applyConsumption`; multicolor = 1 baixa por cor; modo `real` deduz rolo e devolve `stockMoves`
-  (`kind:'filament'`, `itemId`=id do evento) + cores decrementadas + custo misto + avisos D5; modo
-  `historico` = gramas soltas, NÃO toca rolo, custo pelo `pricePerKg` congelado; avulso/cor-órfã caem no
-  fallback sem move) e **`reverseProduction`** (estorno round-trip). `productionRepository.ts` (coleção
-  `producao`): `subscribeProduction` + **`saveProduction`** (evento + baixa dos rolos no MESMO
-  `writeBatch`, só reescreve `rolls` do doc da cor) + `removeProduction` (estorno atômico). Congela
-  material/brand por cor (D7) e `frozenCost`. `serializeRolls` exportado do `stockRepository` (reuso).
-  **Sem UI, sem tocar `machineRoi`** (é a 04b/04c). Regras do Firestore não mudaram (wildcard cobre
-  `producao`). +11 testes (**127 verdes**), `lint`+`build` limpos.
+- **Última mudança:** **FEAT-04b — tela `/producao` (registro de produção), plugada.** Rota
+  `ProductionPage` (link 🏭 no header): seletor **produto inteiro · subitem · Avulso** → nome →
+  máquina → tempo (`PrintTimeField` h+min) → **filamentos default editáveis** (gramas; avulso =
+  dropdown de cor OU livre + preço/kg, multicor com "+ outra cor") → **desfecho** (estoque·encomenda·
+  teste·falha·brinde·historico) → **modo** (real/historico). **Preview ao vivo** roda a decomposição
+  + `planProduction`/`productionCost` sem gravar (custo, gramas, avisos D5). **Decisão do dono:**
+  produto **inteiro com etapas em máquinas diferentes vira N eventos** (1 por máquina; agrupa as
+  etapas por `machineId`); subitem/avulso = 1 evento. Baixa **encadeada** (2 eventos na mesma cor
+  deduzem do saldo já mexido) e **atômica** — `saveProduction(events[], colorUpdates)` grava os N
+  docs + os `rolls` num só `writeBatch`; `itemId` do `stockMoves` = id **pré-gerado** (`newProductionId`).
+  Novo helper puro **`productionCost`** (material FIFO + energia + depreciação + manutenção + labor;
+  SEM falha/fixo/acessório) para o `frozenCost`. `useProduction` (subscribe/add/remove). Lista de
+  produções recentes com **excluir** (estorno via `reverseProduction`). Congela material/brand por
+  cor (D7). **Sem tocar `machineRoi`** (é a 04c). +3 testes (**130 verdes**), `lint`+`build` limpos.
   ⚠ **Faxina do legado FEAT-02 segue adiada.**
-  **Próximo passo: FEAT-04b — tela `/producao`** (produto/subitem → máquina → h+min → filamento default
-  editável → desfecho → modo; link no header). Depois **04c** (`computeMachineRoi` lê horas da produção +
-  estorno via `stockMoves` + consumo no extrato da cor). Decisões do dono fechadas: **3 fases,
-  uma por chat** (padrão 7a/7b/7c); **rota própria `/producao`** (link no header); **escopo = só
-  produção + baixa de insumo** (saldo de acabado é a FEAT-05; `peça-pro-estoque` só grava o rótulo);
-  **ROI migra pra produção na 04c**. Fases: **04a** modelo + `productionRepository` (coleção
-  `producao`) + lib puro + baixa no MESMO `writeBatch` (reusa `applyConsumption`/`simulateConsumption`
-  do `lib/stock.ts`, grava `stockMoves` `kind:'filament'`, `itemId`=id do evento), sem UI; **04b**
-  tela `/producao` (produto/subitem → máquina → h+min → filamento default editável → desfecho → modo);
-  **04c** `computeMachineRoi` lê horas da produção (muda `/maquinas`, casa TD-003) + estorno via
-  `stockMoves` (`reverseConsumption`) + consumo entra no extrato da cor (fecha a 3ª fonte do D6.1).
-  Modelo do evento: `outcome` (estoque·encomenda·teste·falha·brinde·historico) + `mode` (real deduz
-  FIFO/D3 com avisos D5; historico = gramas soltas, não toca rolo) + `productId?`/`subitemId?` +
-  `filaments[]`/`machineName`/`frozenCost` congelados. Detalhe no item FEAT-04 do backlog.
-  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 → FEAT-05 → 8`.**
+  **Próximo passo: FEAT-04c** — `computeMachineRoi` lê horas da **produção** (muda `/maquinas`, casa
+  TD-003) + estorno da venda via `stockMoves` (`reverseConsumption`) + **consumo entra no extrato da
+  cor** (fecha a 3ª fonte do D6.1). Decisões do dono já fechadas: **3 fases, uma por chat**; **rota
+  própria `/producao`**; **escopo da baixa = produção** (saldo de acabado é a FEAT-05); **ROI migra
+  na 04c**. Modelo do evento: `outcome` + `mode` (real deduz FIFO/D3 com avisos D5; historico =
+  gramas soltas, não toca rolo) + `productId?`/`subitemId?` + `filaments[]`/`machineName`/`frozenCost`
+  congelados. Detalhe no item FEAT-04 do backlog.
+  **Ordem do Tier 1 (jul/2026): `7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04 (04a ✅ · 04b ✅ · 04c) → FEAT-05 → 8`.**
   ⚠ **Reframe aprovado:** o passo **8 deixa de ser "o passo da baixa"** e vira **reconciliação da
   venda** — a **primitiva de baixa migra pra PRODUÇÃO (FEAT-04)**, porque é o único ponto que captura
   TODA impressão (inclusive teste/falha/brinde, que nunca viram venda). Detalhe e decisões (D1-D8 +
@@ -58,8 +52,8 @@
   Cloudflare + SSL Let's Encrypt + Authorized domain no Firebase). **E-mail `@lopolab.com.br`
   configurado** (DNS no Cloudflare; contexto no chat "abertura da loja", fora do repo).
 - **TO-DO em aberto:** (a) item 3 — **Estoque** (`/estoque`) — **EM ANDAMENTO: 7a ✅ + 7b ✅ + 7c ✅ +
-  FEAT-01 ✅ + FEAT-04a ✅**, próximo é a **FEAT-04b** (tela `/producao`), depois **04c → FEAT-05 → 8**
-  (ver "Reframe" no Status/backlog); coleção
+  FEAT-01 ✅ + FEAT-04a ✅ + FEAT-04b ✅**, próximo é a **FEAT-04c** (ROI lê horas da produção),
+  depois **FEAT-05 → 8** (ver "Reframe" no Status/backlog); coleção
   `estoque` (um doc por COR, rolos dentro); decisões D1-D8 e as etapas no item 3 do backlog; (b) item 4 —
   **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas; incorpora
   TD-003 capacidade por-máquina/gargalo); (c) **logo real** no PDF do orçamento (placeholder hoje).
@@ -284,10 +278,11 @@
      de produção**. Granularidade = subitem (do FEAT-01). **3 fases:**
      ~~**04a** modelo (`types.ts`) + `lib/production.ts` puro (`planProduction`/`reverseProduction`
      reusando o FIFO de `stock.ts`) + `productionRepository` (coleção `producao`) + baixa no MESMO
-     `writeBatch`, sem UI~~ **✅ FEITA (jul/2026)**; **04b** tela `/producao` (produto/subitem → máquina →
-     h+min → filamento default editável → desfecho → modo; link no header) — **próximo**; **04c**
-     `computeMachineRoi` lê horas da produção + estorno via `stockMoves` + consumo no extrato da cor.
-     Detalhe no item FEAT-04 do backlog.
+     `writeBatch`, sem UI~~ **✅ FEITA (jul/2026)**; ~~**04b** tela `/producao` (produto/subitem →
+     máquina → h+min → filamento default editável → desfecho → modo; link no header) + `productionCost`
+     (frozenCost) + inteiro multi-máquina = N eventos (baixa encadeada/atômica) + lista com excluir~~
+     **✅ FEITA (jul/2026)** — **próximo é 04c**; **04c** `computeMachineRoi` lê horas da produção +
+     estorno via `stockMoves` + consumo no extrato da cor. Detalhe no item FEAT-04 do backlog.
    - **FEAT-05 — Estoque de Produtos (acabados).** Produção **incrementa** com custo congelado; venda
      **decrementa sem rebaixar insumo** (já saiu na produção — furo "não dobrar baixa"). Guarda saldo
      **por subitem** (a SKU do acabado = o subitem vendável do FEAT-01); "produto inteiro disponível" é
@@ -614,12 +609,12 @@ pendente da auditoria.
   rolos)~~ **✅ FEITA**; ~~(7c) dropdown de cor no produto (preço vivo)~~ **✅ FEITA**;
   ~~**FEAT-01** preço/subitens por etapa (rateio aditivo; toggle de subitens)~~ **✅ FEITA**;
   **FEAT-04** Registro de Produção (a **primitiva de baixa** migra pra produção; desfecho por impressão)
-  — **próximo**;
+  — **04a ✅ + 04b ✅; próximo é 04c** (ROI lê horas da produção);
   **FEAT-05** Estoque de Produtos (acabado por subitem, lacuna); depois **8** (venda = **reconciliação**,
   não mais baixa; estorna via `stockMoves` no caminho encomenda).
   Insumos = (7e), **item separado depois** do filamento.
   **Ordem final do Tier 1 (jul/2026): 7a ✅ → 7b ✅ → 7c ✅ → FEAT-01 ✅ → FEAT-04
-  → FEAT-05 → 8.**
+  (04a ✅ · 04b ✅ · 04c) → FEAT-05 → 8.**
   ⚠ **Reframe aprovado (jul/2026):** o quiosque de mall exige vender **peça pronta na hora**. FEAT-04
   move a **primitiva de baixa** pra produção (é o único ponto que captura teste/falha/brinde — impressões
   que nunca viram venda), então **entra antes da 8**, e a **8 deixa de ser "o passo da baixa"** e vira
@@ -659,6 +654,7 @@ src/
   app/                      # App Router: layout.tsx, page.tsx (calculadora),
                             #   vendas/page.tsx (histórico), orcamento/page.tsx (PDF),
                             #   maquinas/page.tsx (ROI), estoque/page.tsx (estoque),
+                            #   producao/page.tsx (registro de produção),
                             #   globals.css (só @import) + styles/*.css (CSS por área)
   features/pricing-calculator/
     components/             # UI: PricingCalculator (raiz), ProductForm, ProductCatalog,
@@ -669,17 +665,20 @@ src/
                             #     SaleModal (registrar venda), SalesPage (rota /vendas),
                             #     QuotePage (/orcamento), MachinesPage (/maquinas),
                             #     StockPage (/estoque) + StockColorModal/StockRollModal/
-                            #     StockAdjustModal, NumberInput (compartilhado),
+                            #     StockAdjustModal, ProductionPage (/producao — registro de
+                            #     impressão), NumberInput (compartilhado),
                             #     ProfitSummary (rentabilidade compartilhada), AuthGate (login)
     hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
                             #     useAuth, useQuoteConfig (negócio), useQuotes (histórico),
-                            #     useFees (taxas de pagamento), useStock (estoque de filamento)
+                            #     useFees (taxas de pagamento), useStock (estoque de filamento),
+                            #     useProduction (coleção producao — FEAT-04)
     lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv,
                             #     saleContext (foto congelada da venda — helpers puros do SaleModal),
                             #     filaments (cores por impressão, FEAT-02), stock (FIFO do estoque:
                             #     simulate/apply/reverse/adjustRoll — matemática pura, item 3),
                             #     production (baixa da produção FEAT-04: planProduction/
-                            #     reverseProduction, orquestra o FIFO por evento),
+                            #     reverseProduction orquestram o FIFO por evento; productionCost
+                            #     = frozenCost material+energia+deprec.+manut.+labor),
                             #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento,
                             #     testado em paymentFees.test.ts via vitest)
     constants.ts, types.ts
@@ -691,8 +690,9 @@ src/
                             #   quotesRepository.ts (coleção `orcamentos`: histórico de orçamentos),
                             #   feesRepository.ts (doc config/taxas: taxa % por forma de pagamento),
                             #   stockRepository.ts (coleção `estoque`: um doc por COR, rolos dentro),
-                            #   productionRepository.ts (coleção `producao`: evento de impressão +
-                            #     baixa dos rolos no mesmo writeBatch — FEAT-04)
+                            #   productionRepository.ts (coleção `producao`: newProductionId +
+                            #     saveProduction(events[]) — N eventos + baixa dos rolos no mesmo
+                            #     writeBatch — FEAT-04)
     formatting/currency.ts  # formatCurrency / formatDecimal
     formatting/date.ts      # ponte timestamp ↔ <input type="date"> (toDateInput, toTimestamp,
                             #   todayInputValue, formatDate) — usada por venda/orçamento/estoque

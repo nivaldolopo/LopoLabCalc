@@ -22,3 +22,4 @@
 @import "./styles/quote.css"; /* página de orçamento (/orcamento) e histórico de PDFs */
 @import "./styles/machines.css"; /* página de ROI/payback das impressoras (/maquinas) */
 @import "./styles/stock.css"; /* estoque de filamento por cor (/estoque) + modais de cor/rolo/ajuste */
+@import "./styles/production.css"; /* registro de produção (/producao): form de impressão + eventos recentes */

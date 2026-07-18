@@ -131,6 +131,13 @@ function toProduction(id: string, data: DocumentData): ProductionEvent {
   };
 }
 
+// Id de um evento GERADO ANTES de gravar. A baixa (`planProduction`) precisa do
+// id do evento para gravar `stockMoves.itemId` — e é de lá que o estorno (04c)
+// lê. Sem pré-gerar, o auto-id do doc não bateria com o `itemId`.
+export function newProductionId(): string {
+  return doc(productionCollection).id;
+}
+
 export function subscribeProduction(
   onProduction: (events: ProductionEvent[]) => void,
   onError: (error: Error) => void,
@@ -146,17 +153,21 @@ export function subscribeProduction(
   );
 }
 
-// Grava um evento de produção e dá baixa dos rolos ATOMICAMENTE (ou entra tudo,
-// ou nada — a baixa nunca fica sem o evento que a explica, nem o contrário).
-// `colorUpdates` vem de `planProduction` (cores já decrementadas); no modo
-// historico é `[]` (nada a deduzir). Só o campo `rolls` da cor é reescrito — os
-// demais (adjustments, material...) ficam intactos.
+// Grava N eventos de produção e dá baixa dos rolos ATOMICAMENTE (ou entra tudo,
+// ou nada — a baixa nunca fica sem os eventos que a explicam, nem o contrário).
+// Os ids são PRÉ-GERADOS (`newProductionId`) para que `payload.stockMoves.itemId`
+// bata com o doc. A lista tem mais de 1 evento quando um produto inteiro roda em
+// máquinas diferentes (um evento por máquina, baixa encadeada — ver 04b).
+// `colorUpdates` é o estado FINAL das cores afetadas (já decrementado por todos
+// os eventos); no modo historico é `[]`. Só o campo `rolls` da cor é reescrito.
 export async function saveProduction(
-  payload: ProductionPayload,
+  events: { id: string; payload: ProductionPayload }[],
   colorUpdates: StockFilament[],
 ): Promise<void> {
   const batch = writeBatch(db);
-  batch.set(doc(productionCollection), toDocument(payload));
+  for (const { id, payload } of events) {
+    batch.set(doc(productionCollection, id), toDocument(payload));
+  }
   for (const color of colorUpdates) {
     batch.update(doc(db, "estoque", color.id), {
       rolls: serializeRolls(color.rolls),
