@@ -1,14 +1,16 @@
 "use client";
 
+import { useId } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import type { SaleCostBreakdown } from "../types";
 
 // Detalhe do custo de UM item vendido — usado na SaleModal (venda viva) e no
-// histórico (/vendas). Mostra o custo REAL (base do lucro) e, expansível, a
-// composição do custo PRECIFICADO (o que definiu o preço), separando as
-// PROVISÕES (reserva de falha, custo fixo, acessórios) que NÃO entram no custo
-// real da peça — falhas reais são registradas à parte na produção (ver ⚠ do
-// passo 8 / FEAT-06). Só EXIBE; não recalcula nada.
+// histórico (/vendas). O gatilho mostra o custo REAL (base do lucro); ao clicar,
+// abre uma JANELA FLUTUANTE (Popover API nativa, top-layer — não é cortada pelo
+// scroll do modal) com a composição do custo PRECIFICADO, separando as PROVISÕES
+// (reserva de falha, custo fixo, acessórios) que NÃO entram no custo real da peça
+// — falhas reais são registradas à parte na produção (ver ⚠ do passo 8 / FEAT-06).
+// Só EXIBE; não recalcula nada.
 //
 // O custo real é um número único congelado (FIFO/camada do acabado), por isso não
 // é decomposto por componente; o que se decompõe é o custo precificado
@@ -25,6 +27,7 @@ export function CostDetail({
   // passa a qtd da venda, para a coluna bater com receita/lucro (também totais).
   quantity?: number;
 }) {
+  const popId = useId();
   const q = Math.max(1, quantity);
   const cogs = realCogs * q;
   const physical = [
@@ -45,15 +48,31 @@ export function CostDetail({
     provisions.reduce((sum, row) => sum + row.value, 0);
 
   return (
-    <details className="cost-detail">
-      <summary className="cost-detail-summary">
+    <>
+      <button
+        type="button"
+        className="cost-detail-trigger"
+        popoverTarget={popId}
+      >
         custo real <strong>{formatCurrency(cogs)}</strong>
-        <span className="cost-detail-hint">· composição do preço</span>
-      </summary>
-      <div className="cost-detail-body">
-        <div className="cost-detail-section">
-          Composição do custo precificado (base do preço)
+        <span className="cost-detail-hint">· composição do preço ▾</span>
+      </button>
+
+      <div id={popId} popover="auto" className="cost-detail-pop">
+        <div className="cost-detail-pop-head">
+          <span>Composição do custo</span>
+          <button
+            type="button"
+            className="cost-detail-close"
+            aria-label="Fechar"
+            popoverTarget={popId}
+            popoverTargetAction="hide"
+          >
+            ✕
+          </button>
         </div>
+
+        <div className="cost-detail-section">Custo precificado (base do preço)</div>
         <table className="cost-detail-table">
           <tbody>
             {physical.map((row) => (
@@ -91,6 +110,6 @@ export function CostDetail({
           peça — falhas reais são registradas à parte na produção.
         </p>
       </div>
-    </details>
+    </>
   );
 }

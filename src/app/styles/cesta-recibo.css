@@ -93,25 +93,21 @@
   flex: 1;
 }
 
-/* Detalhe de custo expansível (CostDetail): custo real + composição do preço.
-   Compartilhado pela cesta (modal) e pelo histórico (/vendas). */
-.cost-detail {
+/* Detalhe de custo (CostDetail): gatilho inline + JANELA FLUTUANTE (Popover API).
+   Compartilhado pela cesta (modal) e pelo histórico (/vendas). O popover vive na
+   top-layer, então não é cortado pelo scroll do modal e centraliza sozinho. */
+.cost-detail-trigger {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   font-size: 12px;
   color: var(--muted);
-}
-
-.cost-detail-summary {
-  cursor: pointer;
   white-space: nowrap;
-  list-style: none;
-  user-select: none;
+  cursor: pointer;
 }
 
-.cost-detail-summary::-webkit-details-marker {
-  display: none;
-}
-
-.cost-detail-summary strong {
+.cost-detail-trigger strong {
   color: var(--fg);
 }
 
@@ -121,21 +117,44 @@
   color: var(--accent);
 }
 
-.cost-detail[open] .cost-detail-hint::after {
-  content: " ▲";
+/* Janela flutuante centralizada (UA já aplica position:fixed; inset:0; margin:auto). */
+.cost-detail-pop {
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--fg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
-.cost-detail:not([open]) .cost-detail-hint::after {
-  content: " ▼";
+.cost-detail-pop::backdrop {
+  background: rgba(0, 0, 0, 0.35);
 }
 
-.cost-detail-body {
-  margin-top: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  background: var(--details-bg);
-  white-space: normal;
+.cost-detail-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.cost-detail-close {
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.cost-detail-close:hover {
+  color: var(--fg);
 }
 
 .cost-detail-section {

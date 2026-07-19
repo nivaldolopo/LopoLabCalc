@@ -10,12 +10,13 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **`CostDetail` — transparência custo real × precificado na venda.** Componente
-  compartilhado (expansível) mostra o **custo real** (base do lucro) + a composição do **custo
-  precificado** (8 componentes, com reserva de falha/custo fixo/acessórios marcados como provisões fora
-  do custo real) + nota. Ligado na `SaleModal` (por item) e no `/vendas` (por venda, escala pela qtd) —
-  responde à confusão do dono de ver o custo "menor" na venda; **matemática mantida** (só exibição).
-  `lint`+`build` limpos. Antes nesta leva: **BUG-01** (hora decimal não soma mais com minutos) ✅.
+- **Última mudança:** **`CostDetail` — transparência custo real × precificado (janela flutuante).**
+  Gatilho mostra o **custo real** (base do lucro) e abre uma **janela flutuante (Popover API nativa,
+  top-layer)** com a composição do **custo precificado** (8 componentes, com reserva de falha/custo
+  fixo/acessórios marcados como provisões fora do custo real) + nota. Ligado na `SaleModal` (por item) e
+  no `/vendas` (por venda, escala pela qtd) — responde à confusão do dono de ver o custo "menor" na
+  venda; **matemática mantida** (só exibição). Versão inline anterior descartada (refluía a tabela / o
+  modal com scroll cortava). `lint`+`build` limpos. Antes nesta leva: **BUG-01** (hora decimal não soma mais com minutos) ✅.
   Backlog de bugs: **BUG-06** ✅ (material "só PLA" = projetado); **BUG-02/03** a fazer. **Contexto
   macro abaixo (Tier 1 fechado).**
 - **Contexto macro:** **Passo 8 — Fase 8c (D7): `material` derivado. FEAT-02 e TIER 1 FECHADOS.**
@@ -670,10 +671,11 @@ pendente da auditoria.
   impressão. Depois do FEAT-04 as falhas reais viram eventos `outcome:falha` próprios (consomem
   filamento+hora) → embutir a reserva em cada peça boa **dobraria a contagem**. **Matemática mantida.**
   Como o dono achou confuso ver o custo "menor" na venda, foi criado o `CostDetail` (componente
-  compartilhado, expansível): mostra o **custo real** (base do lucro) + a **composição do custo
+  compartilhado): o gatilho mostra o **custo real** (base do lucro) e abre uma **janela flutuante
+  (Popover API nativa, top-layer — não é cortada pelo scroll do modal)** com a **composição do custo
   precificado** (os 8 componentes, com reserva/fixo/acessórios marcados como provisões fora do custo
   real) + nota explicativa. Ligado na **SaleModal** (por item) e no **/vendas** (por venda, escala pela
-  qtd). Custo real segue número único congelado (não decomposto); o breakdown exibido é o `costBreakdown`
+  qtd). Popover inline foi descartado — refluía a linha da tabela e o modal com scroll cortava o painel. Custo real segue número único congelado (não decomposto); o breakdown exibido é o `costBreakdown`
   do snapshot (catálogo hoje, stopgap; vira o congelado da produção quando o FEAT-06 chegar — o UI já
   aguenta). Só exibição, sem mudança de cálculo.
 - ✅ **[BUG-06] Coluna Material mostra só "PLA" (sem a marca) — ❌ improcede (é o PROJETADO). Decidido
