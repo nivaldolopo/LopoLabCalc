@@ -13,8 +13,9 @@
 
 1. **Bugs de teste visual**: **BUG-03** → **BUG-02**.
 2. **UX / organização** *(barato, alto valor diário)*: **UX-01** (barra de navegação unificada) →
-   **FEAT-07** (página de catálogo dedicada). UX-01 antes: com a barra unificada, o catálogo vira só
-   **+1 item** num componente único, não em 6 barras hand-rolled.
+   **FEAT-07** (página de catálogo dedicada) → **FEAT-08** (ações "Produzir"/"Orçar" no card). UX-01
+   antes: com a barra unificada, o catálogo vira só **+1 item** num componente único, não em 6 barras
+   hand-rolled. FEAT-08 mexe no mesmo card do FEAT-07.
 3. **Tier 2** (features comerciais, independentes): **FEAT-03** (PDF melhor) · **branding/logo real**
    no PDF · **FEAT-06** (aba Produtos rica).
 4. **Tier 3** (adiar até ter volume de vendas): **Dashboard** (`/painel`) + **TD-003** · **TD-006**.
@@ -54,6 +55,13 @@
   estado entre páginas. **Não confundir com FEAT-06:** catálogo = definições vivas do produto; aba
   Produtos do `/estoque` = acabados físicos com custo congelado. **Onde:** nova rota + mover
   `ProductCatalog`; ajustar `PricingCalculator`.
+- **[FEAT-08] Ações "Produzir" e "Orçar" no card do catálogo** *(pequeno; mesmo card do FEAT-07)*. Hoje
+  cada item só tem **Editar / Excluir / Registrar venda** — a venda era o único destino quando o app
+  era só calculadora. Com produção e orçamento já existindo, adicionar **"Produzir item"** (→
+  `/producao` com o produto pré-selecionado) e **"Orçar item"** (→ `/orcamento` com o produto já como
+  linha). **Wrinkle:** ambos são **cross-page com seed do produto** (mesmo padrão do "editar" do
+  FEAT-07 — query `?...=<id>` ou store compartilhado); "Registrar venda" continua abrindo o modal na
+  própria página. **Onde:** `ProductCatalog` (card), `ProductionPage`/`QuotePage` pra receber o seed.
 
 ### Tier 2 — comerciais
 - **[FEAT-03] Melhorar o PDF do orçamento** *(guarda-chuva)*. Ideias-semente (o dono escolhe o que vira
