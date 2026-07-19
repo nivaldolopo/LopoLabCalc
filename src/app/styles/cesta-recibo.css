@@ -165,21 +165,32 @@
   color: var(--muted);
 }
 
-.cost-detail-table {
+/* Regras escopadas sob `.cost-detail-pop` DE PROPÓSITO: a tabela vive dentro de um
+   `td.ri-cost` no /vendas, então `.recibo-items td` (nowrap + padding 12px + borda)
+   casaria com estas células e, por vir depois no arquivo com mesma especificidade,
+   venceria — reaplicando nowrap e estourando a largura (scroll lateral). O prefixo
+   `.cost-detail-pop` sobe a especificidade e blinda. `table-layout: fixed` garante
+   que a tabela nunca passe da largura do popover. */
+.cost-detail-pop .cost-detail-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
-.cost-detail-table td {
+.cost-detail-pop .cost-detail-table td {
   padding: 2px 0;
+  border: 0;
+  white-space: normal;
   color: var(--fg);
 }
 
-.cost-detail-table td.num {
+.cost-detail-pop .cost-detail-table td.num {
+  width: 96px;
   text-align: right;
+  white-space: nowrap;
 }
 
-.cost-detail-divider td {
+.cost-detail-pop .cost-detail-divider td {
   padding-top: 8px;
   font-size: 11px;
   letter-spacing: 0.04em;
@@ -187,17 +198,17 @@
   color: var(--muted);
 }
 
-.cost-detail-prov td {
+.cost-detail-pop .cost-detail-prov td {
   color: var(--muted);
 }
 
-.cost-detail-total td {
+.cost-detail-pop .cost-detail-total td {
   padding-top: 6px;
   border-top: 1px solid var(--border-soft);
   font-weight: 600;
 }
 
-.cost-detail-total.real td {
+.cost-detail-pop .cost-detail-total.real td {
   color: var(--green);
 }
 
