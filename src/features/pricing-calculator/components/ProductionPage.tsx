@@ -27,6 +27,7 @@ import {
   buildProductionPayloads,
   nextRowKey,
   planEventRows,
+  scaleRow,
   subitemEventRows,
   wholeEventRows,
   type EventRow,
@@ -105,6 +106,9 @@ export function ProductionPage() {
 
   const [selectedKey, setSelectedKey] = useState("");
   const [rows, setRows] = useState<EventRow[]>([]);
+  // BUG-02: uma submissão pode ser P PLACAS de uma vez (o quiosque imprime a mesa
+  // cheia). Escala filamento/horas e os acabados; default 1.
+  const [plates, setPlates] = useState(1);
   const [outcome, setOutcome] = useState<ProductionOutcome>("estoque");
   const [mode, setMode] = useState<ProductionMode>("real");
   const [dateStr, setDateStr] = useState(todayInputValue());
@@ -172,6 +176,7 @@ export function ProductionPage() {
   function selectOption(key: string) {
     setSelectedKey(key);
     setFeedback(null);
+    setPlates(1);
     if (key === "avulso") {
       setRows([avulsoRow()]);
       return;
@@ -260,21 +265,31 @@ export function ProductionPage() {
 
   // Planeja as linhas via builder compartilhado (baixa FIFO encadeada + custo
   // congelado). `genId` gera o id de cada evento (real ao salvar; fixo no preview).
+  // BUG-02: escala as linhas (placa inteira) por `plates` antes de planejar → o
+  // filamento/horas deduzidos e exibidos = P placas.
   const planEvents = (genId: () => string) =>
-    planEventRows(rows, mode, stock, machines, genId);
+    planEventRows(
+      rows.map((row) => scaleRow(row, Math.max(1, plates))),
+      mode,
+      stock,
+      machines,
+      genId,
+    );
 
   // Preview ao vivo (não grava): usa um id fixo — o itemId não importa aqui.
   const preview = useMemo(
     () => planEvents(() => "preview"),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, mode, stock, machines],
+    [rows, plates, mode, stock, machines],
   );
 
   // Delta do acabado da submissão (FEAT-05b). Só quando o desfecho é `estoque` e
-  // há produto (avulso não vira acabado). Uma submissão = UMA unidade; o custo é a
-  // soma do `frozenCost` de todos os eventos (dedup multi-máquina). As camadas são
-  // ancoradas no PRIMEIRO evento (`built[0].id`) — excluir aquele card estorna o
-  // acabado inteiro da submissão; cards de máquina secundária só estornam filamento.
+  // há produto (avulso não vira acabado). O custo é a soma do `frozenCost` de todos
+  // os eventos (dedup multi-máquina). As camadas são ancoradas no PRIMEIRO evento
+  // (`built[0].id`) — excluir aquele card estorna o acabado inteiro da submissão;
+  // cards de máquina secundária só estornam filamento.
+  // BUG-02: a submissão gera `units = piecesCount × placas` unidades (mesa de N
+  // peças × P placas), não 1 — cada acabado a `custo ÷ units`.
   function finishedForSave(
     built: ReturnType<typeof planEvents>["built"],
     totalFrozen: number,
@@ -295,6 +310,8 @@ export function ProductionPage() {
     if (!product) return null;
     const name = product.name || product.mainStageName || "(sem nome)";
     const subitems = pricingByProduct.get(productId)?.subitems ?? [];
+    const pieces = Math.max(1, num(product.piecesCount) || 1);
+    const units = pieces * Math.max(1, plates);
 
     const entries = submissionEntries(name, totalFrozen, {
       subitemId,
@@ -303,6 +320,7 @@ export function ProductionPage() {
         !subitemId && subitems.length > 0
           ? subitems.map((s) => ({ id: s.id, name: s.name, cost: s.cost }))
           : undefined,
+      units,
     });
 
     const good = goods.find((g) => g.id === productId) ?? null;
@@ -392,6 +410,7 @@ export function ProductionPage() {
       });
       setSelectedKey("");
       setRows([]);
+      setPlates(1);
       setNotes("");
     } catch (err) {
       setFeedback({ kind: "error", msg: errorMessage(err) });
@@ -423,6 +442,24 @@ export function ProductionPage() {
     () => [...events].sort((a, b) => b.at - a.at),
     [events],
   );
+
+  // BUG-02: peças por placa do produto selecionado (mesa de N), para escalar o
+  // acabado e mostrar quantas unidades saem. Avulso/sem produto = 1.
+  const selectedPieces = useMemo(() => {
+    let productId: string | undefined;
+    if (selectedKey.startsWith("whole:")) {
+      productId = selectedKey.slice("whole:".length);
+    } else if (selectedKey.startsWith("sub:")) {
+      productId = selectedKey.split(":")[1];
+    }
+    const product = productId
+      ? products.find((p) => p.id === productId)
+      : undefined;
+    return product ? Math.max(1, num(product.piecesCount) || 1) : 1;
+  }, [selectedKey, products]);
+
+  const finishedUnits = selectedPieces * Math.max(1, plates);
+  const isProductSelected = Boolean(selectedKey) && selectedKey !== "avulso";
 
   const canSave = rows.length > 0 && !saving;
 
@@ -631,6 +668,20 @@ export function ProductionPage() {
 
         {rows.length > 0 ? (
           <>
+            <div className="field-block compact">
+              <div className="section-label">
+                Quantas placas{" "}
+                <span className="label-hint">(tiragem desta impressão)</span>
+              </div>
+              <NumberInput
+                className="field-input"
+                min={1}
+                step="1"
+                value={plates}
+                onChange={(value) => setPlates(Math.max(1, Math.round(value)))}
+              />
+            </div>
+
             <div className="two-col">
               <div className="field-block compact">
                 <div className="section-label">Desfecho</div>
@@ -725,10 +776,18 @@ export function ProductionPage() {
                   ) : null}
                 </>
               )}
-              {outcome === "estoque" && selectedKey && selectedKey !== "avulso" ? (
+              {outcome === "estoque" && isProductSelected ? (
                 <div className="prod-note">
-                  → Entra no <strong>Estoque de Produtos</strong> (peça pronta) com
-                  o custo desta impressão.
+                  → Entra no <strong>Estoque de Produtos</strong>:{" "}
+                  <strong>
+                    {finishedUnits} {finishedUnits === 1 ? "peça" : "peças"}
+                  </strong>{" "}
+                  {selectedPieces > 1
+                    ? `(mesa de ${selectedPieces} × ${Math.max(1, plates)} placa${
+                        Math.max(1, plates) === 1 ? "" : "s"
+                      })`
+                    : null}{" "}
+                  com o custo desta impressão.
                 </div>
               ) : null}
             </div>

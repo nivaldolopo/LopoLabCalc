@@ -593,13 +593,19 @@ pendente da auditoria.
   **zera o campo de minutos** e emite só as horas (novo `onHoursChange`; blur/`normalize` → `11 h
   51 min`), em vez de somar com o resíduo (`11.85 + 30min = 12h 21min`, custo maior em silêncio). Sem
   fração, mantém o comportamento h + min. Só UI, sem migração. **Relacionado:** UX-02.
-- ⬜ **[BUG-02] Produção só registra UMA unidade por vez — ✅ procede (alta; é quiosque).**
-  `ProductionPage` (~linha 275): *"Uma submissão = UMA unidade"*. Não há campo de quantidade — pra
-  produzir 5 peças, submete 5x. Pro quiosque de mall (imprime placa com N peças de uma vez) é fricção
-  real e convida a erro de contagem. **Correção:** campo "quantidade (N)" na submissão que gere o
-  incremento do acabado × N (N camadas ou 1 camada com qty=N) e **baixa de filamento/hora × N** (o FIFO
-  precisa consumir N× o peso). Cuidar do estorno (excluir o evento devolve N). **Onde:** `ProductionPage`
-  + `finishedForSave`/`buildProductionPayloads` + `planProduction`. **Relacionado:** FEAT-04/05.
+- ✅ **[BUG-02] Produção/estoque/encomenda ignoravam o `piecesCount` (mesa de N peças) — FEITO
+  (2026-07-19).** O dono reclassificou como URGENTE e furou a fila pré-marco (fundação de dado,
+  Diretriz 7). **Modelo (o MESMO da precificação): 1 evento = 1 placa** → baixa filamento/horas 1×,
+  credita **N = `piecesCount`** acabados a `custo÷N`. Mudanças: `submissionEntries` (`finishedGoods.ts`)
+  ganhou `units` (= peças×placas) e cada acabado vira `qty:units`/`unitCost = custo÷units` (fim do
+  `qty:1` cravado); `subitemEventRows` (`productionPlan.ts`) multiplica o labor por `pieces` — o
+  `SubitemPrice` mistura escalas (`printHours`/`filaments` crus × `costBreakdown` ÷peça), então o labor
+  precisava voltar pra placa senão o `frozenCost` somava material cru + labor por peça; `scaleRow`
+  centralizado em `productionPlan.ts` (era só da encomenda); `/producao` ganhou o campo **"Quantas
+  placas"** (P) que escala rows por P e credita `piecesCount×P` acabados; a **encomenda**
+  (`saleReconciliation.ts`) escala por `qty÷pieces` (decisão do dono: corrigir junto — baixa/COGS por
+  peça batem com o preço; make-to-order não estoca as peças sobrando de placa parcial). O estorno é
+  round-trip automático (os `stockMoves`/camadas gravados já vêm escalados). +5 testes (189 verdes).
 - ⬜ **[BUG-03] Histórico de vendas e extrato de rolos fora de ordem — ✅ procede, MESMA raiz (média).**
   Diagnóstico do dono certo: **só guarda DIA, não hora.** `saleDate` e `purchaseDate`/`at` vêm de
   `<input type=date>` (meia-noite). Eventos do mesmo dia empatam → a ordem cai no que o Firestore
@@ -647,8 +653,9 @@ pendente da auditoria.
   FEITO (tempo em h+min); (5) ~~**UX-01**~~ FEITO (zero à esquerda, componente `NumberInput`).
   **Tier 0 e Tier 1 ✅ FECHADOS — próximo: Tier 2.**
 - **Bugs de teste visual (jul/2026) — atacar antes do Tier 2:** ~~**BUG-01**~~ **✅ FEITO** (hora
-  decimal não soma mais com minutos) → **BUG-03** (ordenar venda/extrato por `createdAt`, barato, mesma
-  raiz "só dia") → **BUG-02** (quantidade N na produção, médio). ~~**BUG-06**~~ **✅ RESOLVIDO**
+  decimal não soma mais com minutos) → ~~**BUG-02**~~ **✅ FEITO** (piecesCount na produção/estoque/
+  encomenda; ver acima) → **BUG-03** (ordenar venda/extrato por `createdAt`, barato, mesma raiz "só
+  dia"). ~~**BUG-06**~~ **✅ RESOLVIDO**
   (material "só PLA" é o projetado; dono escolheu manter só o material — sem mudança de código).
   ~~**NOTA** custo congelado sem reserva de falha~~ **✅ TRANSPARÊNCIA ADICIONADA** (`CostDetail`
   expansível na venda e no /vendas — custo real vs. precificado; matemática mantida). Detalhe no bloco

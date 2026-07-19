@@ -204,6 +204,28 @@ describe("planReciboReconciliation — encomenda (dispara produção)", () => {
     expect(recon.items[0].cogsUnit).toBeCloseTo(recon.items[0].cogsTotal / 3);
   });
 
+  it("BUG-02: piecesCount=N divide a placa por peça (baixa e COGS por peça)", () => {
+    // Mesa de 4 peças; o produto guarda a PLACA (100 g). Vender 2 peças = 2/4 de
+    // placa → 50 g deduzidos, horas 2/4 da placa, COGS/peça = placa÷4.
+    const mesa = makeProduct({
+      piecesCount: 4,
+      filaments: [
+        { filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 },
+      ],
+    });
+    const recon = planReciboReconciliation(
+      [encomendaItem({ quantity: 2 })],
+      ctx({ products: [mesa], colors: [makeColor("preto", [{ remainingG: 1000 }])] }),
+    );
+    expect(balanceG(recon.colorUpdates[0])).toBe(950); // 1000 − 50
+    const payload = recon.productionPayloads[0].payload;
+    expect(payload.stockMoves.reduce((s, m) => s + m.qty, 0)).toBeCloseTo(50);
+    expect(payload.printHours).toBeCloseTo(
+      (2 / 4) * DEFAULT_PRODUCT_INPUT.printHours,
+    );
+    expect(recon.items[0].cogsUnit).toBeCloseTo(recon.items[0].cogsTotal / 2);
+  });
+
   it("D5: encomenda que atravessa rolo / estoura o estoque sinaliza avisos", () => {
     const recon = planReciboReconciliation(
       [encomendaItem()], // precisa de 100 g

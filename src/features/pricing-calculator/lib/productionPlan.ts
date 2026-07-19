@@ -173,6 +173,12 @@ export function wholeEventRows(
 
 // Linha-evento de UM subitem vendável (o `SubitemPrice` já vem calculado). A
 // máquina exibida sai do `machineUsage` do subitem, então não precisa da lista.
+//
+// ⚠ BUG-02: o evento representa 1 PLACA (crua), como `wholeEventRows`. O
+// `SubitemPrice` mistura escalas — `printHours`/`filaments` são CRUS (placa
+// inteira), mas o `costBreakdown` já vem dividido por `piecesCount` (por peça).
+// Multiplico o labor de volta por `pieces` para a linha ficar toda em termos de
+// placa; senão o `frozenCost` somaria material cru + labor por peça (subestimado).
 export function subitemEventRows(
   product: SavedProduct,
   subitem: SubitemPrice,
@@ -180,6 +186,7 @@ export function subitemEventRows(
 ): EventRow[] {
   const base = product.name || product.mainStageName || "(sem nome)";
   const primary = subitem.machineUsage[0];
+  const pieces = Math.max(1, num(product.piecesCount) || 1);
   return [
     {
       key: nextRowKey(),
@@ -189,10 +196,24 @@ export function subitemEventRows(
       machineId: primary?.machineId ?? product.machineId,
       printHours: subitem.printHours,
       filaments: subitem.filaments.map((f) => resolveFilRow(f, stock)),
-      laborCost: subitem.costBreakdown.labor,
+      laborCost: subitem.costBreakdown.labor * pieces,
       energyTariff: productEnergyTariff(product),
     },
   ];
+}
+
+// Escala uma linha-evento por um fator (placa inteira → P placas na /producao, ou
+// qty/pieces por peça na encomenda): horas, labor e gramas por cor acompanham. O
+// FIFO consome `fator ×` as gramas (custo misto exato) e energia/deprec./manut.
+// seguem as horas. Um evento representa a tiragem inteira, não 1 unidade.
+export function scaleRow(row: EventRow, factor: number): EventRow {
+  const f = num(factor);
+  return {
+    ...row,
+    printHours: row.printHours * f,
+    laborCost: row.laborCost * f,
+    filaments: row.filaments.map((fil) => ({ ...fil, totalG: fil.totalG * f })),
+  };
 }
 
 // Uma linha planejada: a linha + a baixa que geraria + o custo congelado.

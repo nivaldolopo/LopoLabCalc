@@ -29,18 +29,22 @@ export type FinishedEntry = {
 
 /**
  * Delta do acabado de UMA submissão da /producao (FEAT-05b). PURA. Só chamada
- * quando `outcome === "estoque"` e há produto (avulso não vira acabado). Uma
- * submissão = UMA unidade física (dedup multi-máquina: N eventos, mas 1 peça),
- * então toda entrada tem `qty: 1`. O `totalFrozenCost` é a soma do `frozenCost`
- * de TODOS os eventos da submissão (o custo real da unidade inteira).
+ * quando `outcome === "estoque"` e há produto (avulso não vira acabado). O
+ * `totalFrozenCost` é a soma do `frozenCost` de TODOS os eventos da submissão (o
+ * custo real da tiragem inteira — dedup multi-máquina: N eventos, mas uma placa).
+ *
+ * ⚠ BUG-02: uma submissão = `units` unidades físicas, NÃO 1. `units =
+ * piecesCount × placas` — uma placa de N peças gera N acabados, e P placas geram
+ * N×P. Cada entrada leva `qty: units` e `unitCost = custo_da_parte ÷ units`, de
+ * modo que o valor total (qty × unitCost) some exatamente o `totalFrozenCost` (a
+ * mesma matemática ÷N da precificação; espelha o preço/peça correto).
  *
  * Três formas:
- *  - subitem avulso selecionado (`subitemId` dado) → 1 SKU daquele subitem, custo
- *    inteiro;
+ *  - subitem avulso selecionado (`subitemId` dado) → 1 SKU daquele subitem;
  *  - inteiro COM subitens (`subitems` não vazio) → 1 SKU por subitem, rateando o
  *    `totalFrozenCost` pelas proporções do `SubitemPrice.cost` (aditivo/FEAT-01;
  *    se Σcost = 0, divide igual — degenerado);
- *  - inteiro SEM subitens → 1 SKU do inteiro, custo inteiro.
+ *  - inteiro SEM subitens → 1 SKU do inteiro.
  */
 export function submissionEntries(
   productName: string,
@@ -49,17 +53,19 @@ export function submissionEntries(
     subitemId?: string;
     subitemName?: string;
     subitems?: { id: string; name: string; cost: number }[];
+    units?: number;
   } = {},
 ): FinishedEntry[] {
   const total = num(totalFrozenCost);
+  const units = Math.max(1, Math.round(num(opts.units ?? 1)));
 
   if (opts.subitemId) {
     return [
       {
         subitemId: opts.subitemId,
         name: opts.subitemName || productName,
-        qty: 1,
-        unitCost: total,
+        qty: units,
+        unitCost: total / units,
       },
     ];
   }
@@ -67,16 +73,19 @@ export function submissionEntries(
   const subs = opts.subitems ?? [];
   if (subs.length > 0) {
     const sumCost = subs.reduce((sum, s) => sum + num(s.cost), 0);
-    return subs.map((s) => ({
-      subitemId: s.id,
-      name: s.name,
-      qty: 1,
-      unitCost:
-        sumCost > 0 ? total * (num(s.cost) / sumCost) : total / subs.length,
-    }));
+    return subs.map((s) => {
+      const partCost =
+        sumCost > 0 ? total * (num(s.cost) / sumCost) : total / subs.length;
+      return {
+        subitemId: s.id,
+        name: s.name,
+        qty: units,
+        unitCost: partCost / units,
+      };
+    });
   }
 
-  return [{ name: productName, qty: 1, unitCost: total }];
+  return [{ name: productName, qty: units, unitCost: total / units }];
 }
 
 // Chave estável da SKU: o subitem, ou a sentinela do inteiro. Duas entradas da

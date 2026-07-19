@@ -272,6 +272,39 @@ describe("submissionEntries (delta da submissão — FEAT-05b)", () => {
     expect(entries[1].unitCost).toBe(5);
   });
 
+  it("BUG-02: units = piecesCount × placas → N acabados a custo ÷ units (inteiro)", () => {
+    // Mesa de 4 peças, placa custou 40 → 4 acabados a 10 cada (valor conservado).
+    const entries = submissionEntries("Boneco", 40, { units: 4 });
+    expect(entries).toEqual([{ name: "Boneco", qty: 4, unitCost: 10 }]);
+    expect(entries[0].qty * entries[0].unitCost).toBeCloseTo(40);
+  });
+
+  it("BUG-02: units + rateio de subitens → cada SKU N unidades a (parte ÷ N)", () => {
+    const entries = submissionEntries("Kit", 30, {
+      units: 4, // mesa de 4
+      subitems: [
+        { id: "a", name: "Base", cost: 6 },
+        { id: "b", name: "Topo", cost: 4 },
+      ],
+    });
+    expect(entries[0]).toEqual({ subitemId: "a", name: "Base", qty: 4, unitCost: 4.5 }); // 18/4
+    expect(entries[1]).toEqual({ subitemId: "b", name: "Topo", qty: 4, unitCost: 3 }); // 12/4
+    // valor total (qty × unitCost) = 30 (aditivo, conservado)
+    const val = entries.reduce((s, e) => s + e.qty * e.unitCost, 0);
+    expect(val).toBeCloseTo(30);
+  });
+
+  it("BUG-02: units no subitem avulso selecionado", () => {
+    const entries = submissionEntries("Kit", 12, {
+      subitemId: "a",
+      subitemName: "Base",
+      units: 4,
+    });
+    expect(entries).toEqual([
+      { subitemId: "a", name: "Base", qty: 4, unitCost: 3 },
+    ]);
+  });
+
   it("empilhada por addProductionLayers, o inteiro montável = 1 (min das partes)", () => {
     // Uma submissão do inteiro com 2 subitens vira +1 em cada → 1 conjunto.
     const entries = submissionEntries("Kit", 30, {

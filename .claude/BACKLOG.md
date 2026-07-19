@@ -11,22 +11,17 @@
 
 ## Ordem de prioridade
 
-1. **Bug de fundação de dado (URGENTE, atacar 1º)**: **BUG-02** (produção/estoque ignoram
-   `piecesCount`). Furou a fila pré-marco por decisão do dono (2026-07-19): é **bug de correção vivo**
-   que grava estoque de filamento, contagem de acabados e **COGS** errados na mesa de N peças → é a
-   fundação de dado que a Diretriz 7 manda proteger, não dado descartável. A matemática já existe pronta
-   na precificação (dividir tudo por `piecesCount`) — é espelhar o mesmo modelo na produção.
-2. **Bug barato**: **BUG-03** (ordenação por `createdAt`).
-3. **UX / organização** *(barato, alto valor diário)*: **UX-01** (barra de navegação unificada) →
+1. **Bug barato (atacar 1º)**: **BUG-03** (ordenação por `createdAt`).
+2. **UX / organização** *(barato, alto valor diário)*: **UX-01** (barra de navegação unificada) →
    **FEAT-07** (página de catálogo dedicada) → **FEAT-08** (ações "Produzir"/"Orçar" no card). UX-01
    antes: com a barra unificada, o catálogo vira só **+1 item** num componente único, não em 6 barras
    hand-rolled. FEAT-08 mexe no mesmo card do FEAT-07.
-4. **Tier 2** (features comerciais, independentes): **FEAT-03** (PDF melhor) · **branding/logo real**
+3. **Tier 2** (features comerciais, independentes): **FEAT-03** (PDF melhor) · **branding/logo real**
    no PDF · **FEAT-06** (aba Produtos rica).
-5. **Tier 3** (adiar até ter volume de vendas): **Dashboard** (`/painel`) + **TD-003** · **TD-006**.
-6. **Tier 4** (menores/oportunistas): numeração de orçamento no browser · labor na reserva de falha ·
+4. **Tier 3** (adiar até ter volume de vendas): **Dashboard** (`/painel`) + **TD-003** · **TD-006**.
+5. **Tier 4** (menores/oportunistas): numeração de orçamento no browser · labor na reserva de falha ·
    **DEC-01 pendência** (semântica do `contributionMargin`).
-7. **Item próprio (quando o dono quiser):** **7e — Insumos** no estoque.
+6. **Item próprio (quando o dono quiser):** **7e — Insumos** no estoque.
 
 > Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
@@ -38,28 +33,9 @@
   **dia**, não hora → eventos do mesmo dia empatam. Alavanca: venda e evento de produção **já gravam
   `createdAt`** (timestamp cheio) → usar como desempate. **Onde:** `SalesPage` (sort por `saleDate`),
   `stock.ts` `colorStatement` (sort por `at`). Detalhe/diagnóstico em `HISTORICO.md`.
-- **[BUG-02] Produção/estoque IGNORA o `piecesCount` (mesa de N peças)** *(bug de dado — os dois lados
-  do app divergem; engloba o antigo "registrar N repetidos")*. O produto guarda a **placa inteira**
-  (filamento/horas) + o campo **"🔢 Peças por impressão"** (N). **Precificação ✓:** `calculatePricing`
-  divide TUDO por N (material, energia, depreciação, manutenção, fixo) → preço/peça correto; a
-  capacidade também usa N. **Produção/estoque ✗:** `productionPlan.ts`/`finishedGoods.ts` **nunca leem
-  `piecesCount`** — baixam `printHours`/gramas **crus** (= placa) e creditam **`qty: 1`** com frozenCost
-  = placa inteira. Consequência (mesa de 4, 80 g, 2,5 h, N=4): **1 registro/placa** = baixa certa mas
-  **1 acabado 4× caro** e faltam 3; **4 registros** = 4 acabados mas **4× filamento e 4× horas**
-  (super-conta a máquina). Ambos distorcem estoque de filamento, contagem de acabados e **COGS**.
-  - **Modelo correto (o MESMO da precificação):** **1 registro de produção = 1 placa** → baixa
-    filamento/horas da placa **1×**, credita **N = `piecesCount`** acabados, cada um frozenCost = placa
-    ÷ N. O "campo quantidade" do quiosque vira **"quantas placas"** (multiplica filamento, horas e
-    acabados por placas). Estorno devolve tudo × placas.
-  - **Onde:** `wholeEventRows`/`subitemEventRows` + `planEventRows` (hoje não dividem/multiplicam por
-    peça — **auditar o caminho de subitem junto**, que já mistura horas cruas com custo ÷peça),
-    `submissionEntries` (`finishedGoods.ts`, crava `qty:1`), `buildProductionPayloads`, `ProductionPage`
-    (campo placas + UI). **Testar:** acabados criados = N × placas e a baixa 1× batem com a precificação
-    ÷ N (mesma matemática dos dois lados — igual ao invariante do passo 8). Detalhe em `HISTORICO.md`.
-  - **⚠ Prioridade:** a metade "ignora `piecesCount`" é **bug de correção VIVO** (não só a conveniência
-    de repetir) → fundação de dado que a Diretriz 7 manda proteger. O dono adiou p/ pós-marco quando
-    parecia só "registrar repetidos"; **em 2026-07-19 reclassificou como URGENTE e furou a fila** — é a
-    próxima tarefa (topo da Ordem de prioridade).
+- ~~**[BUG-02]** Produção/estoque ignoravam o `piecesCount`~~ **✅ FEITO (2026-07-19)** — 1 evento = 1
+  placa credita N acabados a custo÷N; encomenda ÷pieces; `/producao` com campo "Quantas placas". Detalhe
+  em `HISTORICO.md`.
 
 ### UX / navegação e organização
 - **[UX-01] Barra de navegação unificada** *(barato, alto valor diário; atacar 1º deste grupo)*. Hoje

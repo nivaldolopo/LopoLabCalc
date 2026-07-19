@@ -9,6 +9,7 @@ import { reverseProduction } from "./production";
 import {
   buildProductionPayloads,
   planEventRows,
+  scaleRow,
   subitemEventRows,
   wholeEventRows,
   type EventRow,
@@ -95,18 +96,6 @@ const toPayload = (good: FinishedGood): FinishedGoodPayload => ({
   skus: good.skus,
   createdAt: good.createdAt,
 });
-
-// Escala uma linha-evento para `qty` unidades: horas, labor e gramas por cor. O
-// FIFO consome `qty ×` as gramas (custo misto exato), e energia/deprec./manutenção
-// acompanham as horas — um evento representa a encomenda inteira, não 1 unidade.
-function scaleRow(row: EventRow, qty: number): EventRow {
-  return {
-    ...row,
-    printHours: row.printHours * qty,
-    laborCost: row.laborCost * qty,
-    filaments: row.filaments.map((f) => ({ ...f, totalG: f.totalG * qty })),
-  };
-}
 
 // Estado mutável do estoque durante a reconciliação (cores + acabados), com o
 // conjunto do que foi TOCADO — é o que permite o estorno-e-reaplicação da edição
@@ -232,7 +221,13 @@ function applyForward(
       rows = wholeEventRows(product, ctx.machines, colorsNow);
     }
 
-    const scaled = rows.map((row) => scaleRow(row, qty));
+    // BUG-02: os builders devolvem 1 PLACA (crua) de N = `piecesCount` peças. A
+    // encomenda vende `qty` PEÇAS, então imprime `qty/pieces` placas → filamento e
+    // COGS por peça = placa÷N, batendo com o preço de venda por peça. (Encomenda
+    // não estoca as peças sobrando de uma placa parcial — o make-to-order não cria
+    // acabado; decisão do dono.)
+    const pieces = Math.max(1, num(product.piecesCount) || 1);
+    const scaled = rows.map((row) => scaleRow(row, qty / pieces));
     const planned = planEventRows(scaled, "real", colorsNow, ctx.machines, ctx.genId);
     for (const color of planned.colorUpdates) {
       state.colorsById.set(color.id, color);
