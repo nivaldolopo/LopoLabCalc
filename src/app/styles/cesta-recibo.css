@@ -121,7 +121,7 @@
    getBoundingClientRect; a UA já dá position:fixed e a top-layer. `white-space:
    normal` reseta o nowrap herdado das células da tabela (senão rolava pro lado). */
 .cost-detail-pop {
-  width: 300px;
+  width: 360px;
   max-width: calc(100vw - 16px);
   margin: 0;
   padding: 14px;
