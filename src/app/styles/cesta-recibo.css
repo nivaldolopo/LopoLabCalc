@@ -173,6 +173,9 @@
    que a tabela nunca passe da largura do popover. */
 .cost-detail-pop .cost-detail-table {
   width: 100%;
+  /* Anula o `table { min-width: 600px }` global (catalog.css) — era ELE que
+     forçava a tabela interna a 600px e estourava o popover (scroll lateral). */
+  min-width: 0;
   table-layout: fixed;
   border-collapse: collapse;
 }
