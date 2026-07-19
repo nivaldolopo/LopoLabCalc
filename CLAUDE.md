@@ -2,14 +2,15 @@
 
 > Este arquivo é lido automaticamente pelo Claude Code no início de cada conversa.
 > Leia as **Diretrizes de trabalho** antes de qualquer ação.
-> **Backlog, decisões (D1–D8), auditoria, features e histórico** vivem em
-> [`.claude/BACKLOG.md`](.claude/BACKLOG.md) — leia **sob demanda** ao pegar um item; **não** os
-> traga de volta pra cá (Diretrizes 5 e 8).
+> **Três arquivos, três papéis** (ver Diretriz 8): este `CLAUDE.md` = foto do AGORA + próxima tarefa
+> (auto, todo turno) · [`.claude/BACKLOG.md`](.claude/BACKLOG.md) = a-fazer/roadmap (leia pra escolher
+> tarefa; curto) · [`.claude/HISTORICO.md`](.claude/HISTORICO.md) = feito + decisões D1–D8 + auditoria
+> (leia sob demanda pro *porquê*; pesado). **Não** traga o conteúdo desses dois de volta pra cá.
 
 ## Status atual (contexto de continuidade)
 
 > Foto do **AGORA** para abrir um chat novo por tarefa. Curto e atual — não é histórico (o git guarda
-> o detalhe; o backlog guarda o porquê). Regras de tamanho nas Diretrizes 5 e 8.
+> o detalhe; o `HISTORICO.md` guarda o porquê). Regras de tamanho nas Diretrizes 5 e 8.
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
@@ -21,10 +22,10 @@
   **Só exibição — matemática mantida.** `lint`+`build` limpos.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
-  **Próximo: Tier 2** — FEAT-03 (PDF melhor), branding/logo real, FEAT-06 (aba Produtos rica, opção b).
-  Ordem completa e decisões em [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
-- **Bugs em aberto:** **BUG-03** (ordenar venda/extrato por `createdAt` — hoje só guardam o dia) →
-  **BUG-02** (campo quantidade N na produção). Detalhe no backlog.
+- **▶ PRÓXIMA TAREFA sugerida:** **BUG-03** (ordenar venda/extrato por `createdAt` — hoje só guardam o
+  dia; barato) → depois **BUG-02** (campo quantidade N na produção) → então **Tier 2** (FEAT-03 PDF,
+  branding/logo, FEAT-06 aba Produtos rica). **Roadmap completo dos abertos:**
+  [`.claude/BACKLOG.md`](.claude/BACKLOG.md). **Porquê/decisões:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Gotcha vivo:** COGS armazenado = **custo real** (unitCost/lucro/margem); `costBreakdown` = o do
   snapshot do catálogo (**stopgap** informativo) até o FEAT-06 congelar a composição na produção;
   **acessórios ficam fora do COGS** até o 7e (insumos).
@@ -37,7 +38,7 @@
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **TO-DO macro em aberto:** **7e** (insumos no estoque — item próprio depois do filamento),
   **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas), **logo real** no PDF do orçamento
-  (placeholder hoje). Detalhe no backlog.
+  (placeholder hoje). Todos em [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
 - **Decisões encerradas:** variáveis de Preview do Firebase não cadastradas (só Production, Diretriz 1);
   conversão peso↔metragem **descartada** pelo dono (não repropor).
 
@@ -182,7 +183,8 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
   - Prefira consolidar em bullets estáveis ("Concluído (macro)", "TO-DO", "Próximo passo")
     a acumular parágrafos de implementação (isso mora no código e no `git log`).
   - Contexto de **por que** uma decisão foi tomada (D1–D8, TD-*, FEAT-*) vai pro
-    [`.claude/BACKLOG.md`](.claude/BACKLOG.md), não pro Status. **Ver a Diretriz 8** — a faxina de
+    [`.claude/HISTORICO.md`](.claude/HISTORICO.md); item aberto vai pro
+    [`.claude/BACKLOG.md`](.claude/BACKLOG.md) — não pro Status. **Ver a Diretriz 8** — a faxina de
     tamanho vale pro arquivo INTEIRO, não só pra esta seção.
 - Objetivo: permitir abrir um **chat novo por tarefa** e continuar sem perder contexto,
   evitando um único chat com contexto gigante.
@@ -223,22 +225,26 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 - **Esta diretriz expira** quando o dono declarar a ferramenta madura e recadastrar. **Depois disso,
   migração volta a ser obrigatória** — reler esta diretriz antes de assumir que ela ainda vale.
 
-### 8. Manter o CLAUDE.md INTEIRO enxuto (não só o "Status atual")
-- **Por que importa:** este arquivo é **re-enviado ao modelo a cada turno de cada conversa** — cada
-  linha aqui é custo de token multiplicado por toda a conversa. Enxugá-lo é a alavanca mais forte de
-  consumo. (Antes desta faxina o arquivo tinha ~960 linhas / ~20k tokens por turno; hoje ~260.)
-- **Confira o arquivo INTEIRO, não só o tamanho do "Status atual".** Ao concluir uma tarefa, releia o
-  `CLAUDE.md` como um todo e, para cada bloco, pergunte: *isto é preciso em TODA conversa, ou é
-  histórico/detalhe de um item específico?* Se for a segunda coisa, **não pertence aqui**.
-- **Fica no `CLAUDE.md` (o que o modelo precisa SEMPRE):** foto do AGORA (Status), stack/estrutura,
-  as diretrizes, infra de deploy, comandos úteis.
-- **Vai pro [`.claude/BACKLOG.md`](.claude/BACKLOG.md) (lido sob demanda):** backlog e prioridades,
-  decisões de design (D1–D8), auditoria (TD-*), features (FEAT-*), bugs, e qualquer "por que
-  decidimos X". Ao pegar um item, **leia o backlog** — não o copie de volta pro `CLAUDE.md`.
-- **Item concluído vira UMA linha** (some do Status, entra como `✅` no backlog). Não empilhar
-  parágrafos de implementação nem correntes `Antes: … Antes: …` — isso mora no código e no `git log`.
-- **Alvo prático:** `CLAUDE.md` **≤ ~270 linhas**. Se passar muito disso, virou changelog → mover
-  detalhe pro backlog. Esta verificação é parte de "concluir a tarefa", igual ao `lint`/`build`.
+### 8. Manter o CLAUDE.md INTEIRO enxuto — e a doc dividida em 3 arquivos por custo de token
+- **Por que importa:** só o `CLAUDE.md` é **auto-carregado no início de todo chat e re-enviado a cada
+  turno** — cada linha aqui é token multiplicado por toda conversa. Os outros dois só entram em contexto
+  **quando eu os leio** (`Read`), e só nos chats que precisam. Por isso a divisão abaixo. (Antes da
+  faxina, tudo isto estava num `CLAUDE.md` de ~960 linhas / ~20k tokens por turno.)
+- **Os 3 arquivos e seus papéis:**
+  - **`CLAUDE.md`** (auto, todo turno · alvo **≤ ~270 linhas**): foto do AGORA (Status) + **a próxima
+    tarefa sugerida**, stack/estrutura, as diretrizes, infra de deploy, comandos. O que o modelo precisa
+    **em TODA conversa**.
+  - **[`.claude/BACKLOG.md`](.claude/BACKLOG.md)** (a-fazer / roadmap · curto): só os itens **abertos** +
+    ordem de prioridade. É o que se lê pra **escolher/rever** a próxima tarefa e ver "o que mais falta".
+  - **[`.claude/HISTORICO.md`](.claude/HISTORICO.md)** (feito + decisões · pesado): D1–D8, auditoria
+    (TD-*), e writeups do que já foi **concluído**. Lido **só** quando um item precisa do *porquê*.
+- **Ao concluir uma tarefa, confira o arquivo INTEIRO** (não só o "Status"): releia o `CLAUDE.md` como
+  um todo e, para cada bloco, pergunte *isto é preciso em TODA conversa?* Se for detalhe de um item ou
+  histórico, move: o **porquê** de decisão/o item concluído → `HISTORICO.md`; um item que **virou a-fazer**
+  → `BACKLOG.md`; e atualize a **próxima tarefa** no Status. Nunca copiar de volta pro `CLAUDE.md`.
+- **Item concluído:** some do Status, vira `✅` de UMA linha no `HISTORICO.md` (o writeup detalhado, se
+  útil, também vai pra lá). Não empilhar parágrafos nem correntes `Antes: … Antes: …` — código + `git log`.
+- Esta verificação de tamanho/divisão é parte de "concluir a tarefa", igual ao `lint`/`build`.
 
 ## Infra / referência de deploy
 
