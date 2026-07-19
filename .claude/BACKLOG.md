@@ -11,20 +11,22 @@
 
 ## Ordem de prioridade
 
-1. **Bug barato**: **BUG-03** (ordenação por `createdAt`).
-2. **UX / organização** *(barato, alto valor diário)*: **UX-01** (barra de navegação unificada) →
+1. **Bug de fundação de dado (URGENTE, atacar 1º)**: **BUG-02** (produção/estoque ignoram
+   `piecesCount`). Furou a fila pré-marco por decisão do dono (2026-07-19): é **bug de correção vivo**
+   que grava estoque de filamento, contagem de acabados e **COGS** errados na mesa de N peças → é a
+   fundação de dado que a Diretriz 7 manda proteger, não dado descartável. A matemática já existe pronta
+   na precificação (dividir tudo por `piecesCount`) — é espelhar o mesmo modelo na produção.
+2. **Bug barato**: **BUG-03** (ordenação por `createdAt`).
+3. **UX / organização** *(barato, alto valor diário)*: **UX-01** (barra de navegação unificada) →
    **FEAT-07** (página de catálogo dedicada) → **FEAT-08** (ações "Produzir"/"Orçar" no card). UX-01
    antes: com a barra unificada, o catálogo vira só **+1 item** num componente único, não em 6 barras
    hand-rolled. FEAT-08 mexe no mesmo card do FEAT-07.
-3. **Tier 2** (features comerciais, independentes): **FEAT-03** (PDF melhor) · **branding/logo real**
+4. **Tier 2** (features comerciais, independentes): **FEAT-03** (PDF melhor) · **branding/logo real**
    no PDF · **FEAT-06** (aba Produtos rica).
-4. **Tier 3** (adiar até ter volume de vendas): **Dashboard** (`/painel`) + **TD-003** · **TD-006**.
-5. **Tier 4** (menores/oportunistas): numeração de orçamento no browser · labor na reserva de falha ·
+5. **Tier 3** (adiar até ter volume de vendas): **Dashboard** (`/painel`) + **TD-003** · **TD-006**.
+6. **Tier 4** (menores/oportunistas): numeração de orçamento no browser · labor na reserva de falha ·
    **DEC-01 pendência** (semântica do `contributionMargin`).
-6. **Item próprio (quando o dono quiser):** **7e — Insumos** no estoque.
-7. **Pós-marco (adiado pelo dono) — mas revisitar:** **BUG-02** (produção ignora `piecesCount`). Adiado
-   quando parecia só "registrar repetidos"; agora se sabe que é **bug de correção vivo** (estoque/COGS
-   errados na mesa de N peças) → ver o ⚠ da entrada e decidir se fura a fila pré-marco.
+7. **Item próprio (quando o dono quiser):** **7e — Insumos** no estoque.
 
 > Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
@@ -56,7 +58,8 @@
     ÷ N (mesma matemática dos dois lados — igual ao invariante do passo 8). Detalhe em `HISTORICO.md`.
   - **⚠ Prioridade:** a metade "ignora `piecesCount`" é **bug de correção VIVO** (não só a conveniência
     de repetir) → fundação de dado que a Diretriz 7 manda proteger. O dono adiou p/ pós-marco quando
-    parecia só "registrar repetidos"; **revisitar se fura a fila pré-marco.**
+    parecia só "registrar repetidos"; **em 2026-07-19 reclassificou como URGENTE e furou a fila** — é a
+    próxima tarefa (topo da Ordem de prioridade).
 
 ### UX / navegação e organização
 - **[UX-01] Barra de navegação unificada** *(barato, alto valor diário; atacar 1º deste grupo)*. Hoje

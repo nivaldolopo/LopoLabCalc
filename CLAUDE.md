@@ -22,12 +22,13 @@
   **Só exibição — matemática mantida.** `lint`+`build` limpos.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
-- **▶ PRÓXIMA TAREFA sugerida:** **BUG-03** (ordenar venda/extrato por `createdAt` — hoje só guardam o
-  dia; barato) → **UX-01** (barra de nav unificada) → **FEAT-07** (página de catálogo) → **FEAT-08**
-  (ações Produzir/Orçar no card) → **Tier 2** (FEAT-03 PDF, branding/logo, FEAT-06 aba Produtos rica).
-  **BUG-02** (produção/estoque **ignoram o `piecesCount`** — bug de correção vivo: estoque/COGS errados
-  na mesa de N peças; engloba o antigo "registrar N repetidos") foi **adiado p/ pós-marco** pelo dono,
-  **mas revisitar** (é fundação de dado — Diretriz 7). **Roadmap completo dos abertos:**
+- **▶ PRÓXIMA TAREFA sugerida:** **BUG-02** (produção/estoque **ignoram o `piecesCount`** — bug de
+  correção vivo: estoque/COGS errados na mesa de N peças). O dono **reclassificou como URGENTE em
+  2026-07-19** e furou a fila pré-marco — é fundação de dado (Diretriz 7), não dado descartável; a
+  matemática ÷N já existe pronta na precificação, é espelhar na produção. Depois: **BUG-03** (ordenar
+  venda/extrato por `createdAt`; barato) → **UX-01** (barra de nav unificada) → **FEAT-07** (página de
+  catálogo) → **FEAT-08** (ações Produzir/Orçar no card) → **Tier 2** (FEAT-03 PDF, branding/logo,
+  FEAT-06 aba Produtos rica). **Roadmap completo dos abertos:**
   [`.claude/BACKLOG.md`](.claude/BACKLOG.md). **Porquê/decisões:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Gotcha vivo:** COGS armazenado = **custo real** (unitCost/lucro/margem); `costBreakdown` = o do
   snapshot do catálogo (**stopgap** informativo) até o FEAT-06 congelar a composição na produção;
