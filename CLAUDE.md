@@ -629,6 +629,51 @@ pendente da auditoria.
   snapshot do catálogo — stopgap informativo; ver o ⚠ do passo 8). Modelo: `FinishedLayer` (e o evento
   de `producao`) ganham um `SaleCostBreakdown` por unidade; inteiro-com-subitens rateia como o `unitCost`.
 
+**Bugs / achados de teste visual (jul/2026, trazidos pelo dono) — VERIFICADOS contra o código:**
+
+> Comentários do dono após rodar o app. Cada um cruzado com o código neste chat. ✅ procede ·
+> ⚠️ parcial · ❌ improcede. Ordenados por criticidade.
+
+- ⬜ **[BUG-01] Hora quebrada SOMA com os minutos residuais — ✅ procede (alta).** No `PrintTimeField`
+  (`ProductForm.tsx`, ~linha 268) o `emit` faz `horas + minutos/60` **sempre**. Se o campo minutos já
+  tem `30` e o usuário digita `11.85` nas horas → `11.85 + 0.5 = 12.35h` → no blur vira `12h 21min` em
+  vez de `11h 51min`. A hora decimal **soma** com o resíduo em vez de absorvê-lo → **custo/preço errado
+  (maior) em silêncio.** Comportamento esperado (dono): decimal na hora = valor **absoluto** (converte
+  pra h+min e mostra). **Correção:** quando as horas têm parte fracionária, zerar/incorporar os minutos
+  no emit (a hora decimal é "dona" do total). Só UI, sem migração. **Relacionado:** UX-02 (que criou o
+  campo h+min).
+- ⬜ **[BUG-02] Produção só registra UMA unidade por vez — ✅ procede (alta; é quiosque).**
+  `ProductionPage` (~linha 275): *"Uma submissão = UMA unidade"*. Não há campo de quantidade — pra
+  produzir 5 peças, submete 5x. Pro quiosque de mall (imprime placa com N peças de uma vez) é fricção
+  real e convida a erro de contagem. **Correção:** campo "quantidade (N)" na submissão que gere o
+  incremento do acabado × N (N camadas ou 1 camada com qty=N) e **baixa de filamento/hora × N** (o FIFO
+  precisa consumir N× o peso). Cuidar do estorno (excluir o evento devolve N). **Onde:** `ProductionPage`
+  + `finishedForSave`/`buildProductionPayloads` + `planProduction`. **Relacionado:** FEAT-04/05.
+- ⬜ **[BUG-03] Histórico de vendas e extrato de rolos fora de ordem — ✅ procede, MESMA raiz (média).**
+  Diagnóstico do dono certo: **só guarda DIA, não hora.** `saleDate` e `purchaseDate`/`at` vêm de
+  `<input type=date>` (meia-noite). Eventos do mesmo dia empatam → a ordem cai no que o Firestore
+  devolveu (parece alfabético/aleatório). `SalesPage` ordena recibos por `saleDate` (dia);
+  `colorStatement` (`stock.ts`, ~linha 391) ordena por `at` (dia). **Alavanca barata:** venda e evento
+  de produção **já gravam `createdAt` (timestamp cheio)** → usar como **desempate** resolve os dois sem
+  mexer no modelo (recibo ganha `createdAt = max(items.createdAt)`; statement desempata consumo por
+  `event.createdAt`). Rolos/ajustes só têm data de dia — se quiser ordem fina entre compra e consumo do
+  mesmo dia, aí sim guardar `createdAt` neles (Diretriz 7: sem migração, recadastra no marco). **Onde:**
+  `SalesPage` (sort), `stock.ts` `colorStatement`.
+- ⬜ **[NOTA] Custo congelado NÃO inclui reserva de falha — ❌ improcede (é intencional e correto).**
+  `productionCost` (`production.ts`, ~linha 161) exclui reserva de falha, custo fixo e acessórios de
+  propósito: são **provisões de pricing** (markup estatístico), não custo físico da impressão. Depois do
+  FEAT-04 as falhas reais viram eventos `outcome:falha` próprios (consomem filamento+hora) → embutir a
+  reserva em cada peça boa **dobraria a contagem**. A divergência COGS×catálogo já está no ⚠ do passo 8.
+  **Manter como está.** Se incomodar em relatório, é o FEAT-06 (congelar breakdown) que reconcilia a
+  apresentação, não mudar o `productionCost`.
+- ⬜ **[INVESTIGAR] Material da venda mostrou só "PLA" num multicolor — ⚠️ provável dado de teste.** O
+  caminho está correto: `result.filaments` agrega por cor (2 materiais = 2 entradas c/ `filamentId`
+  distinto), `freezeFilaments` resolve o material de cada cor viva e `materialsLabel` junta os distintos
+  por " · ". Pra sair só "PLA" o provável é o **produto de teste ter 2 cores do MESMO material** (2 PLA)
+  ou uma cor **avulsa** (sem `filamentId` → material vazio → some do rótulo). **A fazer:** reproduzir com
+  um multicolor genuíno (PLA+PETG, ambas cadastradas no Estoque) antes de tratar como bug. **Borda real
+  a cobrir:** cor avulsa/arquivada engole o material no rótulo — decidir se mostra "avulso" ou ignora.
+
 **Ordem sugerida do backlog (jul/2026) — inclui itens antigos + ideias novas:**
 
 > Priorização unificada acordada no chat. Guia: barato-e-destrava primeiro; captura antes de
@@ -643,6 +688,11 @@ pendente da auditoria.
   `/vendas`); (3) ~~**UX-03**~~ FEITO (telefone/Instagram clicáveis no PDF); (4) ~~**UX-02**~~
   FEITO (tempo em h+min); (5) ~~**UX-01**~~ FEITO (zero à esquerda, componente `NumberInput`).
   **Tier 0 e Tier 1 ✅ FECHADOS — próximo: Tier 2.**
+- **Bugs de teste visual (jul/2026) — atacar antes do Tier 2:** **BUG-01** (hora quebrada soma com
+  minutos → custo errado, fix de UI barato) → **BUG-03** (ordenar venda/extrato por `createdAt`, barato,
+  mesma raiz "só dia") → **BUG-02** (quantidade N na produção, médio). **INVESTIGAR** o material "só PLA"
+  (reproduzir). **NOTA** custo congelado sem reserva de falha = intencional, não mexer. Detalhe no bloco
+  "Bugs / achados de teste visual" acima.
 - **Tier 1 (precisão de custo + fundação):** (6) ~~**FEAT-02 lado-produto**~~ **✅ FEITO** (cores no
   produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); **Item 3 — Estoque**
   (modelo **aprovado**, detalhe e decisões D1-D8 no item 3 do backlog), quebrado em **uma etapa por
