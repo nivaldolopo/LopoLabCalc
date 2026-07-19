@@ -11,7 +11,7 @@
 
 ## Ordem de prioridade
 
-1. **Bugs de teste visual**: **BUG-03** → **BUG-02**.
+1. **Bug barato**: **BUG-03** (ordenação por `createdAt`).
 2. **UX / organização** *(barato, alto valor diário)*: **UX-01** (barra de navegação unificada) →
    **FEAT-07** (página de catálogo dedicada) → **FEAT-08** (ações "Produzir"/"Orçar" no card). UX-01
    antes: com a barra unificada, o catálogo vira só **+1 item** num componente único, não em 6 barras
@@ -22,6 +22,8 @@
 5. **Tier 4** (menores/oportunistas): numeração de orçamento no browser · labor na reserva de falha ·
    **DEC-01 pendência** (semântica do `contributionMargin`).
 6. **Item próprio (quando o dono quiser):** **7e — Insumos** no estoque.
+7. **Pós-marco (adiado pelo dono):** **BUG-02** (quantidade N na produção) — não precisa registrar
+   repetidos ainda; e o design "unidade × placa" (ver a entrada) casa melhor com o recadastro do marco.
 
 > Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
@@ -33,10 +35,16 @@
   **dia**, não hora → eventos do mesmo dia empatam. Alavanca: venda e evento de produção **já gravam
   `createdAt`** (timestamp cheio) → usar como desempate. **Onde:** `SalesPage` (sort por `saleDate`),
   `stock.ts` `colorStatement` (sort por `at`). Detalhe/diagnóstico em `HISTORICO.md`.
-- **[BUG-02] Produção só registra UMA unidade por vez** *(médio; é quiosque de mall)*. Falta campo
-  "quantidade (N)": incremento do acabado × N + baixa de filamento/hora × N (FIFO consome N× o peso) +
-  estorno devolve N. **Onde:** `ProductionPage`, `buildProductionPayloads`/`finishedForSave`,
-  `planProduction`. Detalhe em `HISTORICO.md`.
+- **[BUG-02] Produção só registra UMA unidade por vez** *(médio; adiado p/ pós-marco pelo dono)*. Hoje
+  uma submissão = **1 peça** (`finishedGoods.ts` crava `qty: 1`; cada evento baixa `printHours`/gramas
+  de UMA peça). **Design a decidir — não é só "campo quantidade":** o dono imprime **N peças por
+  placa**. Se N só multiplicar tudo ×N, o **filamento fica certo** (escala linear) mas as **horas de
+  impressão super-contam** (uma placa de N ≠ N× o tempo de uma), inflando energia/depreciação/manut. da
+  peça pronta. Modelo correto p/ mesa: **N = peças na placa**, horas da **placa digitadas 1×** (não ×N),
+  só o filamento ×N; acabado incrementa N; estorno devolve N. Casa com o recadastro do marco (decidir se
+  `printHours` do produto é "peça sozinha" ou "cota da placa"). **Onde:** `ProductionPage`,
+  `buildProductionPayloads`/`finishedForSave`, `planProduction`, `submissionEntries`. Detalhe em
+  `HISTORICO.md`.
 
 ### UX / navegação e organização
 - **[UX-01] Barra de navegação unificada** *(barato, alto valor diário; atacar 1º deste grupo)*. Hoje
