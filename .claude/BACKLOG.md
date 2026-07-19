@@ -22,8 +22,9 @@
 5. **Tier 4** (menores/oportunistas): numeração de orçamento no browser · labor na reserva de falha ·
    **DEC-01 pendência** (semântica do `contributionMargin`).
 6. **Item próprio (quando o dono quiser):** **7e — Insumos** no estoque.
-7. **Pós-marco (adiado pelo dono):** **BUG-02** (quantidade N na produção) — não precisa registrar
-   repetidos ainda; e o design "unidade × placa" (ver a entrada) casa melhor com o recadastro do marco.
+7. **Pós-marco (adiado pelo dono) — mas revisitar:** **BUG-02** (produção ignora `piecesCount`). Adiado
+   quando parecia só "registrar repetidos"; agora se sabe que é **bug de correção vivo** (estoque/COGS
+   errados na mesa de N peças) → ver o ⚠ da entrada e decidir se fura a fila pré-marco.
 
 > Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
@@ -35,16 +36,27 @@
   **dia**, não hora → eventos do mesmo dia empatam. Alavanca: venda e evento de produção **já gravam
   `createdAt`** (timestamp cheio) → usar como desempate. **Onde:** `SalesPage` (sort por `saleDate`),
   `stock.ts` `colorStatement` (sort por `at`). Detalhe/diagnóstico em `HISTORICO.md`.
-- **[BUG-02] Produção só registra UMA unidade por vez** *(médio; adiado p/ pós-marco pelo dono)*. Hoje
-  uma submissão = **1 peça** (`finishedGoods.ts` crava `qty: 1`; cada evento baixa `printHours`/gramas
-  de UMA peça). **Design a decidir — não é só "campo quantidade":** o dono imprime **N peças por
-  placa**. Se N só multiplicar tudo ×N, o **filamento fica certo** (escala linear) mas as **horas de
-  impressão super-contam** (uma placa de N ≠ N× o tempo de uma), inflando energia/depreciação/manut. da
-  peça pronta. Modelo correto p/ mesa: **N = peças na placa**, horas da **placa digitadas 1×** (não ×N),
-  só o filamento ×N; acabado incrementa N; estorno devolve N. Casa com o recadastro do marco (decidir se
-  `printHours` do produto é "peça sozinha" ou "cota da placa"). **Onde:** `ProductionPage`,
-  `buildProductionPayloads`/`finishedForSave`, `planProduction`, `submissionEntries`. Detalhe em
-  `HISTORICO.md`.
+- **[BUG-02] Produção/estoque IGNORA o `piecesCount` (mesa de N peças)** *(bug de dado — os dois lados
+  do app divergem; engloba o antigo "registrar N repetidos")*. O produto guarda a **placa inteira**
+  (filamento/horas) + o campo **"🔢 Peças por impressão"** (N). **Precificação ✓:** `calculatePricing`
+  divide TUDO por N (material, energia, depreciação, manutenção, fixo) → preço/peça correto; a
+  capacidade também usa N. **Produção/estoque ✗:** `productionPlan.ts`/`finishedGoods.ts` **nunca leem
+  `piecesCount`** — baixam `printHours`/gramas **crus** (= placa) e creditam **`qty: 1`** com frozenCost
+  = placa inteira. Consequência (mesa de 4, 80 g, 2,5 h, N=4): **1 registro/placa** = baixa certa mas
+  **1 acabado 4× caro** e faltam 3; **4 registros** = 4 acabados mas **4× filamento e 4× horas**
+  (super-conta a máquina). Ambos distorcem estoque de filamento, contagem de acabados e **COGS**.
+  - **Modelo correto (o MESMO da precificação):** **1 registro de produção = 1 placa** → baixa
+    filamento/horas da placa **1×**, credita **N = `piecesCount`** acabados, cada um frozenCost = placa
+    ÷ N. O "campo quantidade" do quiosque vira **"quantas placas"** (multiplica filamento, horas e
+    acabados por placas). Estorno devolve tudo × placas.
+  - **Onde:** `wholeEventRows`/`subitemEventRows` + `planEventRows` (hoje não dividem/multiplicam por
+    peça — **auditar o caminho de subitem junto**, que já mistura horas cruas com custo ÷peça),
+    `submissionEntries` (`finishedGoods.ts`, crava `qty:1`), `buildProductionPayloads`, `ProductionPage`
+    (campo placas + UI). **Testar:** acabados criados = N × placas e a baixa 1× batem com a precificação
+    ÷ N (mesma matemática dos dois lados — igual ao invariante do passo 8). Detalhe em `HISTORICO.md`.
+  - **⚠ Prioridade:** a metade "ignora `piecesCount`" é **bug de correção VIVO** (não só a conveniência
+    de repetir) → fundação de dado que a Diretriz 7 manda proteger. O dono adiou p/ pós-marco quando
+    parecia só "registrar repetidos"; **revisitar se fura a fila pré-marco.**
 
 ### UX / navegação e organização
 - **[UX-01] Barra de navegação unificada** *(barato, alto valor diário; atacar 1º deste grupo)*. Hoje

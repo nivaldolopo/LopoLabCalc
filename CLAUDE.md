@@ -25,8 +25,9 @@
 - **▶ PRÓXIMA TAREFA sugerida:** **BUG-03** (ordenar venda/extrato por `createdAt` — hoje só guardam o
   dia; barato) → **UX-01** (barra de nav unificada) → **FEAT-07** (página de catálogo) → **FEAT-08**
   (ações Produzir/Orçar no card) → **Tier 2** (FEAT-03 PDF, branding/logo, FEAT-06 aba Produtos rica).
-  **BUG-02** (quantidade N na produção) foi **adiado p/ pós-marco** pelo dono (não precisa registrar
-  repetidos ainda). **Roadmap completo dos abertos:**
+  **BUG-02** (produção/estoque **ignoram o `piecesCount`** — bug de correção vivo: estoque/COGS errados
+  na mesa de N peças; engloba o antigo "registrar N repetidos") foi **adiado p/ pós-marco** pelo dono,
+  **mas revisitar** (é fundação de dado — Diretriz 7). **Roadmap completo dos abertos:**
   [`.claude/BACKLOG.md`](.claude/BACKLOG.md). **Porquê/decisões:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Gotcha vivo:** COGS armazenado = **custo real** (unitCost/lucro/margem); `costBreakdown` = o do
   snapshot do catálogo (**stopgap** informativo) até o FEAT-06 congelar a composição na produção;
