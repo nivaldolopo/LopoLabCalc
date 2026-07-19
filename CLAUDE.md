@@ -13,8 +13,9 @@
 - **Última mudança:** **BUG-01 — hora decimal deixou de somar com os minutos residuais.** No
   `PrintTimeField` (`ProductForm.tsx`, compartilhado c/ etapas), digitar fração nas horas (ex.: 11.85)
   agora **zera os minutos** e trata a hora como total absoluto (blur → 11 h 51 min), em vez de somar
-  (era 12h 21min). `lint` limpo. Bugs de teste visual mapeados no backlog (BUG-01 ✅, BUG-02/03 a fazer,
-  BUG-06 material = decisão do dono pendente). **Contexto macro abaixo (Tier 1 fechado).**
+  (era 12h 21min). `lint` limpo. Bugs de teste visual mapeados no backlog (BUG-01 ✅ e BUG-06 ✅
+  resolvido/sem código; BUG-02/03 a fazer; NOTA reserva de falha = intencional). **Contexto macro
+  abaixo (Tier 1 fechado).**
 - **Contexto macro:** **Passo 8 — Fase 8c (D7): `material` derivado. FEAT-02 e TIER 1 FECHADOS.**
   O campo "Material" de texto livre da venda **saiu**; agora é **derivado** das cores congeladas:
   `freezeFilaments(source.filaments, stock)` resolve **material/marca/nome da cor viva** pelo `filamentId`
@@ -668,17 +669,14 @@ pendente da auditoria.
   reserva em cada peça boa **dobraria a contagem**. A divergência COGS×catálogo já está no ⚠ do passo 8.
   **Manter como está.** Se incomodar em relatório, é o FEAT-06 (congelar breakdown) que reconcilia a
   apresentação, não mudar o `productionCost`.
-- ⬜ **[BUG-06 → DECISÃO] Coluna Material mostra só "PLA" (sem a marca) — ⚠️ é o PROJETADO, não bug.**
-  O dono confirmou que **mesmo com uma cor** aparece "PLA". Isso é o comportamento de `materialsLabel`
-  (`filaments.ts`): por D7/D8, `material` é campo **separado** de `brand`/`colorName` ("PLA"/"Basic"/
-  "Preto") e o rótulo usa **só o material** de propósito — é a chave do **"lucro por material"** do
-  Dashboard (agrupar por PLA/PETG/ABS, não fragmentar em "PLA Basic" vs "PLA Matte"). O exemplo "PLA
-  Basic" do meu script de teste estava impreciso (juntou material+marca). **Decisão do dono pendente:**
-  (a) manter só o material ("PLA" — bom pro agrupamento) ou (b) mostrar material+marca ("PLA Basic" — mais
-  descritivo, mas o Dashboard precisaria agrupar por `material` puro à parte). Se (b): `materialsLabel`
-  passa a juntar `material`+`brand`. **Bordas:** multicolor 2-materiais ("PLA · PETG") ainda **não
-  testado** pelo dono (código correto); cor **avulsa/arquivada** tem material vazio → some do rótulo
-  (decidir se vira "avulso").
+- ✅ **[BUG-06] Coluna Material mostra só "PLA" (sem a marca) — ❌ improcede (é o PROJETADO). Decidido
+  (jul/2026): manter só o material.** O dono confirmou "PLA" mesmo com uma cor; é o comportamento de
+  `materialsLabel` (`filaments.ts`): por D7/D8 `material` é campo **separado** de `brand`/`colorName`
+  ("PLA"/"Basic"/"Preto") e o rótulo usa **só o material** de propósito — chave do **"lucro por material"**
+  do Dashboard (agrupa PLA/PETG/ABS sem fragmentar por marca). O exemplo "PLA Basic" do script de teste
+  estava impreciso. **Dono escolheu (a) só o material — nenhuma mudança de código.** Pontas ainda não
+  exercitadas (sem tarefa, código correto): multicolor 2-materiais deve mostrar "PLA · PETG"; cor
+  **avulsa/arquivada** tem material vazio → some do rótulo.
 
 **Ordem sugerida do backlog (jul/2026) — inclui itens antigos + ideias novas:**
 
@@ -696,9 +694,9 @@ pendente da auditoria.
   **Tier 0 e Tier 1 ✅ FECHADOS — próximo: Tier 2.**
 - **Bugs de teste visual (jul/2026) — atacar antes do Tier 2:** ~~**BUG-01**~~ **✅ FEITO** (hora
   decimal não soma mais com minutos) → **BUG-03** (ordenar venda/extrato por `createdAt`, barato, mesma
-  raiz "só dia") → **BUG-02** (quantidade N na produção, médio). **BUG-06** material "só PLA" =
-  comportamento projetado (material é a chave de agrupamento, sem a marca) → **decisão do dono pendente**
-  (só material vs. material+marca na coluna). **NOTA** custo congelado sem reserva de falha = intencional,
+  raiz "só dia") → **BUG-02** (quantidade N na produção, médio). ~~**BUG-06**~~ **✅ RESOLVIDO**
+  (material "só PLA" é o projetado; dono escolheu manter só o material — sem mudança de código). **NOTA**
+  custo congelado sem reserva de falha = intencional,
   não mexer. Detalhe no bloco "Bugs / achados de teste visual" acima.
 - **Tier 1 (precisão de custo + fundação):** (6) ~~**FEAT-02 lado-produto**~~ **✅ FEITO** (cores no
   produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); **Item 3 — Estoque**
