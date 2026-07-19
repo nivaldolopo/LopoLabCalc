@@ -269,6 +269,20 @@ export function PrintTimeField({
     onChange(Math.max(0, (Number(h) || 0) + (Number(m) || 0) / 60));
   };
 
+  // BUG-01: hora decimal é um total ABSOLUTO, não soma com os minutos residuais.
+  // Ao digitar uma parte fracionária nas horas (ex.: 11.85), zera o campo de
+  // minutos e emite só as horas — o blur/normalize converte para 11 h 51 min.
+  // Sem fração, mantém o comportamento h + min.
+  const onHoursChange = (raw: string) => {
+    setHours(raw);
+    if ((Number(raw) || 0) % 1 !== 0) {
+      setMinutes("0");
+      emit(raw, "0");
+    } else {
+      emit(raw, minutes);
+    }
+  };
+
   // No blur, normaliza o total para horas inteiras + minutos 0-59
   // (aceita horas decimais digitadas, ex.: 11.85 → 11 h 51 min).
   const normalize = () => {
@@ -290,10 +304,7 @@ export function PrintTimeField({
           step="0.1"
           type="number"
           value={hours}
-          onChange={(event) => {
-            setHours(event.target.value);
-            emit(event.target.value, minutes);
-          }}
+          onChange={(event) => onHoursChange(event.target.value)}
           onBlur={normalize}
         />
         <span className="time-sep">h</span>

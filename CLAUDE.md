@@ -10,7 +10,12 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **Passo 8 — Fase 8c (D7): `material` derivado. FEAT-02 e TIER 1 FECHADOS.**
+- **Última mudança:** **BUG-01 — hora decimal deixou de somar com os minutos residuais.** No
+  `PrintTimeField` (`ProductForm.tsx`, compartilhado c/ etapas), digitar fração nas horas (ex.: 11.85)
+  agora **zera os minutos** e trata a hora como total absoluto (blur → 11 h 51 min), em vez de somar
+  (era 12h 21min). `lint` limpo. Bugs de teste visual mapeados no backlog (BUG-01 ✅, BUG-02/03 a fazer,
+  BUG-06 material = decisão do dono pendente). **Contexto macro abaixo (Tier 1 fechado).**
+- **Contexto macro:** **Passo 8 — Fase 8c (D7): `material` derivado. FEAT-02 e TIER 1 FECHADOS.**
   O campo "Material" de texto livre da venda **saiu**; agora é **derivado** das cores congeladas:
   `freezeFilaments(source.filaments, stock)` resolve **material/marca/nome da cor viva** pelo `filamentId`
   (o produto guarda só o id; material vive na cor — D7) e `materialsLabel` junta os materiais distintos
@@ -634,14 +639,11 @@ pendente da auditoria.
 > Comentários do dono após rodar o app. Cada um cruzado com o código neste chat. ✅ procede ·
 > ⚠️ parcial · ❌ improcede. Ordenados por criticidade.
 
-- ⬜ **[BUG-01] Hora quebrada SOMA com os minutos residuais — ✅ procede (alta).** No `PrintTimeField`
-  (`ProductForm.tsx`, ~linha 268) o `emit` faz `horas + minutos/60` **sempre**. Se o campo minutos já
-  tem `30` e o usuário digita `11.85` nas horas → `11.85 + 0.5 = 12.35h` → no blur vira `12h 21min` em
-  vez de `11h 51min`. A hora decimal **soma** com o resíduo em vez de absorvê-lo → **custo/preço errado
-  (maior) em silêncio.** Comportamento esperado (dono): decimal na hora = valor **absoluto** (converte
-  pra h+min e mostra). **Correção:** quando as horas têm parte fracionária, zerar/incorporar os minutos
-  no emit (a hora decimal é "dona" do total). Só UI, sem migração. **Relacionado:** UX-02 (que criou o
-  campo h+min).
+- ✅ **[BUG-01] Hora quebrada SOMAVA com os minutos residuais — FEITO (jul/2026).** No `PrintTimeField`
+  (`ProductForm.tsx`, compartilhado c/ `ExtraStagesSection`), digitar fração nas horas (ex.: `11.85`)
+  **zera o campo de minutos** e emite só as horas (novo `onHoursChange`; blur/`normalize` → `11 h
+  51 min`), em vez de somar com o resíduo (`11.85 + 30min = 12h 21min`, custo maior em silêncio). Sem
+  fração, mantém o comportamento h + min. Só UI, sem migração. **Relacionado:** UX-02.
 - ⬜ **[BUG-02] Produção só registra UMA unidade por vez — ✅ procede (alta; é quiosque).**
   `ProductionPage` (~linha 275): *"Uma submissão = UMA unidade"*. Não há campo de quantidade — pra
   produzir 5 peças, submete 5x. Pro quiosque de mall (imprime placa com N peças de uma vez) é fricção
@@ -666,13 +668,17 @@ pendente da auditoria.
   reserva em cada peça boa **dobraria a contagem**. A divergência COGS×catálogo já está no ⚠ do passo 8.
   **Manter como está.** Se incomodar em relatório, é o FEAT-06 (congelar breakdown) que reconcilia a
   apresentação, não mudar o `productionCost`.
-- ⬜ **[INVESTIGAR] Material da venda mostrou só "PLA" num multicolor — ⚠️ provável dado de teste.** O
-  caminho está correto: `result.filaments` agrega por cor (2 materiais = 2 entradas c/ `filamentId`
-  distinto), `freezeFilaments` resolve o material de cada cor viva e `materialsLabel` junta os distintos
-  por " · ". Pra sair só "PLA" o provável é o **produto de teste ter 2 cores do MESMO material** (2 PLA)
-  ou uma cor **avulsa** (sem `filamentId` → material vazio → some do rótulo). **A fazer:** reproduzir com
-  um multicolor genuíno (PLA+PETG, ambas cadastradas no Estoque) antes de tratar como bug. **Borda real
-  a cobrir:** cor avulsa/arquivada engole o material no rótulo — decidir se mostra "avulso" ou ignora.
+- ⬜ **[BUG-06 → DECISÃO] Coluna Material mostra só "PLA" (sem a marca) — ⚠️ é o PROJETADO, não bug.**
+  O dono confirmou que **mesmo com uma cor** aparece "PLA". Isso é o comportamento de `materialsLabel`
+  (`filaments.ts`): por D7/D8, `material` é campo **separado** de `brand`/`colorName` ("PLA"/"Basic"/
+  "Preto") e o rótulo usa **só o material** de propósito — é a chave do **"lucro por material"** do
+  Dashboard (agrupar por PLA/PETG/ABS, não fragmentar em "PLA Basic" vs "PLA Matte"). O exemplo "PLA
+  Basic" do meu script de teste estava impreciso (juntou material+marca). **Decisão do dono pendente:**
+  (a) manter só o material ("PLA" — bom pro agrupamento) ou (b) mostrar material+marca ("PLA Basic" — mais
+  descritivo, mas o Dashboard precisaria agrupar por `material` puro à parte). Se (b): `materialsLabel`
+  passa a juntar `material`+`brand`. **Bordas:** multicolor 2-materiais ("PLA · PETG") ainda **não
+  testado** pelo dono (código correto); cor **avulsa/arquivada** tem material vazio → some do rótulo
+  (decidir se vira "avulso").
 
 **Ordem sugerida do backlog (jul/2026) — inclui itens antigos + ideias novas:**
 
@@ -688,11 +694,12 @@ pendente da auditoria.
   `/vendas`); (3) ~~**UX-03**~~ FEITO (telefone/Instagram clicáveis no PDF); (4) ~~**UX-02**~~
   FEITO (tempo em h+min); (5) ~~**UX-01**~~ FEITO (zero à esquerda, componente `NumberInput`).
   **Tier 0 e Tier 1 ✅ FECHADOS — próximo: Tier 2.**
-- **Bugs de teste visual (jul/2026) — atacar antes do Tier 2:** **BUG-01** (hora quebrada soma com
-  minutos → custo errado, fix de UI barato) → **BUG-03** (ordenar venda/extrato por `createdAt`, barato,
-  mesma raiz "só dia") → **BUG-02** (quantidade N na produção, médio). **INVESTIGAR** o material "só PLA"
-  (reproduzir). **NOTA** custo congelado sem reserva de falha = intencional, não mexer. Detalhe no bloco
-  "Bugs / achados de teste visual" acima.
+- **Bugs de teste visual (jul/2026) — atacar antes do Tier 2:** ~~**BUG-01**~~ **✅ FEITO** (hora
+  decimal não soma mais com minutos) → **BUG-03** (ordenar venda/extrato por `createdAt`, barato, mesma
+  raiz "só dia") → **BUG-02** (quantidade N na produção, médio). **BUG-06** material "só PLA" =
+  comportamento projetado (material é a chave de agrupamento, sem a marca) → **decisão do dono pendente**
+  (só material vs. material+marca na coluna). **NOTA** custo congelado sem reserva de falha = intencional,
+  não mexer. Detalhe no bloco "Bugs / achados de teste visual" acima.
 - **Tier 1 (precisão de custo + fundação):** (6) ~~**FEAT-02 lado-produto**~~ **✅ FEITO** (cores no
   produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); **Item 3 — Estoque**
   (modelo **aprovado**, detalhe e decisões D1-D8 no item 3 do backlog), quebrado em **uma etapa por
