@@ -11,8 +11,9 @@
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
 - **Última mudança:** **`CostDetail` — transparência custo real × precificado (janela flutuante).**
-  Gatilho mostra o **custo real** (base do lucro) e abre uma **janela flutuante (Popover API nativa,
-  top-layer)** com a composição do **custo precificado** (8 componentes, com reserva de falha/custo
+  Gatilho mostra o **custo real** (base do lucro) e abre uma **janela flutuante ANCORADA nele (Popover
+  API nativa na top-layer — posicionada via `getBoundingClientRect`, não é cortada pelo scroll do
+  modal)** com a composição do **custo precificado** (8 componentes, com reserva de falha/custo
   fixo/acessórios marcados como provisões fora do custo real) + nota. Ligado na `SaleModal` (por item) e
   no `/vendas` (por venda, escala pela qtd) — responde à confusão do dono de ver o custo "menor" na
   venda; **matemática mantida** (só exibição). Versão inline anterior descartada (refluía a tabela / o
