@@ -17,6 +17,7 @@ import {
 } from "../constants";
 import { newProductionId } from "@/lib/firebase/productionRepository";
 import type { ReciboWrite } from "@/lib/firebase/salesRepository";
+import { CostDetail } from "./CostDetail";
 import { balanceOf } from "../lib/finishedGoods";
 import { freezeFilaments, materialsLabel } from "../lib/filaments";
 import { feeRateForMethod, saleItemFinancials } from "../lib/paymentFees";
@@ -725,9 +726,10 @@ export function SaleModal({
                     </option>
                     <option value="encomenda">Sob encomenda (produz agora)</option>
                   </select>
-                  <span className="cesta-cost">
-                    custo real <strong>{formatCurrency(unitCost)}</strong>
-                  </span>
+                  <CostDetail
+                    breakdown={item.source.costBreakdown}
+                    realCogs={unitCost}
+                  />
                 </div>
 
                 {item.origem === "acabado" && r && r.finishedShortfall > 0 ? (

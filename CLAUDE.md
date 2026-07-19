@@ -10,12 +10,14 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`). Acessível por
   **`calculadora.lopolab.com.br`** (domínio próprio, SSL ok) e pelo `lopolabcalc.vercel.app`.
-- **Última mudança:** **BUG-01 — hora decimal deixou de somar com os minutos residuais.** No
-  `PrintTimeField` (`ProductForm.tsx`, compartilhado c/ etapas), digitar fração nas horas (ex.: 11.85)
-  agora **zera os minutos** e trata a hora como total absoluto (blur → 11 h 51 min), em vez de somar
-  (era 12h 21min). `lint` limpo. Bugs de teste visual mapeados no backlog (BUG-01 ✅ e BUG-06 ✅
-  resolvido/sem código; BUG-02/03 a fazer; NOTA reserva de falha = intencional). **Contexto macro
-  abaixo (Tier 1 fechado).**
+- **Última mudança:** **`CostDetail` — transparência custo real × precificado na venda.** Componente
+  compartilhado (expansível) mostra o **custo real** (base do lucro) + a composição do **custo
+  precificado** (8 componentes, com reserva de falha/custo fixo/acessórios marcados como provisões fora
+  do custo real) + nota. Ligado na `SaleModal` (por item) e no `/vendas` (por venda, escala pela qtd) —
+  responde à confusão do dono de ver o custo "menor" na venda; **matemática mantida** (só exibição).
+  `lint`+`build` limpos. Antes nesta leva: **BUG-01** (hora decimal não soma mais com minutos) ✅.
+  Backlog de bugs: **BUG-06** ✅ (material "só PLA" = projetado); **BUG-02/03** a fazer. **Contexto
+  macro abaixo (Tier 1 fechado).**
 - **Contexto macro:** **Passo 8 — Fase 8c (D7): `material` derivado. FEAT-02 e TIER 1 FECHADOS.**
   O campo "Material" de texto livre da venda **saiu**; agora é **derivado** das cores congeladas:
   `freezeFilaments(source.filaments, stock)` resolve **material/marca/nome da cor viva** pelo `filamentId`
@@ -662,13 +664,18 @@ pendente da auditoria.
   `event.createdAt`). Rolos/ajustes só têm data de dia — se quiser ordem fina entre compra e consumo do
   mesmo dia, aí sim guardar `createdAt` neles (Diretriz 7: sem migração, recadastra no marco). **Onde:**
   `SalesPage` (sort), `stock.ts` `colorStatement`.
-- ⬜ **[NOTA] Custo congelado NÃO inclui reserva de falha — ❌ improcede (é intencional e correto).**
-  `productionCost` (`production.ts`, ~linha 161) exclui reserva de falha, custo fixo e acessórios de
-  propósito: são **provisões de pricing** (markup estatístico), não custo físico da impressão. Depois do
-  FEAT-04 as falhas reais viram eventos `outcome:falha` próprios (consomem filamento+hora) → embutir a
-  reserva em cada peça boa **dobraria a contagem**. A divergência COGS×catálogo já está no ⚠ do passo 8.
-  **Manter como está.** Se incomodar em relatório, é o FEAT-06 (congelar breakdown) que reconcilia a
-  apresentação, não mudar o `productionCost`.
+- ✅ **[NOTA→UX] Custo congelado NÃO inclui reserva de falha — ❌ improcede (intencional); TRANSPARÊNCIA
+  ADICIONADA (jul/2026).** `productionCost` (`production.ts`) exclui reserva de falha, custo fixo e
+  acessórios de propósito: são **provisões de pricing** (markup estatístico), não custo físico da
+  impressão. Depois do FEAT-04 as falhas reais viram eventos `outcome:falha` próprios (consomem
+  filamento+hora) → embutir a reserva em cada peça boa **dobraria a contagem**. **Matemática mantida.**
+  Como o dono achou confuso ver o custo "menor" na venda, foi criado o `CostDetail` (componente
+  compartilhado, expansível): mostra o **custo real** (base do lucro) + a **composição do custo
+  precificado** (os 8 componentes, com reserva/fixo/acessórios marcados como provisões fora do custo
+  real) + nota explicativa. Ligado na **SaleModal** (por item) e no **/vendas** (por venda, escala pela
+  qtd). Custo real segue número único congelado (não decomposto); o breakdown exibido é o `costBreakdown`
+  do snapshot (catálogo hoje, stopgap; vira o congelado da produção quando o FEAT-06 chegar — o UI já
+  aguenta). Só exibição, sem mudança de cálculo.
 - ✅ **[BUG-06] Coluna Material mostra só "PLA" (sem a marca) — ❌ improcede (é o PROJETADO). Decidido
   (jul/2026): manter só o material.** O dono confirmou "PLA" mesmo com uma cor; é o comportamento de
   `materialsLabel` (`filaments.ts`): por D7/D8 `material` é campo **separado** de `brand`/`colorName`
@@ -695,9 +702,10 @@ pendente da auditoria.
 - **Bugs de teste visual (jul/2026) — atacar antes do Tier 2:** ~~**BUG-01**~~ **✅ FEITO** (hora
   decimal não soma mais com minutos) → **BUG-03** (ordenar venda/extrato por `createdAt`, barato, mesma
   raiz "só dia") → **BUG-02** (quantidade N na produção, médio). ~~**BUG-06**~~ **✅ RESOLVIDO**
-  (material "só PLA" é o projetado; dono escolheu manter só o material — sem mudança de código). **NOTA**
-  custo congelado sem reserva de falha = intencional,
-  não mexer. Detalhe no bloco "Bugs / achados de teste visual" acima.
+  (material "só PLA" é o projetado; dono escolheu manter só o material — sem mudança de código).
+  ~~**NOTA** custo congelado sem reserva de falha~~ **✅ TRANSPARÊNCIA ADICIONADA** (`CostDetail`
+  expansível na venda e no /vendas — custo real vs. precificado; matemática mantida). Detalhe no bloco
+  "Bugs / achados de teste visual" acima.
 - **Tier 1 (precisão de custo + fundação):** (6) ~~**FEAT-02 lado-produto**~~ **✅ FEITO** (cores no
   produto/etapa, custo por cor, snapshot da venda congela `filaments[]`); **Item 3 — Estoque**
   (modelo **aprovado**, detalhe e decisões D1-D8 no item 3 do backlog), quebrado em **uma etapa por
@@ -764,7 +772,9 @@ src/
                             #     StockColorModal/StockRollModal/
                             #     StockAdjustModal, ProductionPage (/producao — registro de
                             #     impressão), NumberInput (compartilhado),
-                            #     ProfitSummary (rentabilidade compartilhada), AuthGate (login)
+                            #     ProfitSummary (rentabilidade compartilhada),
+                            #     CostDetail (custo real × precificado, expansível — venda e /vendas),
+                            #     AuthGate (login)
     hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
                             #     useAuth, useQuoteConfig (negócio), useQuotes (histórico),
                             #     useFees (taxas de pagamento), useStock (estoque de filamento),

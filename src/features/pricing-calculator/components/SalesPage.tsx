@@ -22,6 +22,7 @@ import { useTheme } from "../hooks/useTheme";
 import { reverseReciboReconciliation } from "../lib/saleReconciliation";
 import type { CloudStatus, ProductionEvent, RoundingMode, Sale } from "../types";
 import { reconcileRecibo } from "@/lib/firebase/salesRepository";
+import { CostDetail } from "./CostDetail";
 import { LogoutButton } from "./LogoutButton";
 import { SaleModal, type EditReciboSeed } from "./SaleModal";
 import {
@@ -575,8 +576,12 @@ export function SalesPage() {
                       <td className="num mono ri-rev">
                         {formatCurrency(sale.totalRevenue)}
                       </td>
-                      <td className="num mono muted ri-cost">
-                        custo {formatCurrency(sale.totalCost)}
+                      <td className="ri-cost">
+                        <CostDetail
+                          breakdown={sale.costBreakdown}
+                          realCogs={sale.unitCost}
+                          quantity={sale.quantity}
+                        />
                       </td>
                       <td
                         className={`num mono ri-profit ${sale.profit < 0 ? "sale-neg" : "sale-pos"}`}

@@ -93,14 +93,100 @@
   flex: 1;
 }
 
-.cesta-cost {
+/* Detalhe de custo expansível (CostDetail): custo real + composição do preço.
+   Compartilhado pela cesta (modal) e pelo histórico (/vendas). */
+.cost-detail {
   font-size: 12px;
   color: var(--muted);
-  white-space: nowrap;
 }
 
-.cesta-cost strong {
+.cost-detail-summary {
+  cursor: pointer;
+  white-space: nowrap;
+  list-style: none;
+  user-select: none;
+}
+
+.cost-detail-summary::-webkit-details-marker {
+  display: none;
+}
+
+.cost-detail-summary strong {
   color: var(--fg);
+}
+
+.cost-detail-hint {
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.cost-detail[open] .cost-detail-hint::after {
+  content: " ▲";
+}
+
+.cost-detail:not([open]) .cost-detail-hint::after {
+  content: " ▼";
+}
+
+.cost-detail-body {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--details-bg);
+  white-space: normal;
+}
+
+.cost-detail-section {
+  margin-bottom: 6px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cost-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cost-detail-table td {
+  padding: 2px 0;
+  color: var(--fg);
+}
+
+.cost-detail-table td.num {
+  text-align: right;
+}
+
+.cost-detail-divider td {
+  padding-top: 8px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cost-detail-prov td {
+  color: var(--muted);
+}
+
+.cost-detail-total td {
+  padding-top: 6px;
+  border-top: 1px solid var(--border-soft);
+  font-weight: 600;
+}
+
+.cost-detail-total.real td {
+  color: var(--green);
+}
+
+.cost-detail-note {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
 }
 
 .cesta-warn {
