@@ -363,6 +363,13 @@ input[type="range"]::-webkit-slider-thumb {
   white-space: nowrap;
 }
 
+/* Rota ativa na barra de navegação unificada (NavBar). */
+.icon-label-button[aria-current="page"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(74, 158, 118, 0.12);
+}
+
 .link-button {
   background: transparent;
   color: var(--accent);

@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { Printer } from "lucide-react";
 import type { CloudStatus } from "../types";
-import { LogoutButton } from "./LogoutButton";
+import { NavBar } from "./NavBar";
 
 type HeaderProps = {
   theme: "dark" | "light";
@@ -45,52 +44,7 @@ export function Header({ theme, status, onToggleTheme }: HeaderProps) {
             </div>
           </div>
         </div>
-        <div className="header-actions">
-          <Link
-            className="icon-label-button"
-            href="/vendas"
-            title="Histórico de vendas"
-          >
-            <span aria-hidden="true">🧾</span> Vendas
-          </Link>
-          <Link
-            className="icon-label-button"
-            href="/orcamento"
-            title="Gerar orçamento em PDF"
-          >
-            <span aria-hidden="true">📄</span> Orçamento
-          </Link>
-          <Link
-            className="icon-label-button"
-            href="/maquinas"
-            title="ROI e payback das impressoras"
-          >
-            <span aria-hidden="true">🖨️</span> Impressoras
-          </Link>
-          <Link
-            className="icon-label-button"
-            href="/estoque"
-            title="Estoque de filamento por cor"
-          >
-            <span aria-hidden="true">📦</span> Estoque
-          </Link>
-          <Link
-            className="icon-label-button"
-            href="/producao"
-            title="Registrar produção (impressão)"
-          >
-            <span aria-hidden="true">🏭</span> Produção
-          </Link>
-          <button
-            className="icon-label-button"
-            type="button"
-            onClick={onToggleTheme}
-          >
-            <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
-            {theme === "dark" ? "Claro" : "Escuro"}
-          </button>
-          <LogoutButton />
-        </div>
+        <NavBar theme={theme} onToggleTheme={onToggleTheme} />
       </div>
       <p className="subtitle">
         Material, energia, desgaste de máquina, mão de obra e custos fixos do

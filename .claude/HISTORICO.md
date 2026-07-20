@@ -9,6 +9,21 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ UX-01 — Barra de navegação unificada (2026-07-19)
+
+Antes, cada uma das 6 páginas montava seu próprio `header-actions` com um subconjunto ad-hoc dos
+links (a raiz mostrava 5 rotas; as demais só 2-3), então pular entre duas páginas quase sempre exigia
+voltar pela calculadora. Extraído o componente `NavBar.tsx` (`features/pricing-calculator/components/`):
+6 destinos fixos na mesma ordem (Calculadora `/` · Vendas · Orçamento · Impressoras · Estoque ·
+Produção) + botão de tema + `LogoutButton`, com a rota ativa marcada via `usePathname()` +
+`aria-current="page"` (estilo `.icon-label-button[aria-current="page"]` em `forms.css`). O `Header` da
+raiz e os 5 headers de página (`SalesPage`/`QuotePage`/`MachinesPage`/`StockPage`/`ProductionPage`)
+passaram a delegar ao `NavBar`, cada um mantendo o próprio `.brand`/cloud-status. `SalesPage` injeta a
+ação "Nova venda" via `children` (renderizada antes dos links). Decisão do dono: **"Início/Calculadora"
+= navegação limpa** — o reset por `window.location.reload()` continua só no clique do brand "Lopo Lab ✦"
+da raiz. (Nota: existe um "UX-01" antigo neste arquivo — o do `NumberInput`/zero à esquerda —, item
+diferente que só reaproveitou a sigla.)
+
 ## Backlog (ideias do brainstorm com ChatGPT, não implementadas)
 
 > Do brainstorm original, **já feitas**: taxa de falha e reserva de manutenção. As de baixo

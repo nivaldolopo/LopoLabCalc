@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Download, FileText, Plus, Trash2 } from "lucide-react";
+import { Download, FileText, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import { formatDate, todayInputValue, toTimestamp } from "@/lib/formatting/date";
 import {
@@ -19,7 +18,7 @@ import { useQuoteConfig } from "../hooks/useQuoteConfig";
 import { useQuotes } from "../hooks/useQuotes";
 import { useTheme } from "../hooks/useTheme";
 import type { QuoteBusiness, QuoteRecord, QuoteRecordPayload } from "../types";
-import { LogoutButton } from "./LogoutButton";
+import { NavBar } from "./NavBar";
 import { NumberInput } from "./NumberInput";
 
 type QuoteItem = {
@@ -284,23 +283,7 @@ export function QuotePage() {
             </div>
           </div>
         </div>
-        <div className="header-actions">
-          <Link className="icon-label-button" href="/">
-            <ArrowLeft size={15} /> Calculadora
-          </Link>
-          <Link className="icon-label-button" href="/vendas">
-            <span aria-hidden="true">🧾</span> Vendas
-          </Link>
-          <button
-            className="icon-label-button"
-            type="button"
-            onClick={toggleTheme}
-          >
-            <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
-            {theme === "dark" ? "Claro" : "Escuro"}
-          </button>
-          <LogoutButton />
-        </div>
+        <NavBar theme={theme} onToggleTheme={toggleTheme} />
       </div>
 
       <div className="quote-grid">

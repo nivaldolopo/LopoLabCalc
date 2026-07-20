@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo } from "react";
-import { ArrowLeft } from "lucide-react";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import { computeMachineRoi, type MachineRoi } from "../lib/machineRoi";
 import { useMachines } from "../hooks/useMachines";
@@ -10,7 +8,7 @@ import { useProduction } from "../hooks/useProduction";
 import { useSales } from "../hooks/useSales";
 import { useTheme } from "../hooks/useTheme";
 import type { CloudStatus } from "../types";
-import { LogoutButton } from "./LogoutButton";
+import { NavBar } from "./NavBar";
 
 const statusLabel: Record<CloudStatus, string> = {
   connecting: "Conectando nuvem...",
@@ -103,23 +101,7 @@ export function MachinesPage() {
             </div>
           </div>
         </div>
-        <div className="header-actions">
-          <Link className="icon-label-button" href="/">
-            <ArrowLeft size={15} /> Calculadora
-          </Link>
-          <Link className="icon-label-button" href="/vendas">
-            <span aria-hidden="true">🧾</span> Vendas
-          </Link>
-          <button
-            className="icon-label-button"
-            type="button"
-            onClick={toggleTheme}
-          >
-            <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
-            {theme === "dark" ? "Claro" : "Escuro"}
-          </button>
-          <LogoutButton />
-        </div>
+        <NavBar theme={theme} onToggleTheme={toggleTheme} />
       </div>
 
       {error ? <div className="app-error">{error}</div> : null}

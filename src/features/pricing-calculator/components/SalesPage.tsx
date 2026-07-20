@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Edit3, Plus, Trash2 } from "lucide-react";
+import { Edit3, Plus, Trash2 } from "lucide-react";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import {
   DEFAULT_FIXED_COSTS,
@@ -23,7 +23,7 @@ import { reverseReciboReconciliation } from "../lib/saleReconciliation";
 import type { CloudStatus, ProductionEvent, RoundingMode, Sale } from "../types";
 import { reconcileRecibo } from "@/lib/firebase/salesRepository";
 import { CostDetail } from "./CostDetail";
-import { LogoutButton } from "./LogoutButton";
+import { NavBar } from "./NavBar";
 import { SaleModal, type EditReciboSeed } from "./SaleModal";
 import {
   productPrintHours,
@@ -398,7 +398,7 @@ export function SalesPage() {
             </div>
           </div>
         </div>
-        <div className="header-actions">
+        <NavBar theme={theme} onToggleTheme={toggleTheme}>
           <button
             className="icon-label-button"
             type="button"
@@ -412,28 +412,7 @@ export function SalesPage() {
           >
             <Plus size={15} /> Nova venda
           </button>
-          <Link className="icon-label-button" href="/">
-            <ArrowLeft size={15} /> Calculadora
-          </Link>
-          <Link className="icon-label-button" href="/orcamento">
-            <span aria-hidden="true">📄</span> Orçamento
-          </Link>
-          <Link className="icon-label-button" href="/maquinas">
-            <span aria-hidden="true">🖨️</span> Impressoras
-          </Link>
-          <Link className="icon-label-button" href="/estoque">
-            <span aria-hidden="true">📦</span> Estoque
-          </Link>
-          <button
-            className="icon-label-button"
-            type="button"
-            onClick={toggleTheme}
-          >
-            <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
-            {theme === "dark" ? "Claro" : "Escuro"}
-          </button>
-          <LogoutButton />
-        </div>
+        </NavBar>
       </div>
 
       {error ? <div className="app-error">{error}</div> : null}

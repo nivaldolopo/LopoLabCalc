@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Factory, Plus, Trash2 } from "lucide-react";
+import { Factory, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import {
   formatDate,
@@ -48,7 +47,7 @@ import type {
   ProductionMode,
   ProductionOutcome,
 } from "../types";
-import { LogoutButton } from "./LogoutButton";
+import { NavBar } from "./NavBar";
 import { NumberInput } from "./NumberInput";
 import { PrintTimeField } from "./ProductForm";
 
@@ -480,26 +479,7 @@ export function ProductionPage() {
             </div>
           </div>
         </div>
-        <div className="header-actions">
-          <Link className="icon-label-button" href="/">
-            <ArrowLeft size={15} /> Calculadora
-          </Link>
-          <Link className="icon-label-button" href="/estoque">
-            <span aria-hidden="true">📦</span> Estoque
-          </Link>
-          <Link className="icon-label-button" href="/maquinas">
-            <span aria-hidden="true">🖨️</span> Impressoras
-          </Link>
-          <button
-            className="icon-label-button"
-            type="button"
-            onClick={toggleTheme}
-          >
-            <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
-            {theme === "dark" ? "Claro" : "Escuro"}
-          </button>
-          <LogoutButton />
-        </div>
+        <NavBar theme={theme} onToggleTheme={toggleTheme} />
       </div>
 
       {error ? <div className="app-error">{error}</div> : null}

@@ -14,20 +14,20 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **BUG-03 corrigido — venda e extrato de rolos desempatam por `createdAt`.**
-  `/vendas`: o `Recibo` ganhou `createdAt` (= max dos itens) e os sorts por data (`recent`/`oldest`)
-  usam `(saleDate, createdAt)`. `colorStatement` (`stock.ts`): desempate por `seq` (createdAt cheio do
-  evento de produção no consumo; `at`/dia p/ compra e ajuste) → dois consumos no mesmo dia saem na
-  ordem da hora real. +1 teste (190 verdes), `lint`+`build` limpos. Rolos/ajustes seguem só com o dia
-  (sem `createdAt` — não precisou p/ o bug).
+- **Última mudança:** **UX-01 concluído — barra de navegação unificada.** Novo componente
+  `NavBar.tsx` (`usePathname` marca a rota ativa via `aria-current`) com os 6 destinos fixos
+  (Calculadora · Vendas · Orçamento · Impressoras · Estoque · Produção) + tema + logout; substitui os
+  6 `header-actions` hand-rolled (cada página mostrava um subconjunto ad-hoc). `SalesPage` injeta a
+  ação "Nova venda" via `children`. Estilo `.icon-label-button[aria-current="page"]` em `forms.css`.
+  "Início/Calculadora" = navegação limpa (reset por reload segue só no brand da raiz). `lint`+`build`
+  limpos.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
-- **▶ PRÓXIMA TAREFA sugerida:** **UX-01** (barra de navegação unificada — barato, alto valor diário;
-  hoje cada página tem a própria barra hand-rolled com um subconjunto ad-hoc dos links → extrair um
-  componente de nav compartilhado com todas as rotas + "Início", destacando a ativa). Depois:
-  **FEAT-07** (página de catálogo) → **FEAT-08** (ações Produzir/Orçar no card) → **Tier 2** (FEAT-03
-  PDF, branding/logo, FEAT-06 aba Produtos rica). **Roadmap completo dos abertos:**
-  [`.claude/BACKLOG.md`](.claude/BACKLOG.md). **Porquê/decisões:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
+- **▶ PRÓXIMA TAREFA sugerida:** **FEAT-07** (página de catálogo dedicada `/catalogo` — tirar o
+  `ProductCatalog` da página principal; wrinkle: "editar" vira cross-page, ex. `/?load=<id>`). Depois:
+  **FEAT-08** (ações Produzir/Orçar no card) → **Tier 2** (FEAT-03 PDF, branding/logo, FEAT-06 aba
+  Produtos rica). **Roadmap completo dos abertos:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
+  **Porquê/decisões:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Gotcha vivo:** COGS armazenado = **custo real** (unitCost/lucro/margem); `costBreakdown` = o do
   snapshot do catálogo (**stopgap** informativo) até o FEAT-06 congelar a composição na produção;
   **acessórios ficam fora do COGS** até o 7e (insumos).

@@ -11,10 +11,9 @@
 
 ## Ordem de prioridade
 
-1. **UX / organização** *(barato, alto valor diário; atacar 1º)*: **UX-01** (barra de navegação unificada) →
-   **FEAT-07** (página de catálogo dedicada) → **FEAT-08** (ações "Produzir"/"Orçar" no card). UX-01
-   antes: com a barra unificada, o catálogo vira só **+1 item** num componente único, não em 6 barras
-   hand-rolled. FEAT-08 mexe no mesmo card do FEAT-07.
+1. **UX / organização** *(barato, alto valor diário; atacar 1º)*: ~~UX-01~~ ✅ → **FEAT-07** (página de
+   catálogo dedicada) → **FEAT-08** (ações "Produzir"/"Orçar" no card). Com a barra unificada
+   (`NavBar`), o catálogo vira só **+1 item** no componente único. FEAT-08 mexe no mesmo card do FEAT-07.
 2. **Tier 2** (features comerciais, independentes): **FEAT-03** (PDF melhor) · **branding/logo real**
    no PDF · **FEAT-06** (aba Produtos rica).
 3. **Tier 3** (adiar até ter volume de vendas): **Dashboard** (`/painel`) + **TD-003** · **TD-006**.
@@ -36,14 +35,9 @@
   em `HISTORICO.md`.
 
 ### UX / navegação e organização
-- **[UX-01] Barra de navegação unificada** *(barato, alto valor diário; atacar 1º deste grupo)*. Hoje
-  **cada página tem a própria barra hand-rolled** com um subconjunto ad-hoc dos links (a principal
-  mostra as 5 rotas; `MachinesPage`/`StockPage`/`QuotePage`/`ProductionPage`/`SalesPage` mostram só
-  2-3 cada) → pra pular entre duas páginas quase sempre tem que voltar pra calculadora. **Fazer:**
-  extrair **um componente de nav compartilhado**, sempre com **todas as páginas** + sempre um link
-  "Início/Calculadora", destacando a rota ativa. **Onde:** novo componente reusado pelo `Header` e
-  pelos 5 headers de página. Revisitar de passagem o "recarregar pra limpar" do brand (o que "Início"
-  passa a significar).
+- ~~**[UX-01] Barra de navegação unificada**~~ **✅ FEITO (2026-07-19)** — componente `NavBar.tsx`
+  (6 destinos fixos + tema + logout; rota ativa via `usePathname`/`aria-current`) reusado pelo `Header`
+  e pelos 5 headers de página; "Início/Calculadora" = navegação limpa. Detalhe em `HISTORICO.md`.
 - **[FEAT-07] Página de catálogo dedicada** (`/catalogo`) *(médio; fica limpo depois do UX-01)*. Tirar
   o `ProductCatalog` (~580 linhas) da página principal pra rota própria → a principal fica só
   **calculadora/cadastro** (dá pra reorganizar o form) e o catálogo ganha espaço pra **mostrar melhor
