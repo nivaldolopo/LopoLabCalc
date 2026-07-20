@@ -14,8 +14,9 @@
 > **Reordenado em 2026-07-20** pelo dono (ver "Porquês da ordem" abaixo).
 
 1. ~~**UX / organização**~~ ✅ **FECHADA** — UX-01 · FEAT-07 · UX-02 · FEAT-08.
-2. **7e — Insumos/acessórios no estoque** *(promovido; era "item próprio")* — **◀ PRÓXIMA**.
-3. **FEAT-06** (aba Produtos rica / composição congelada) — **depois do 7e, de propósito.**
+2. ~~**7e — Insumos/acessórios no estoque**~~ ✅ **FECHADO (2026-07-20)**.
+3. **FEAT-06** (aba Produtos rica / composição congelada) — **◀ PRÓXIMA** (o 7e, seu pré-requisito,
+   já fechou: o quadro de custo a congelar agora inclui insumos).
 4. **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
 5. **Tier 4 inteiro** *(antecipado)*: numeração de orçamento no browser · labor na reserva de falha ·
    **DEC-01 pendência** (semântica do `contributionMargin`).
@@ -28,14 +29,9 @@
   `DEFAULT_CAPACITY` diz `machines: 1` (`constants.ts:68-75`). Duas fontes de verdade discordando: o
   rateio de custo fixo (que entra no preço) assume 2 máquinas, o painel do catálogo assume 1. Com 2
   impressoras reais, o catálogo subestima peças/mês e dispara o alerta de capacidade cedo demais.
-- **7e antes do FEAT-06:** o FEAT-06 **congela a composição de custo inteira** na produção. Se o 7e
-  vier depois, congela-se um quadro que ainda não soma acessórios e mexe-se na estrutura de novo.
-  7e primeiro ⇒ FEAT-06 congela o quadro completo de uma vez.
-- **7e é prioritário porque há um buraco real de COGS:** acessórios **JÁ entram no preço**
-  (`calculatePricing.ts:325`, `variableCost = printing + failureReserve + accessoriesCost`, com rateio
-  por subitem), mas **NÃO entram no `frozenCost` da produção** (`production.ts:146-148`, decisão
-  explícita: "provisão de pricing, não custo físico"). Resultado: o ímã é cobrado do cliente e nunca
-  debitado como custo realizado ⇒ **o lucro por peça no histórico aparece maior do que é**.
+- **7e veio antes do FEAT-06 (e já fechou):** o FEAT-06 **congela a composição de custo inteira** na
+  produção; com o 7e feito, ele congela o quadro completo (já com insumos) de uma vez. O buraco de
+  COGS que motivava a ordem está fechado — o `frozenCost` soma insumos desde 2026-07-20.
 - **TD-003/TD-006 antes do Dashboard:** TD-003 é a base da visão de "gargalo" — consertar antes evita
   construir o painel sobre conta errada e refazer. TD-006 sobe porque **o marco** (recadastro de tudo:
   produtos, filamentos, acessórios, impressões e vendas) chega como um volume grande de documentos de
@@ -96,7 +92,7 @@
   **Onde:** `generateQuotePdf.ts` + `QuotePage`/`config/orcamento`. Lista completa em `HISTORICO.md`.
 - **[branding/logo real]** trocar o logo placeholder (impressora) pela logo real no PDF — já há
   comentário no código. Overlap com FEAT-03.
-- **[FEAT-06] Aba Produtos rica** — cada card da aba Produtos (`/estoque`) mostra os dados completos do
+- **[FEAT-06] Aba Produtos rica** *(◀ PRÓXIMA)* — cada card da aba Produtos (`/estoque`) mostra os dados completos do
   produto (composição de custo, margem, subitens, etapas…) mas com os **custos CONGELADOS** da
   fabricação. **Decisão do dono: opção (b)** — o acabado passa a guardar a **composição inteira
   congelada na produção** (`FinishedLayer`/evento `producao` ganham um `SaleCostBreakdown`), não puxa do
@@ -123,11 +119,8 @@
   cálculo do break-even (muda comportamento — o ponto diminui) ou só renomear a variável. Ver a NOTA no
   `calculatePricing.ts` e o detalhe em `HISTORICO.md`.
 
-### 7e — Insumos no estoque *(prioridade 2; pré-requisito do FEAT-06)*
-- **[7e] Insumos no estoque** — `supplyId` no `Accessory`, cadastro de insumos (ímãs, parafusos,
-  embalagem…) na `/estoque`, baixa por unidade (`kind: 'supply'`, **já previsto** no `stockMoves` desde
-  a 7a). Ver D1 em `HISTORICO.md`.
-  **Precisão importante (verificada no código):** acessórios **NÃO** estão fora do custo em geral —
-  entram no **preço** (`calculatePricing.ts:325`). O que falta é entrarem no **custo realizado**: o
-  `frozenCost` da produção os exclui de propósito (`production.ts:146-148`). Portanto o 7e fecha o
-  buraco do **COGS do acabado**, onde hoje o lucro por peça sai superestimado.
+### 7e — Insumos no estoque
+- ~~**[7e] Insumos no estoque**~~ ✅ **FEITO (2026-07-20)** — coleção `insumos` com FIFO por lote, 3ª
+  aba na `/estoque`, `Accessory.supplyId` (avulso continua valendo) e baixa por unidade na produção.
+  O `frozenCost` passou a somar insumos ⇒ **o lucro por peça de produções NOVAS caiu** (ficou
+  correto); produções antigas não mudaram. Writeup em `HISTORICO.md`.

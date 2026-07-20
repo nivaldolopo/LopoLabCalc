@@ -18,6 +18,7 @@ import { useProducts } from "../hooks/useProducts";
 import { useProduction } from "../hooks/useProduction";
 import { useSales } from "../hooks/useSales";
 import { useStock } from "../hooks/useStock";
+import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
 import { reverseReciboReconciliation } from "../lib/saleReconciliation";
 import type { CloudStatus, ProductionEvent, RoundingMode, Sale } from "../types";
@@ -174,6 +175,8 @@ export function SalesPage() {
   const { fees, saveFees } = useFees();
   // Passo 8: dados vivos para a reconciliação (custo real + baixa por caminho).
   const { filaments: stock } = useStock();
+  // 7e: insumos — o estorno da venda devolve também os acessórios da encomenda.
+  const { supplies } = useSupplies();
   const { goods } = useFinishedGoods();
   const { events: production } = useProduction();
   const [editRecibo, setEditRecibo] = useState<EditReciboSeed | null>(null);
@@ -335,18 +338,21 @@ export function SalesPage() {
     // Passo 8: excluir uma venda estorna o que ela consumiu — acabado (finishedMoves)
     // e/ou filamento das encomendas — e apaga os eventos de produção, tudo atômico.
     const events = eventsOf(sale);
-    const { colorUpdates, finishedUpdates } = reverseReciboReconciliation(
-      sale.finishedMoves ?? [],
-      events.flatMap((event) => event.stockMoves),
-      goods,
-      stock,
-    );
+    const { colorUpdates, supplyUpdates, finishedUpdates } =
+      reverseReciboReconciliation(
+        sale.finishedMoves ?? [],
+        events.flatMap((event) => event.stockMoves),
+        goods,
+        stock,
+        supplies,
+      );
     await reconcileRecibo({
       saleUpserts: [],
       saleRemovedIds: [sale.id],
       productionCreates: [],
       productionDeleteIds: events.map((event) => event.id),
       colorUpdates,
+      supplyUpdates,
       finishedUpdates,
     });
   }
@@ -610,6 +616,7 @@ export function SalesPage() {
           onFeesChange={saveFees}
           goods={goods}
           stock={stock}
+          supplies={supplies}
           products={products}
           machines={machines}
           fixedCosts={fixedCosts}
@@ -627,6 +634,7 @@ export function SalesPage() {
           onFeesChange={saveFees}
           goods={goods}
           stock={stock}
+          supplies={supplies}
           products={products}
           machines={machines}
           fixedCosts={fixedCosts}

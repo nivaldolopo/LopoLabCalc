@@ -19,6 +19,7 @@ import type {
   SavedProduct,
   StockFilament,
 } from "../types";
+import { useSupplies } from "../hooks/useSupplies";
 import { SaleModal } from "./SaleModal";
 
 type SaleFlowProps = {
@@ -52,6 +53,10 @@ export function SaleFlow({
   const { fees, saveFees } = useFees();
   const { goods } = useFinishedGoods();
   const { events: production } = useProduction();
+  // 7e: insumos para a baixa dos acessórios na encomenda. Assinado aqui (e não
+  // vindo por prop) pelo mesmo motivo dos outros 3 hooks: é do modal, não da
+  // página, e só sobe quando o modal abre.
+  const { supplies } = useSupplies();
 
   // Produtos do catálogo prontos como itens de cesta (para adicionar mais de um
   // produto ao mesmo recibo dentro do modal de venda).
@@ -96,6 +101,7 @@ export function SaleFlow({
       onFeesChange={saveFees}
       goods={goods}
       stock={stock}
+      supplies={supplies}
       products={products}
       machines={machines}
       fixedCosts={fixedCosts}

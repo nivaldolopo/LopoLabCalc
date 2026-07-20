@@ -71,6 +71,7 @@ function ctx(over: Partial<ReconContext>): ReconContext {
   return {
     goods: [],
     colors: [],
+    supplies: [],
     products: [],
     machines: DEFAULT_MACHINES,
     fixedCosts: NO_FIXED,

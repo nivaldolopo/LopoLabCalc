@@ -5,7 +5,7 @@ import {
   consumeFifo,
   reverseFinishedConsumption,
 } from "./finishedGoods";
-import { reverseProduction } from "./production";
+import { reverseProduction, reverseSupplies } from "./production";
 import {
   buildProductionPayloads,
   planEventRows,
@@ -24,6 +24,7 @@ import type {
   SaleItemOrigin,
   SavedProduct,
   StockFilament,
+  Supply,
   StockMove,
   SubitemPrice,
 } from "../types";
@@ -72,6 +73,8 @@ export type ReciboReconciliation = {
   productionPayloads: { id: string; payload: ProductionPayload }[];
   // Estado FINAL das cores tocadas pelas encomendas (só o campo `rolls` é gravado).
   colorUpdates: StockFilament[];
+  // 7e: idem para os insumos das encomendas (só o campo `lots` é gravado).
+  supplyUpdates: Supply[];
   // Estado FINAL dos acabados tocados pelas peças prontas.
   finishedUpdates: FinishedGoodPayload[];
 };
@@ -79,6 +82,7 @@ export type ReciboReconciliation = {
 export type ReconContext = {
   goods: FinishedGood[];
   colors: StockFilament[];
+  supplies: Supply[];
   products: SavedProduct[];
   machines: Machine[];
   fixedCosts: FixedCostSettings;
@@ -103,16 +107,20 @@ const toPayload = (good: FinishedGood): FinishedGoodPayload => ({
 type ReconState = {
   goodsById: Map<string, FinishedGood>;
   colorsById: Map<string, StockFilament>;
+  suppliesById: Map<string, Supply>;
   touchedGoods: Set<string>;
   touchedColors: Set<string>;
+  touchedSupplies: Set<string>;
 };
 
 function newState(ctx: ReconContext): ReconState {
   return {
     goodsById: new Map(ctx.goods.map((g) => [g.productId, g])),
     colorsById: new Map(ctx.colors.map((c) => [c.id, c])),
+    suppliesById: new Map(ctx.supplies.map((s) => [s.id, s])),
     touchedGoods: new Set(),
     touchedColors: new Set(),
+    touchedSupplies: new Set(),
   };
 }
 
@@ -155,6 +163,15 @@ function applyReverse(
   for (const color of reverted) {
     state.colorsById.set(color.id, color);
     state.touchedColors.add(color.id);
+  }
+  // 7e: os mesmos `stockMoves` carregam os insumos (filtrados por `kind`).
+  const revertedSupplies = reverseSupplies(
+    productionStockMoves,
+    Array.from(state.suppliesById.values()),
+  );
+  for (const supply of revertedSupplies) {
+    state.suppliesById.set(supply.id, supply);
+    state.touchedSupplies.add(supply.id);
   }
 }
 
@@ -228,10 +245,21 @@ function applyForward(
     // acabado; decisão do dono.)
     const pieces = Math.max(1, num(product.piecesCount) || 1);
     const scaled = rows.map((row) => scaleRow(row, qty / pieces));
-    const planned = planEventRows(scaled, "real", colorsNow, ctx.machines, ctx.genId);
+    const planned = planEventRows(
+      scaled,
+      "real",
+      colorsNow,
+      Array.from(state.suppliesById.values()),
+      ctx.machines,
+      ctx.genId,
+    );
     for (const color of planned.colorUpdates) {
       state.colorsById.set(color.id, color);
       state.touchedColors.add(color.id);
+    }
+    for (const supply of planned.supplyUpdates) {
+      state.suppliesById.set(supply.id, supply);
+      state.touchedSupplies.add(supply.id);
     }
     const payloads = buildProductionPayloads(planned.built, {
       at: ctx.at,
@@ -259,6 +287,12 @@ function collectColorUpdates(state: ReconState): StockFilament[] {
   return Array.from(state.touchedColors).map((id) => state.colorsById.get(id)!);
 }
 
+function collectSupplyUpdates(state: ReconState): Supply[] {
+  return Array.from(state.touchedSupplies).map(
+    (id) => state.suppliesById.get(id)!,
+  );
+}
+
 function collectFinishedUpdates(state: ReconState): FinishedGoodPayload[] {
   return Array.from(state.touchedGoods).map((id) =>
     toPayload(state.goodsById.get(id)!),
@@ -284,6 +318,7 @@ export function planReciboReconciliation(
     items: results,
     productionPayloads: productionCreates,
     colorUpdates: collectColorUpdates(state),
+    supplyUpdates: collectSupplyUpdates(state),
     finishedUpdates: collectFinishedUpdates(state),
   };
 }
@@ -304,6 +339,7 @@ export type ReciboWritePlan = {
   productionCreates: { id: string; payload: ProductionPayload }[];
   productionDeleteIds: string[];
   colorUpdates: StockFilament[];
+  supplyUpdates: Supply[];
   finishedUpdates: FinishedGoodPayload[];
 };
 
@@ -338,6 +374,7 @@ export function reconcileReciboWrite(
     productionCreates,
     productionDeleteIds,
     colorUpdates: collectColorUpdates(state),
+    supplyUpdates: collectSupplyUpdates(state),
     finishedUpdates: collectFinishedUpdates(state),
   };
 }
@@ -354,7 +391,12 @@ export function reverseReciboReconciliation(
   productionStockMoves: StockMove[],
   goods: FinishedGood[],
   colors: StockFilament[],
-): { colorUpdates: StockFilament[]; finishedUpdates: FinishedGoodPayload[] } {
+  supplies: Supply[] = [],
+): {
+  colorUpdates: StockFilament[];
+  supplyUpdates: Supply[];
+  finishedUpdates: FinishedGoodPayload[];
+} {
   const affectedGoods = new Set(finishedMoves.map((move) => move.productId));
   const finishedUpdates = goods
     .filter((good) => affectedGoods.has(good.productId))
@@ -362,6 +404,7 @@ export function reverseReciboReconciliation(
 
   return {
     colorUpdates: reverseProduction(productionStockMoves, colors),
+    supplyUpdates: reverseSupplies(productionStockMoves, supplies),
     finishedUpdates,
   };
 }

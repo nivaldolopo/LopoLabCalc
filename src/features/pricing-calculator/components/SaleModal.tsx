@@ -46,6 +46,7 @@ import type {
   SalePayload,
   SavedProduct,
   StockFilament,
+  Supply,
 } from "../types";
 
 // Um item já salvo de um recibo, para o modo edição. `source` é reconstruído a
@@ -105,6 +106,8 @@ type SaleModalProps = {
   // Passo 8: dados vivos para a reconciliação (custo real + baixa por caminho).
   goods: FinishedGood[];
   stock: StockFilament[];
+  // 7e: insumos, para a encomenda dar baixa dos acessórios ligados.
+  supplies: Supply[];
   products: SavedProduct[];
   machines: Machine[];
   fixedCosts: FixedCostSettings;
@@ -148,6 +151,7 @@ export function SaleModal({
   onFeesChange,
   goods,
   stock,
+  supplies,
   products,
   machines,
   fixedCosts,
@@ -287,6 +291,7 @@ export function SaleModal({
       planReciboReconciliation(reconItems, {
         goods,
         colors: stock,
+        supplies,
         products,
         machines,
         fixedCosts,
@@ -295,7 +300,7 @@ export function SaleModal({
         createdAt: 0,
         genId: () => "preview",
       }),
-    [reconItems, goods, stock, products, machines, fixedCosts, dateStr],
+    [reconItems, goods, stock, supplies, products, machines, fixedCosts, dateStr],
   );
   const reconByKey = useMemo(
     () => new Map(recon.items.map((r) => [r.key, r])),
@@ -382,6 +387,7 @@ export function SaleModal({
     const write = reconcileReciboWrite(reconItems, old, {
       goods,
       colors: stock,
+      supplies,
       products,
       machines,
       fixedCosts,

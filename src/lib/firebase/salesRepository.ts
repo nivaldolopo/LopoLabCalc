@@ -10,6 +10,7 @@ import { db } from "./client";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import { productionToDocument } from "./productionRepository";
 import { serializeRolls } from "./stockRepository";
+import { serializeLots } from "./suppliesRepository";
 import type {
   FinishedGoodPayload,
   FinishedMove,
@@ -19,6 +20,7 @@ import type {
   Sale,
   SaleChannel,
   StockFilament,
+  Supply,
 } from "@/features/pricing-calculator/types";
 import { num } from "@/lib/number";
 
@@ -201,6 +203,8 @@ export type ReciboWrite = {
   productionCreates: { id: string; payload: ProductionPayload }[];
   productionDeleteIds: string[];
   colorUpdates: StockFilament[];
+  // 7e: insumos afetados pelas encomendas (só o campo `lots`).
+  supplyUpdates?: Supply[];
   finishedUpdates: FinishedGoodPayload[];
 };
 
@@ -225,6 +229,12 @@ export async function reconcileRecibo(write: ReciboWrite): Promise<void> {
   for (const color of write.colorUpdates) {
     batch.update(doc(db, "estoque", color.id), {
       rolls: serializeRolls(color.rolls),
+    });
+  }
+  // Estoque de insumos: só o campo `lots` dos insumos afetados.
+  for (const supply of write.supplyUpdates ?? []) {
+    batch.update(doc(db, "insumos", supply.id), {
+      lots: serializeLots(supply.lots),
     });
   }
   // Acabados: o doc inteiro (id = productId) já com/sem as camadas.

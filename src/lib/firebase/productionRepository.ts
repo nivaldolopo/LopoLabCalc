@@ -8,6 +8,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./client";
 import { serializeRolls } from "./stockRepository";
+import { serializeLots } from "./suppliesRepository";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import type {
   FilamentUsage,
@@ -18,6 +19,8 @@ import type {
   ProductionPayload,
   StockFilament,
   StockMove,
+  Supply,
+  SupplyUsage,
 } from "@/features/pricing-calculator/types";
 import { num } from "@/lib/number";
 
@@ -76,6 +79,26 @@ function usageFromDocument(data: DocumentData): FilamentUsage {
   };
 }
 
+// 7e: snapshot do insumo consumido. `supplyId` vai como null quando o acessório
+// é avulso — Firestore rejeita `undefined`.
+function supplyUsageToDocument(usage: SupplyUsage): DocumentData {
+  return {
+    supplyId: usage.supplyId ?? null,
+    name: usage.name ?? "",
+    qty: num(usage.qty),
+    unitPrice: num(usage.unitPrice),
+  };
+}
+
+function supplyUsageFromDocument(data: DocumentData): SupplyUsage {
+  return {
+    supplyId: data.supplyId ?? null,
+    name: data.name ?? "",
+    qty: num(data.qty),
+    unitPrice: num(data.unitPrice),
+  };
+}
+
 function moveToDocument(move: StockMove): DocumentData {
   return {
     itemId: move.itemId,
@@ -111,6 +134,9 @@ export function productionToDocument(payload: ProductionPayload): DocumentData {
     machineName: payload.machineName ?? "",
     printHours: num(payload.printHours),
     filaments: payload.filaments.map(usageToDocument),
+    ...(payload.supplies && payload.supplies.length > 0
+      ? { supplies: payload.supplies.map(supplyUsageToDocument) }
+      : {}),
     frozenCost: num(payload.frozenCost),
     stockMoves: payload.stockMoves.map(moveToDocument),
     ...(payload.notes ? { notes: payload.notes } : {}),
@@ -133,6 +159,9 @@ function toProduction(id: string, data: DocumentData): ProductionEvent {
     filaments: Array.isArray(data.filaments)
       ? data.filaments.map(usageFromDocument)
       : [],
+    ...(Array.isArray(data.supplies)
+      ? { supplies: data.supplies.map(supplyUsageFromDocument) }
+      : {}),
     frozenCost: num(data.frozenCost),
     stockMoves: Array.isArray(data.stockMoves)
       ? data.stockMoves.map(moveFromDocument)
@@ -177,6 +206,7 @@ export async function saveProduction(
   events: { id: string; payload: ProductionPayload }[],
   colorUpdates: StockFilament[],
   finished?: FinishedUpdate | null,
+  supplyUpdates: Supply[] = [],
 ): Promise<void> {
   const batch = writeBatch(db);
   for (const { id, payload } of events) {
@@ -185,6 +215,13 @@ export async function saveProduction(
   for (const color of colorUpdates) {
     batch.update(doc(db, "estoque", color.id), {
       rolls: serializeRolls(color.rolls),
+    });
+  }
+  // 7e: os insumos afetados entram no MESMO batch (só o campo `lots`) — o ímã
+  // não pode sair do estoque sem o evento que o explica, nem o contrário.
+  for (const supply of supplyUpdates) {
+    batch.update(doc(db, "insumos", supply.id), {
+      lots: serializeLots(supply.lots),
     });
   }
   if (finished) {
@@ -205,8 +242,9 @@ export async function removeProduction(
   eventId: string,
   colorUpdates: StockFilament[] = [],
   finished?: FinishedUpdate | null,
+  supplyUpdates: Supply[] = [],
 ): Promise<void> {
-  if (colorUpdates.length === 0 && !finished) {
+  if (colorUpdates.length === 0 && supplyUpdates.length === 0 && !finished) {
     await deleteDoc(doc(db, "producao", eventId));
     return;
   }
@@ -215,6 +253,11 @@ export async function removeProduction(
   for (const color of colorUpdates) {
     batch.update(doc(db, "estoque", color.id), {
       rolls: serializeRolls(color.rolls),
+    });
+  }
+  for (const supply of supplyUpdates) {
+    batch.update(doc(db, "insumos", supply.id), {
+      lots: serializeLots(supply.lots),
     });
   }
   if (finished) {

@@ -22,7 +22,7 @@ import {
   removeEventLayers,
   submissionEntries,
 } from "../lib/finishedGoods";
-import { reverseProduction } from "../lib/production";
+import { reverseProduction, reverseSupplies } from "../lib/production";
 import {
   buildProductionPayloads,
   nextRowKey,
@@ -40,6 +40,7 @@ import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
 import { useProduction } from "../hooks/useProduction";
 import { useStock } from "../hooks/useStock";
+import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
 import type {
   CloudStatus,
@@ -92,6 +93,8 @@ export function ProductionPage() {
   const { products } = useProducts();
   const { machines } = useMachines();
   const { filaments: stock } = useStock();
+  // 7e: insumos para a baixa dos acessórios ligados (o avulso segue só no custo).
+  const { supplies } = useSupplies();
   const { fixedCostRate } = useBusinessSettings();
   // O custo fixo NÃO entra no frozenCost da produção — só uso o `calculatePricing`
   // pelos subitens/consumo, e nada que eu leio depende do fixo. `enabled: false`.
@@ -171,6 +174,8 @@ export function ProductionPage() {
       ],
       laborCost: 0,
       energyTariff: DEFAULT_PRODUCT_INPUT.energyTariff ?? 0,
+      // Impressão avulsa não tem produto, logo não tem acessório para dar baixa.
+      supplies: [],
     };
   }
 
@@ -310,15 +315,23 @@ export function ProductionPage() {
       rows.map((row) => scaleRow(row, Math.max(1, plates))),
       mode,
       stock,
+      supplies,
       machines,
       genId,
     );
+
+  // 7e: os insumos da submissão inteira (já escalados por peças × placas). Vêm do
+  // produto, não são editáveis aqui — quem muda a receita é a calculadora.
+  const plannedSupplies = useMemo(
+    () => rows.flatMap((row) => row.supplies.map((s) => ({ ...s, qty: s.qty * Math.max(1, plates) }))),
+    [rows, plates],
+  );
 
   // Preview ao vivo (não grava): usa um id fixo — o itemId não importa aqui.
   const preview = useMemo(
     () => planEvents(() => "preview"),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, plates, mode, stock, machines],
+    [rows, plates, mode, stock, supplies, machines],
   );
 
   // Delta do acabado da submissão (FEAT-05b). Só quando o desfecho é `estoque` e
@@ -438,7 +451,12 @@ export function ProductionPage() {
     const finished = finishedForSave(planned.built, planned.summary.frozen, at);
 
     try {
-      await addProduction(entries, planned.colorUpdates, finished);
+      await addProduction(
+        entries,
+        planned.colorUpdates,
+        finished,
+        planned.supplyUpdates,
+      );
       setFeedback({
         kind: "ok",
         msg:
@@ -469,7 +487,13 @@ export function ProductionPage() {
     try {
       guardOnline();
       const colorUpdates = reverseProduction(event.stockMoves, stock);
-      await deleteProduction(event.id, colorUpdates, finishedForRemove(event));
+      const supplyUpdates = reverseSupplies(event.stockMoves, supplies);
+      await deleteProduction(
+        event.id,
+        colorUpdates,
+        finishedForRemove(event),
+        supplyUpdates,
+      );
       setFeedback({ kind: "ok", msg: "✓ Produção excluída e estoque estornado." });
     } catch (err) {
       setFeedback({ kind: "error", msg: errorMessage(err) });
@@ -793,8 +817,25 @@ export function ProductionPage() {
                       o saldo da cor fica negativo (contagem furada?).
                     </div>
                   ) : null}
+                  {preview.summary.supplyShortfall > 0 ? (
+                    <div className="prod-warn strong">
+                      Faltam {Math.round(preview.summary.supplyShortfall)}{" "}
+                      unidade(s) de insumo no estoque — o saldo fica negativo
+                      (comprou e não lançou?).
+                    </div>
+                  ) : null}
                 </>
               )}
+              {plannedSupplies.length > 0 ? (
+                <div className="prod-note">
+                  Insumos desta impressão:{" "}
+                  {plannedSupplies
+                    .map((s) => `${Math.round(s.qty)}× ${s.name}`)
+                    .join(", ")}{" "}
+                  ({formatCurrency(preview.summary.supplies)}
+                  {mode === "real" ? ", baixa automática" : ""}).
+                </div>
+              ) : null}
               {outcome === "estoque" && isProductSelected ? (
                 <div className="prod-note">
                   → Entra no <strong>Estoque de Produtos</strong>:{" "}

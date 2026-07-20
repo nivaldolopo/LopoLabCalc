@@ -12,6 +12,7 @@ import type {
   ProductionEvent,
   ProductionPayload,
   StockFilament,
+  Supply,
 } from "../types";
 
 // Registro de produção em tempo real (FEAT-04b). Molde do `useStock`/`useSales`:
@@ -45,8 +46,9 @@ export function useProduction() {
     entries: { id: string; payload: ProductionPayload }[],
     colorUpdates: StockFilament[],
     finished?: FinishedUpdate | null,
+    supplyUpdates: Supply[] = [],
   ) {
-    await saveProduction(entries, colorUpdates, finished);
+    await saveProduction(entries, colorUpdates, finished, supplyUpdates);
   }
 
   // Exclui um evento e estorna sua baixa. `colorUpdates` vem de
@@ -56,8 +58,9 @@ export function useProduction() {
     eventId: string,
     colorUpdates: StockFilament[],
     finished?: FinishedUpdate | null,
+    supplyUpdates: Supply[] = [],
   ) {
-    await removeProduction(eventId, colorUpdates, finished);
+    await removeProduction(eventId, colorUpdates, finished, supplyUpdates);
   }
 
   return { events, status, error, addProduction, deleteProduction };

@@ -14,34 +14,26 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **FEAT-08 — vender/produzir/orçar no catálogo, inteiro e por subitem.** As 3 ações
-  na coluna "Ações" (produto inteiro) e no painel expandido (inteiro + uma linha por subitem). Seed
-  cross-page `?produto=<id>&subitem=<subId>`, traduzido por cada destino (a `/producao` reusa o
-  `selectOption`; a `/orcamento` anexa a linha). Venda de subitem saiu quase de graça — o
-  `saleContextFromSubitem` do FEAT-01 já existia. `lint`+`build` limpos (rotas seguiram estáticas),
-  190 testes verdes. **Correção logo depois (reportada pelo dono):** no desktop os 3 ícones novos não
-  apareciam — a linha do catálogo **não é tabela, é `display: grid`** e a faixa de "Ações" era fixa em
-  **76px** (`catalog.css`), então o `overflow: hidden` do `.main-row td` cortava o excedente. Faixa foi
-  pra **146px** (5 ícones de 24px + folgas + divisor = 143px). ⚠ **As regras `sticky` de `col-actions`
-  (linha ~536) são MORTAS** — sobrescritas por `position: static` mais abaixo; não raciocinar por elas.
-  Custo aceito: entre 760 e ~860px de tela o nome do produto passa a truncar com reticências (acima
-  disso, nada muda). **O dono testou e o truncamento incomodou** (não há como ler o nome inteiro) →
-  virou **UX-03** no backlog (paliativo já aplicado: `title` na célula do nome; segue aberto pra
-  toque/mobile, que não tem hover), junto com **UX-04** (catálogo mostra só a 1ª máquina do produto).
-- **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
-  **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
-- **▶ PRÓXIMA TAREFA sugerida:** **7e — insumos/acessórios no estoque** (`supplyId` no `Accessory`,
-  cadastro de insumos na `/estoque`, baixa por unidade; fecha o buraco de COGS do gotcha abaixo e é
-  pré-requisito do FEAT-06). **Ordem (dono, 2026-07-20):** 7e → **FEAT-06** → FEAT-03/branding →
+- **Última mudança:** **7e — insumos no estoque, fechando o buraco de COGS.** Coleção nova `insumos`
+  (FIFO por lote), 3ª aba na `/estoque` (Filamentos · Insumos · Produtos), `Accessory.supplyId`
+  (avulso continua valendo, sem baixa) e **baixa por unidade na produção** — a encomenda da venda
+  herdou de graça (mesmo builder). O núcleo do FIFO virou `lib/fifo.ts`, compartilhado pelos dois
+  estoques. **`productionCost` agora soma `supplies`** ⇒ o lucro por peça de produções **novas** caiu
+  (ficou correto). Zero migração. 246 testes verdes. ⚠ **O dono precisa cadastrar os insumos e
+  religar os acessórios** — os já cadastrados seguem avulsos até lá.
+- **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
+  (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
+- **▶ PRÓXIMA TAREFA sugerida:** **FEAT-06 — aba Produtos rica** (composição de custo CONGELADA na
+  produção: o acabado passa a guardar o `SaleCostBreakdown` inteiro, em vez do snapshot do catálogo).
+  O 7e, pré-requisito dele, já fechou. **Ordem (dono, 2026-07-20):** **FEAT-06** → FEAT-03/branding →
   **Tier 4 inteiro** → TD-003/TD-006 → Dashboard (último). A trilha de UX (UX-01/FEAT-07/UX-02/FEAT-08)
   está **fechada**.
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
-- ⚠ **Gotcha vivo (buraco de COGS, motiva o 7e):** acessórios **JÁ entram no preço**
-  (`calculatePricing.ts:325`) mas **NÃO no `frozenCost`** da produção (`production.ts:146-148`, decisão
-  explícita) ⇒ o lucro por peça no histórico sai **superestimado**. COGS armazenado = custo real
-  (unitCost/lucro/margem); `costBreakdown` = snapshot do catálogo (**stopgap**) até o FEAT-06 congelar
-  a composição — por isso o **7e vem antes do FEAT-06**.
+- ⚠ **Gotcha que SOBROU do 7e (motiva o FEAT-06):** o buraco de COGS fechou (acessórios entram no
+  `frozenCost` desde 2026-07-20), mas o `costBreakdown` da venda de peça pronta **ainda é o snapshot
+  do catálogo vivo** (stopgap) — só o FEAT-06 congela a composição na produção. O COGS armazenado
+  (unitCost/lucro/margem) já é o custo real.
 - **`/maquinas` (ROI):** cruza `price`/`lifeHours` com o histórico — 2 barras (payback do investimento
   e vida útil consumida); as horas vêm do **registro de produção** (FEAT-04c). Matemática pura em
   `lib/machineRoi.ts` (recebe `sales` **e** `production`).
@@ -51,9 +43,8 @@
   TD-003 é só **projeção** de capacidade na tela, TD-006 é custo/desempenho de **leitura**.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
-- **TO-DO macro em aberto:** **7e** (insumos no estoque — item próprio depois do filamento),
-  **Dashboard** (`/painel`, só vale com ~1-2 meses de vendas), **logo real** no PDF do orçamento
-  (placeholder hoje). Todos em [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
+- **TO-DO macro em aberto:** **Dashboard** (`/painel`, só com ~1-2 meses de vendas) e **logo real** no
+  PDF do orçamento. Todos em [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
 - **Decisões encerradas:** variáveis de Preview do Firebase não cadastradas (só Production, Diretriz 1);
   conversão peso↔metragem **descartada** pelo dono (não repropor).
 
@@ -92,25 +83,30 @@ src/
                             #     LinksSection, Header,
                             #     SaleModal (registrar venda), SalesPage (rota /vendas),
                             #     QuotePage (/orcamento), MachinesPage (/maquinas),
-                            #     StockPage (/estoque: abas Insumos/Produtos — acabados FEAT-05c) +
-                            #     StockColorModal/StockRollModal/
-                            #     StockAdjustModal, ProductionPage (/producao — registro de
+                            #     StockPage (/estoque: abas Filamentos/Insumos/Produtos) +
+                            #     StockColorModal/StockRollModal/StockAdjustModal,
+                            #     SuppliesTab (7e) + SupplyModal/SupplyLotModal/
+                            #     SupplyAdjustModal, ProductionPage (/producao — registro de
                             #     impressão), NumberInput (compartilhado),
                             #     ProfitSummary (rentabilidade compartilhada),
                             #     CostDetail (custo real × precificado, expansível — venda e /vendas),
                             #     AuthGate (login)
     hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
+                            #     useSupplies (coleção insumos — 7e),
                             #     useAuth, useQuoteConfig (negócio), useQuotes (histórico),
                             #     useFees (taxas de pagamento), useStock (estoque de filamento),
                             #     useProduction (coleção producao — FEAT-04),
                             #     useFinishedGoods (coleção acabados — FEAT-05)
     lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv,
+                            #     fifo (núcleo FIFO compartilhado: ordem + overdraft D4),
+                            #     supplies (estoque de insumos 7e: gêmeo do stock em unidades),
                             #     saleContext (foto congelada da venda — helpers puros do SaleModal),
                             #     filaments (cores por impressão, FEAT-02), stock (FIFO do estoque:
                             #     simulate/apply/reverse/adjustRoll — matemática pura, item 3),
                             #     production (baixa da produção FEAT-04: planProduction/
-                            #     reverseProduction orquestram o FIFO por evento; productionCost
-                            #     = frozenCost material+energia+deprec.+manut.+labor),
+                            #     reverseProduction + planSupplies/reverseSupplies (7e)
+                            #     orquestram o FIFO por evento; productionCost = frozenCost
+                            #     material+energia+deprec.+manut.+labor+INSUMOS),
                             #     finishedGoods (estoque de acabados FEAT-05: camadas FIFO —
                             #     addProductionLayers/removeEventLayers/consumeFifo/apply+reverse
                             #     FinishedConsumption/assemblableWholes/goodValue/assemblyBreakdown; puro),
@@ -131,6 +127,8 @@ src/
                             #   quotesRepository.ts (coleção `orcamentos`: histórico de orçamentos),
                             #   feesRepository.ts (doc config/taxas: taxa % por forma de pagamento),
                             #   stockRepository.ts (coleção `estoque`: um doc por COR, rolos dentro),
+                            #   suppliesRepository.ts (coleção `insumos`: um doc por INSUMO,
+                            #     lotes dentro; serializeLots p/ os batches — 7e),
                             #   productionRepository.ts (coleção `producao`: newProductionId +
                             #     saveProduction(events[]) — N eventos + baixa dos rolos no mesmo
                             #     writeBatch — FEAT-04)

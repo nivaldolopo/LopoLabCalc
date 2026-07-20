@@ -579,6 +579,16 @@ export type SupplyConsumptionMove = {
   cost: number;
 };
 
+// O insumo CONSUMIDO por um evento de produção, congelado (gêmeo do
+// `FilamentUsage`). Sem `supplyId` é o acessório AVULSO: entra no custo, mas não
+// tem de onde dar baixa — mesmo caminho da cor avulsa.
+export type SupplyUsage = {
+  supplyId?: string | null;
+  name: string;
+  qty: number; // unidades TOTAIS do evento
+  unitPrice: number; // R$/unidade resolvido no momento (FIFO real ou congelado)
+};
+
 export type SupplyConsumptionResult = {
   moves: SupplyConsumptionMove[];
   cost: number;
@@ -636,6 +646,10 @@ export type ProductionInput = {
   // material/marca por cor (D7). `pricePerKg` = o resolvido no momento (custo
   // misto FIFO no modo real; avulso no historico).
   filaments: FilamentUsage[];
+  // 7e: insumos consumidos, CONGELADOS (espelha `filaments`). `qty` é o TOTAL do
+  // evento (já × peças × placas), não por peça. Ausente em evento antigo e em
+  // produto sem acessório.
+  supplies?: SupplyUsage[];
   frozenCost: number;
   // O que a baixa deduziu, por rolo — de onde o estorno (04c) lê, exatamente como
   // o `stockMoves` da venda. Vazio no modo historico/avulso (nada foi deduzido).

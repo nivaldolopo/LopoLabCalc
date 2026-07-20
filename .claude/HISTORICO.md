@@ -9,6 +9,43 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ 7e — Insumos no estoque + baixa do acessório na produção (2026-07-20)
+
+Fechou o **buraco de COGS**: acessórios já entravam no preço (`calculatePricing.ts`) mas ficavam de
+fora do `frozenCost` da produção, então o lucro por peça do histórico saía superestimado. Entregue em
+3 commits.
+
+- **Núcleo do FIFO extraído** para `lib/fifo.ts` (`fifoSort`/`simulateFifo`/`shiftLots`): a regra do
+  D4 (overdraft no lote mais novo) passou a ter UMA implementação, usada pelo filamento (gramas ×
+  R$/kg) e pelo insumo (unidades × R$/un). `lib/stock.ts` delega; os 190 testes existentes foram a
+  rede de segurança da extração.
+- **Coleção nova `insumos`** (não `estoque`): o `subscribeStock` devolve a coleção inteira tipada como
+  cor e o estorno filtra por `stockId` — insumo no meio das cores exigiria um discriminador em toda
+  leitura, sem economizar nada. `lib/supplies.ts` espelha o `stock.ts` (saldo, FIFO, ajuste D6,
+  extrato D6.1, guarda do excluir).
+- **`Accessory.supplyId`**: ligado, o nome e o preço são **copiados** do insumo (denormalização
+  deliberada — mantém `calculatePricing` e seus ~10 call sites sem conhecer o estoque, e espelha o
+  `pricePerKg` que a `FilamentUsage` já congela). Sem ligação, segue **avulso**: entra no custo, não
+  dá baixa — o mesmo caminho do filamento avulso.
+- **Escala (o ponto sutil):** `Accessory.qty` é POR PEÇA, a linha-evento é POR PLACA. `accessoryRows`
+  multiplica por `piecesCount` na origem, e daí o `scaleRow` escala por placas junto com as gramas,
+  sem fator especial. Produto **multi-máquina** vira N eventos → os insumos vão só na **1ª linha**
+  (repetidos, um produto em duas impressoras consumiria o ímã duas vezes). Produção de **subitem**
+  leva só o acessório atribuído a ele: o não-atribuído é rateado no PREÇO, mas fisicamente não sai da
+  gaveta ao imprimir uma parte só.
+- **`productionCost` agora soma `supplies`** — e é só isso que fecha o COGS: tudo a jusante
+  (`summary.frozen` → `submissionEntries` → `FinishedLayer.unitCost` → COGS da venda) propagou sozinho,
+  sem tocar `finishedGoods.ts`. Reserva de falha e custo fixo **seguem fora** (são provisões de
+  pricing, não custo físico).
+- **Zero migração**, como o D1 previu: `StockMove.kind` já era `"filament" | "supply"` desde a 7a e o
+  repositório já serializava o campo. `reverseProduction` passou a filtrar por `kind`; nasceu o
+  `reverseSupplies` espelho. Batch da produção e o da venda (encomenda) ganharam `supplyUpdates`.
+- **UI:** `/estoque` virou 3 abas (Filamentos · Insumos · Produtos), a nova num componente próprio
+  (`SuppliesTab` + 3 modais espelhados). A `/producao` lista os insumos da submissão e avisa falta de
+  saldo ao lado dos avisos de rolo.
+
+56 testes novos (fifo, supplies, planSupplies/estorno, escala do productionPlan) — 246 no total.
+
 ## ✅ FEAT-08 — Produzir/Orçar/Vender no card do catálogo (2026-07-20)
 
 Card e linha do catálogo ganharam as 3 ações, para o inteiro **e por subitem**. **Seed cross-page:**

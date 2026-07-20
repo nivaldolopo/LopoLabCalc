@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { planProduction, productionCost, reverseProduction } from "./production";
+import {
+  planProduction,
+  planSupplies,
+  productionCost,
+  reverseProduction,
+  reverseSupplies,
+} from "./production";
 import { balanceG } from "./stock";
 import type {
   FilamentRoll,
   FilamentUsage,
   Machine,
   StockFilament,
+  StockMove,
+  Supply,
+  SupplyLot,
+  SupplyUsage,
 } from "../types";
 
 const DIA = 24 * 60 * 60 * 1000;
@@ -293,6 +303,21 @@ describe("productionCost", () => {
     expect(cost.total).toBeCloseTo(5 + 0.16 + 2 + 1 + 3);
   });
 
+  // 7e: o buraco de COGS que o item fechou — o ímã sai da gaveta e é cobrado do
+  // cliente, então tem que entrar no custo congelado.
+  it("soma os INSUMOS no total (7e)", () => {
+    const semInsumo = productionCost(machine, 2, 0.8, 5, 3);
+    const comInsumo = productionCost(machine, 2, 0.8, 5, 3, 1.5);
+    expect(comInsumo.supplies).toBe(1.5);
+    expect(comInsumo.total).toBeCloseTo(semInsumo.total + 1.5);
+  });
+
+  it("sem insumo, o total não muda (default 0)", () => {
+    const cost = productionCost(machine, 2, 0.8, 5, 3);
+    expect(cost.supplies).toBe(0);
+    expect(cost.total).toBeCloseTo(5 + 0.16 + 2 + 1 + 3);
+  });
+
   it("lifeHours 0 não deprecia (não divide por zero)", () => {
     const cost = productionCost({ ...machine, lifeHours: 0 }, 2, 0.8, 0, 0);
     expect(cost.depreciation).toBe(0);
@@ -306,5 +331,146 @@ describe("productionCost", () => {
     expect(cost.maintenance).toBe(0);
     // material e labor não dependem de hora.
     expect(cost.total).toBe(6);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7e — baixa de insumos
+// ---------------------------------------------------------------------------
+
+function makeLot(over: Partial<SupplyLot> & { id: string }): SupplyLot {
+  return {
+    purchaseDate: 0,
+    initialQty: 100,
+    remainingQty: 100,
+    unitPrice: 0.5,
+    ...over,
+  };
+}
+
+function makeSupply(
+  over: Partial<Supply> & { id: string; lots: SupplyLot[] },
+): Supply {
+  return {
+    name: "Ímã",
+    unit: "un",
+    minQty: 0,
+    archived: false,
+    adjustments: [],
+    createdAt: 0,
+    ...over,
+  };
+}
+
+function supplyUse(over: Partial<SupplyUsage> & { qty: number }): SupplyUsage {
+  return { supplyId: "ima", name: "Ímã", unitPrice: 0.5, ...over };
+}
+
+describe("planSupplies", () => {
+  const ima = () =>
+    makeSupply({
+      id: "ima",
+      lots: [
+        makeLot({ id: "velho", purchaseDate: DIA, remainingQty: 10, unitPrice: 0.5 }),
+        makeLot({ id: "novo", purchaseDate: 2 * DIA, remainingQty: 50, unitPrice: 0.8 }),
+      ],
+    });
+
+  it("consome FIFO e devolve o insumo já decrementado", () => {
+    const plan = planSupplies([supplyUse({ qty: 4 })], [ima()], "e1", "real");
+    expect(plan.cost).toBeCloseTo(2);
+    expect(plan.moves).toEqual([
+      { itemId: "e1", kind: "supply", stockId: "ima", rollId: "velho", qty: 4 },
+    ]);
+    expect(plan.supplyUpdates[0].lots[0].remainingQty).toBe(6);
+  });
+
+  it("custo MISTO ao atravessar lotes", () => {
+    // 10 × 0,50 + 5 × 0,80 = 9,00
+    const plan = planSupplies([supplyUse({ qty: 15 })], [ima()], "e1", "real");
+    expect(plan.cost).toBeCloseTo(9);
+    expect(plan.crossesLot).toBe(true);
+    expect(plan.moves).toHaveLength(2);
+  });
+
+  it("acessório AVULSO entra no custo mas NÃO gera move", () => {
+    const plan = planSupplies(
+      [supplyUse({ qty: 3, supplyId: null, unitPrice: 2 })],
+      [ima()],
+      "e1",
+      "real",
+    );
+    expect(plan.cost).toBe(6);
+    expect(plan.moves).toEqual([]);
+    expect(plan.supplyUpdates).toEqual([]);
+  });
+
+  it("insumo órfão (removido do estoque) cai no fallback congelado", () => {
+    const plan = planSupplies(
+      [supplyUse({ qty: 2, supplyId: "sumiu", unitPrice: 1.5 })],
+      [ima()],
+      "e1",
+      "real",
+    );
+    expect(plan.cost).toBe(3);
+    expect(plan.moves).toEqual([]);
+  });
+
+  it("dois usos do mesmo insumo consomem em sequência", () => {
+    const plan = planSupplies(
+      [supplyUse({ qty: 6 }), supplyUse({ qty: 6 })],
+      [ima()],
+      "e1",
+      "real",
+    );
+    // 10 no lote velho: 6 + 4, e os 2 restantes vão pro lote novo.
+    expect(plan.supplyUpdates[0].lots[0].remainingQty).toBe(0);
+    expect(plan.supplyUpdates[0].lots[1].remainingQty).toBe(48);
+  });
+
+  it("modo historico não toca lote (custo pelo preço congelado)", () => {
+    const plan = planSupplies([supplyUse({ qty: 4 })], [ima()], "e1", "historico");
+    expect(plan.cost).toBe(2);
+    expect(plan.moves).toEqual([]);
+    expect(plan.supplyUpdates).toEqual([]);
+  });
+
+  it("D4: passar do saldo reporta shortfall e deixa negativo", () => {
+    const plan = planSupplies([supplyUse({ qty: 100 })], [ima()], "e1", "real");
+    expect(plan.shortfall).toBe(40);
+    expect(plan.supplyUpdates[0].lots[1].remainingQty).toBe(-40);
+  });
+
+  it("sem insumo nenhum na lista, não faz nada", () => {
+    expect(planSupplies([], [ima()], "e1", "real").moves).toEqual([]);
+  });
+});
+
+describe("reverseProduction / reverseSupplies com moves misturados", () => {
+  const moves: StockMove[] = [
+    { itemId: "e1", kind: "filament", stockId: "preto", rollId: "r1", qty: 50 },
+    { itemId: "e1", kind: "supply", stockId: "ima", rollId: "l1", qty: 4 },
+  ];
+  const cores = [makeColor({ id: "preto", rolls: [makeRoll({ id: "r1", remainingG: 950 })] })];
+  const insumos = [makeSupply({ id: "ima", lots: [makeLot({ id: "l1", remainingQty: 96 })] })];
+
+  it("o estorno de filamento IGNORA os moves de insumo", () => {
+    const [cor] = reverseProduction(moves, cores);
+    expect(balanceG(cor)).toBe(1000);
+  });
+
+  it("o estorno de insumo IGNORA os moves de filamento", () => {
+    const [insumo] = reverseSupplies(moves, insumos);
+    expect(insumo.lots[0].remainingQty).toBe(100);
+  });
+
+  it("round-trip: baixa + estorno devolve o saldo exato", () => {
+    const supply = makeSupply({
+      id: "ima",
+      lots: [makeLot({ id: "l1", remainingQty: 100 })],
+    });
+    const plan = planSupplies([supplyUse({ qty: 7 })], [supply], "e1", "real");
+    const [depois] = reverseSupplies(plan.moves, plan.supplyUpdates);
+    expect(depois.lots[0].remainingQty).toBe(100);
   });
 });

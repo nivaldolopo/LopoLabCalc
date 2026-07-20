@@ -4,9 +4,11 @@ import { normalizeStages } from "./calculatePricing";
 import { filamentTotalG, normalizeFilaments } from "./filaments";
 import {
   planProduction,
+  planSupplies,
   productionCost,
   type ProductionCostBreakdown,
   type ProductionPlan,
+  type SupplyPlan,
 } from "./production";
 import { catalogPricePerKg, filamentLabel } from "./stock";
 import type {
@@ -18,6 +20,8 @@ import type {
   SavedProduct,
   StockFilament,
   SubitemPrice,
+  Supply,
+  SupplyUsage,
 } from "../types";
 
 // Builder puro da PRODUÇÃO a partir de um produto/subitem (FEAT-04b, extraído da
@@ -54,6 +58,11 @@ export type EventRow = {
   filaments: FilRow[];
   laborCost: number; // labor congelado da etapa/subitem (não editado)
   energyTariff: number; // tarifa do produto, congelada na linha
+  // 7e: insumos da SUBMISSÃO, já em unidades por PLACA (qtd/peça × peças), para
+  // escalarem junto das gramas. Vão só na PRIMEIRA linha do grupo: o acessório é
+  // do produto, não da máquina — repetido por linha, um produto que roda em duas
+  // impressoras consumiria o ímã duas vezes.
+  supplies: SupplyUsage[];
 };
 
 let rowSeq = 0;
@@ -100,6 +109,38 @@ export function filRowToUsage(f: FilRow, stock: StockFilament[]): FilamentUsage 
     ...(color?.material ? { material: color.material } : {}),
     ...(color?.brand ? { brand: color.brand } : {}),
   };
+}
+
+/**
+ * Acessórios do produto → insumos da submissão, em unidades por PLACA (7e).
+ *
+ * ⚠ Escalas: `Accessory.qty` é POR PEÇA (é o que a calculadora pede), enquanto
+ * tudo o mais na linha-evento é por placa. Por isso o × `pieces` aqui — daí em
+ * diante o `scaleRow` multiplica por placas junto com as gramas, sem fator
+ * especial.
+ *
+ * `subitemId` filtra a produção de UM subitem: leva só o acessório atribuído a
+ * ele. Acessório sem atribuição pertence ao produto inteiro e é rateado no
+ * PREÇO, mas fisicamente não sai da gaveta ao imprimir uma parte só — então
+ * fica de fora da baixa do subitem.
+ */
+export function accessoryRows(
+  product: SavedProduct,
+  pieces: number,
+  subitemId?: string,
+): SupplyUsage[] {
+  const scale = Math.max(1, num(pieces) || 1);
+  return (product.accessories ?? [])
+    .filter((accessory) =>
+      subitemId ? accessory.subitemId === subitemId : true,
+    )
+    .map((accessory) => ({
+      supplyId: accessory.supplyId ?? null,
+      name: accessory.desc || "Acessório",
+      qty: num(accessory.qty) * scale,
+      unitPrice: num(accessory.unitPrice),
+    }))
+    .filter((usage) => usage.qty > 0);
 }
 
 // Labor congelado de uma etapa: min/60 × taxa (a da etapa, ou a do produto).
@@ -156,7 +197,8 @@ export function wholeEventRows(
   }
 
   const multi = byMachine.size > 1;
-  return Array.from(byMachine.entries()).map(([machineId, group]) => {
+  const supplies = accessoryRows(product, num(product.piecesCount));
+  return Array.from(byMachine.entries()).map(([machineId, group], index) => {
     const machineName = machines.find((m) => m.id === machineId)?.name ?? "";
     return {
       key: nextRowKey(),
@@ -167,6 +209,8 @@ export function wholeEventRows(
       filaments: group.filaments.map((f) => resolveFilRow(f, stock)),
       laborCost: group.labor,
       energyTariff: tariff,
+      // Só a 1ª linha carrega os acessórios (ver `EventRow.supplies`).
+      supplies: index === 0 ? supplies : [],
     };
   });
 }
@@ -198,6 +242,7 @@ export function subitemEventRows(
       filaments: subitem.filaments.map((f) => resolveFilRow(f, stock)),
       laborCost: subitem.costBreakdown.labor * pieces,
       energyTariff: productEnergyTariff(product),
+      supplies: accessoryRows(product, pieces, subitem.id),
     },
   ];
 }
@@ -213,6 +258,9 @@ export function scaleRow(row: EventRow, factor: number): EventRow {
     printHours: row.printHours * f,
     laborCost: row.laborCost * f,
     filaments: row.filaments.map((fil) => ({ ...fil, totalG: fil.totalG * f })),
+    // Os insumos já estão por placa (`accessoryRows` multiplicou por peças), então
+    // escalam pelo MESMO fator das gramas.
+    supplies: row.supplies.map((s) => ({ ...s, qty: s.qty * f })),
   };
 }
 
@@ -221,6 +269,7 @@ export type PlannedEvent = {
   id: string;
   row: EventRow;
   plan: ProductionPlan;
+  supplyPlan: SupplyPlan;
   cost: ProductionCostBreakdown;
   machine?: Machine;
   filaments: FilamentUsage[];
@@ -229,12 +278,16 @@ export type PlannedEvent = {
 export type PlannedRows = {
   built: PlannedEvent[];
   colorUpdates: StockFilament[];
+  supplyUpdates: Supply[];
   summary: {
     material: number;
     frozen: number;
     grams: number;
     crossesRoll: boolean;
     shortfallG: number;
+    // 7e: custo dos insumos (já dentro de `frozen`) e o que faltou no estoque.
+    supplies: number;
+    supplyShortfall: number;
   };
 };
 
@@ -248,11 +301,16 @@ export function planEventRows(
   rows: EventRow[],
   mode: ProductionMode,
   stock: StockFilament[],
+  supplies: Supply[],
   machines: Machine[],
   genId: () => string,
 ): PlannedRows {
   const map = new Map(stock.map((c) => [c.id, c]));
   const touched = new Set<string>();
+  // 7e: mesmo encadeamento das cores, para os insumos — duas linhas que usam o
+  // mesmo ímã deduzem do saldo já mexido pela anterior.
+  const supplyMap = new Map(supplies.map((s) => [s.id, s]));
+  const supplyTouched = new Set<string>();
   const built: PlannedEvent[] = rows.map((row) => {
     const filaments = row.filaments
       .filter((f) => num(f.totalG) > 0)
@@ -263,6 +321,16 @@ export function planEventRows(
       map.set(color.id, color);
       touched.add(color.id);
     }
+    const supplyPlan = planSupplies(
+      row.supplies,
+      Array.from(supplyMap.values()),
+      id,
+      mode,
+    );
+    for (const supply of supplyPlan.supplyUpdates) {
+      supplyMap.set(supply.id, supply);
+      supplyTouched.add(supply.id);
+    }
     const machine = machines.find((m) => m.id === row.machineId) ?? machines[0];
     const cost = machine
       ? productionCost(
@@ -271,6 +339,7 @@ export function planEventRows(
           row.energyTariff,
           plan.materialCost,
           row.laborCost,
+          supplyPlan.cost,
         )
       : {
           material: plan.materialCost,
@@ -278,12 +347,14 @@ export function planEventRows(
           depreciation: 0,
           maintenance: 0,
           labor: row.laborCost,
-          total: plan.materialCost + row.laborCost,
+          supplies: supplyPlan.cost,
+          total: plan.materialCost + row.laborCost + supplyPlan.cost,
         };
-    return { id, row, plan, cost, machine, filaments };
+    return { id, row, plan, supplyPlan, cost, machine, filaments };
   });
 
   const colorUpdates = Array.from(touched).map((id) => map.get(id)!);
+  const supplyUpdates = Array.from(supplyTouched).map((id) => supplyMap.get(id)!);
   const summary = built.reduce(
     (acc, e) => {
       acc.material += e.plan.materialCost;
@@ -291,11 +362,21 @@ export function planEventRows(
       acc.grams += e.filaments.reduce((s, f) => s + num(f.totalG), 0);
       acc.crossesRoll = acc.crossesRoll || e.plan.crossesRoll;
       acc.shortfallG += e.plan.shortfallG;
+      acc.supplies += e.supplyPlan.cost;
+      acc.supplyShortfall += e.supplyPlan.shortfall;
       return acc;
     },
-    { material: 0, frozen: 0, grams: 0, crossesRoll: false, shortfallG: 0 },
+    {
+      material: 0,
+      frozen: 0,
+      grams: 0,
+      crossesRoll: false,
+      shortfallG: 0,
+      supplies: 0,
+      supplyShortfall: 0,
+    },
   );
-  return { built, colorUpdates, summary };
+  return { built, colorUpdates, supplyUpdates, summary };
 }
 
 // Fecha o payload gravável de cada evento planejado (comum à tela de produção e à
@@ -322,8 +403,12 @@ export function buildProductionPayloads(
       machineName: e.machine?.name ?? "",
       printHours: num(e.row.printHours),
       filaments: e.filaments,
+      // 7e: snapshot do que foi consumido (nome + qtd + preço congelado), no
+      // mesmo espírito de `filaments` — a leitura de "o que essa impressão
+      // levou". O custo REAL (FIFO) não mora aqui: mora no `frozenCost`.
+      ...(e.row.supplies.length > 0 ? { supplies: e.row.supplies } : {}),
       frozenCost: e.cost.total,
-      stockMoves: e.plan.moves,
+      stockMoves: [...e.plan.moves, ...e.supplyPlan.moves],
       ...(meta.notes && meta.notes.trim() ? { notes: meta.notes.trim() } : {}),
       createdAt: meta.createdAt,
     };
