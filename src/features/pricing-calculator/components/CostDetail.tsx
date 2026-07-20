@@ -8,9 +8,12 @@ import type { SaleCostBreakdown } from "../types";
 // histórico (/vendas). O gatilho mostra o custo REAL (base do lucro); ao clicar,
 // abre uma JANELA FLUTUANTE ANCORADA nele (Popover API nativa na top-layer — não
 // é cortada pelo scroll do modal — posicionada via getBoundingClientRect) com a
-// composição do custo PRECIFICADO, separando as PROVISÕES (reserva de falha,
-// custo fixo, acessórios) que NÃO entram no custo real da peça — falhas reais são
+// composição do custo PRECIFICADO, separando as PROVISÕES (reserva de falha e
+// custo fixo) que NÃO entram no custo real da peça — falhas reais são
 // registradas à parte na produção (ver ⚠ do passo 8 / FEAT-06). Só EXIBE.
+//
+// 7e: acessório SAIU das provisões e entrou no bloco de custo — virou insumo com
+// baixa na produção, então já compõe o `frozenCost`/custo real.
 //
 // O custo real é um número único congelado (FIFO/camada do acabado), por isso não
 // é decomposto por componente; o que se decompõe é o custo precificado
@@ -83,17 +86,19 @@ export function CostDetail({
 
   const q = Math.max(1, quantity);
   const cogs = realCogs * q;
+  // Os componentes que TAMBÉM compõem o custo real. Desde a 7e os acessórios
+  // entram aqui (viraram insumo com baixa na produção) — não são mais provisão.
   const physical = [
     { label: "Material", value: breakdown.material * q },
     { label: "Energia", value: breakdown.energy * q },
     { label: "Desgaste", value: breakdown.depreciation * q },
     { label: "Manutenção", value: breakdown.maintenance * q },
     { label: "Mão de obra", value: breakdown.labor * q },
-  ];
+    { label: "Acessórios", value: breakdown.accessories * q },
+  ].filter((row) => row.value > 0);
   const provisions = [
     { label: "Reserva de falha", value: breakdown.failureReserve * q },
     { label: "Custo fixo", value: breakdown.fixed * q },
-    { label: "Acessórios", value: breakdown.accessories * q },
   ].filter((row) => row.value > 0);
 
   const priced =
@@ -126,7 +131,9 @@ export function CostDetail({
           </button>
         </div>
 
-        <div className="cost-detail-section">Custo precificado (base do preço)</div>
+        <div className="cost-detail-section">
+          Custo precificado (estimado, base do preço)
+        </div>
         <table className="cost-detail-table">
           <tbody>
             {physical.map((row) => (
@@ -138,7 +145,7 @@ export function CostDetail({
             {provisions.length > 0 ? (
               <>
                 <tr className="cost-detail-divider">
-                  <td colSpan={2}>Provisões do preço (fora do custo real)</td>
+                  <td colSpan={2}>Provisões — só no preço, não são gasto</td>
                 </tr>
                 {provisions.map((row) => (
                   <tr className="cost-detail-prov" key={row.label}>
@@ -153,15 +160,18 @@ export function CostDetail({
               <td className="num mono">{formatCurrency(priced)}</td>
             </tr>
             <tr className="cost-detail-total real">
-              <td>Custo real (base do lucro)</td>
+              <td>Custo real gasto (base do lucro)</td>
               <td className="num mono">{formatCurrency(cogs)}</td>
             </tr>
           </tbody>
         </table>
         <p className="cost-detail-note">
-          O lucro usa o <strong>custo real</strong>. As provisões (reserva de
-          falha, custo fixo, acessórios) entram no preço, não no custo físico da
-          peça — falhas reais são registradas à parte na produção.
+          O <strong>precificado</strong> é a estimativa do catálogo que gerou o
+          preço. O <strong>custo real</strong> é o que de fato saiu do estoque
+          nesta peça — pelo preço do rolo e do lote realmente usados — e é ele
+          que define o lucro. Os dois raramente batem: as provisões só existem no
+          preço, e o preço de compra do material muda a cada lote. Falhas reais
+          são registradas à parte na produção.
         </p>
       </div>
     </>

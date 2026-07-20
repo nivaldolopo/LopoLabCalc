@@ -21,6 +21,10 @@
   estoques. **`productionCost` agora soma `supplies`** ⇒ o lucro por peça de produções **novas** caiu
   (ficou correto). Zero migração. 246 testes verdes. ⚠ **O dono precisa cadastrar os insumos e
   religar os acessórios** — os já cadastrados seguem avulsos até lá.
+  *Ajuste de UI (mesmo dia):* no popover **Composição do custo**, "Acessórios" saiu das provisões
+  (agora é componente do custo real, junto de material/energia/desgaste/manutenção/mão de obra) —
+  sobraram como provisão só **reserva de falha** e **custo fixo**; texto explicativo reescrito
+  (precificado = estimativa do catálogo × real = o que saiu do estoque via FIFO).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
 - **▶ PRÓXIMA TAREFA sugerida:** **FEAT-06 — aba Produtos rica** (composição de custo CONGELADA na
