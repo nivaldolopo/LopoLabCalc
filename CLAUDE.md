@@ -14,13 +14,13 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **UX-01 concluído — barra de navegação unificada.** Novo componente
-  `NavBar.tsx` (`usePathname` marca a rota ativa via `aria-current`) com os 6 destinos fixos
-  (Calculadora · Vendas · Orçamento · Impressoras · Estoque · Produção) + tema + logout; substitui os
-  6 `header-actions` hand-rolled (cada página mostrava um subconjunto ad-hoc). `SalesPage` injeta a
-  ação "Nova venda" via `children`. Estilo `.icon-label-button[aria-current="page"]` em `forms.css`.
-  "Início/Calculadora" = navegação limpa (reset por reload segue só no brand da raiz). `lint`+`build`
-  limpos.
+- **Última mudança:** **UX-01b — barra fixa "bem definida".** A `NavBar` virou **linha própria**
+  (`<nav className="navbar">` com caixa `.navbar-bar`: borda + `card-bg`), renderizada **fora** do
+  `.header` nas 6 páginas → as abas ocupam SEMPRE a mesma posição (antes mudavam de lugar por herdar a
+  largura variável do brand). Abas fixas à esquerda, tema/sair à direita (`.navbar-utils`), e a ação da
+  página (ex. "Nova venda") desce para `.navbar-page-actions` **abaixo** da barra (não mais inline).
+  CSS em `header.css`; grade mobile 2-col migrada de `.header-actions`→`.navbar-tabs` em `quote.css`.
+  `lint`+`build` limpos.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
 - **▶ PRÓXIMA TAREFA sugerida:** **FEAT-07** (página de catálogo dedicada `/catalogo` — tirar o

@@ -283,8 +283,8 @@ export function QuotePage() {
             </div>
           </div>
         </div>
-        <NavBar theme={theme} onToggleTheme={toggleTheme} />
       </div>
+      <NavBar theme={theme} onToggleTheme={toggleTheme} />
 
       <div className="quote-grid">
         <div className="card quote-card">

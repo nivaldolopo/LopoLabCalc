@@ -665,8 +665,8 @@ export function StockPage() {
             </div>
           </div>
         </div>
-        <NavBar theme={theme} onToggleTheme={toggleTheme} />
       </div>
+      <NavBar theme={theme} onToggleTheme={toggleTheme} />
 
       {error ? <div className="app-error">{error}</div> : null}
 

@@ -398,22 +398,22 @@ export function SalesPage() {
             </div>
           </div>
         </div>
-        <NavBar theme={theme} onToggleTheme={toggleTheme}>
-          <button
-            className="icon-label-button"
-            type="button"
-            onClick={() => setNewSale(true)}
-            disabled={catalogItems.length === 0}
-            title={
-              catalogItems.length === 0
-                ? "Cadastre um produto na calculadora antes de registrar uma venda"
-                : "Registrar uma nova venda"
-            }
-          >
-            <Plus size={15} /> Nova venda
-          </button>
-        </NavBar>
       </div>
+      <NavBar theme={theme} onToggleTheme={toggleTheme}>
+        <button
+          className="icon-label-button"
+          type="button"
+          onClick={() => setNewSale(true)}
+          disabled={catalogItems.length === 0}
+          title={
+            catalogItems.length === 0
+              ? "Cadastre um produto na calculadora antes de registrar uma venda"
+              : "Registrar uma nova venda"
+          }
+        >
+          <Plus size={15} /> Nova venda
+        </button>
+      </NavBar>
 
       {error ? <div className="app-error">{error}</div> : null}
 

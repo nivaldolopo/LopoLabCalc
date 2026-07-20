@@ -44,8 +44,8 @@ export function Header({ theme, status, onToggleTheme }: HeaderProps) {
             </div>
           </div>
         </div>
-        <NavBar theme={theme} onToggleTheme={onToggleTheme} />
       </div>
+      <NavBar theme={theme} onToggleTheme={onToggleTheme} />
       <p className="subtitle">
         Material, energia, desgaste de máquina, mão de obra e custos fixos do
         quiosque — tudo em uma única ferramenta.

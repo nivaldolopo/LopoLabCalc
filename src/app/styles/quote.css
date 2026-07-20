@@ -290,18 +290,28 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
-  /* Ações do cabeçalho viram uma grade de 2 colunas: botões do mesmo tamanho,
-     preenchendo a largura (barra de ferramentas). Um botão sozinho na última
-     linha (contagem ímpar — ex.: futuro "Estoque") ocupa as duas colunas. */
-  .header-actions {
-    width: 100%;
+  /* No celular a barra de navegação vira uma grade de 2 colunas: as abas ficam
+     do mesmo tamanho preenchendo a largura, e tema/sair descem para uma linha
+     própria (também largura total). Segue "abas fixas, ações abaixo". */
+  .navbar-tabs {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
+    width: 100%;
     gap: 8px;
   }
 
-  .header-actions > :last-child:nth-child(odd) {
-    grid-column: 1 / -1;
+  .navbar-tabs .icon-label-button {
+    justify-content: center;
+  }
+
+  .navbar-utils {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .navbar-utils > *,
+  .navbar-page-actions > * {
+    flex: 1;
   }
 
   .recibo-head-totals {

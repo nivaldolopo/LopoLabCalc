@@ -77,6 +77,44 @@ h1 span {
   max-width: 560px;
 }
 
+/* Barra de navegação unificada (NavBar): linha própria, independente do brand,
+   para os destinos ficarem SEMPRE na mesma posição em toda página. Ações
+   específicas da página entram em .navbar-page-actions, abaixo da barra. */
+.navbar {
+  margin: 8px 0 18px;
+}
+
+.navbar-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+}
+
+.navbar-tabs,
+.navbar-utils {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Tema + sair encostam à direita; os destinos ficam fixos à esquerda. */
+.navbar-utils {
+  margin-left: auto;
+}
+
+.navbar-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
 .cloud-status {
   color: var(--muted);
   display: inline-flex;
