@@ -75,9 +75,12 @@
 - **[UX-03] Nome do produto truncado sem escape no catálogo** *(reportado pelo dono, 2026-07-20 — efeito
   colateral aceito do FEAT-08)*. A faixa de "Ações" foi de 76px pra 146px (`catalog.css`) e, abaixo de
   ~860px, o `.col-name` corta com reticências — **e não há como ler o nome inteiro**: a célula não tem
-  `title` (`ProductCatalog.tsx:247-250`) e o painel expandido também não repete o nome. Opções: `title`
-  na célula (barato), repetir o nome no cabeçalho do painel expandido, ou repensar a grade
-  (nome em 2 linhas / ações compactadas em menu). **Onde:** `ProductCatalog.tsx` + `catalog.css`.
+  `title` e o painel expandido também não repete o nome.
+  **Paliativo APLICADO (2026-07-20):** `title={product.name}` na célula ⇒ o nome inteiro aparece ao
+  passar o mouse. **Continua aberto** o que o `title` NÃO resolve: **toque/mobile não tem hover**, e o
+  painel expandido segue sem repetir o nome. Saídas restantes: nome no cabeçalho do painel expandido,
+  ou repensar a grade (nome em 2 linhas / ações compactadas em menu).
+  **Onde:** `ProductCatalog.tsx` + `catalog.css`.
   ⚠ Lembrete: a linha **não é tabela**, é `display: grid`; as regras `sticky` de `col-actions` (~536)
   são mortas.
 - **[UX-04] Catálogo mostra só a 1ª máquina em produto multi-etapa** *(reportado pelo dono, 2026-07-20)*.

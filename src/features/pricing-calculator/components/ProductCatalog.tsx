@@ -244,7 +244,10 @@ export function ProductCatalog({
                         )
                       }
                     >
-                      <td className="col-name strong">
+                      {/* UX-03: a faixa de "Ações" (146px, FEAT-08) trunca o
+                          nome abaixo de ~860px; o `title` é o único jeito de
+                          ler o nome inteiro hoje. */}
+                      <td className="col-name strong" title={product.name}>
                         <span className="arrow-icon">▼</span>
                         {product.name}
                       </td>

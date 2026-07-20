@@ -26,7 +26,8 @@
   (linha ~536) são MORTAS** — sobrescritas por `position: static` mais abaixo; não raciocinar por elas.
   Custo aceito: entre 760 e ~860px de tela o nome do produto passa a truncar com reticências (acima
   disso, nada muda). **O dono testou e o truncamento incomodou** (não há como ler o nome inteiro) →
-  virou **UX-03** no backlog, junto com **UX-04** (catálogo mostra só a 1ª máquina do produto).
+  virou **UX-03** no backlog (paliativo já aplicado: `title` na célula do nome; segue aberto pra
+  toque/mobile, que não tem hover), junto com **UX-04** (catálogo mostra só a 1ª máquina do produto).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
 - **▶ PRÓXIMA TAREFA sugerida:** **7e — insumos/acessórios no estoque** (`supplyId` no `Accessory`,
