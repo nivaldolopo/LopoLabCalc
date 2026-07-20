@@ -14,18 +14,21 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **UX-02 — capacidade do catálogo deixou de ser literal.** A `CatalogPage` passava
-  `DEFAULT_CAPACITY` (1 máquina) enquanto o rateio de custo fixo já usava o `fixedCostRate` persistido
-  (2 máquinas) — duas fontes de verdade discordando, e o painel subestimava peças/mês. Agora
-  `capacitySettings` é **derivado** do mesmo `fixedCostRate` (`useMemo`, sem estado novo). O catálogo só
-  *exibe* os parâmetros ("20h/dia · N máq."), não os edita, então não houve fiação de `onChange`.
-  `lint`+`build` limpos, 190 testes verdes.
+- **Última mudança:** **FEAT-08 — vender/produzir/orçar no catálogo, inteiro e por subitem.** As 3 ações
+  na coluna "Ações" (produto inteiro) e no painel expandido (inteiro + uma linha por subitem). Seed
+  cross-page `?produto=<id>&subitem=<subId>`, traduzido por cada destino (a `/producao` reusa o
+  `selectOption`; a `/orcamento` anexa a linha). Venda de subitem saiu quase de graça — o
+  `saleContextFromSubitem` do FEAT-01 já existia. `lint`+`build` limpos (rotas seguiram estáticas),
+  190 testes verdes. ⚠ **Falta a conferida visual do dono** (o login Google barra o navegador do chat):
+  a coluna "Ações" é `sticky` e passou de 2 pra 5 ícones — reduzi pra 24px + divisor; **se ficar apertada
+  sobre a coluna "Máquina", o fallback combinado é tirar "Orçar" da linha** (fica só no painel).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
-- **▶ PRÓXIMA TAREFA sugerida:** **FEAT-08** (ações "Produzir"/"Orçar" no card do catálogo — reusa o
-  padrão de seed cross-page `?param=<id>` que o FEAT-07 já criou; `ProductionPage`/`QuotePage` passam a
-  receber o seed). **Ordem reordenada pelo dono em 2026-07-20:** FEAT-08 → **7e (insumos)** → **FEAT-06**
-  → FEAT-03/branding → **Tier 4 inteiro** → TD-003/TD-006 → Dashboard (último).
+- **▶ PRÓXIMA TAREFA sugerida:** **7e — insumos/acessórios no estoque** (`supplyId` no `Accessory`,
+  cadastro de insumos na `/estoque`, baixa por unidade; fecha o buraco de COGS do gotcha abaixo e é
+  pré-requisito do FEAT-06). **Ordem (dono, 2026-07-20):** 7e → **FEAT-06** → FEAT-03/branding →
+  **Tier 4 inteiro** → TD-003/TD-006 → Dashboard (último). A trilha de UX (UX-01/FEAT-07/UX-02/FEAT-08)
+  está **fechada**.
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Gotcha vivo (buraco de COGS, motiva o 7e):** acessórios **JÁ entram no preço**

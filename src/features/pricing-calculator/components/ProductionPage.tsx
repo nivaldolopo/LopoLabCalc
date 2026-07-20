@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Factory, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import {
@@ -87,6 +88,7 @@ function errorMessage(err: unknown): string {
 
 export function ProductionPage() {
   const { theme, toggleTheme } = useTheme();
+  const searchParams = useSearchParams();
   const { products } = useProducts();
   const { machines } = useMachines();
   const { filaments: stock } = useStock();
@@ -196,6 +198,43 @@ export function ProductionPage() {
     }
     setRows([]);
   }
+
+  // FEAT-08: "Produzir" no catálogo manda pra cá com `?produto=&subitem=`. Os
+  // produtos chegam por assinatura, então só dá pra semear quando a lista popular
+  // — ajuste DURANTE o render (padrão do FEAT-07), não efeito. O `handledSeed`
+  // marca o par já consumido pra que snapshots seguintes do Firestore não
+  // resetem as linhas por cima do que o dono já editou.
+  const seedProductId = searchParams.get("produto");
+  const seedSubitemId = searchParams.get("subitem");
+  const seedToken = seedProductId ? `${seedProductId}:${seedSubitemId ?? ""}` : null;
+  const [handledSeed, setHandledSeed] = useState<string | null>(null);
+  if (seedToken && handledSeed !== seedToken && products.length > 0) {
+    const product = products.find((item) => item.id === seedProductId);
+    // Subitem removido do produto entre o clique e o load: ignora em silêncio.
+    // Cair pro produto inteiro sem o dono pedir seria pior — produção grava
+    // estoque.
+    const subitemOk =
+      !seedSubitemId ||
+      Boolean(
+        pricingByProduct
+          .get(product?.id ?? "")
+          ?.subitems?.some((sub) => sub.id === seedSubitemId),
+      );
+    setHandledSeed(seedToken);
+    if (product && subitemOk) {
+      selectOption(
+        seedSubitemId
+          ? `sub:${product.id}:${seedSubitemId}`
+          : `whole:${product.id}`,
+      );
+    }
+  }
+
+  // Some com a query depois de consumida: recarregar não deve semear de novo.
+  // Sync com history (sem setState) — por isso vive no efeito.
+  useEffect(() => {
+    if (handledSeed) window.history.replaceState(null, "", "/producao");
+  }, [handledSeed]);
 
   function updateRow(key: string, patch: Partial<EventRow>) {
     setRows((current) =>

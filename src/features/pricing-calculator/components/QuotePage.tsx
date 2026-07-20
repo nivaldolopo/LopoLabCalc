@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Download, FileText, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import { formatDate, todayInputValue, toTimestamp } from "@/lib/formatting/date";
@@ -46,6 +47,7 @@ function newItem(partial: Partial<QuoteItem>): QuoteItem {
 
 export function QuotePage() {
   const { theme, toggleTheme } = useTheme();
+  const searchParams = useSearchParams();
   const { products } = useProducts();
   const { machines } = useMachines();
   const { fixedCostRate } = useBusinessSettings();
@@ -111,10 +113,19 @@ export function QuotePage() {
         .flatMap((product) => {
           const result = calculatePricing(product, machines, fixedCosts);
           const baseName = product.name || product.mainStageName || "Produto";
-          const whole = { name: baseName, price: round2(result.suggestedPrice) };
+          // FEAT-08: os ids acompanham a opção pro seed do catálogo achar a linha
+          // certa. O dropdown continua escolhendo por índice.
+          const whole = {
+            name: baseName,
+            price: round2(result.suggestedPrice),
+            productId: product.id,
+            subitemId: undefined as string | undefined,
+          };
           const subs = (result.subitems ?? []).map((subitem, index) => ({
             name: `${baseName} — ${subitem.name || `Subitem ${index + 1}`}`,
             price: round2(subitem.price),
+            productId: product.id,
+            subitemId: subitem.id as string | undefined,
           }));
           return [whole, ...subs];
         })
@@ -160,6 +171,36 @@ export function QuotePage() {
   function addFreeItem() {
     setItems((current) => [...current, newItem({})]);
   }
+
+  // FEAT-08: "Orçar" no catálogo manda pra cá com `?produto=&subitem=`. Mesmo
+  // padrão da /producao: ajuste durante o render (os produtos chegam por
+  // assinatura) com o par já consumido marcado, pra que snapshots seguintes não
+  // dupliquem a linha no orçamento que o dono já está montando.
+  const seedProductId = searchParams.get("produto");
+  const seedSubitemId = searchParams.get("subitem");
+  const seedToken = seedProductId ? `${seedProductId}:${seedSubitemId ?? ""}` : null;
+  const [handledSeed, setHandledSeed] = useState<string | null>(null);
+  if (seedToken && handledSeed !== seedToken && products.length > 0) {
+    // Produto excluído ou subitem removido entre o clique e o load: ignora em
+    // silêncio (nada é gravado num orçamento até o dono gerar o PDF).
+    const option = catalogOptions.find(
+      (item) =>
+        item.productId === seedProductId &&
+        (item.subitemId ?? null) === (seedSubitemId ?? null),
+    );
+    setHandledSeed(seedToken);
+    if (option) {
+      setItems((current) => [
+        ...current,
+        newItem({ description: option.name, unitPrice: option.price }),
+      ]);
+    }
+  }
+
+  // Some com a query depois de consumida — recarregar não deve re-adicionar.
+  useEffect(() => {
+    if (handledSeed) window.history.replaceState(null, "", "/orcamento");
+  }, [handledSeed]);
 
   const orderedQuotes = useMemo(
     () => [...quotes].sort((a, b) => b.createdAt - a.createdAt),

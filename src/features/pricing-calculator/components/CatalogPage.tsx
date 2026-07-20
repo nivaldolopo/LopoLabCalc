@@ -13,6 +13,7 @@ import { calculatePricing } from "../lib/calculatePricing";
 import {
   productPrintHours,
   saleContextFromResult,
+  saleContextFromSubitem,
   type SaleModalContext,
 } from "../lib/saleContext";
 import type {
@@ -86,15 +87,48 @@ export function CatalogPage() {
     router.push(`/?load=${encodeURIComponent(product.id)}`);
   }
 
-  function openSaleFromCatalog(product: SavedProduct, result: PricingResult) {
+  // FEAT-08: a mesma query serve produção e orçamento — cada página traduz pro
+  // formato interno dela. `subitem` ausente = produto inteiro.
+  function seedQuery(product: SavedProduct, subitemId?: string) {
+    const params = new URLSearchParams({ produto: product.id });
+    if (subitemId) params.set("subitem", subitemId);
+    return params.toString();
+  }
+
+  function produceProduct(product: SavedProduct, subitemId?: string) {
+    router.push(`/producao?${seedQuery(product, subitemId)}`);
+  }
+
+  function quoteProduct(product: SavedProduct, subitemId?: string) {
+    router.push(`/orcamento?${seedQuery(product, subitemId)}`);
+  }
+
+  function openSaleFromCatalog(
+    product: SavedProduct,
+    result: PricingResult,
+    subitemId?: string,
+  ) {
+    const baseName = product.name || product.mainStageName || "";
+    // FEAT-01 já congelava a foto de UM subitem (preço/custo/filamentos próprios,
+    // aditivos) — aqui só escolhemos qual das duas fotos o modal recebe.
+    const subitem = subitemId
+      ? result.subitems?.find((item) => item.id === subitemId)
+      : undefined;
     setSaleSeed(
-      saleContextFromResult(
-        product.name || product.mainStageName || "",
-        product.id,
-        result,
-        productPrintHours(product),
-        product.roundingMode,
-      ),
+      subitem
+        ? saleContextFromSubitem(
+            baseName,
+            product.id,
+            subitem,
+            product.roundingMode,
+          )
+        : saleContextFromResult(
+            baseName,
+            product.id,
+            result,
+            productPrintHours(product),
+            product.roundingMode,
+          ),
     );
     setSaleOpen(true);
   }
@@ -148,6 +182,8 @@ export function CatalogPage() {
           onDeleteProduct={productsApi.deleteProduct}
           onImportProducts={productsApi.importProducts}
           onRegisterSale={openSaleFromCatalog}
+          onProduce={produceProduct}
+          onQuote={quoteProduct}
           onNewSale={openNewSale}
         />
       )}

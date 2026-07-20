@@ -13,10 +13,8 @@
 
 > **Reordenado em 2026-07-20** pelo dono (ver "Porquês da ordem" abaixo).
 
-1. **UX / organização** *(barato, alto valor diário; atacar 1º)*: ~~UX-01~~ ✅ → ~~FEAT-07~~ ✅ →
-   **UX-02** (capacidade congelada) → **FEAT-08** (ações "Produzir"/"Orçar" no card). O padrão de seed
-   cross-page (`?param=<id>` + `<Suspense>`) já existe desde o FEAT-07 — o FEAT-08 só o reusa.
-2. **7e — Insumos/acessórios no estoque** *(promovido; era "item próprio")*.
+1. ~~**UX / organização**~~ ✅ **FECHADA** — UX-01 · FEAT-07 · UX-02 · FEAT-08.
+2. **7e — Insumos/acessórios no estoque** *(promovido; era "item próprio")* — **◀ PRÓXIMA**.
 3. **FEAT-06** (aba Produtos rica / composição congelada) — **depois do 7e, de propósito.**
 4. **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
 5. **Tier 4 inteiro** *(antecipado)*: numeração de orçamento no browser · labor na reserva de falha ·
@@ -67,41 +65,13 @@
 - ~~**[FEAT-07] Página de catálogo dedicada**~~ **✅ FEITO (2026-07-20)** — rota `/catalogo` +
   `CatalogPage`; "editar" navega pra `/?load=<id>` (ajuste no render + `replaceState`; `<Suspense>` na
   raiz p/ o `useSearchParams`, `/` seguiu estática). `SaleFlow` extraído p/ não duplicar a fiação do
-  `SaleModal`. **Sobrou pra decidir:** ver **UX-02** abaixo (capacidade congelada no catálogo).
-  **Habilitado por ele (não feito):** reorganizar o form da principal e enriquecer o card do catálogo
-  com mais dados (composição, margem…).
-- **[UX-02] Capacidade do catálogo ficou congelada em `DEFAULT_CAPACITY`** *(pequeno; herança do
-  FEAT-07)*. **O que é:** ao expandir a linha de um produto no catálogo, o painel de capacidade cruza as
-  horas de impressão com **horas/dia** e **nº de máquinas** (`calculateCapacity.ts`) e mostra peças/dia,
-  peças/mês, bruto/lucro e o alerta "⚠️ Acima da capacidade (N pçs/mês)" do ponto de equilíbrio.
-  **O que mudou:** essas 2 variáveis eram estado da página principal — ajustadas no card de resultado da
-  calculadora, o catálogo logo abaixo recalculava junto. Com o catálogo em rota própria não há esse
-  controle: usa fixo **20h/dia · 1 máquina**. **Atenuante:** o painel *exibe* os parâmetros que usou
-  ("20h/dia · 1 máquina"), então nada fica silenciosamente errado — só congelado; quem roda 2 máquinas
-  vê números subestimados, mas rotulados. **Duas saídas:** (a) replicar o controle no `/catalogo`, ou
-  (b) **provavelmente melhor** — persistir horas/dia e nº de máquinas junto com os custos fixos, já que
-  o `useBusinessSettings`/`FixedCostRate` **já guarda `machines` e `hoursDay`** pro rateio de custo
-  fixo; vale checar se dá pra reusar em vez de ter dois lugares dizendo a mesma coisa. **Onde:**
-  `CatalogPage` (hoje passa `DEFAULT_CAPACITY` literal), `ProductCatalog`/`CatalogDetails`,
-  `PricingResultCard` (controle atual).
-- **[FEAT-08] Ações "Produzir" e "Orçar" no card do catálogo** *(pequeno; mesmo card do FEAT-07)*. Hoje
-  cada item só tem **Editar / Excluir / Registrar venda** — a venda era o único destino quando o app
-  era só calculadora. Com produção e orçamento já existindo, adicionar **"Produzir item"** (→
-  `/producao` com o produto pré-selecionado) e **"Orçar item"** (→ `/orcamento` com o produto já como
-  linha). **Wrinkle:** ambos são **cross-page com seed do produto** (mesmo padrão do "editar" do
-  FEAT-07 — query `?...=<id>`); "Registrar venda" continua abrindo o modal na própria página.
-  **Onde:** `ProductCatalog` (card), `ProductionPage`/`QuotePage` pra receber o seed.
-  **Como receber o seed — 3 opções, da melhor pra pior:**
-  1. **Derivação pura** (tentar PRIMEIRO): o seed aqui é só *qual produto está selecionado* — um id, não
-     um formulário. Se a página já tem um `selectedId` em estado, dá pra fazer
-     `const idEfetivo = selecaoDoUsuario ?? searchParams.get("produto")` e **não sincronizar nada**:
-     zero `setState`, zero efeito. Confirmar contra o `ProductionPage`/`QuotePage` na hora.
-  2. **Ajuste durante o render** (fallback, é o que o FEAT-07 usa): `setState` no corpo do render,
-     guardado por um "já consumi este id". Commit único, sem flash. Foi necessário no FEAT-07 porque lá
-     o seed hidrata ~20 campos editáveis — isso não dá pra derivar.
-  3. ~~`useState` dentro de `useEffect`~~ — **proibido pelo lint** (`react-hooks/set-state-in-effect`,
-     vem do `eslint-config-next/core-web-vitals`, não é regra local). Além de barrado, é pior: pinta a
-     tela no estado intermediário antes de re-renderizar. **Não desligar a regra.**
+  `SaleModal`. **Habilitado por ele (não feito):** reorganizar o form da principal e enriquecer o card
+  do catálogo com mais dados (composição, margem…).
+- ~~**[UX-02] Capacidade do catálogo congelada**~~ **✅ FEITO (2026-07-20)** — `capacitySettings` virou
+  derivação (`useMemo`) do `fixedCostRate` persistido, mesma fonte do rateio de custo fixo.
+- ~~**[FEAT-08] Ações "Produzir"/"Orçar" no card**~~ **✅ FEITO (2026-07-20)** — as 3 ações (vender,
+  produzir, orçar) na coluna Ações e no painel expandido, **para o inteiro e por subitem**; seed
+  `?produto=&subitem=`. Detalhe (inclusive por que a "derivação pura" não servia) em `HISTORICO.md`.
 
 ### Tier 2 — comerciais
 - **[FEAT-03] Melhorar o PDF do orçamento** *(guarda-chuva)*. Ideias-semente (o dono escolhe o que vira

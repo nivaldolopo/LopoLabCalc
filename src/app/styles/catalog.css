@@ -435,7 +435,8 @@ td {
 
 .subitem-price-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  /* FEAT-08: 4ª coluna = vender/produzir/orçar só esta parte */
+  grid-template-columns: 1fr auto auto auto;
   align-items: center;
   gap: 10px;
   font-size: 12px;
@@ -464,6 +465,63 @@ td {
 
 .subitem-price-row .sp-price {
   font-weight: 700;
+}
+
+/* FEAT-08 — ações por subitem (ícones compactos, a linha é estreita) */
+.subitem-price-row .sp-actions {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.subitem-price-row .sp-actions .icon-button {
+  width: 24px;
+  height: 24px;
+}
+
+/* FEAT-08 — ações do produto inteiro no painel expandido. A venda é a ação
+   principal (largura inteira); produzir/orçar dividem a linha de baixo. */
+.cd-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.cd-actions .cd-register-sale {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.cd-actions .cd-action {
+  justify-content: center;
+}
+
+/* FEAT-08 — a coluna Ações é sticky sobre uma tabela que já rola: com 5 ícones
+   os 28px padrão comeriam largura demais das colunas de dados. */
+td.col-actions .icon-button {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-button-divider {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  vertical-align: middle;
+  margin: 0 3px;
+  background: var(--border-soft);
+}
+
+.icon-button.sale {
+  color: #5faa80;
+}
+
+.icon-button.produce {
+  color: #b8925a;
+}
+
+.icon-button.quote {
+  color: #8f6bc4;
 }
 
 .details-links a {

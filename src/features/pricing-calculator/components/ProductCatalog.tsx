@@ -1,6 +1,14 @@
 "use client";
 
-import { Download, Edit3, Receipt, Trash2, Upload } from "lucide-react";
+import {
+  Download,
+  Edit3,
+  FileText,
+  Factory,
+  Receipt,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { Fragment } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
@@ -43,7 +51,16 @@ type ProductCatalogProps = {
   onLoadProduct: (product: SavedProduct) => void;
   onDeleteProduct: (productId: string) => Promise<void>;
   onImportProducts: (products: ReturnType<typeof parseProductsCsv>) => Promise<void>;
-  onRegisterSale: (product: SavedProduct, result: PricingResult) => void;
+  // FEAT-08: as 3 ações operam sobre o produto INTEIRO ou sobre um subitem
+  // vendável (`subitemId`) — a mesma unidade que a produção e o orçamento já
+  // sabem receber. Ausente = produto inteiro.
+  onRegisterSale: (
+    product: SavedProduct,
+    result: PricingResult,
+    subitemId?: string,
+  ) => void;
+  onProduce: (product: SavedProduct, subitemId?: string) => void;
+  onQuote: (product: SavedProduct, subitemId?: string) => void;
   onNewSale: () => void;
 };
 
@@ -60,6 +77,8 @@ export function ProductCatalog({
   onDeleteProduct,
   onImportProducts,
   onRegisterSale,
+  onProduce,
+  onQuote,
   onNewSale,
 }: ProductCatalogProps) {
   const [openProductId, setOpenProductId] = useState<string | null>(null);
@@ -255,6 +274,43 @@ export function ProductCatalog({
                         )}
                       </td>
                       <td className="col-actions">
+                        {/* FEAT-08: a linha fechada age só sobre o produto
+                            INTEIRO — subitem não existe visualmente aqui; as
+                            ações por parte moram no painel expandido. */}
+                        <button
+                          className="icon-button sale"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onRegisterSale(product, result);
+                          }}
+                          title="Registrar venda"
+                        >
+                          <Receipt size={15} />
+                        </button>
+                        <button
+                          className="icon-button produce"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onProduce(product);
+                          }}
+                          title="Produzir item"
+                        >
+                          <Factory size={15} />
+                        </button>
+                        <button
+                          className="icon-button quote"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onQuote(product);
+                          }}
+                          title="Orçar item"
+                        >
+                          <FileText size={15} />
+                        </button>
+                        <span className="icon-button-divider" />
                         <button
                           className="icon-button edit"
                           type="button"
@@ -264,7 +320,7 @@ export function ProductCatalog({
                           }}
                           title="Carregar no formulário"
                         >
-                          <Edit3 size={16} />
+                          <Edit3 size={15} />
                         </button>
                         <button
                           className="icon-button danger"
@@ -277,7 +333,7 @@ export function ProductCatalog({
                           }}
                           title="Excluir"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={15} />
                         </button>
                       </td>
                     </tr>
@@ -289,6 +345,8 @@ export function ProductCatalog({
                           fixedCosts={fixedCosts}
                           capacitySettings={capacitySettings}
                           onRegisterSale={onRegisterSale}
+                          onProduce={onProduce}
+                          onQuote={onQuote}
                         />
                       </td>
                     </tr>
@@ -309,12 +367,20 @@ function CatalogDetails({
   fixedCosts,
   capacitySettings,
   onRegisterSale,
+  onProduce,
+  onQuote,
 }: {
   product: SavedProduct;
   result: ReturnType<typeof calculatePricing>;
   fixedCosts: FixedCostSettings;
   capacitySettings: CapacitySettings;
-  onRegisterSale: (product: SavedProduct, result: PricingResult) => void;
+  onRegisterSale: (
+    product: SavedProduct,
+    result: PricingResult,
+    subitemId?: string,
+  ) => void;
+  onProduce: (product: SavedProduct, subitemId?: string) => void;
+  onQuote: (product: SavedProduct, subitemId?: string) => void;
 }) {
   const stages = product.stages ?? [];
   const accessories = product.accessories ?? [];
@@ -488,13 +554,31 @@ function CatalogDetails({
             )}
           </div>
           <ProfitSummary result={result} printHours={totalHours} />
-          <button
-            className="btn primary cd-register-sale"
-            type="button"
-            onClick={() => onRegisterSale(product, result)}
-          >
-            <Receipt size={16} /> Registrar venda
-          </button>
+          {/* FEAT-08: os 3 destinos do produto INTEIRO. "Registrar venda" abre o
+              modal aqui mesmo; produzir/orçar navegam com o produto semeado. */}
+          <div className="cd-actions">
+            <button
+              className="btn primary cd-register-sale"
+              type="button"
+              onClick={() => onRegisterSale(product, result)}
+            >
+              <Receipt size={16} /> Registrar venda
+            </button>
+            <button
+              className="btn cd-action"
+              type="button"
+              onClick={() => onProduce(product)}
+            >
+              <Factory size={16} /> Produzir
+            </button>
+            <button
+              className="btn cd-action"
+              type="button"
+              onClick={() => onQuote(product)}
+            >
+              <FileText size={16} /> Orçar
+            </button>
+          </div>
         </div>
       </div>
 
@@ -514,6 +598,35 @@ function CatalogDetails({
                 <span className="sp-price mono sg">
                   {formatCurrency(subitem.price)}
                 </span>
+                {/* FEAT-08: vender/produzir/orçar só ESTA parte. A venda de
+                    subitem já existia (saleContextFromSubitem, FEAT-01); a
+                    produção e o orçamento recebem o `subitemId` na query. */}
+                <span className="sp-actions">
+                  <button
+                    className="icon-button sale"
+                    type="button"
+                    onClick={() => onRegisterSale(product, result, subitem.id)}
+                    title="Registrar venda deste subitem"
+                  >
+                    <Receipt size={15} />
+                  </button>
+                  <button
+                    className="icon-button produce"
+                    type="button"
+                    onClick={() => onProduce(product, subitem.id)}
+                    title="Produzir este subitem"
+                  >
+                    <Factory size={15} />
+                  </button>
+                  <button
+                    className="icon-button quote"
+                    type="button"
+                    onClick={() => onQuote(product, subitem.id)}
+                    title="Orçar este subitem"
+                  >
+                    <FileText size={15} />
+                  </button>
+                </span>
               </div>
             ))}
             <div className="subitem-price-row total">
@@ -522,6 +635,7 @@ function CatalogDetails({
               <span className="sp-price mono">
                 {formatCurrency(result.suggestedPrice)}
               </span>
+              <span className="sp-actions" />
             </div>
           </div>
         </div>

@@ -9,6 +9,28 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ FEAT-08 — Produzir/Orçar/Vender no card do catálogo (2026-07-20)
+
+Card e linha do catálogo ganharam as 3 ações, para o inteiro **e por subitem**. **Seed cross-page:**
+`?produto=<id>&subitem=<subId>` — contrato único que cada destino traduz pro formato interno dela
+(`ProductionPage` monta a chave `sub:`/`whole:` e chama o `selectOption` existente; `QuotePage` acha a
+opção e anexa a linha). Preferido a pôr `?item=sub:a:b` na URL, que vazaria o formato de chave da
+produção pro orçamento. **A opção 1 do backlog (derivação pura) NÃO era viável:** selecionar produto na
+`/producao` também constrói `rows` (linhas de evento editáveis) e "orçar" anexa um `QuoteItem` — estado
+editável não se deriva de query; e como os produtos chegam por assinatura, nem `useState` com
+inicializador preguiçoso serve (lista vazia na 1ª renderização). Ficou a **opção 2** (ajuste durante o
+render + `handledSeed`), idêntica ao FEAT-07, com `<Suspense>` nas duas rotas (seguiram estáticas).
+**Regra permanente (vale pra qualquer seed futuro):** `setState` dentro de `useEffect` é **barrado pelo
+lint** (`react-hooks/set-state-in-effect`, vem do `eslint-config-next/core-web-vitals`, não é regra
+local) — e além de barrado é pior, pinta a tela no estado intermediário. **Não desligar a regra.**
+**Venda de subitem saiu quase de graça:** `saleContextFromSubitem` já existia do FEAT-01 e o `SaleModal`
+já tratava `subitemId` no saldo de acabado e no payload da reconciliação — só faltava quem chamasse.
+**Coluna "Ações":** é `position: sticky; right: 0` sobre uma tabela que já rola, então 5 ícones a 28px
+comeriam largura das colunas de dados — ícones reduzidos a 24px nessa coluna + divisor agrupando
+`[Vender][Produzir][Orçar] | [Editar][Excluir]`. **Borda:** produto excluído ou subitem removido entre o
+clique e o load ⇒ ignora em silêncio e limpa a URL (cair pro inteiro sem o dono pedir seria pior — a
+produção grava estoque).
+
 ## ✅ UX-01 — Barra de navegação unificada (2026-07-19)
 
 Antes, cada uma das 6 páginas montava seu próprio `header-actions` com um subconjunto ad-hoc dos
