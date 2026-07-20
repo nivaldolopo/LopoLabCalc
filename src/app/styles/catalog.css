@@ -608,7 +608,10 @@ th.col-price {
 .catalog-card thead tr,
 .main-row {
   display: grid;
-  grid-template-columns: minmax(0, 2.4fr) 1.1fr 0.6fr 1fr 0.7fr 1.2fr 76px;
+  /* FEAT-08: a última faixa é a coluna "Ações". Ela passou de 2 pra 5 ícones
+     (vender/produzir/orçar + editar/excluir); com os 76px antigos os três
+     primeiros caíam fora e o `overflow: hidden` do `.main-row td` os cortava. */
+  grid-template-columns: minmax(0, 2.4fr) 1.1fr 0.6fr 1fr 0.7fr 1.2fr 146px;
   align-items: center;
   column-gap: 12px;
 }
@@ -679,7 +682,8 @@ td.col-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  /* 5 ícones de 24px + 4 folgas + divisor ≈ 143px — cabe nos 146px da faixa. */
+  gap: 4px;
 }
 
 .details-row td {

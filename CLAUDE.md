@@ -19,9 +19,13 @@
   cross-page `?produto=<id>&subitem=<subId>`, traduzido por cada destino (a `/producao` reusa o
   `selectOption`; a `/orcamento` anexa a linha). Venda de subitem saiu quase de graça — o
   `saleContextFromSubitem` do FEAT-01 já existia. `lint`+`build` limpos (rotas seguiram estáticas),
-  190 testes verdes. ⚠ **Falta a conferida visual do dono** (o login Google barra o navegador do chat):
-  a coluna "Ações" é `sticky` e passou de 2 pra 5 ícones — reduzi pra 24px + divisor; **se ficar apertada
-  sobre a coluna "Máquina", o fallback combinado é tirar "Orçar" da linha** (fica só no painel).
+  190 testes verdes. **Correção logo depois (reportada pelo dono):** no desktop os 3 ícones novos não
+  apareciam — a linha do catálogo **não é tabela, é `display: grid`** e a faixa de "Ações" era fixa em
+  **76px** (`catalog.css`), então o `overflow: hidden` do `.main-row td` cortava o excedente. Faixa foi
+  pra **146px** (5 ícones de 24px + folgas + divisor = 143px). ⚠ **As regras `sticky` de `col-actions`
+  (linha ~536) são MORTAS** — sobrescritas por `position: static` mais abaixo; não raciocinar por elas.
+  Custo aceito: entre 760 e ~860px de tela o nome do produto passa a truncar com reticências (acima
+  disso, nada muda).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
 - **▶ PRÓXIMA TAREFA sugerida:** **7e — insumos/acessórios no estoque** (`supplyId` no `Accessory`,

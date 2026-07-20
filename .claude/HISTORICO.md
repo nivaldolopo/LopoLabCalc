@@ -25,9 +25,16 @@ lint** (`react-hooks/set-state-in-effect`, vem do `eslint-config-next/core-web-v
 local) — e além de barrado é pior, pinta a tela no estado intermediário. **Não desligar a regra.**
 **Venda de subitem saiu quase de graça:** `saleContextFromSubitem` já existia do FEAT-01 e o `SaleModal`
 já tratava `subitemId` no saldo de acabado e no payload da reconciliação — só faltava quem chamasse.
-**Coluna "Ações":** é `position: sticky; right: 0` sobre uma tabela que já rola, então 5 ícones a 28px
-comeriam largura das colunas de dados — ícones reduzidos a 24px nessa coluna + divisor agrupando
-`[Vender][Produzir][Orçar] | [Editar][Excluir]`. **Borda:** produto excluído ou subitem removido entre o
+**Coluna "Ações" — armadilha do CSS (custou um bug em produção):** a linha do catálogo **não é tabela,
+é `display: grid`** (`.main-row`, `catalog.css`), e a última faixa do `grid-template-columns` era fixa em
+**76px**. Com 5 ícones (~143px) o `justify-content: flex-end` empurrava o excedente pra esquerda e o
+`overflow: hidden` do `.main-row td` **cortava exatamente os 3 novos** — invisíveis no desktop, ok no
+mobile (lá a `responsive.css` transforma a célula em faixa de largura total). Faixa foi pra **146px**,
+gap 4px, ícones 24px, divisor agrupando `[Vender][Produzir][Orçar] | [Editar][Excluir]`.
+⚠ **As regras `position: sticky` de `th/td.col-actions` (~linha 536) são MORTAS** — sobrescritas por
+`position: static` no bloco de ~655. Raciocinar por elas leva ao diagnóstico errado; foi o que aconteceu.
+**Custo medido do alargamento:** entre 760 e ~860px de viewport o nome do produto passa a truncar com
+reticências (comportamento já projetado da coluna); acima de ~860px nada muda. **Borda:** produto excluído ou subitem removido entre o
 clique e o load ⇒ ignora em silêncio e limpa a URL (cair pro inteiro sem o dono pedir seria pior — a
 produção grava estoque).
 
