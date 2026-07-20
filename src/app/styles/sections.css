@@ -556,3 +556,28 @@
   font-size: 12px;
 }
 
+/* 7e: avisos do vínculo com o insumo (preço defasado, insumo removido). */
+.accessory-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted2);
+}
+
+.accessory-hint.warn {
+  color: #e05252;
+}
+
+.accessory-hint .link-button {
+  font-size: 11px;
+}
+
+/* Acessório ligado a insumo: o nome vem do cadastro, não se digita aqui. */
+.accessory-row input[readonly] {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+

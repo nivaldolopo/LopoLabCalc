@@ -7,6 +7,7 @@ import type {
   PrintStage,
   ProductInput,
   StockFilament,
+  Supply,
   Subitem,
   SubitemPrice,
 } from "../types";
@@ -22,6 +23,7 @@ type ProductFormProps = {
   product: ProductInput;
   machines: Machine[];
   stock: StockFilament[];
+  supplies: Supply[];
   editingProductId: string | null;
   saved: boolean;
   onChange: (patch: Partial<ProductInput>) => void;
@@ -52,6 +54,7 @@ export function ProductForm({
   product,
   machines,
   stock,
+  supplies,
   editingProductId,
   saved,
   onChange,
@@ -171,6 +174,7 @@ export function ProductForm({
       <AccessoriesSection
         accessories={product.accessories}
         subitems={product.sellBySubitems ? product.subitems : []}
+        supplies={supplies}
         onAddAccessory={onAddAccessory}
         onRemoveAccessory={onRemoveAccessory}
         onUpdateAccessory={onUpdateAccessory}

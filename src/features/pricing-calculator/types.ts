@@ -63,6 +63,15 @@ export type Accessory = {
   desc: string;
   qty: number;
   unitPrice: number;
+  // 7e: liga o acessório a um insumo do estoque (`Supply.id`). Ligado, a
+  // produção dá BAIXA por unidade e o custo entra no `frozenCost`; ausente/null
+  // é o modo AVULSO — só custo, sem baixa (mesmo caminho do filamento avulso).
+  //
+  // `desc` e `unitPrice` continuam aqui, denormalizados a partir do insumo no
+  // momento em que ele é escolhido: é o mesmo congelamento que o
+  // `FilamentUsage.pricePerKg` já faz, e mantém o `calculatePricing` sem
+  // precisar conhecer o estoque.
+  supplyId?: string | null;
   // FEAT-01: atribuição opcional a um subitem vendável (`Subitem.id`). Quando
   // preenchido, o custo do acessório vai 100% para aquele subitem; quando ausente
   // (null/undefined), fica no nível do produto e é RATEADO entre os subitens.

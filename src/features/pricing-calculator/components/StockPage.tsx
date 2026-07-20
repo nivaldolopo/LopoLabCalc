@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   Package,
+  Palette,
   Pencil,
   Plus,
   Trash2,
@@ -54,6 +55,7 @@ import { NavBar } from "./NavBar";
 import { StockAdjustModal } from "./StockAdjustModal";
 import { StockColorModal, type StockColorDraft } from "./StockColorModal";
 import { StockRollModal } from "./StockRollModal";
+import { SuppliesTab } from "./SuppliesTab";
 
 const statusLabel: Record<CloudStatus, string> = {
   connecting: "Conectando nuvem...",
@@ -119,7 +121,9 @@ export function StockPage() {
   // incrementa (05b) e o passo 8 quem vai decrementar. Aqui é só apresentação.
   const { goods } = useFinishedGoods();
 
-  const [tab, setTab] = useState<"insumos" | "produtos">("insumos");
+  const [tab, setTab] = useState<"filamentos" | "insumos" | "produtos">(
+    "filamentos",
+  );
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [rollForId, setRollForId] = useState<string | null>(null);
@@ -658,7 +662,7 @@ export function StockPage() {
           <div>
             <h1 className="sg">Estoque</h1>
             <div className="brand-meta">
-              <span>Insumos e produtos — Lopo Lab</span>
+              <span>Filamento, insumos e produtos — Lopo Lab</span>
               <span className={`cloud-status ${status}`}>
                 {statusLabel[status]}
               </span>
@@ -671,6 +675,15 @@ export function StockPage() {
       {error ? <div className="app-error">{error}</div> : null}
 
       <div className="stock-tabs" role="tablist">
+        <button
+          className={`stock-tab ${tab === "filamentos" ? "active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={tab === "filamentos"}
+          onClick={() => setTab("filamentos")}
+        >
+          <Palette size={15} /> Filamentos
+        </button>
         <button
           className={`stock-tab ${tab === "insumos" ? "active" : ""}`}
           type="button"
@@ -691,7 +704,7 @@ export function StockPage() {
         </button>
       </div>
 
-      {tab === "insumos" ? (
+      {tab === "filamentos" ? (
         <>
       <div className="sales-totals stock-totals">
         <div className="sales-total-card">
@@ -755,6 +768,12 @@ export function StockPage() {
         </details>
       ) : null}
         </>
+      ) : tab === "insumos" ? (
+        <SuppliesTab
+          products={products}
+          production={production}
+          outcomeShort={OUTCOME_SHORT}
+        />
       ) : (
         <>
           <div className="sales-totals stock-totals">

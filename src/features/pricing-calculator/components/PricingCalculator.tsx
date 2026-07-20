@@ -19,6 +19,7 @@ import { useMachines } from "../hooks/useMachines";
 import { usePricingForm } from "../hooks/usePricingForm";
 import { useProducts } from "../hooks/useProducts";
 import { useStock } from "../hooks/useStock";
+import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
 import {
   calculateFixedCostSummary,
@@ -45,6 +46,10 @@ export function PricingCalculator() {
   // 7c: cores do Estoque para o dropdown de filamento e o preço vivo (D3). O
   // produto guarda só o `filamentId`; o preço/kg sai da cor no cálculo.
   const { filaments: stock } = useStock();
+  // 7e: insumos do Estoque para ligar ao acessório. Só os ATIVOS entram no
+  // seletor — arquivado é "parei de usar", não se liga de novo (um produto que
+  // já apontava para ele continua apontando; o guarda do excluir cobre isso).
+  const { supplies } = useSupplies();
   const productsApi = useProducts();
   const form = usePricingForm();
   const searchParams = useSearchParams();
@@ -76,6 +81,14 @@ export function PricingCalculator() {
     if (saveError) setSaveError(null);
     form.updateProduct(patch);
   }
+
+  const activeSupplies = useMemo(
+    () =>
+      supplies
+        .filter((supply) => !supply.archived)
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    [supplies],
+  );
 
   const totalPrintHours = useMemo(
     () =>
@@ -171,6 +184,8 @@ export function PricingCalculator() {
         // FEAT-01: atribuição a subitem (null = produto, rateado). Firestore não
         // aceita undefined, por isso o ?? null.
         subitemId: accessory.subitemId ?? null,
+        // 7e: insumo do estoque (null = avulso, sem baixa na produção).
+        supplyId: accessory.supplyId ?? null,
       })),
       // FEAT-01: modo de venda por subitens + os grupos. Limpa `markup` ausente
       // (Firestore rejeita undefined) — ausente = herda o markup do produto.
@@ -286,6 +301,7 @@ export function PricingCalculator() {
             product={form.product}
             machines={machines}
             stock={stock}
+            supplies={activeSupplies}
             editingProductId={form.editingProductId}
             saved={saved}
             onChange={handleProductChange}

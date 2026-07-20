@@ -169,6 +169,9 @@ function parseAccessories(value: string | undefined): Accessory[] {
       desc: item.desc ?? "",
       qty: Number(item.qty) || 0,
       unitPrice: Number(item.unitPrice) || 0,
+      // 7e: o vínculo com o insumo sobrevive ao round-trip do CSV (o export é
+      // JSON puro). `subitemId` segue descartado de propósito.
+      supplyId: item.supplyId ?? null,
     };
   });
 }
