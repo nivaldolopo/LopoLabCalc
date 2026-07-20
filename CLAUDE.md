@@ -14,18 +14,18 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **BUG-02 corrigido — produção/estoque/encomenda respeitam o `piecesCount`.**
-  Modelo: **1 evento = 1 placa** (baixa filamento/horas 1×), credita **N = `piecesCount`** acabados a
-  `custo÷N` (mesma matemática ÷N da precificação). `submissionEntries` ganhou `units` (= peças×placas,
-  fim do `qty:1` cravado); `subitemEventRows` corrige o labor p/ placa inteira (não misturar cru×÷peça);
-  `/producao` ganhou campo **"Quantas placas"** (P) que escala filamento/horas/acabados; a **encomenda**
-  escala por `qty÷pieces` (COGS/baixa por peça, batendo com o preço). +5 testes (189 verdes), `lint`+`build` limpos.
+- **Última mudança:** **BUG-03 corrigido — venda e extrato de rolos desempatam por `createdAt`.**
+  `/vendas`: o `Recibo` ganhou `createdAt` (= max dos itens) e os sorts por data (`recent`/`oldest`)
+  usam `(saleDate, createdAt)`. `colorStatement` (`stock.ts`): desempate por `seq` (createdAt cheio do
+  evento de produção no consumo; `at`/dia p/ compra e ajuste) → dois consumos no mesmo dia saem na
+  ordem da hora real. +1 teste (190 verdes), `lint`+`build` limpos. Rolos/ajustes seguem só com o dia
+  (sem `createdAt` — não precisou p/ o bug).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
-- **▶ PRÓXIMA TAREFA sugerida:** **BUG-03** (ordenar venda/extrato por `createdAt` — barato; hoje só
-  guardam o *dia*, então eventos do mesmo dia empatam; venda e produção já gravam `createdAt` cheio →
-  usar como desempate no `SalesPage` e no `colorStatement`). Depois: **UX-01** (barra de nav unificada)
-  → **FEAT-07** (página de catálogo) → **FEAT-08** (ações Produzir/Orçar no card) → **Tier 2** (FEAT-03
+- **▶ PRÓXIMA TAREFA sugerida:** **UX-01** (barra de navegação unificada — barato, alto valor diário;
+  hoje cada página tem a própria barra hand-rolled com um subconjunto ad-hoc dos links → extrair um
+  componente de nav compartilhado com todas as rotas + "Início", destacando a ativa). Depois:
+  **FEAT-07** (página de catálogo) → **FEAT-08** (ações Produzir/Orçar no card) → **Tier 2** (FEAT-03
   PDF, branding/logo, FEAT-06 aba Produtos rica). **Roadmap completo dos abertos:**
   [`.claude/BACKLOG.md`](.claude/BACKLOG.md). **Porquê/decisões:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Gotcha vivo:** COGS armazenado = **custo real** (unitCost/lucro/margem); `costBreakdown` = o do

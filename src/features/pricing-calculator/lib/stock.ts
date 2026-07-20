@@ -343,13 +343,20 @@ export function colorStatement(
   color: StockFilament,
   production: ProductionEvent[] = [],
 ): StatementEntry[] {
+  // BUG-03: `at` guarda só o DIA → eventos do mesmo dia empatam. O desempate é o
+  // `seq` (por id): no consumo é o `createdAt` cheio do evento de produção;
+  // compra/ajuste guardam só o dia, então caem pro próprio `at` (meia-noite) e
+  // seguem naturalmente antes dos consumos do mesmo dia.
+  const seq = new Map<string, number>();
   const consumption: StatementEntry[] = [];
   for (const event of production) {
     for (const move of event.stockMoves) {
       if (move.stockId !== color.id) continue;
+      const id = `move_${event.id}_${move.rollId}`;
+      seq.set(id, num(event.createdAt) || num(event.at));
       consumption.push({
         kind: "consumption",
-        id: `move_${event.id}_${move.rollId}`,
+        id,
         at: num(event.at),
         rollId: move.rollId,
         deltaG: -num(move.qty),
@@ -386,9 +393,11 @@ export function colorStatement(
     ),
     ...consumption,
   ];
-  // Sort estável (garantido pela spec): eventos do mesmo instante mantêm a ordem
-  // acima, então a compra do rolo nunca aparece depois do ajuste dele.
-  return entries.sort((a, b) => a.at - b.at);
+  // Desempate por `seq` (createdAt do consumo; `at` do resto). Sort estável:
+  // eventos com mesmo (at, seq) mantêm a ordem acima, então a compra do rolo
+  // nunca aparece depois do ajuste dele.
+  const seqOf = (e: StatementEntry) => seq.get(e.id) ?? e.at;
+  return entries.sort((a, b) => a.at - b.at || seqOf(a) - seqOf(b));
 }
 
 // Fontes que podem apontar para uma cor. Estruturais de propósito: o que importa

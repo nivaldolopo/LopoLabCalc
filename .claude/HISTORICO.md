@@ -606,7 +606,12 @@ pendente da auditoria.
   (`saleReconciliation.ts`) escala por `qty÷pieces` (decisão do dono: corrigir junto — baixa/COGS por
   peça batem com o preço; make-to-order não estoca as peças sobrando de placa parcial). O estorno é
   round-trip automático (os `stockMoves`/camadas gravados já vêm escalados). +5 testes (189 verdes).
-- ⬜ **[BUG-03] Histórico de vendas e extrato de rolos fora de ordem — ✅ procede, MESMA raiz (média).**
+- ✅ **[BUG-03] Histórico de vendas e extrato de rolos fora de ordem — FEITO (2026-07-19).** Desempate
+  por `createdAt`: `Recibo` (`SalesPage`) ganhou `createdAt = max(items.createdAt)` e os sorts por data
+  (`recent`/`oldest`) usam `(saleDate, createdAt)`; `colorStatement` (`stock.ts`) desempata por um `seq`
+  local (createdAt cheio do evento de produção no consumo; `at`/dia p/ compra e ajuste, que naturalmente
+  vêm antes do consumo do mesmo dia). Rolos/ajustes seguem só com o dia (não precisou p/ o bug). +1
+  teste (190 verdes). Diagnóstico original abaixo. Raiz idêntica ao "só guarda DIA":**
   Diagnóstico do dono certo: **só guarda DIA, não hora.** `saleDate` e `purchaseDate`/`at` vêm de
   `<input type=date>` (meia-noite). Eventos do mesmo dia empatam → a ordem cai no que o Firestore
   devolveu (parece alfabético/aleatório). `SalesPage` ordena recibos por `saleDate` (dia);

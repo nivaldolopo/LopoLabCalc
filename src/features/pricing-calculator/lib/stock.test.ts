@@ -16,6 +16,7 @@ import {
   saleCost,
   simulateConsumption,
 } from "./stock";
+import type { StatementEntry } from "./stock";
 import type {
   FilamentRoll,
   ProductionEvent,
@@ -24,6 +25,7 @@ import type {
 } from "../types";
 
 const DIA = 24 * 60 * 60 * 1000;
+const HORA = 60 * 60 * 1000;
 
 function makeRoll(over: Partial<FilamentRoll> & { id: string }): FilamentRoll {
   return {
@@ -411,6 +413,36 @@ describe("colorStatement (extrato — D6.1)", () => {
     expect(consumo[1]).toMatchObject({ rollId: "novo", deltaG: -20 });
     // Compra (dia 1/2) < consumo (dia 3): ordem cronológica preservada.
     expect(extrato[extrato.length - 1].kind).toBe("consumption");
+  });
+
+  it("BUG-03: dois consumos no mesmo dia saem ordenados por createdAt", () => {
+    // Dois eventos com o MESMO `at` (dia 3), mas horas diferentes no `createdAt`.
+    // O tarde é passado primeiro pro colorStatement — deve sair DEPOIS do cedo.
+    const move = (eventId: string, qty: number): StockMove => ({
+      itemId: eventId,
+      kind: "filament",
+      stockId: "cor-preto",
+      rollId: "velho",
+      qty,
+    });
+    const cedo = prod({
+      id: "cedo",
+      at: 3 * DIA,
+      createdAt: 3 * DIA + 8 * HORA,
+      stockMoves: [move("cedo", 10)],
+    });
+    const tarde = prod({
+      id: "tarde",
+      at: 3 * DIA,
+      createdAt: 3 * DIA + 15 * HORA,
+      stockMoves: [move("tarde", 20)],
+    });
+
+    const consumo = colorStatement(doisRolos(), [tarde, cedo]).filter(
+      (e): e is Extract<StatementEntry, { kind: "consumption" }> =>
+        e.kind === "consumption",
+    );
+    expect(consumo.map((e) => e.eventId)).toEqual(["cedo", "tarde"]);
   });
 
   it("ignora moves de outra cor", () => {

@@ -11,17 +11,16 @@
 
 ## Ordem de prioridade
 
-1. **Bug barato (atacar 1º)**: **BUG-03** (ordenação por `createdAt`).
-2. **UX / organização** *(barato, alto valor diário)*: **UX-01** (barra de navegação unificada) →
+1. **UX / organização** *(barato, alto valor diário; atacar 1º)*: **UX-01** (barra de navegação unificada) →
    **FEAT-07** (página de catálogo dedicada) → **FEAT-08** (ações "Produzir"/"Orçar" no card). UX-01
    antes: com a barra unificada, o catálogo vira só **+1 item** num componente único, não em 6 barras
    hand-rolled. FEAT-08 mexe no mesmo card do FEAT-07.
-3. **Tier 2** (features comerciais, independentes): **FEAT-03** (PDF melhor) · **branding/logo real**
+2. **Tier 2** (features comerciais, independentes): **FEAT-03** (PDF melhor) · **branding/logo real**
    no PDF · **FEAT-06** (aba Produtos rica).
-4. **Tier 3** (adiar até ter volume de vendas): **Dashboard** (`/painel`) + **TD-003** · **TD-006**.
-5. **Tier 4** (menores/oportunistas): numeração de orçamento no browser · labor na reserva de falha ·
+3. **Tier 3** (adiar até ter volume de vendas): **Dashboard** (`/painel`) + **TD-003** · **TD-006**.
+4. **Tier 4** (menores/oportunistas): numeração de orçamento no browser · labor na reserva de falha ·
    **DEC-01 pendência** (semântica do `contributionMargin`).
-6. **Item próprio (quando o dono quiser):** **7e — Insumos** no estoque.
+5. **Item próprio (quando o dono quiser):** **7e — Insumos** no estoque.
 
 > Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
@@ -29,10 +28,9 @@
 ## Itens abertos
 
 ### Bugs
-- **[BUG-03] Histórico de vendas e extrato de rolos fora de ordem** *(barato, atacar 1º)*. Só guardam
-  **dia**, não hora → eventos do mesmo dia empatam. Alavanca: venda e evento de produção **já gravam
-  `createdAt`** (timestamp cheio) → usar como desempate. **Onde:** `SalesPage` (sort por `saleDate`),
-  `stock.ts` `colorStatement` (sort por `at`). Detalhe/diagnóstico em `HISTORICO.md`.
+- ~~**[BUG-03]** Histórico de vendas e extrato de rolos fora de ordem~~ **✅ FEITO (2026-07-19)** — `Recibo`
+  ganhou `createdAt` (max dos itens) e os sorts por data usam `(saleDate, createdAt)`; `colorStatement`
+  desempata por `seq` (createdAt do evento no consumo). Rolos/ajustes seguem só com o dia.
 - ~~**[BUG-02]** Produção/estoque ignoravam o `piecesCount`~~ **✅ FEITO (2026-07-19)** — 1 evento = 1
   placa credita N acabados a custo÷N; encomenda ÷pieces; `/producao` com campo "Quantas placas". Detalhe
   em `HISTORICO.md`.

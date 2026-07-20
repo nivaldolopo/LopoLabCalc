@@ -59,6 +59,9 @@ type Recibo = {
   reciboId: string;
   items: Sale[];
   saleDate: number;
+  // BUG-03: `saleDate` guarda só o DIA → recibos do mesmo dia empatam. O
+  // `createdAt` (timestamp cheio, o mais recente do recibo) é o desempate.
+  createdAt: number;
   customer: string;
   channel: Sale["channel"];
   paymentMethod: Sale["paymentMethod"];
@@ -237,6 +240,7 @@ export function SalesPage() {
         reciboId,
         items: [...items].sort((a, b) => a.createdAt - b.createdAt),
         saleDate: Math.max(...items.map((item) => item.saleDate)),
+        createdAt: Math.max(...items.map((item) => item.createdAt)),
         customer: first.customer,
         channel: first.channel,
         paymentMethod: first.paymentMethod,
@@ -248,14 +252,18 @@ export function SalesPage() {
       };
     });
 
-    return groups.sort((a, b) => b.saleDate - a.saleDate);
+    return groups.sort(
+      (a, b) => b.saleDate - a.saleDate || b.createdAt - a.createdAt,
+    );
   }, [sales]);
 
   const sortedRecibos = useMemo<Recibo[]>(() => {
     const next = [...recibos];
     switch (sortMode) {
       case "oldest":
-        return next.sort((a, b) => a.saleDate - b.saleDate);
+        return next.sort(
+          (a, b) => a.saleDate - b.saleDate || a.createdAt - b.createdAt,
+        );
       case "customer-az":
         return next.sort((a, b) =>
           (a.customer || "").localeCompare(b.customer || "", "pt-BR"),
@@ -278,7 +286,9 @@ export function SalesPage() {
         return next.sort((a, b) => a.margin - b.margin);
       case "recent":
       default:
-        return next.sort((a, b) => b.saleDate - a.saleDate);
+        return next.sort(
+          (a, b) => b.saleDate - a.saleDate || b.createdAt - a.createdAt,
+        );
     }
   }, [recibos, sortMode]);
 
