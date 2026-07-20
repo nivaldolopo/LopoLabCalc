@@ -17,8 +17,9 @@
 2. **Tier 2** (features comerciais, independentes): **FEAT-03** (PDF melhor) · **branding/logo real**
    no PDF · **FEAT-06** (aba Produtos rica).
 3. **Tier 3** (adiar até ter volume de vendas): **Dashboard** (`/painel`) + **TD-003** · **TD-006**.
-4. **Tier 4** (menores/oportunistas): numeração de orçamento no browser · labor na reserva de falha ·
-   **DEC-01 pendência** (semântica do `contributionMargin`).
+4. **Tier 4** (menores/oportunistas): **UX-02** (capacidade congelada no catálogo) · numeração de
+   orçamento no browser · labor na reserva de falha · **DEC-01 pendência** (semântica do
+   `contributionMargin`).
 5. **Item próprio (quando o dono quiser):** **7e — Insumos** no estoque.
 
 > Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
@@ -41,10 +42,23 @@
 - ~~**[FEAT-07] Página de catálogo dedicada**~~ **✅ FEITO (2026-07-20)** — rota `/catalogo` +
   `CatalogPage`; "editar" navega pra `/?load=<id>` (ajuste no render + `replaceState`; `<Suspense>` na
   raiz p/ o `useSearchParams`, `/` seguiu estática). `SaleFlow` extraído p/ não duplicar a fiação do
-  `SaleModal`. **Sobrou pra decidir:** a coluna de capacidade do catálogo agora usa `DEFAULT_CAPACITY`
-  fixo (antes herdava o ajuste do card de resultado da calculadora) — tarefa curta se incomodar.
+  `SaleModal`. **Sobrou pra decidir:** ver **UX-02** abaixo (capacidade congelada no catálogo).
   **Habilitado por ele (não feito):** reorganizar o form da principal e enriquecer o card do catálogo
   com mais dados (composição, margem…).
+- **[UX-02] Capacidade do catálogo ficou congelada em `DEFAULT_CAPACITY`** *(pequeno; herança do
+  FEAT-07)*. **O que é:** ao expandir a linha de um produto no catálogo, o painel de capacidade cruza as
+  horas de impressão com **horas/dia** e **nº de máquinas** (`calculateCapacity.ts`) e mostra peças/dia,
+  peças/mês, bruto/lucro e o alerta "⚠️ Acima da capacidade (N pçs/mês)" do ponto de equilíbrio.
+  **O que mudou:** essas 2 variáveis eram estado da página principal — ajustadas no card de resultado da
+  calculadora, o catálogo logo abaixo recalculava junto. Com o catálogo em rota própria não há esse
+  controle: usa fixo **20h/dia · 1 máquina**. **Atenuante:** o painel *exibe* os parâmetros que usou
+  ("20h/dia · 1 máquina"), então nada fica silenciosamente errado — só congelado; quem roda 2 máquinas
+  vê números subestimados, mas rotulados. **Duas saídas:** (a) replicar o controle no `/catalogo`, ou
+  (b) **provavelmente melhor** — persistir horas/dia e nº de máquinas junto com os custos fixos, já que
+  o `useBusinessSettings`/`FixedCostRate` **já guarda `machines` e `hoursDay`** pro rateio de custo
+  fixo; vale checar se dá pra reusar em vez de ter dois lugares dizendo a mesma coisa. **Onde:**
+  `CatalogPage` (hoje passa `DEFAULT_CAPACITY` literal), `ProductCatalog`/`CatalogDetails`,
+  `PricingResultCard` (controle atual).
 - **[FEAT-08] Ações "Produzir" e "Orçar" no card do catálogo** *(pequeno; mesmo card do FEAT-07)*. Hoje
   cada item só tem **Editar / Excluir / Registrar venda** — a venda era o único destino quando o app
   era só calculadora. Com produção e orçamento já existindo, adicionar **"Produzir item"** (→

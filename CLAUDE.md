@@ -28,9 +28,9 @@
   receber o seed). Depois: **Tier 2** (FEAT-03 PDF, branding/logo, FEAT-06 aba Produtos rica).
   **Roadmap completo dos abertos:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Porquê/decisões:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
-- ⚠ **Efeito colateral do FEAT-07 (avaliar):** "Nova venda" em branco e a coluna de **capacidade** do
-  catálogo moraram na página principal e foram junto pro `/catalogo`; lá a capacidade usa o
-  `DEFAULT_CAPACITY` fixo (antes herdava o ajuste do card de resultado). Se incomodar, é tarefa curta.
+- ⚠ **Efeito colateral do FEAT-07:** "Nova venda" em branco e o painel de **capacidade** do catálogo
+  foram junto pro `/catalogo`; lá a capacidade usa `DEFAULT_CAPACITY` fixo (20h/dia · 1 máquina).
+  Detalhe e as 2 saídas possíveis: **UX-02** em [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
 - ⚠ **Gotcha vivo:** COGS armazenado = **custo real** (unitCost/lucro/margem); `costBreakdown` = o do
   snapshot do catálogo (**stopgap** informativo) até o FEAT-06 congelar a composição na produção;
   **acessórios ficam fora do COGS** até o 7e (insumos).
