@@ -64,8 +64,19 @@
   era só calculadora. Com produção e orçamento já existindo, adicionar **"Produzir item"** (→
   `/producao` com o produto pré-selecionado) e **"Orçar item"** (→ `/orcamento` com o produto já como
   linha). **Wrinkle:** ambos são **cross-page com seed do produto** (mesmo padrão do "editar" do
-  FEAT-07 — query `?...=<id>` ou store compartilhado); "Registrar venda" continua abrindo o modal na
-  própria página. **Onde:** `ProductCatalog` (card), `ProductionPage`/`QuotePage` pra receber o seed.
+  FEAT-07 — query `?...=<id>`); "Registrar venda" continua abrindo o modal na própria página.
+  **Onde:** `ProductCatalog` (card), `ProductionPage`/`QuotePage` pra receber o seed.
+  **Como receber o seed — 3 opções, da melhor pra pior:**
+  1. **Derivação pura** (tentar PRIMEIRO): o seed aqui é só *qual produto está selecionado* — um id, não
+     um formulário. Se a página já tem um `selectedId` em estado, dá pra fazer
+     `const idEfetivo = selecaoDoUsuario ?? searchParams.get("produto")` e **não sincronizar nada**:
+     zero `setState`, zero efeito. Confirmar contra o `ProductionPage`/`QuotePage` na hora.
+  2. **Ajuste durante o render** (fallback, é o que o FEAT-07 usa): `setState` no corpo do render,
+     guardado por um "já consumi este id". Commit único, sem flash. Foi necessário no FEAT-07 porque lá
+     o seed hidrata ~20 campos editáveis — isso não dá pra derivar.
+  3. ~~`useState` dentro de `useEffect`~~ — **proibido pelo lint** (`react-hooks/set-state-in-effect`,
+     vem do `eslint-config-next/core-web-vitals`, não é regra local). Além de barrado, é pior: pinta a
+     tela no estado intermediário antes de re-renderizar. **Não desligar a regra.**
 
 ### Tier 2 — comerciais
 - **[FEAT-03] Melhorar o PDF do orçamento** *(guarda-chuva)*. Ideias-semente (o dono escolhe o que vira
