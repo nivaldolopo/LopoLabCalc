@@ -99,6 +99,23 @@
   produto vivo. Consequência: o `costBreakdown` da venda de peça pronta passa a vir da camada congelada
   (hoje é stopgap do snapshot do catálogo). **Onde:** `StockPage` + reusar `CostBars`/`ProfitSummary`.
   Contexto completo em `HISTORICO.md`.
+  - **Incluir a `/producao` no escopo (levantado pelo dono, 2026-07-20).** A página mostra custo em
+    **dois** lugares e em nenhum diz *qual* custo é nem detalha: a prévia antes de salvar
+    (`ProductionPage.tsx:794`, "custo R$ x" = Σ dos eventos planejados) e o cartão de cada produção
+    recente (`ProductionPage.tsx:913`, só o `frozenCost` solto na lateral, sem nem a palavra "custo").
+    É o **custo real gasto** — o mesmo número que na venda aparece como "Custo real (base do lucro)":
+    `productionCost()` = material FIFO + energia + desgaste + manutenção + mão de obra + insumos, **sem**
+    reserva de falha e **sem** custo fixo.
+  - **Por que só dá pra detalhar dentro do FEAT-06:** o evento guarda o `frozenCost` como **um número
+    só** (`types.ts:653`) — a composição não é persistida. Reconstruir hoje só funciona pela metade:
+    material e insumos saem fiéis dos arrays congelados (`filaments`/`supplies`), mas energia/desgaste/
+    manutenção teriam que ser recalculados da **máquina viva** (editar watts/preço faz os componentes
+    pararem de somar o total gravado) e a **mão de obra não está gravada em lugar nenhum** do evento —
+    só sairia como resíduo. Gravar o `SaleCostBreakdown` no evento (o que o FEAT-06 já vai fazer)
+    resolve os três de uma vez.
+  - **Entregável extra:** rotular os dois números como "custo real gasto" e pendurar neles o mesmo
+    popover de composição da venda (`CostDetail.tsx`), reusando o componente. Vale só pra produções
+    **novas** (as antigas não têm o breakdown) — sem migração, Diretriz 7.
 
 ### Tier 3 — infra de cálculo/leitura (TD-*) e, por último, o Dashboard
 > Ordem interna: **TD-003 → TD-006 → Dashboard** (o Dashboard é o último item do backlog).
