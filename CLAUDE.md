@@ -14,31 +14,32 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **FEAT-07 — página de catálogo dedicada (`/catalogo`).** O `ProductCatalog` saiu
-  da página principal pra rota própria (`CatalogPage`) → a principal ficou só calculadora/cadastro.
-  "Editar" virou **cross-page**: o card manda pra `/?load=<id>` e a `PricingCalculator` carrega o
-  produto no form (ajuste no render, não em efeito — o lint do projeto proíbe `setState` síncrono em
-  `useEffect`) e limpa a URL via `replaceState`. `page.tsx` da raiz ganhou `<Suspense>` (exigência do
-  `useSearchParams`; `/` seguiu **estática** no build). Fiação do modal de venda extraída pro
-  **`SaleFlow`**, usado pelas duas páginas. `lint`+`build` limpos, 190 testes verdes.
+- **Última mudança:** **UX-02 — capacidade do catálogo deixou de ser literal.** A `CatalogPage` passava
+  `DEFAULT_CAPACITY` (1 máquina) enquanto o rateio de custo fixo já usava o `fixedCostRate` persistido
+  (2 máquinas) — duas fontes de verdade discordando, e o painel subestimava peças/mês. Agora
+  `capacitySettings` é **derivado** do mesmo `fixedCostRate` (`useMemo`, sem estado novo). O catálogo só
+  *exibe* os parâmetros ("20h/dia · N máq."), não os edita, então não houve fiação de `onChange`.
+  `lint`+`build` limpos, 190 testes verdes.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
 - **▶ PRÓXIMA TAREFA sugerida:** **FEAT-08** (ações "Produzir"/"Orçar" no card do catálogo — reusa o
   padrão de seed cross-page `?param=<id>` que o FEAT-07 já criou; `ProductionPage`/`QuotePage` passam a
-  receber o seed). Depois: **Tier 2** (FEAT-03 PDF, branding/logo, FEAT-06 aba Produtos rica).
-  **Roadmap completo dos abertos:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
-  **Porquê/decisões:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
-- ⚠ **Efeito colateral do FEAT-07:** "Nova venda" em branco e o painel de **capacidade** do catálogo
-  foram junto pro `/catalogo`; lá a capacidade usa `DEFAULT_CAPACITY` fixo (20h/dia · 1 máquina).
-  Detalhe e as 2 saídas possíveis: **UX-02** em [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
-- ⚠ **Gotcha vivo:** COGS armazenado = **custo real** (unitCost/lucro/margem); `costBreakdown` = o do
-  snapshot do catálogo (**stopgap** informativo) até o FEAT-06 congelar a composição na produção;
-  **acessórios ficam fora do COGS** até o 7e (insumos).
+  receber o seed). **Ordem reordenada pelo dono em 2026-07-20:** FEAT-08 → **7e (insumos)** → **FEAT-06**
+  → FEAT-03/branding → **Tier 4 inteiro** → TD-003/TD-006 → Dashboard (último).
+  **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
+  **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
+- ⚠ **Gotcha vivo (buraco de COGS, motiva o 7e):** acessórios **JÁ entram no preço**
+  (`calculatePricing.ts:325`) mas **NÃO no `frozenCost`** da produção (`production.ts:146-148`, decisão
+  explícita) ⇒ o lucro por peça no histórico sai **superestimado**. COGS armazenado = custo real
+  (unitCost/lucro/margem); `costBreakdown` = snapshot do catálogo (**stopgap**) até o FEAT-06 congelar
+  a composição — por isso o **7e vem antes do FEAT-06**.
 - **`/maquinas` (ROI):** cruza `price`/`lifeHours` com o histórico — 2 barras (payback do investimento
   e vida útil consumida); as horas vêm do **registro de produção** (FEAT-04c). Matemática pura em
   `lib/machineRoi.ts` (recebe `sales` **e** `production`).
-- **Restam da auditoria:** **TD-003** (capacidade por-máquina, casar com o Dashboard) e **TD-006**
-  (paginação). Nada mais pendente.
+- **Restam da auditoria:** **TD-003** (capacidade por-máquina) e **TD-006** (paginação) — agora **antes**
+  do Dashboard. **Nenhum dos dois afeta a GRAVAÇÃO de dados** (verificado): as horas do histórico de
+  máquina vêm dos eventos de produção somados por `machineId` (`machineRoi.ts:87-89`) e já estão certas;
+  TD-003 é só **projeção** de capacidade na tela, TD-006 é custo/desempenho de **leitura**.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **TO-DO macro em aberto:** **7e** (insumos no estoque — item próprio depois do filamento),

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DEFAULT_CAPACITY, DEFAULT_FIXED_COSTS } from "../constants";
+import { DEFAULT_FIXED_COSTS } from "../constants";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
@@ -16,6 +16,7 @@ import {
   type SaleModalContext,
 } from "../lib/saleContext";
 import type {
+  CapacitySettings,
   CloudStatus,
   FixedCostSettings,
   PricingResult,
@@ -53,6 +54,19 @@ export function CatalogPage() {
   // calculadora — cada linha já se precifica com a própria escolha.
   const fixedCosts = useMemo<FixedCostSettings>(
     () => ({ ...fixedCostRate, enabled: DEFAULT_FIXED_COSTS.enabled }),
+    [fixedCostRate],
+  );
+
+  // UX-02: a capacidade sai da MESMA fonte persistida que rateia o custo fixo
+  // (config/negocio), não de um literal. Antes o catálogo usava DEFAULT_CAPACITY
+  // (1 máquina) enquanto o rateio usava o rate salvo (2) — duas fontes de verdade
+  // discordando, e o painel subestimava peças/mês. Derivado, sem estado próprio:
+  // mudou nos custos fixos, mudou aqui.
+  const capacitySettings = useMemo<CapacitySettings>(
+    () => ({
+      hoursDay: fixedCostRate.hoursDay,
+      machines: fixedCostRate.machines,
+    }),
     [fixedCostRate],
   );
 
@@ -127,7 +141,7 @@ export function CatalogPage() {
           stock={stock}
           fixedCosts={fixedCosts}
           pricingByProduct={pricingByProduct}
-          capacitySettings={DEFAULT_CAPACITY}
+          capacitySettings={capacitySettings}
           sortMode={sortMode}
           onSortModeChange={setSortMode}
           onLoadProduct={editProduct}

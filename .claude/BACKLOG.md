@@ -11,16 +11,41 @@
 
 ## Ordem de prioridade
 
+> **Reordenado em 2026-07-20** pelo dono (ver "Porquês da ordem" abaixo).
+
 1. **UX / organização** *(barato, alto valor diário; atacar 1º)*: ~~UX-01~~ ✅ → ~~FEAT-07~~ ✅ →
-   **FEAT-08** (ações "Produzir"/"Orçar" no card). O padrão de seed cross-page (`?param=<id>` +
-   `<Suspense>`) já existe desde o FEAT-07 — o FEAT-08 só o reusa.
-2. **Tier 2** (features comerciais, independentes): **FEAT-03** (PDF melhor) · **branding/logo real**
-   no PDF · **FEAT-06** (aba Produtos rica).
-3. **Tier 3** (adiar até ter volume de vendas): **Dashboard** (`/painel`) + **TD-003** · **TD-006**.
-4. **Tier 4** (menores/oportunistas): **UX-02** (capacidade congelada no catálogo) · numeração de
-   orçamento no browser · labor na reserva de falha · **DEC-01 pendência** (semântica do
-   `contributionMargin`).
-5. **Item próprio (quando o dono quiser):** **7e — Insumos** no estoque.
+   **UX-02** (capacidade congelada) → **FEAT-08** (ações "Produzir"/"Orçar" no card). O padrão de seed
+   cross-page (`?param=<id>` + `<Suspense>`) já existe desde o FEAT-07 — o FEAT-08 só o reusa.
+2. **7e — Insumos/acessórios no estoque** *(promovido; era "item próprio")*.
+3. **FEAT-06** (aba Produtos rica / composição congelada) — **depois do 7e, de propósito.**
+4. **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
+5. **Tier 4 inteiro** *(antecipado)*: numeração de orçamento no browser · labor na reserva de falha ·
+   **DEC-01 pendência** (semântica do `contributionMargin`).
+6. **TD-003** (capacidade por-máquina) · **TD-006** (paginação) — **antes** do Dashboard.
+7. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real.
+
+### Porquês da ordem (decisões de 2026-07-20)
+
+- **UX-02 subiu do Tier 4 pro 1º lugar:** não é cosmético — `DEFAULT_FIXED_COSTS` diz `machines: 2` e
+  `DEFAULT_CAPACITY` diz `machines: 1` (`constants.ts:68-75`). Duas fontes de verdade discordando: o
+  rateio de custo fixo (que entra no preço) assume 2 máquinas, o painel do catálogo assume 1. Com 2
+  impressoras reais, o catálogo subestima peças/mês e dispara o alerta de capacidade cedo demais.
+- **7e antes do FEAT-06:** o FEAT-06 **congela a composição de custo inteira** na produção. Se o 7e
+  vier depois, congela-se um quadro que ainda não soma acessórios e mexe-se na estrutura de novo.
+  7e primeiro ⇒ FEAT-06 congela o quadro completo de uma vez.
+- **7e é prioritário porque há um buraco real de COGS:** acessórios **JÁ entram no preço**
+  (`calculatePricing.ts:325`, `variableCost = printing + failureReserve + accessoriesCost`, com rateio
+  por subitem), mas **NÃO entram no `frozenCost` da produção** (`production.ts:146-148`, decisão
+  explícita: "provisão de pricing, não custo físico"). Resultado: o ímã é cobrado do cliente e nunca
+  debitado como custo realizado ⇒ **o lucro por peça no histórico aparece maior do que é**.
+- **TD-003/TD-006 antes do Dashboard:** TD-003 é a base da visão de "gargalo" — consertar antes evita
+  construir o painel sobre conta errada e refazer. TD-006 sobe porque **o marco** (recadastro de tudo:
+  produtos, filamentos, acessórios, impressões e vendas) chega como um volume grande de documentos de
+  uma vez — paginação importa *no* marco, não meses depois.
+- **NÃO confundir (verificado no código):** nem TD-003 nem TD-006 afetam a **gravação** dos dados. As
+  horas de máquina do histórico vêm dos eventos de produção somados por `machineId`
+  (`machineRoi.ts:87-89`) — dado real, já correto. TD-003 afeta só a **projeção** de capacidade na
+  tela; TD-006 é custo/desempenho de **leitura**. O registro do `/maquinas` não está contaminado.
 
 > Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
@@ -93,7 +118,9 @@
   (hoje é stopgap do snapshot do catálogo). **Onde:** `StockPage` + reusar `CostBars`/`ProfitSummary`.
   Contexto completo em `HISTORICO.md`.
 
-### Tier 3 — só com volume de vendas
+### Tier 3 — infra de cálculo/leitura (TD-*) e, por último, o Dashboard
+> Ordem interna: **TD-003 → TD-006 → Dashboard** (o Dashboard é o último item do backlog).
+
 - **[Dashboard] (`/painel`)** — receita/custo/lucro do mês, lucro líquido (menos custos fixos),
   utilização das máquinas (comprar outra?), receita por máquina, lucro por material, produto mais
   lucrativo. Só vale com ~1-2 meses de vendas no banco.
@@ -110,7 +137,11 @@
   cálculo do break-even (muda comportamento — o ponto diminui) ou só renomear a variável. Ver a NOTA no
   `calculatePricing.ts` e o detalhe em `HISTORICO.md`.
 
-### Item próprio (depois do filamento)
+### 7e — Insumos no estoque *(prioridade 2; pré-requisito do FEAT-06)*
 - **[7e] Insumos no estoque** — `supplyId` no `Accessory`, cadastro de insumos (ímãs, parafusos,
   embalagem…) na `/estoque`, baixa por unidade (`kind: 'supply'`, **já previsto** no `stockMoves` desde
-  a 7a). Enquanto não existir, **acessórios ficam fora do COGS**. Ver D1 em `HISTORICO.md`.
+  a 7a). Ver D1 em `HISTORICO.md`.
+  **Precisão importante (verificada no código):** acessórios **NÃO** estão fora do custo em geral —
+  entram no **preço** (`calculatePricing.ts:325`). O que falta é entrarem no **custo realizado**: o
+  `frozenCost` da produção os exclui de propósito (`production.ts:146-148`). Portanto o 7e fecha o
+  buraco do **COGS do acabado**, onde hoje o lucro por peça sai superestimado.
