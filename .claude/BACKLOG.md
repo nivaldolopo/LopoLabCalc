@@ -11,9 +11,9 @@
 
 ## Ordem de prioridade
 
-1. **UX / organização** *(barato, alto valor diário; atacar 1º)*: ~~UX-01~~ ✅ → **FEAT-07** (página de
-   catálogo dedicada) → **FEAT-08** (ações "Produzir"/"Orçar" no card). Com a barra unificada
-   (`NavBar`), o catálogo vira só **+1 item** no componente único. FEAT-08 mexe no mesmo card do FEAT-07.
+1. **UX / organização** *(barato, alto valor diário; atacar 1º)*: ~~UX-01~~ ✅ → ~~FEAT-07~~ ✅ →
+   **FEAT-08** (ações "Produzir"/"Orçar" no card). O padrão de seed cross-page (`?param=<id>` +
+   `<Suspense>`) já existe desde o FEAT-07 — o FEAT-08 só o reusa.
 2. **Tier 2** (features comerciais, independentes): **FEAT-03** (PDF melhor) · **branding/logo real**
    no PDF · **FEAT-06** (aba Produtos rica).
 3. **Tier 3** (adiar até ter volume de vendas): **Dashboard** (`/painel`) + **TD-003** · **TD-006**.
@@ -38,14 +38,13 @@
 - ~~**[UX-01] Barra de navegação unificada**~~ **✅ FEITO (2026-07-19)** — componente `NavBar.tsx`
   (6 destinos fixos + tema + logout; rota ativa via `usePathname`/`aria-current`) reusado pelo `Header`
   e pelos 5 headers de página; "Início/Calculadora" = navegação limpa. Detalhe em `HISTORICO.md`.
-- **[FEAT-07] Página de catálogo dedicada** (`/catalogo`) *(médio; fica limpo depois do UX-01)*. Tirar
-  o `ProductCatalog` (~580 linhas) da página principal pra rota própria → a principal fica só
-  **calculadora/cadastro** (dá pra reorganizar o form) e o catálogo ganha espaço pra **mostrar melhor
-  os dados** (composição, margem, capacidade…). **Wrinkle:** hoje `onLoadProduct` enche o form da MESMA
-  página; separado, "editar" precisa **navegar pra `/` com o produto carregado** (ex.: `/?load=<id>`) —
-  estado entre páginas. **Não confundir com FEAT-06:** catálogo = definições vivas do produto; aba
-  Produtos do `/estoque` = acabados físicos com custo congelado. **Onde:** nova rota + mover
-  `ProductCatalog`; ajustar `PricingCalculator`.
+- ~~**[FEAT-07] Página de catálogo dedicada**~~ **✅ FEITO (2026-07-20)** — rota `/catalogo` +
+  `CatalogPage`; "editar" navega pra `/?load=<id>` (ajuste no render + `replaceState`; `<Suspense>` na
+  raiz p/ o `useSearchParams`, `/` seguiu estática). `SaleFlow` extraído p/ não duplicar a fiação do
+  `SaleModal`. **Sobrou pra decidir:** a coluna de capacidade do catálogo agora usa `DEFAULT_CAPACITY`
+  fixo (antes herdava o ajuste do card de resultado da calculadora) — tarefa curta se incomodar.
+  **Habilitado por ele (não feito):** reorganizar o form da principal e enriquecer o card do catálogo
+  com mais dados (composição, margem…).
 - **[FEAT-08] Ações "Produzir" e "Orçar" no card do catálogo** *(pequeno; mesmo card do FEAT-07)*. Hoje
   cada item só tem **Editar / Excluir / Registrar venda** — a venda era o único destino quando o app
   era só calculadora. Com produção e orçamento já existindo, adicionar **"Produzir item"** (→

@@ -14,20 +14,23 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **UX-01b — barra fixa "bem definida".** A `NavBar` virou **linha própria**
-  (`<nav className="navbar">` com caixa `.navbar-bar`: borda + `card-bg`), renderizada **fora** do
-  `.header` nas 6 páginas → as abas ocupam SEMPRE a mesma posição (antes mudavam de lugar por herdar a
-  largura variável do brand). Abas fixas à esquerda, tema/sair à direita (`.navbar-utils`), e a ação da
-  página (ex. "Nova venda") desce para `.navbar-page-actions` **abaixo** da barra (não mais inline).
-  CSS em `header.css`; grade mobile 2-col migrada de `.header-actions`→`.navbar-tabs` em `quote.css`.
-  `lint`+`build` limpos.
+- **Última mudança:** **FEAT-07 — página de catálogo dedicada (`/catalogo`).** O `ProductCatalog` saiu
+  da página principal pra rota própria (`CatalogPage`) → a principal ficou só calculadora/cadastro.
+  "Editar" virou **cross-page**: o card manda pra `/?load=<id>` e a `PricingCalculator` carrega o
+  produto no form (ajuste no render, não em efeito — o lint do projeto proíbe `setState` síncrono em
+  `useEffect`) e limpa a URL via `replaceState`. `page.tsx` da raiz ganhou `<Suspense>` (exigência do
+  `useSearchParams`; `/` seguiu **estática** no build). Fiação do modal de venda extraída pro
+  **`SaleFlow`**, usado pelas duas páginas. `lint`+`build` limpos, 190 testes verdes.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
-- **▶ PRÓXIMA TAREFA sugerida:** **FEAT-07** (página de catálogo dedicada `/catalogo` — tirar o
-  `ProductCatalog` da página principal; wrinkle: "editar" vira cross-page, ex. `/?load=<id>`). Depois:
-  **FEAT-08** (ações Produzir/Orçar no card) → **Tier 2** (FEAT-03 PDF, branding/logo, FEAT-06 aba
-  Produtos rica). **Roadmap completo dos abertos:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
+- **▶ PRÓXIMA TAREFA sugerida:** **FEAT-08** (ações "Produzir"/"Orçar" no card do catálogo — reusa o
+  padrão de seed cross-page `?param=<id>` que o FEAT-07 já criou; `ProductionPage`/`QuotePage` passam a
+  receber o seed). Depois: **Tier 2** (FEAT-03 PDF, branding/logo, FEAT-06 aba Produtos rica).
+  **Roadmap completo dos abertos:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Porquê/decisões:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
+- ⚠ **Efeito colateral do FEAT-07 (avaliar):** "Nova venda" em branco e a coluna de **capacidade** do
+  catálogo moraram na página principal e foram junto pro `/catalogo`; lá a capacidade usa o
+  `DEFAULT_CAPACITY` fixo (antes herdava o ajuste do card de resultado). Se incomodar, é tarefa curta.
 - ⚠ **Gotcha vivo:** COGS armazenado = **custo real** (unitCost/lucro/margem); `costBreakdown` = o do
   snapshot do catálogo (**stopgap** informativo) até o FEAT-06 congelar a composição na produção;
   **acessórios ficam fora do COGS** até o 7e (insumos).
@@ -64,12 +67,15 @@ sincronizados em tempo real.
 ```
 src/
   app/                      # App Router: layout.tsx, page.tsx (calculadora),
+                            #   catalogo/page.tsx (catálogo, FEAT-07),
                             #   vendas/page.tsx (histórico), orcamento/page.tsx (PDF),
                             #   maquinas/page.tsx (ROI), estoque/page.tsx (estoque),
                             #   producao/page.tsx (registro de produção),
                             #   globals.css (só @import) + styles/*.css (CSS por área)
   features/pricing-calculator/
-    components/             # UI: PricingCalculator (raiz), ProductForm, ProductCatalog,
+    components/             # UI: PricingCalculator (raiz), ProductForm,
+                            #     CatalogPage (/catalogo) + ProductCatalog,
+                            #     SaleFlow (fiação do SaleModal — usado pelas 2 páginas),
                             #     PricingResultCard, CapacityPanel, MachineSelector,
                             #     MachineManagerModal, FixedCostsPanel, AccessoriesSection,
                             #     ExtraStagesSection, SubitemsSection (subitens vendáveis),

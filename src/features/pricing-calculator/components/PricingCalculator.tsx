@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   DEFAULT_CAPACITY,
   DEFAULT_FIXED_COSTS,
@@ -10,18 +11,13 @@ import type {
   CapacitySettings,
   FixedCostRate,
   FixedCostSettings,
-  PricingResult,
   ProductPayload,
   SavedProduct,
-  SortMode,
 } from "../types";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
-import { useFees } from "../hooks/useFees";
-import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useMachines } from "../hooks/useMachines";
 import { usePricingForm } from "../hooks/usePricingForm";
 import { useProducts } from "../hooks/useProducts";
-import { useProduction } from "../hooks/useProduction";
 import { useStock } from "../hooks/useStock";
 import { useTheme } from "../hooks/useTheme";
 import {
@@ -31,34 +27,27 @@ import {
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { stripFilamentIds } from "../lib/filaments";
 import { validateProduct } from "../lib/validateProduct";
-import { reconcileRecibo } from "@/lib/firebase/salesRepository";
 import { FixedCostsPanel } from "./FixedCostsPanel";
 import { Header } from "./Header";
 import { MachineManagerModal } from "./MachineManagerModal";
 import { PricingResultCard } from "./PricingResultCard";
-import { ProductCatalog } from "./ProductCatalog";
 import { ProductForm } from "./ProductForm";
-import { SaleModal } from "./SaleModal";
+import { SaleFlow } from "./SaleFlow";
 import {
-  productPrintHours,
   saleContextFromResult,
-  saleContextFromSubitem,
   type SaleModalContext,
 } from "../lib/saleContext";
 
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
   const { machines, saveMachines } = useMachines();
-  const { fees, saveFees } = useFees();
   const { fixedCostRate, saveFixedCostRate } = useBusinessSettings();
   // 7c: cores do Estoque para o dropdown de filamento e o preço vivo (D3). O
   // produto guarda só o `filamentId`; o preço/kg sai da cor no cálculo.
   const { filaments: stock } = useStock();
-  // Passo 8: acabados + produção para a reconciliação da venda pelo card.
-  const { goods } = useFinishedGoods();
-  const { events: production } = useProduction();
   const productsApi = useProducts();
   const form = usePricingForm();
+  const searchParams = useSearchParams();
 
   // A TAXA de custo fixo vem persistida (global do negócio, TD-001); o toggle
   // `enabled` é por-produto (espelha o produto em edição). O `fixedCosts`
@@ -72,7 +61,6 @@ export function PricingCalculator() {
   );
   const [capacitySettings, setCapacitySettings] =
     useState<CapacitySettings>(DEFAULT_CAPACITY);
-  const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [machineModalOpen, setMachineModalOpen] = useState(false);
   // Modal de venda: aberto/fechado + a semente (produto que abriu). Semente null
   // = recibo vazio ("Nova venda"), preenchido só pelo seletor do catálogo.
@@ -113,18 +101,6 @@ export function PricingCalculator() {
     () => calculateCapacity(pricingResult, form.product, capacitySettings),
     [capacitySettings, form.product, pricingResult],
   );
-
-  // Precifica cada produto do catálogo UMA vez, memoizado (só recalcula quando
-  // produtos/máquinas/custos fixos mudam — não a cada tecla no formulário).
-  // Reusado pela tabela do catálogo e pela cesta de venda, evitando recalcular
-  // o mesmo produto em vários lugares.
-  const pricingByProduct = useMemo(() => {
-    const map = new Map<string, PricingResult>();
-    productsApi.products.forEach((product) => {
-      map.set(product.id, calculatePricing(product, machines, fixedCosts, stock));
-    });
-    return map;
-  }, [productsApi.products, machines, fixedCosts, stock]);
 
   const fixedCostShare =
     fixedCosts.enabled && pricingResult.totalCost > 0
@@ -255,6 +231,29 @@ export function PricingCalculator() {
     form.loadProduct(product, applyLoadedFixedCosts);
   }
 
+  // FEAT-07: "editar" no catálogo (rota própria) manda pra cá com `?load=<id>`.
+  // Os produtos chegam por assinatura, então só dá pra carregar quando a lista
+  // popular. Ajuste DURANTE o render (padrão do React p/ "reagir a uma prop que
+  // mudou") em vez de efeito — o `handledLoad` marca o id já consumido, para que
+  // snapshots seguintes do Firestore não recarreguem o produto por cima do que o
+  // usuário editou (o `replaceState` limpa a URL mas não o `useSearchParams`).
+  const loadId = searchParams.get("load");
+  const [handledLoad, setHandledLoad] = useState<string | null>(null);
+  if (loadId && handledLoad !== loadId) {
+    const pending = productsApi.products.find((item) => item.id === loadId);
+    if (pending) {
+      setHandledLoad(loadId);
+      loadProduct(pending);
+    }
+  }
+
+  // Some com o `?load=` da URL depois de consumido: recarregar a página não
+  // deve puxar o produto de novo. É sync com sistema externo (history), sem
+  // setState — por isso vive no efeito.
+  useEffect(() => {
+    if (handledLoad) window.history.replaceState(null, "", "/");
+  }, [handledLoad]);
+
   function handleSaveMachines(nextMachines: typeof machines) {
     saveMachines(nextMachines);
     const fallbackMachine = nextMachines[0] ?? DEFAULT_MACHINES[0];
@@ -262,41 +261,6 @@ export function PricingCalculator() {
       form.updateProduct({ machineId: fallbackMachine.id });
     }
   }
-
-  // Produtos do catálogo prontos como itens de cesta (para adicionar mais de um
-  // produto ao mesmo recibo dentro do modal de venda).
-  const catalogSaleItems = useMemo(
-    () =>
-      productsApi.products
-        .flatMap((product) => {
-          const result =
-            pricingByProduct.get(product.id) ??
-            calculatePricing(product, machines, fixedCosts, stock);
-          const baseName = product.name || product.mainStageName || "";
-          // O produto inteiro sempre é vendável; subitens (FEAT-01) entram como
-          // itens vendáveis à parte, cada um congelando só o seu custo/consumo.
-          const whole = saleContextFromResult(
-            baseName,
-            product.id,
-            result,
-            productPrintHours(product),
-            product.roundingMode,
-          );
-          const subs = (result.subitems ?? []).map((subitem) =>
-            saleContextFromSubitem(
-              baseName,
-              product.id,
-              subitem,
-              product.roundingMode,
-            ),
-          );
-          return [whole, ...subs];
-        })
-        .sort((a, b) =>
-          a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
-        ),
-    [productsApi.products, pricingByProduct, machines, fixedCosts, stock],
-  );
 
   function openSaleFromForm() {
     setSaleSeed(
@@ -308,24 +272,6 @@ export function PricingCalculator() {
         form.product.roundingMode,
       ),
     );
-    setSaleOpen(true);
-  }
-
-  function openSaleFromCatalog(product: SavedProduct, result: PricingResult) {
-    setSaleSeed(
-      saleContextFromResult(
-        product.name || product.mainStageName || "",
-        product.id,
-        result,
-        productPrintHours(product),
-        product.roundingMode,
-      ),
-    );
-    setSaleOpen(true);
-  }
-
-  function openNewSale() {
-    setSaleSeed(null);
     setSaleOpen(true);
   }
 
@@ -385,22 +331,6 @@ export function PricingCalculator() {
         />
       </div>
 
-      <ProductCatalog
-        products={productsApi.products}
-        machines={machines}
-        stock={stock}
-        fixedCosts={fixedCosts}
-        pricingByProduct={pricingByProduct}
-        capacitySettings={capacitySettings}
-        sortMode={sortMode}
-        onSortModeChange={setSortMode}
-        onLoadProduct={loadProduct}
-        onDeleteProduct={productsApi.deleteProduct}
-        onImportProducts={productsApi.importProducts}
-        onRegisterSale={openSaleFromCatalog}
-        onNewSale={openNewSale}
-      />
-
       {machineModalOpen ? (
         <MachineManagerModal
           open={machineModalOpen}
@@ -411,19 +341,13 @@ export function PricingCalculator() {
       ) : null}
 
       {saleOpen ? (
-        <SaleModal
+        <SaleFlow
           seed={saleSeed}
-          catalogItems={catalogSaleItems}
-          fees={fees}
-          onFeesChange={saveFees}
-          goods={goods}
-          stock={stock}
           products={productsApi.products}
           machines={machines}
+          stock={stock}
           fixedCosts={fixedCosts}
-          production={production}
           onClose={() => setSaleOpen(false)}
-          onConfirm={reconcileRecibo}
         />
       ) : null}
     </main>

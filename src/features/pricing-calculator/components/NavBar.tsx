@@ -17,6 +17,7 @@ type NavBarProps = {
 // navegação limpa para a calculadora (o reset dos campos mora no brand da raiz).
 const NAV_ITEMS = [
   { href: "/", label: "Calculadora", emoji: "🧮" },
+  { href: "/catalogo", label: "Catálogo", emoji: "📚" },
   { href: "/vendas", label: "Vendas", emoji: "🧾" },
   { href: "/orcamento", label: "Orçamento", emoji: "📄" },
   { href: "/maquinas", label: "Impressoras", emoji: "🖨️" },
