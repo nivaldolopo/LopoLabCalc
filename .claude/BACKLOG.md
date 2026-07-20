@@ -72,6 +72,19 @@
 - ~~**[FEAT-08] Ações "Produzir"/"Orçar" no card**~~ **✅ FEITO (2026-07-20)** — as 3 ações (vender,
   produzir, orçar) na coluna Ações e no painel expandido, **para o inteiro e por subitem**; seed
   `?produto=&subitem=`. Detalhe (inclusive por que a "derivação pura" não servia) em `HISTORICO.md`.
+- **[UX-03] Nome do produto truncado sem escape no catálogo** *(reportado pelo dono, 2026-07-20 — efeito
+  colateral aceito do FEAT-08)*. A faixa de "Ações" foi de 76px pra 146px (`catalog.css`) e, abaixo de
+  ~860px, o `.col-name` corta com reticências — **e não há como ler o nome inteiro**: a célula não tem
+  `title` (`ProductCatalog.tsx:247-250`) e o painel expandido também não repete o nome. Opções: `title`
+  na célula (barato), repetir o nome no cabeçalho do painel expandido, ou repensar a grade
+  (nome em 2 linhas / ações compactadas em menu). **Onde:** `ProductCatalog.tsx` + `catalog.css`.
+  ⚠ Lembrete: a linha **não é tabela**, é `display: grid`; as regras `sticky` de `col-actions` (~536)
+  são mortas.
+- **[UX-04] Catálogo mostra só a 1ª máquina em produto multi-etapa** *(reportado pelo dono, 2026-07-20)*.
+  A coluna "Máquina" renderiza `result.machine.name` (`ProductCatalog.tsx:264-275`), que é a impressora
+  **principal** do produto — etapas extras com `machineId` próprio ficam invisíveis. Opções: listar as
+  máquinas distintas (ou "A1 +1") na coluna e detalhar no painel expandido. **Parente do TD-003**
+  (capacidade não é por-máquina) — vale conferir se sai junto.
 
 ### Tier 2 — comerciais
 - **[FEAT-03] Melhorar o PDF do orçamento** *(guarda-chuva)*. Ideias-semente (o dono escolhe o que vira

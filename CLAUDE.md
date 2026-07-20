@@ -25,7 +25,8 @@
   pra **146px** (5 ícones de 24px + folgas + divisor = 143px). ⚠ **As regras `sticky` de `col-actions`
   (linha ~536) são MORTAS** — sobrescritas por `position: static` mais abaixo; não raciocinar por elas.
   Custo aceito: entre 760 e ~860px de tela o nome do produto passa a truncar com reticências (acima
-  disso, nada muda).
+  disso, nada muda). **O dono testou e o truncamento incomodou** (não há como ler o nome inteiro) →
+  virou **UX-03** no backlog, junto com **UX-04** (catálogo mostra só a 1ª máquina do produto).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`). 185 testes verdes.
 - **▶ PRÓXIMA TAREFA sugerida:** **7e — insumos/acessórios no estoque** (`supplyId` no `Accessory`,
