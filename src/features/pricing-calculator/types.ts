@@ -482,8 +482,8 @@ export type StockFilament = StockFilamentInput & {
 export type StockMove = {
   itemId: string; // item da venda que consumiu (id opaco para o estoque)
   kind: "filament" | "supply";
-  stockId: string;
-  rollId: string;
+  stockId: string; // doc da cor (`estoque`) ou do insumo (`insumos`)
+  rollId: string; // o rolo — ou o LOTE do insumo (7e), que reusa o mesmo campo
   qty: number; // gramas (filamento) ou unidades (insumo)
 };
 
@@ -508,6 +508,73 @@ export type ConsumptionResult = {
   cost: number;
   crossesRoll: boolean;
   shortfallG: number;
+};
+
+// ---------------------------------------------------------------------------
+// Estoque de INSUMOS (7e) — ímã, argola, parafuso, embalagem: tudo que soma ao
+// custo sem ser filamento nem hora de máquina. Gêmeo do estoque de filamento
+// (mesmo FIFO por lote, de `lib/fifo.ts`), com duas diferenças de vocabulário:
+// a unidade é CONTAGEM (não gramas) e o preço é POR UNIDADE (não por kg). Vive
+// em coleção própria (`insumos`) — misturar com `estoque` obrigaria um
+// discriminador em toda leitura de cor. Matemática pura em `lib/supplies.ts`.
+// ---------------------------------------------------------------------------
+
+// Uma compra: um lote com preço real pago. Mesma dupla do D3 que os rolos —
+// lote mais novo = custo de repor (catálogo), FIFO = custo real (COGS).
+export type SupplyLot = {
+  id: string;
+  purchaseDate: number;
+  initialQty: number;
+  remainingQty: number; // drena FIFO; o excedente vira NEGATIVO no lote mais novo (D4)
+  unitPrice: number; // R$ por unidade
+  note?: string; // NF/fornecedor
+};
+
+// D6 para insumo: contagem física com rastro (nunca editar `remainingQty` na
+// mão). Guarda `before` E `after` pelo mesmo motivo do `StockAdjustment`.
+export type SupplyAdjustment = {
+  id: string;
+  at: number;
+  lotId: string;
+  before: number;
+  after: number;
+  reason: string;
+};
+
+// O INSUMO — é o que o acessório do produto aponta (`Accessory.supplyId`).
+// Diferente da cor (D8), aqui o nome é um campo mesmo: "ímã 6×2mm" não se deriva
+// de atributos. `unit` é rótulo livre ("un", "par", "m") só para a tela.
+export type SupplyInput = {
+  name: string;
+  unit: string;
+  minQty: number; // alerta de estoque mínimo (0 = sem alerta)
+  archived: boolean;
+  lots: SupplyLot[]; // saldo = Σ remainingQty
+  adjustments: SupplyAdjustment[];
+};
+
+export type SupplyPayload = SupplyInput & { createdAt: number };
+
+export type Supply = SupplyInput & {
+  id: string;
+  createdAt: number;
+};
+
+// Espelho do `ConsumptionMove` em unidades. `cost` é qty × unitPrice (sem a
+// divisão por 1000 do filamento).
+export type SupplyConsumptionMove = {
+  stockId: string;
+  lotId: string;
+  qty: number;
+  unitPrice: number;
+  cost: number;
+};
+
+export type SupplyConsumptionResult = {
+  moves: SupplyConsumptionMove[];
+  cost: number;
+  crossesLot: boolean;
+  shortfall: number; // unidades que passaram do saldo total (D4/D5)
 };
 
 // ---------------------------------------------------------------------------

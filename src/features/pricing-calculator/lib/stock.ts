@@ -1,4 +1,5 @@
 import { num } from "@/lib/number";
+import { fifoSort, shiftLots, simulateFifo } from "./fifo";
 import type {
   ConsumptionMove,
   ConsumptionResult,
@@ -27,18 +28,10 @@ import type {
 // — é o que permite estornar lendo o doc da venda, sem depender do preço.
 export type RollDelta = Pick<StockMove, "stockId" | "rollId" | "qty">;
 
-// Rolos em ordem FIFO: compra mais antiga primeiro. Empate de data resolvido
-// pela ordem de inserção no array, para o consumo ser determinístico (dois rolos
-// comprados no mesmo dia não podem trocar de lugar entre uma simulação e a
-// baixa).
+// Rolos em ordem FIFO: compra mais antiga primeiro (`fifoSort` desempata pela
+// ordem de inserção — ver `lib/fifo.ts`).
 function fifoRolls(color: StockFilament): FilamentRoll[] {
-  return color.rolls
-    .map((roll, index) => ({ roll, index }))
-    .sort(
-      (a, b) =>
-        num(a.roll.purchaseDate) - num(b.roll.purchaseDate) || a.index - b.index,
-    )
-    .map((entry) => entry.roll);
+  return fifoSort(color.rolls, (roll) => roll.purchaseDate);
 }
 
 // Saldo da cor: soma dos rolos. Pode ser NEGATIVO — é o sintoma de contagem
@@ -75,21 +68,6 @@ export function isBelowMin(color: StockFilament): boolean {
   return num(color.minG) > 0 && balanceG(color) < num(color.minG);
 }
 
-function makeMove(
-  color: StockFilament,
-  roll: FilamentRoll,
-  qty: number,
-): ConsumptionMove {
-  const pricePerKg = num(roll.pricePerKg);
-  return {
-    stockId: color.id,
-    rollId: roll.id,
-    qty,
-    pricePerKg,
-    cost: (qty / 1000) * pricePerKg,
-  };
-}
-
 /**
  * Simula consumir `grams` da cor, FIFO. PURA: não altera a cor recebida —
  * descreve o que aconteceria. É a mesma conta usada para avisar (7c), para
@@ -98,58 +76,43 @@ function makeMove(
  * Quando a impressão atravessa rolos, o custo é MISTO e exato: cada `move` diz
  * quanto saiu de qual rolo e a que preço.
  *
- * D4 — saldo negativo é PERMITIDO: o que faltar NÃO é truncado nem "deduzido até
- * zero" (isso esconderia o tamanho do furo). O excedente vira consumo no rolo
- * mais novo, empurrando o saldo dele para negativo, e sai reportado em
- * `shortfallG`. Cor sem rolo nenhum é o único caso sem onde lançar: aí não há
- * move e o `shortfallG` sozinho carrega o recado.
+ * D4 (implementado em `lib/fifo.ts`) — saldo negativo é PERMITIDO: o que faltar
+ * NÃO é truncado nem "deduzido até zero" (isso esconderia o tamanho do furo). O
+ * excedente vira consumo no rolo mais novo, empurrando o saldo dele para
+ * negativo, e sai reportado em `shortfallG`. Cor sem rolo nenhum é o único caso
+ * sem onde lançar: aí não há move e o `shortfallG` sozinho carrega o recado.
+ *
+ * Aqui mora só o que é do FILAMENTO: a projeção dos rolos e a conta do custo em
+ * gramas × preço por KG (o insumo, 7e, usa o mesmo núcleo com unidades).
  */
 export function simulateConsumption(
   color: StockFilament,
   grams: number,
 ): ConsumptionResult {
-  const want = num(grams);
-  if (want <= 0) {
-    return { moves: [], cost: 0, crossesRoll: false, shortfallG: 0 };
-  }
+  const result = simulateFifo(
+    fifoRolls(color).map((roll) => ({
+      id: roll.id,
+      remaining: num(roll.remainingG),
+      unitPrice: num(roll.pricePerKg),
+    })),
+    grams,
+  );
 
-  const moves: ConsumptionMove[] = [];
-  let remaining = want;
-
-  for (const roll of fifoRolls(color)) {
-    if (remaining <= 0) break;
-    const available = num(roll.remainingG);
-    // Rolo zerado (ou já negativo) não entra no FIFO: não há o que tirar dele.
-    if (available <= 0) continue;
-    const take = Math.min(available, remaining);
-    moves.push(makeMove(color, roll, take));
-    remaining -= take;
-  }
-
-  const shortfallG = remaining > 0 ? remaining : 0;
-  if (shortfallG > 0) {
-    const target = newestRoll(color);
-    if (target) {
-      const existing = moves.find((move) => move.rollId === target.id);
-      if (existing) {
-        // O rolo mais novo já tinha entrado no FIFO: engrossa o mesmo move em
-        // vez de criar um segundo para o mesmo rolo (o estorno soma por rolo,
-        // mas dois moves iguais confundiriam a leitura do custo misto).
-        existing.qty += shortfallG;
-        existing.cost = (existing.qty / 1000) * existing.pricePerKg;
-      } else {
-        moves.push(makeMove(color, target, shortfallG));
-      }
-    }
-  }
+  const moves: ConsumptionMove[] = result.moves.map((move) => ({
+    stockId: color.id,
+    rollId: move.lotId,
+    qty: move.qty,
+    pricePerKg: move.unitPrice,
+    cost: (move.qty / 1000) * move.unitPrice,
+  }));
 
   return {
     moves,
     cost: moves.reduce((sum, move) => sum + move.cost, 0),
     // D5 informativo: passou do rolo em uso e vai atravessar para o próximo.
-    crossesRoll: moves.length > 1,
+    crossesRoll: result.crossesLot,
     // D5 forte: passou do estoque TOTAL da cor.
-    shortfallG,
+    shortfallG: result.shortfall,
   };
 }
 
@@ -177,11 +140,12 @@ function shiftRolls(
 
   return {
     ...color,
-    rolls: color.rolls.map((roll) => {
-      const delta = deltaByRoll.get(roll.id);
-      if (!delta) return roll;
-      return { ...roll, remainingG: num(roll.remainingG) + delta };
-    }),
+    rolls: shiftLots(
+      color.rolls,
+      deltaByRoll,
+      (roll) => roll.remainingG,
+      (roll, remainingG) => ({ ...roll, remainingG }),
+    ),
   };
 }
 
