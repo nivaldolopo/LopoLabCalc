@@ -5,7 +5,7 @@ import {
   consumeFifo,
   reverseFinishedConsumption,
 } from "./finishedGoods";
-import { reverseProduction, reverseSupplies } from "./production";
+import { reverseProduction, reverseSupplies, scaleFrozen } from "./production";
 import {
   buildProductionPayloads,
   planEventRows,
@@ -19,6 +19,7 @@ import type {
   FinishedGoodPayload,
   FinishedMove,
   FixedCostSettings,
+  FrozenCostBreakdown,
   Machine,
   ProductionPayload,
   SaleItemOrigin,
@@ -56,6 +57,13 @@ export type ReconItemResult = {
   origem: SaleItemOrigin;
   cogsUnit: number; // custo real por unidade (congelado)
   cogsTotal: number; // cogsUnit × quantidade
+  // FEAT-06: a composição do `cogsUnit` — POR UNIDADE, a mesma escala do
+  // `SaleCostBreakdown`, para os dois poderem ser exibidos lado a lado.
+  // Ausente quando não há o que detalhar (camada anterior ao FEAT-06, produto
+  // fora do catálogo, ou consumo vazio). `cogsBreakdownPartial` marca o caso
+  // meio-a-meio: parte do COGS veio de camada sem composição.
+  cogsBreakdown?: FrozenCostBreakdown;
+  cogsBreakdownPartial: boolean;
   // Caminho `acabado`: camadas drenadas (para estornar). Vazio na encomenda.
   finishedMoves: FinishedMove[];
   // Caminho `encomenda`: eventos de produção criados. Vazio no acabado.
@@ -196,6 +204,7 @@ function applyForward(
       origem: item.origem,
       cogsUnit: 0,
       cogsTotal: 0,
+      cogsBreakdownPartial: false,
       finishedMoves: [],
       productionEventIds: [],
       finishedShortfall: 0,
@@ -218,6 +227,13 @@ function applyForward(
         ...base,
         cogsTotal: res.cost,
         cogsUnit: qty > 0 ? res.cost / qty : 0,
+        // FEAT-06: `res.breakdown` é o TOTAL do consumo — ÷ qty para virar a
+        // escala por unidade. Esquecer essa divisão passaria despercebido em
+        // quantidade 1 e inflaria a composição em qualquer outra.
+        ...(qty > 0 && res.moves.length > 0
+          ? { cogsBreakdown: scaleFrozen(res.breakdown, 1 / qty) }
+          : {}),
+        cogsBreakdownPartial: res.costUnknown > 0,
         finishedMoves: res.moves,
         finishedShortfall: res.shortfall,
       };
@@ -274,6 +290,11 @@ function applyForward(
       ...base,
       cogsTotal: planned.summary.frozen,
       cogsUnit: qty > 0 ? planned.summary.frozen / qty : 0,
+      // Encomenda: o evento acabou de ser planejado, então a composição está
+      // sempre completa (nunca parcial). Mesma divisão por `qty` do acabado.
+      ...(qty > 0
+        ? { cogsBreakdown: scaleFrozen(planned.summary.frozenBreakdown, 1 / qty) }
+        : {}),
       productionEventIds: payloads.map((p) => p.id),
       crossesRoll: planned.summary.crossesRoll,
       filamentShortfallG: planned.summary.shortfallG,

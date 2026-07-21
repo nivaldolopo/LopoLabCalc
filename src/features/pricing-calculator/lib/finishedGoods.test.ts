@@ -207,8 +207,73 @@ describe("consumeFifo (passo 8 — descreve)", () => {
       moves: [],
       cost: 0,
       shortfall: 4,
+      breakdown: ZERO_FROZEN,
+      costUnknown: 0,
     });
     expect(consumeFifo(good, undefined, 0).moves).toHaveLength(0);
+  });
+});
+
+// FEAT-06 — a composição do COGS acompanha o FIFO. O invariante é
+// `sumFrozen(breakdown) + costUnknown === cost` em TODOS os casos, inclusive os
+// dois que quebram implementações ingênuas: overdraft e camada antiga.
+describe("consumeFifo — composição do COGS (FEAT-06)", () => {
+  const bdA: FrozenCostBreakdown = { ...ZERO_FROZEN, material: 3, labor: 2 }; // 5
+  const bdB: FrozenCostBreakdown = { ...ZERO_FROZEN, material: 4, supplies: 3 }; // 7
+  const good = makeGood({
+    skus: [
+      {
+        name: "Boneco",
+        layers: [
+          { id: "e1__whole", at: 0, qty: 2, unitCost: 5, costBreakdown: bdA, sourceEventId: "e1" },
+          { id: "e2__whole", at: DIA, qty: 3, unitCost: 7, costBreakdown: bdB, sourceEventId: "e2" },
+        ],
+      },
+    ],
+  });
+
+  it("consumo numa camada só devolve a composição dela", () => {
+    const res = consumeFifo(good, undefined, 2);
+    expect(res.breakdown.material).toBeCloseTo(6, 6);
+    expect(res.breakdown.labor).toBeCloseTo(4, 6);
+    expect(sumFrozen(res.breakdown)).toBeCloseTo(res.cost, 6);
+  });
+
+  it("atravessando camadas, soma ponderada das duas composições", () => {
+    const res = consumeFifo(good, undefined, 3); // 2 de A + 1 de B
+    expect(res.breakdown.material).toBeCloseTo(3 * 2 + 4, 6);
+    expect(res.breakdown.supplies).toBeCloseTo(3, 6);
+    expect(res.costUnknown).toBe(0);
+    expect(sumFrozen(res.breakdown)).toBeCloseTo(res.cost, 6);
+  });
+
+  // O teste que pega o bug de acumular a composição DENTRO do laço FIFO: o
+  // overdraft engrossa o move da camada mais nova depois dele, e a fatia
+  // excedente ficaria de fora dos componentes.
+  it("D4: o excedente entra na composição da camada mais nova", () => {
+    const res = consumeFifo(good, undefined, 7); // saldo 5, faltam 2
+    expect(res.shortfall).toBe(2);
+    expect(sumFrozen(res.breakdown)).toBeCloseTo(res.cost, 6);
+    // 2 de A + (3+2) de B
+    expect(res.breakdown.supplies).toBeCloseTo(3 * 5, 6);
+  });
+
+  it("camada anterior ao FEAT-06 vira costUnknown, sem furar a soma", () => {
+    const misto = makeGood({
+      skus: [
+        {
+          name: "Boneco",
+          layers: [
+            { id: "velha", at: 0, qty: 2, unitCost: 5, sourceEventId: "e0" },
+            { id: "nova", at: DIA, qty: 2, unitCost: 7, costBreakdown: bdB, sourceEventId: "e2" },
+          ],
+        },
+      ],
+    });
+    const res = consumeFifo(misto, undefined, 3); // 2 velhas + 1 nova
+    expect(res.costUnknown).toBeCloseTo(10, 6);
+    expect(sumFrozen(res.breakdown)).toBeCloseTo(7, 6);
+    expect(sumFrozen(res.breakdown) + res.costUnknown).toBeCloseTo(res.cost, 6);
   });
 });
 

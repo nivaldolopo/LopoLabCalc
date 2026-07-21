@@ -761,4 +761,13 @@ export type FinishedConsumptionResult = {
   moves: FinishedMove[];
   cost: number;
   shortfall: number;
+  // FEAT-06: a composição do `cost` — TOTAL do consumo (não por unidade), somada
+  // das camadas drenadas na proporção de cada move. `costUnknown` é a parcela do
+  // `cost` que veio de camada sem composição (anterior ao FEAT-06).
+  // Invariante: `sumFrozen(breakdown) + costUnknown === cost`.
+  // O `FinishedMove` de propósito NÃO carrega breakdown: ele é persistido só para
+  // o estorno (que trabalha por `qty`/`layerId`), e 6 números por move seriam
+  // peso morto no doc da venda.
+  breakdown: FrozenCostBreakdown;
+  costUnknown: number;
 };

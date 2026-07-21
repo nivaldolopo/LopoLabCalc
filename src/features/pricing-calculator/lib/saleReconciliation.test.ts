@@ -8,12 +8,14 @@ import {
 } from "./saleReconciliation";
 import { balanceG } from "./stock";
 import { balanceOf } from "./finishedGoods";
+import { sumFrozen } from "./production";
 import { DEFAULT_MACHINES, DEFAULT_PRODUCT_INPUT } from "../constants";
 import type {
   FilamentRoll,
   FinishedGood,
   FinishedSku,
   FixedCostSettings,
+  FrozenCostBreakdown,
   SavedProduct,
   StockFilament,
 } from "../types";
@@ -260,6 +262,99 @@ describe("planReciboReconciliation — encomenda (dispara produção)", () => {
     // 2 × 100 g do mesmo rolo → saldo 800; dois eventos distintos.
     expect(recon.productionPayloads.map((p) => p.id)).toEqual(["e1", "e2"]);
     expect(balanceG(recon.colorUpdates[0])).toBe(800);
+  });
+});
+
+// FEAT-06 — o COGS real deixa de ser um número solto: a reconciliação devolve a
+// composição POR UNIDADE, na mesma escala do `SaleCostBreakdown` precificado,
+// para os dois aparecerem lado a lado na venda.
+describe("planReciboReconciliation — composição do COGS (FEAT-06)", () => {
+  const bd: FrozenCostBreakdown = {
+    material: 3,
+    energy: 0.5,
+    depreciation: 0.5,
+    maintenance: 0,
+    labor: 1,
+    supplies: 0,
+  }; // soma 5
+  const goodComBd = makeGood([
+    {
+      name: "Boneco",
+      layers: [
+        { id: "e1__whole", at: 0, qty: 9, unitCost: 5, costBreakdown: bd, sourceEventId: "e1" },
+      ],
+    },
+  ]);
+
+  // qty = 3 é o teste que pega o ÷qty esquecido: com quantidade 1 um breakdown
+  // total e um por unidade são indistinguíveis.
+  it("acabado com qty 3: a composição é POR UNIDADE", () => {
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 3 })],
+      ctx({ goods: [goodComBd] }),
+    );
+    const item = recon.items[0];
+    expect(item.cogsUnit).toBeCloseTo(5, 6);
+    expect(item.cogsBreakdown!.material).toBeCloseTo(3, 6); // não 9
+    expect(sumFrozen(item.cogsBreakdown!)).toBeCloseTo(item.cogsUnit, 6);
+    expect(item.cogsBreakdownPartial).toBe(false);
+  });
+
+  it("camada anterior ao FEAT-06 marca partial (o unitCost segue correto)", () => {
+    const antigo = makeGood([
+      {
+        name: "Boneco",
+        layers: [{ id: "velha", at: 0, qty: 5, unitCost: 5, sourceEventId: "e0" }],
+      },
+    ]);
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 2 })],
+      ctx({ goods: [antigo] }),
+    );
+    expect(recon.items[0].cogsBreakdownPartial).toBe(true);
+    expect(recon.items[0].cogsUnit).toBeCloseTo(5, 6);
+  });
+
+  it("encomenda com qty 3: composição por unidade, nunca parcial", () => {
+    const product = makeProduct({
+      filaments: [
+        { filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 },
+      ],
+    });
+    const recon = planReciboReconciliation(
+      [encomendaItem({ quantity: 3 })],
+      ctx({ products: [product], colors: [makeColor("preto", [{ remainingG: 1000 }])] }),
+    );
+    const item = recon.items[0];
+    expect(sumFrozen(item.cogsBreakdown!)).toBeCloseTo(item.cogsUnit, 6);
+    expect(item.cogsUnit * 3).toBeCloseTo(item.cogsTotal, 6);
+    expect(item.cogsBreakdownPartial).toBe(false);
+  });
+
+  // Onde escala (÷pieces) e rateio se cruzam — o cenário do BUG-02.
+  it("encomenda de mesa (piecesCount 4): composição por PEÇA", () => {
+    const mesa = makeProduct({
+      piecesCount: 4,
+      filaments: [
+        { filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 },
+      ],
+    });
+    const recon = planReciboReconciliation(
+      [encomendaItem({ quantity: 2 })],
+      ctx({ products: [mesa], colors: [makeColor("preto", [{ remainingG: 1000 }])] }),
+    );
+    const item = recon.items[0];
+    expect(sumFrozen(item.cogsBreakdown!)).toBeCloseTo(item.cogsUnit, 6);
+    expect(item.cogsUnit * 2).toBeCloseTo(item.cogsTotal, 6);
+  });
+
+  it("produto fora do catálogo não tem o que detalhar", () => {
+    const recon = planReciboReconciliation(
+      [encomendaItem({ productId: "sumido" })],
+      ctx({ products: [], colors: [] }),
+    );
+    expect(recon.items[0].cogsBreakdown).toBeUndefined();
+    expect(recon.items[0].missingProduct).toBe(true);
   });
 });
 

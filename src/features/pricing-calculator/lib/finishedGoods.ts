@@ -249,7 +249,13 @@ export function consumeFifo(
   const want = num(qty);
   const sku = findSku(good, subitemId);
   if (want <= 0 || !good || !sku) {
-    return { moves: [], cost: 0, shortfall: want > 0 ? want : 0 };
+    return {
+      moves: [],
+      cost: 0,
+      shortfall: want > 0 ? want : 0,
+      breakdown: ZERO_FROZEN,
+      costUnknown: 0,
+    };
   }
 
   const make = (layer: FinishedLayer, take: number): FinishedMove => ({
@@ -289,10 +295,29 @@ export function consumeFifo(
     }
   }
 
+  // FEAT-06 — a composição do COGS, derivada dos moves JÁ FECHADOS. Não dá para
+  // acumular dentro do laço acima: o overdraft (D4) engrossa o move da camada
+  // mais nova DEPOIS dele, e a fatia excedente ficaria de fora, deixando os
+  // componentes menores que o `cost`. Camada sem composição (anterior ao
+  // FEAT-06) não vira zero — vai para `costUnknown`, e a UI diz "não detalhado".
+  const byId = new Map(ordered.map((layer) => [layer.id, layer]));
+  let breakdown = ZERO_FROZEN;
+  let costUnknown = 0;
+  for (const move of moves) {
+    const layer = byId.get(move.layerId);
+    if (layer?.costBreakdown) {
+      breakdown = addFrozen(breakdown, scaleFrozen(layer.costBreakdown, move.qty));
+    } else {
+      costUnknown += move.cost;
+    }
+  }
+
   return {
     moves,
     cost: moves.reduce((sum, move) => sum + move.cost, 0),
     shortfall,
+    breakdown,
+    costUnknown,
   };
 }
 
