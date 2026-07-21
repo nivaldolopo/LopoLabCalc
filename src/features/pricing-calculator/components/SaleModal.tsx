@@ -437,7 +437,17 @@ export function SaleModal({
         suggestedPrice: item.source.suggestedPrice,
         salePrice: unitPrice,
         unitCost,
+        // A estimativa que GEROU o preço (snapshot do catálogo do dia da venda).
         costBreakdown: item.source.costBreakdown,
+        // FEAT-06: e, ao lado dela, a composição do custo REAL — a que bate com
+        // o `unitCost` acima. Até aqui só o total real era gravado, e detalhar a
+        // venda caía no snapshot precificado, que não soma o mesmo número.
+        // Ausente (sem gravar) quando a peça saiu de camada anterior ao FEAT-06:
+        // o `unitCost` continua certo, só não há o que detalhar. Parcial também
+        // não grava — meia composição enganaria mais do que nenhuma.
+        ...(r?.cogsBreakdown && !r.cogsBreakdownPartial
+          ? { realCostBreakdown: r.cogsBreakdown }
+          : {}),
         totalCost: fin.totalCost,
         totalRevenue: fin.totalRevenue,
         feeRate: feeRatePct,

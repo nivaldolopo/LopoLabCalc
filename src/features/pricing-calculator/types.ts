@@ -371,7 +371,13 @@ export type SaleInput = {
   suggestedPrice: number; // unitário, o que a calculadora sugeria
   salePrice: number; // unitário, o preço real cobrado ao cliente (editável)
   unitCost: number; // custo total por peça
-  costBreakdown: SaleCostBreakdown; // por unidade
+  costBreakdown: SaleCostBreakdown; // por unidade — a estimativa que gerou o PREÇO
+  // FEAT-06: a composição do custo REAL por unidade — a que soma o `unitCost`
+  // acima. O `costBreakdown` continua sendo o precificado de propósito: é a
+  // metade esquerda da comparação estimado × real, e o ROI da /maquinas lê a
+  // depreciação dele. Ausente em venda anterior ao FEAT-06 ou quando a peça saiu
+  // de camada sem composição — aí a tela mostra só o total real, como antes.
+  realCostBreakdown?: FrozenCostBreakdown;
   totalCost: number; // unitCost × quantity
   totalRevenue: number; // salePrice × quantity (o que o cliente paga)
   // Taxa da forma de pagamento congelada no momento da venda. `feeRate` é o

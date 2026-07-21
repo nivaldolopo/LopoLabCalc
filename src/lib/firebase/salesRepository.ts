@@ -9,6 +9,7 @@ import {
 import { db } from "./client";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import { productionToDocument } from "./productionRepository";
+import { frozenFromDocument, frozenToDocument } from "./frozenCost";
 import { serializeRolls } from "./stockRepository";
 import { serializeLots } from "./suppliesRepository";
 import type {
@@ -104,6 +105,11 @@ function toSale(id: string, data: DocumentData): Sale {
       failureReserve: num(breakdown.failureReserve),
       fixed: num(breakdown.fixed),
     },
+    // FEAT-06: a composição do custo REAL. Ausente em venda anterior — a tela
+    // cai no modo de antes (só o total real), sem zeros sintéticos.
+    ...(data.realCostBreakdown
+      ? { realCostBreakdown: frozenFromDocument(data.realCostBreakdown) }
+      : {}),
     totalCost: num(data.totalCost),
     totalRevenue: num(data.totalRevenue),
     // Vendas anteriores ao recurso de taxa não têm estes campos → 0/false, e o
@@ -180,10 +186,16 @@ function finishedMoveToDocument(move: FinishedMove): DocumentData {
 // Serializa o doc da venda, tratando os campos do passo 8 (o restante já vem
 // limpo do `SaleModal`, como antes). Só grava origem/moves/ids quando existem.
 function saleToDocument(payload: ReciboUpsert["payload"]): DocumentData {
-  const { finishedMoves, productionEventIds, origem, ...rest } = payload;
+  const { finishedMoves, productionEventIds, origem, realCostBreakdown, ...rest } =
+    payload;
   return {
     ...rest,
     ...(origem ? { origem } : {}),
+    // FEAT-06: explícito (e não pelo spread) para passar pela mesma coerção
+    // numérica dos outros breakdowns e nunca escapar como `undefined`.
+    ...(realCostBreakdown
+      ? { realCostBreakdown: frozenToDocument(realCostBreakdown) }
+      : {}),
     ...(finishedMoves && finishedMoves.length > 0
       ? { finishedMoves: finishedMoves.map(finishedMoveToDocument) }
       : {}),
