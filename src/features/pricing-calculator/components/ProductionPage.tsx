@@ -49,6 +49,7 @@ import type {
   ProductionMode,
   ProductionOutcome,
 } from "../types";
+import { CostDetail } from "./CostDetail";
 import { NavBar } from "./NavBar";
 import { NumberInput } from "./NumberInput";
 import { PrintTimeField } from "./ProductForm";
@@ -794,12 +795,15 @@ export function ProductionPage() {
                     : "1 registro"}{" "}
                   · {grams(preview.summary.grams)}
                 </span>
-                <span>
-                  custo{" "}
-                  <strong className="mono">
-                    {formatCurrency(preview.summary.frozen)}
-                  </strong>
-                </span>
+                {/* FEAT-06: o número já existia aqui, mas sem dizer QUE custo é
+                    nem de que é feito. Agora é rotulado e detalhável — mesma
+                    composição que a venda mostra como "custo real". */}
+                <CostDetail
+                  real={preview.summary.frozenBreakdown}
+                  realCogs={preview.summary.frozen}
+                  triggerLabel="custo real gasto"
+                  hint="· composição ▾"
+                />
               </div>
               {mode === "historico" ? (
                 <div className="prod-note">
@@ -912,9 +916,23 @@ export function ProductionPage() {
                   {event.mode === "historico" ? (
                     <span className="prod-badge hist">histórico</span>
                   ) : null}
-                  <strong className="mono">
-                    {formatCurrency(event.frozenCost)}
-                  </strong>
+                  {/* FEAT-06: produção nova é detalhável; a antiga só tem o
+                      total, então segue como número rotulado (sem migração). */}
+                  {event.frozenBreakdown ? (
+                    <CostDetail
+                      real={event.frozenBreakdown}
+                      realCogs={event.frozenCost}
+                      triggerLabel="custo real"
+                      hint="▾"
+                    />
+                  ) : (
+                    <span className="prod-card-cost">
+                      custo real{" "}
+                      <strong className="mono">
+                        {formatCurrency(event.frozenCost)}
+                      </strong>
+                    </span>
+                  )}
                   <button
                     className="icon-button danger"
                     type="button"

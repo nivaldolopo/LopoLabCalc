@@ -742,8 +742,11 @@ export function SaleModal({
                     </option>
                     <option value="encomenda">Sob encomenda (produz agora)</option>
                   </select>
+                  {/* FEAT-06: a composição real vem da reconciliação ao vivo —
+                      camadas do acabado ou o evento que a encomenda vai criar. */}
                   <CostDetail
                     breakdown={item.source.costBreakdown}
+                    real={r?.cogsBreakdownPartial ? undefined : r?.cogsBreakdown}
                     realCogs={unitCost}
                   />
                 </div>

@@ -133,6 +133,12 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
+/* FEAT-06: no modo de 2 colunas (precificado × real) entra uma coluna de números
+   a mais — 360px deixariam o rótulo espremido. */
+.cost-detail-pop.two-cols {
+  width: 420px;
+}
+
 .cost-detail-pop-head {
   display: flex;
   align-items: center;
@@ -191,6 +197,24 @@
   width: 96px;
   text-align: right;
   white-space: nowrap;
+}
+
+/* Cabeçalho das 2 colunas (FEAT-06). Mesmo `.cost-detail-pop` escopando pelo
+   motivo do bloco acima: `.recibo-items th` casaria com estas células. */
+.cost-detail-pop .cost-detail-table th {
+  padding: 0 0 4px;
+  border: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.cost-detail-pop .cost-detail-table th.num {
+  width: 96px;
+  text-align: right;
 }
 
 .cost-detail-pop .cost-detail-divider td {

@@ -574,6 +574,7 @@ export function SalesPage() {
                       <td className="ri-cost">
                         <CostDetail
                           breakdown={sale.costBreakdown}
+                          real={sale.realCostBreakdown}
                           realCogs={sale.unitCost}
                           quantity={sale.quantity}
                         />
