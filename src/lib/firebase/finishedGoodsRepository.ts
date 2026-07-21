@@ -7,6 +7,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { frozenFromDocument, frozenToDocument } from "./frozenCost";
 import type {
   FinishedGood,
   FinishedGoodPayload,
@@ -28,6 +29,9 @@ function toLayer(data: DocumentData): FinishedLayer {
     at: num(data.at),
     qty: num(data.qty),
     unitCost: num(data.unitCost),
+    ...(data.costBreakdown
+      ? { costBreakdown: frozenFromDocument(data.costBreakdown) }
+      : {}),
     sourceEventId: String(data.sourceEventId ?? ""),
   };
 }
@@ -58,6 +62,11 @@ function layerToDocument(layer: FinishedLayer): DocumentData {
     at: num(layer.at),
     qty: num(layer.qty),
     unitCost: num(layer.unitCost),
+    // FEAT-06: a composição do `unitCost`. Camada anterior não tem — spread
+    // condicional (o Firestore rejeita `undefined`).
+    ...(layer.costBreakdown
+      ? { costBreakdown: frozenToDocument(layer.costBreakdown) }
+      : {}),
     sourceEventId: layer.sourceEventId,
   };
 }

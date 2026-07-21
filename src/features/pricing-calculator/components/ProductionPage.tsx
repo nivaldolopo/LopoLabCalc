@@ -341,9 +341,11 @@ export function ProductionPage() {
   // cards de máquina secundária só estornam filamento.
   // BUG-02: a submissão gera `units = piecesCount × placas` unidades (mesa de N
   // peças × P placas), não 1 — cada acabado a `custo ÷ units`.
+  // FEAT-06: recebe o `summary` inteiro (não só o total) para que a composição
+  // congelada desça junto até a camada do acabado.
   function finishedForSave(
     built: ReturnType<typeof planEvents>["built"],
-    totalFrozen: number,
+    summary: ReturnType<typeof planEvents>["summary"],
     at: number,
   ): FinishedUpdate | null {
     if (outcome !== "estoque" || built.length === 0) return null;
@@ -364,7 +366,7 @@ export function ProductionPage() {
     const pieces = Math.max(1, num(product.piecesCount) || 1);
     const units = pieces * Math.max(1, plates);
 
-    const entries = submissionEntries(name, totalFrozen, {
+    const entries = submissionEntries(name, summary.frozen, {
       subitemId,
       subitemName: subitems.find((s) => s.id === subitemId)?.name,
       subitems:
@@ -372,6 +374,7 @@ export function ProductionPage() {
           ? subitems.map((s) => ({ id: s.id, name: s.name, cost: s.cost }))
           : undefined,
       units,
+      breakdown: summary.frozenBreakdown,
     });
 
     const good = goods.find((g) => g.id === productId) ?? null;
@@ -448,7 +451,7 @@ export function ProductionPage() {
       createdAt: now,
     });
 
-    const finished = finishedForSave(planned.built, planned.summary.frozen, at);
+    const finished = finishedForSave(planned.built, planned.summary, at);
 
     try {
       await addProduction(

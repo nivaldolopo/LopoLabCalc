@@ -7,6 +7,7 @@ import {
   balanceOf,
   consumeFifo,
   findSku,
+  goodCostComposition,
   goodValue,
   removeEventLayers,
   reverseFinishedConsumption,
@@ -14,7 +15,13 @@ import {
   skuValue,
   submissionEntries,
 } from "./finishedGoods";
-import type { FinishedGood, FinishedSku } from "../types";
+import { addFrozen, scaleFrozen, sumFrozen, ZERO_FROZEN } from "./production";
+import type {
+  FinishedGood,
+  FinishedLayer,
+  FinishedSku,
+  FrozenCostBreakdown,
+} from "../types";
 
 const DIA = 24 * 60 * 60 * 1000;
 
@@ -316,6 +323,170 @@ describe("submissionEntries (delta da submissão — FEAT-05b)", () => {
     const payload = addProductionLayers(null, "prod-1", "Kit", entries, "e1", 0);
     const good: FinishedGood = { ...payload, id: "prod-1" };
     expect(assemblableWholes(good, ["a", "b"])).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FEAT-06 — a composição congelada desce da submissão até a camada
+// ---------------------------------------------------------------------------
+
+// Um breakdown de R$ 30 (o total das submissões abaixo), para o invariante
+// `sumFrozen(unitBreakdown) === unitCost` ser verificável em cada forma.
+const BD30: FrozenCostBreakdown = {
+  material: 12,
+  energy: 3,
+  depreciation: 6,
+  maintenance: 1,
+  labor: 5,
+  supplies: 3,
+};
+
+describe("submissionEntries com breakdown (FEAT-06)", () => {
+  // Não-regressão: quem não passa o breakdown continua recebendo a entrada
+  // exatamente como antes — nada de campo com zeros sintéticos.
+  it("sem breakdown, a entrada não ganha unitBreakdown", () => {
+    const [entry] = submissionEntries("Boneco", 30, { units: 3 });
+    expect(entry.unitBreakdown).toBeUndefined();
+    expect(entry).toEqual({ name: "Boneco", qty: 3, unitCost: 10 });
+  });
+
+  it("inteiro sem subitens: cada componente é dividido por units", () => {
+    const [entry] = submissionEntries("Boneco", 30, { units: 6, breakdown: BD30 });
+    expect(entry.unitCost).toBeCloseTo(5, 6);
+    expect(entry.unitBreakdown!.material).toBeCloseTo(2, 6); // 12/6
+    expect(entry.unitBreakdown!.labor).toBeCloseTo(5 / 6, 6);
+    expect(sumFrozen(entry.unitBreakdown!)).toBeCloseTo(entry.unitCost, 6);
+  });
+
+  // O ponto onde rateio e escala se cruzam: cada componente tem que ser rateado
+  // 60/40 E dividido por units, pelo mesmo fator que produziu o unitCost.
+  it("inteiro com subitens 6:4 rateia componente a componente", () => {
+    const entries = submissionEntries("Kit", 30, {
+      units: 2,
+      breakdown: BD30,
+      subitems: [
+        { id: "a", name: "Base", cost: 6 },
+        { id: "b", name: "Topo", cost: 4 },
+      ],
+    });
+    expect(entries[0].unitBreakdown!.material).toBeCloseTo(12 * 0.6 / 2, 6);
+    expect(entries[1].unitBreakdown!.material).toBeCloseTo(12 * 0.4 / 2, 6);
+    for (const entry of entries) {
+      expect(sumFrozen(entry.unitBreakdown!)).toBeCloseTo(entry.unitCost, 6);
+    }
+    // Nada se perde nem se cria no rateio: Σ (qty × componente) = o original.
+    const total = entries.reduce(
+      (acc, e) => addFrozen(acc, scaleFrozen(e.unitBreakdown!, e.qty)),
+      ZERO_FROZEN,
+    );
+    expect(total.material).toBeCloseTo(BD30.material, 6);
+    expect(sumFrozen(total)).toBeCloseTo(30, 6);
+  });
+
+  it("Σcost = 0 (degenerado): divide igual, sem NaN", () => {
+    const entries = submissionEntries("Kit", 30, {
+      breakdown: BD30,
+      subitems: [
+        { id: "a", name: "Base", cost: 0 },
+        { id: "b", name: "Topo", cost: 0 },
+      ],
+    });
+    expect(entries[0].unitBreakdown!.material).toBeCloseTo(6, 6);
+    expect(Number.isNaN(entries[0].unitBreakdown!.material)).toBe(false);
+    expect(sumFrozen(entries[0].unitBreakdown!)).toBeCloseTo(15, 6);
+  });
+
+  it("subitem avulso selecionado leva o breakdown cheio ÷ units", () => {
+    const [entry] = submissionEntries("Kit", 30, {
+      subitemId: "a",
+      subitemName: "Base",
+      units: 3,
+      breakdown: BD30,
+    });
+    expect(sumFrozen(entry.unitBreakdown!)).toBeCloseTo(entry.unitCost, 6);
+    expect(entry.unitBreakdown!.supplies).toBeCloseTo(1, 6); // 3/3
+  });
+});
+
+describe("addProductionLayers com breakdown (FEAT-06)", () => {
+  it("a camada nasce com o costBreakdown da entrada", () => {
+    const entries = submissionEntries("Boneco", 30, { units: 2, breakdown: BD30 });
+    const payload = addProductionLayers(null, "prod-1", "Boneco", entries, "e1", 0);
+    const [layer] = payload.skus[0].layers;
+    expect(sumFrozen(layer.costBreakdown!)).toBeCloseTo(layer.unitCost, 6);
+  });
+
+  it("entrada sem breakdown gera camada SEM o campo", () => {
+    const entries = submissionEntries("Boneco", 30, { units: 2 });
+    const payload = addProductionLayers(null, "prod-1", "Boneco", entries, "e1", 0);
+    expect(payload.skus[0].layers[0].costBreakdown).toBeUndefined();
+  });
+
+  it("round-trip: removeEventLayers tira a camada com breakdown", () => {
+    const entries = submissionEntries("Boneco", 30, { units: 2, breakdown: BD30 });
+    const payload = addProductionLayers(null, "prod-1", "Boneco", entries, "e1", 0);
+    const good: FinishedGood = { ...payload, id: "prod-1" };
+    expect(removeEventLayers(good, "e1").skus[0].layers).toEqual([]);
+  });
+});
+
+describe("goodCostComposition (FEAT-06)", () => {
+  function layer(over: Partial<FinishedLayer> & { id: string }): FinishedLayer {
+    return { at: 0, qty: 1, unitCost: 10, sourceEventId: "e1", ...over };
+  }
+
+  it("decompõe o valor parado e bate com o goodValue", () => {
+    const bd: FrozenCostBreakdown = { ...ZERO_FROZEN, material: 6, labor: 4 };
+    const good = makeGood({
+      skus: [
+        { name: "Boneco", layers: [layer({ id: "l1", qty: 3, costBreakdown: bd })] },
+      ],
+    });
+    const comp = goodCostComposition(good);
+    expect(comp.breakdown.material).toBeCloseTo(18, 6);
+    expect(comp.breakdown.labor).toBeCloseTo(12, 6);
+    expect(comp.unknown).toBe(0);
+    expect(comp.total).toBeCloseTo(goodValue(good), 6);
+  });
+
+  // Camada anterior ao FEAT-06: o valor dela não pode sumir dos totais nem
+  // aparecer como componente — vira `unknown` ("não detalhado" na tela).
+  it("camada sem breakdown vira unknown, e a soma ainda fecha", () => {
+    const bd: FrozenCostBreakdown = { ...ZERO_FROZEN, material: 10 };
+    const good = makeGood({
+      skus: [
+        {
+          name: "Boneco",
+          layers: [
+            layer({ id: "l1", qty: 2, unitCost: 10, costBreakdown: bd }),
+            layer({ id: "l2", qty: 1, unitCost: 7 }), // antiga
+          ],
+        },
+      ],
+    });
+    const comp = goodCostComposition(good);
+    expect(comp.unknown).toBeCloseTo(7, 6);
+    expect(sumFrozen(comp.breakdown) + comp.unknown).toBeCloseTo(comp.total, 6);
+    expect(comp.total).toBeCloseTo(goodValue(good), 6);
+  });
+
+  // D4: saldo negativo é um buraco real — os componentes acompanham, não clampam.
+  it("saldo negativo dá componentes negativos, com a soma batendo", () => {
+    const bd: FrozenCostBreakdown = { ...ZERO_FROZEN, material: 6, labor: 4 };
+    const good = makeGood({
+      skus: [{ name: "Boneco", layers: [layer({ id: "l1", qty: -2, costBreakdown: bd })] }],
+    });
+    const comp = goodCostComposition(good);
+    expect(comp.breakdown.material).toBeCloseTo(-12, 6);
+    expect(comp.total).toBeCloseTo(goodValue(good), 6);
+  });
+
+  it("sem doc, devolve zero", () => {
+    expect(goodCostComposition(null)).toEqual({
+      breakdown: ZERO_FROZEN,
+      total: 0,
+      unknown: 0,
+    });
   });
 });
 

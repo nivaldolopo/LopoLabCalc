@@ -1,4 +1,5 @@
 import { num } from "@/lib/number";
+import { addFrozen, scaleFrozen, sumFrozen, ZERO_FROZEN } from "./production";
 import type {
   FinishedConsumptionResult,
   FinishedGood,
@@ -6,6 +7,7 @@ import type {
   FinishedLayer,
   FinishedMove,
   FinishedSku,
+  FrozenCostBreakdown,
 } from "../types";
 
 // Matemática pura do Estoque de Produtos / acabados (FEAT-05a). Espelha o FIFO do
@@ -25,6 +27,9 @@ export type FinishedEntry = {
   name: string;
   qty: number;
   unitCost: number;
+  // FEAT-06: a composição do `unitCost`, escalada pelo MESMO fator que ele.
+  // Ausente quando quem chamou não passou o breakdown da submissão.
+  unitBreakdown?: FrozenCostBreakdown;
 };
 
 /**
@@ -45,6 +50,11 @@ export type FinishedEntry = {
  *    `totalFrozenCost` pelas proporções do `SubitemPrice.cost` (aditivo/FEAT-01;
  *    se Σcost = 0, divide igual — degenerado);
  *  - inteiro SEM subitens → 1 SKU do inteiro.
+ *
+ * FEAT-06: `opts.breakdown` é a composição do `totalFrozenCost` (mesma escala).
+ * Cada entrada recebe `unitBreakdown` derivado por UM fator escalar — o mesmo que
+ * produz o `unitCost` —, então `sumFrozen(unitBreakdown) === unitCost` sai de
+ * graça, em vez de depender de duas contas que precisam concordar.
  */
 export function submissionEntries(
   productName: string,
@@ -54,38 +64,49 @@ export function submissionEntries(
     subitemName?: string;
     subitems?: { id: string; name: string; cost: number }[];
     units?: number;
+    breakdown?: FrozenCostBreakdown;
   } = {},
 ): FinishedEntry[] {
   const total = num(totalFrozenCost);
   const units = Math.max(1, Math.round(num(opts.units ?? 1)));
+  const breakdown = opts.breakdown;
+
+  // `share` = a fatia da submissão que cabe a esta SKU (1 = tudo). O fator final
+  // divide pelas unidades físicas — total e componentes passam pelo MESMO.
+  const entry = (
+    base: Omit<FinishedEntry, "qty" | "unitCost" | "unitBreakdown">,
+    share: number,
+  ): FinishedEntry => {
+    const factor = share / units;
+    return {
+      ...base,
+      qty: units,
+      unitCost: total * factor,
+      ...(breakdown ? { unitBreakdown: scaleFrozen(breakdown, factor) } : {}),
+    };
+  };
 
   if (opts.subitemId) {
     return [
-      {
-        subitemId: opts.subitemId,
-        name: opts.subitemName || productName,
-        qty: units,
-        unitCost: total / units,
-      },
+      entry(
+        { subitemId: opts.subitemId, name: opts.subitemName || productName },
+        1,
+      ),
     ];
   }
 
   const subs = opts.subitems ?? [];
   if (subs.length > 0) {
     const sumCost = subs.reduce((sum, s) => sum + num(s.cost), 0);
-    return subs.map((s) => {
-      const partCost =
-        sumCost > 0 ? total * (num(s.cost) / sumCost) : total / subs.length;
-      return {
-        subitemId: s.id,
-        name: s.name,
-        qty: units,
-        unitCost: partCost / units,
-      };
-    });
+    return subs.map((s) =>
+      entry(
+        { subitemId: s.id, name: s.name },
+        sumCost > 0 ? num(s.cost) / sumCost : 1 / subs.length,
+      ),
+    );
   }
 
-  return [{ name: productName, qty: units, unitCost: total / units }];
+  return [entry({ name: productName }, 1)];
 }
 
 // Chave estável da SKU: o subitem, ou a sentinela do inteiro. Duas entradas da
@@ -165,6 +186,7 @@ export function addProductionLayers(
       at: num(at),
       qty,
       unitCost: num(entry.unitCost),
+      ...(entry.unitBreakdown ? { costBreakdown: entry.unitBreakdown } : {}),
       sourceEventId: eventId,
     };
     const key = skuKey(entry.subitemId);
@@ -363,6 +385,49 @@ export function skuValue(sku: FinishedSku): number {
 export function goodValue(good: FinishedGood | null | undefined): number {
   if (!good) return 0;
   return good.skus.reduce((sum, sku) => sum + skuValue(sku), 0);
+}
+
+// FEAT-06 — o `goodValue` DECOMPOSTO: de que é feito o COGS parado na loja
+// (quanto é material, quanto é mão de obra, quanto é ímã…). `unknown` é a parcela
+// vinda de camadas anteriores ao FEAT-06, que só têm o total; separá-la é o que
+// impede a tela de mentir — sem isso o valor sem composição sumiria dos
+// componentes e a soma não fecharia com o total.
+// Invariante: `sumFrozen(breakdown) + unknown === total`.
+export type GoodCostComposition = {
+  breakdown: FrozenCostBreakdown;
+  total: number;
+  unknown: number;
+};
+
+export function skuCostComposition(sku: FinishedSku): GoodCostComposition {
+  let breakdown = ZERO_FROZEN;
+  let unknown = 0;
+  for (const layer of sku.layers) {
+    const qty = num(layer.qty);
+    if (layer.costBreakdown) {
+      breakdown = addFrozen(breakdown, scaleFrozen(layer.costBreakdown, qty));
+    } else {
+      unknown += qty * num(layer.unitCost);
+    }
+  }
+  return { breakdown, total: sumFrozen(breakdown) + unknown, unknown };
+}
+
+export function goodCostComposition(
+  good: FinishedGood | null | undefined,
+): GoodCostComposition {
+  if (!good) return { breakdown: ZERO_FROZEN, total: 0, unknown: 0 };
+  return good.skus.reduce<GoodCostComposition>(
+    (acc, sku) => {
+      const comp = skuCostComposition(sku);
+      return {
+        breakdown: addFrozen(acc.breakdown, comp.breakdown),
+        total: acc.total + comp.total,
+        unknown: acc.unknown + comp.unknown,
+      };
+    },
+    { breakdown: ZERO_FROZEN, total: 0, unknown: 0 },
+  );
 }
 
 export type AssemblyPart = {

@@ -712,6 +712,11 @@ export type FinishedLayer = {
   at: number; // quando foi produzida (= evento.at)
   qty: number;
   unitCost: number;
+  // FEAT-06: a composição do `unitCost`, herdada do evento que criou a camada e
+  // já rateada/dividida pelas unidades. É o que permite a venda de peça pronta
+  // detalhar o COGS REAL, em vez do snapshot do catálogo vivo. Ausente em camada
+  // anterior ao FEAT-06 (Diretriz 7 — sem migração).
+  costBreakdown?: FrozenCostBreakdown;
   sourceEventId: string;
 };
 
