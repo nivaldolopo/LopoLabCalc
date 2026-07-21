@@ -3,16 +3,20 @@ import { DEFAULT_PRODUCT_INPUT } from "../constants";
 import { normalizeStages } from "./calculatePricing";
 import { filamentTotalG, normalizeFilaments } from "./filaments";
 import {
+  addFrozen,
+  frozenOf,
   planProduction,
   planSupplies,
   productionCost,
   type ProductionCostBreakdown,
   type ProductionPlan,
   type SupplyPlan,
+  ZERO_FROZEN,
 } from "./production";
 import { catalogPricePerKg, filamentLabel } from "./stock";
 import type {
   FilamentUsage,
+  FrozenCostBreakdown,
   Machine,
   ProductionMode,
   ProductionOutcome,
@@ -282,6 +286,9 @@ export type PlannedRows = {
   summary: {
     material: number;
     frozen: number;
+    // FEAT-06: a composição do `frozen`, somada componente a componente pelos
+    // eventos. Invariante: `sumFrozen(frozenBreakdown) === frozen`.
+    frozenBreakdown: FrozenCostBreakdown;
     grams: number;
     crossesRoll: boolean;
     shortfallG: number;
@@ -359,6 +366,9 @@ export function planEventRows(
     (acc, e) => {
       acc.material += e.plan.materialCost;
       acc.frozen += e.cost.total;
+      // FEAT-06: no MESMO reduce do `frozen` — um segundo laço abriria a porta
+      // para os dois divergirem (multi-máquina soma N eventos numa placa só).
+      acc.frozenBreakdown = addFrozen(acc.frozenBreakdown, frozenOf(e.cost));
       acc.grams += e.filaments.reduce((s, f) => s + num(f.totalG), 0);
       acc.crossesRoll = acc.crossesRoll || e.plan.crossesRoll;
       acc.shortfallG += e.plan.shortfallG;
@@ -369,6 +379,7 @@ export function planEventRows(
     {
       material: 0,
       frozen: 0,
+      frozenBreakdown: ZERO_FROZEN,
       grams: 0,
       crossesRoll: false,
       shortfallG: 0,
@@ -408,6 +419,11 @@ export function buildProductionPayloads(
       // levou". O custo REAL (FIFO) não mora aqui: mora no `frozenCost`.
       ...(e.row.supplies.length > 0 ? { supplies: e.row.supplies } : {}),
       frozenCost: e.cost.total,
+      // FEAT-06: a composição do `frozenCost`, congelada junto. Sem ela, só
+      // material e insumos seriam reconstituíveis depois (dos arrays acima);
+      // energia/desgaste/manutenção teriam que sair da máquina VIVA e a mão de
+      // obra não estaria gravada em lugar nenhum. Evento novo sempre tem.
+      frozenBreakdown: frozenOf(e.cost),
       stockMoves: [...e.plan.moves, ...e.supplyPlan.moves],
       ...(meta.notes && meta.notes.trim() ? { notes: meta.notes.trim() } : {}),
       createdAt: meta.createdAt,

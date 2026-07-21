@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_MACHINES, DEFAULT_PRODUCT_INPUT } from "../constants";
 import {
   accessoryRows,
+  buildProductionPayloads,
   planEventRows,
   scaleRow,
   wholeEventRows,
 } from "./productionPlan";
+import { sumFrozen } from "./production";
 import type { SavedProduct, Supply } from "../types";
 
 // Foco: a escala dos INSUMOS (7e), que é o ponto onde as unidades se cruzam —
@@ -161,5 +163,78 @@ describe("scaleRow + planEventRows", () => {
       () => "e1",
     );
     expect(planned.supplyUpdates[0].lots[0].remainingQty).toBe(996); // 1000 − 2 − 2
+  });
+});
+
+// FEAT-06 — a composição acompanha o total em cada travessia. O invariante é
+// sempre o mesmo (`sumFrozen(breakdown) === total`), mas os caminhos que podem
+// quebrá-lo são distintos: somar N eventos, escalar por placas, cair no ramo sem
+// máquina e fechar o payload gravável.
+describe("FEAT-06 — frozenBreakdown no plano", () => {
+  const product = makeProduct({
+    piecesCount: 2,
+    printHours: 1,
+    accessories: [{ desc: "Ímã", qty: 1, unitPrice: 0.5, supplyId: "ima" }],
+  });
+
+  function plan(rows: ReturnType<typeof wholeEventRows>, machines = DEFAULT_MACHINES) {
+    let n = 0;
+    return planEventRows(rows, "real", [], [makeSupply({ id: "ima" })], machines, () => `e${++n}`);
+  }
+
+  it("a soma do breakdown é o frozen do summary", () => {
+    const planned = plan(wholeEventRows(product, DEFAULT_MACHINES, []));
+    expect(sumFrozen(planned.summary.frozenBreakdown)).toBeCloseTo(
+      planned.summary.frozen,
+      6,
+    );
+  });
+
+  // Multi-máquina: N eventos numa placa só. Se o breakdown fosse somado num
+  // segundo laço, ele e o `frozen` poderiam divergir sem sintoma.
+  it("com 2 eventos, a soma dos componentes acompanha o total", () => {
+    const [row] = wholeEventRows(product, DEFAULT_MACHINES, []);
+    const outra = { ...row, key: "outra", machineId: DEFAULT_MACHINES[1]?.id ?? row.machineId };
+    const planned = plan([row, outra]);
+    expect(planned.built).toHaveLength(2);
+    expect(sumFrozen(planned.summary.frozenBreakdown)).toBeCloseTo(
+      planned.built[0].cost.total + planned.built[1].cost.total,
+      6,
+    );
+  });
+
+  it("escalar por placas escala cada componente junto", () => {
+    const [row] = wholeEventRows(product, DEFAULT_MACHINES, []);
+    const um = plan([row]).summary.frozenBreakdown;
+    const tres = plan([scaleRow(row, 3)]).summary.frozenBreakdown;
+    // Material/insumos/horas triplicam — o labor congelado da etapa não escala
+    // com placas, então comparo componente a componente o que de fato escala.
+    expect(tres.material).toBeCloseTo(um.material * 3, 6);
+    expect(tres.supplies).toBeCloseTo(um.supplies * 3, 6);
+    expect(tres.energy).toBeCloseTo(um.energy * 3, 6);
+    expect(tres.depreciation).toBeCloseTo(um.depreciation * 3, 6);
+  });
+
+  // Ramo sem máquina (`planEventRows` cai no objeto montado à mão): o breakdown
+  // tem que existir e ainda somar o total, senão o payload grava um objeto
+  // incoerente com o `frozenCost`.
+  it("sem máquina, o breakdown ainda bate com o total", () => {
+    const planned = plan(wholeEventRows(product, DEFAULT_MACHINES, []), []);
+    expect(sumFrozen(planned.summary.frozenBreakdown)).toBeCloseTo(
+      planned.summary.frozen,
+      6,
+    );
+  });
+
+  it("buildProductionPayloads grava o breakdown, somando o frozenCost", () => {
+    const planned = plan(wholeEventRows(product, DEFAULT_MACHINES, []));
+    const [{ payload }] = buildProductionPayloads(planned.built, {
+      at: 0,
+      outcome: "estoque",
+      mode: "real",
+      createdAt: 0,
+    });
+    expect(payload.frozenBreakdown).toBeDefined();
+    expect(sumFrozen(payload.frozenBreakdown!)).toBeCloseTo(payload.frozenCost, 6);
   });
 });

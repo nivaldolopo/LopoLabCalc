@@ -10,6 +10,7 @@ import { db } from "./client";
 import { serializeRolls } from "./stockRepository";
 import { serializeLots } from "./suppliesRepository";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
+import { frozenFromDocument, frozenToDocument } from "./frozenCost";
 import type {
   FilamentUsage,
   FinishedGoodPayload,
@@ -138,6 +139,11 @@ export function productionToDocument(payload: ProductionPayload): DocumentData {
       ? { supplies: payload.supplies.map(supplyUsageToDocument) }
       : {}),
     frozenCost: num(payload.frozenCost),
+    // FEAT-06: spread condicional — evento antigo não tem, e o Firestore rejeita
+    // `undefined`.
+    ...(payload.frozenBreakdown
+      ? { frozenBreakdown: frozenToDocument(payload.frozenBreakdown) }
+      : {}),
     stockMoves: payload.stockMoves.map(moveToDocument),
     ...(payload.notes ? { notes: payload.notes } : {}),
     createdAt: num(payload.createdAt),
@@ -163,6 +169,9 @@ function toProduction(id: string, data: DocumentData): ProductionEvent {
       ? { supplies: data.supplies.map(supplyUsageFromDocument) }
       : {}),
     frozenCost: num(data.frozenCost),
+    ...(data.frozenBreakdown
+      ? { frozenBreakdown: frozenFromDocument(data.frozenBreakdown) }
+      : {}),
     stockMoves: Array.isArray(data.stockMoves)
       ? data.stockMoves.map(moveFromDocument)
       : [],

@@ -667,6 +667,13 @@ export type ProductionInput = {
   // produto sem acessório.
   supplies?: SupplyUsage[];
   frozenCost: number;
+  // FEAT-06: a COMPOSIÇÃO do `frozenCost`, congelada junto. Sem ela o número é
+  // irreconstituível depois: material e insumos até sairiam dos arrays acima, mas
+  // energia/desgaste/manutenção teriam que ser recalculados da máquina VIVA
+  // (editar watts faria os componentes pararem de somar o total gravado) e a mão
+  // de obra não está gravada em lugar nenhum do evento. Ausente em evento
+  // anterior ao FEAT-06 — a UI cai no total sem detalhe (Diretriz 7, sem migração).
+  frozenBreakdown?: FrozenCostBreakdown;
   // O que a baixa deduziu, por rolo — de onde o estorno (04c) lê, exatamente como
   // o `stockMoves` da venda. Vazio no modo historico/avulso (nada foi deduzido).
   // `itemId` = o id do próprio evento (a produção é a unidade que consumiu).
