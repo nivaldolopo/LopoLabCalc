@@ -9,6 +9,56 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ FEAT-06 — Composição de custo congelada na produção (2026-07-20)
+
+Matou o **stopgap do COGS**: até aqui a venda de peça pronta gravava `costBreakdown` = snapshot do
+catálogo **vivo** enquanto o `unitCost` vinha do FIFO real — os dois não somavam o mesmo número, e
+detalhar a venda mostrava a estimativa fingindo ser o gasto. A causa era só uma: `productionCost()`
+já devolvia 6 componentes, mas o save guardava só o `.total`. Entregue em 7 commits.
+
+**Por que não dava para reconstruir depois** (o argumento que definiu a prioridade): material e
+insumos até sairiam dos arrays `filaments`/`supplies` congelados, mas energia/desgaste/manutenção
+teriam que ser recalculados da **máquina viva** (editar watts faria os componentes pararem de somar o
+total gravado) e a **mão de obra não estava gravada em lugar nenhum** do evento. Cada impressão
+registrada sem o breakdown é uma composição perdida para sempre — daí os passos 1-5 (o dado) virem
+antes dos 6-7 (a tela).
+
+- **`FrozenCostBreakdown` (tipo novo, não `SaleCostBreakdown`).** Reusar o da venda obrigaria a gravar
+  `failureReserve: 0`/`fixed: 0` (zeros indistinguíveis de "não houve", e provisão zerada num quadro
+  de custo **real** é ruído) e a renomear `supplies`→`accessories`, batendo em `calculatePricing`,
+  `saleContext`, `salesRepository` e 6 asserts. `ProductionCostBreakdown` passou a **derivar** dele
+  (`& { total }`), então os 6 componentes têm uma definição só. Sem `total` no tipo persistido: é
+  derivável (`sumFrozen`) e dois campos que precisam bater são convite a drift.
+- **A regra que sustenta o invariante `Σ componentes === total`:** nunca calcular total e componentes
+  por caminhos diferentes. `submissionEntries` foi reescrita para derivar **um fator escalar**
+  (`share / units`) e aplicá-lo aos dois — antes o rateio e a divisão por unidades eram duas
+  expressões que precisavam concordar.
+- **Overdraft (D4) foi o ponto nº 1 de bug.** O breakdown do `consumeFifo` **não pode** ser acumulado
+  dentro do laço FIFO: as linhas que engrossam o move da camada mais nova rodam **depois** dele, e a
+  fatia excedente ficaria de fora, deixando os componentes menores que o `cost`. É calculado no final,
+  a partir dos moves já fechados, com `Map<layerId, layer>`. Há teste dedicado.
+- **`costUnknown`/`unknown` em vez de zeros sintéticos.** Camada anterior ao FEAT-06 não vira
+  `{material: 0, …}` — isso mentiria na tela ("Material R$ 0,00"). Vai para um campo separado, exibido
+  como "não detalhado", e `sumFrozen(breakdown) + unknown === total` continua valendo.
+- **A venda guarda os DOIS breakdowns** (decisão do dono, contra a letra do backlog): `costBreakdown`
+  segue sendo o **precificado** — é a metade esquerda da comparação estimado × real, e o
+  `machineRoi.ts:63` lê a depreciação dele — e entra `realCostBreakdown` novo. Não grava quando a
+  composição é parcial: meia composição engana mais que nenhuma, e `unitCost`/lucro/margem continuam
+  corretos de qualquer forma. **Follow-up registrado:** migrar o `machineRoi` para a depreciação real.
+- **`FinishedMove` de propósito NÃO ganhou breakdown** — ele só serve ao estorno (por `qty`/`layerId`),
+  e 6 números por move seriam peso morto no doc da venda.
+- **UI:** `CostDetail` ganhou 3 modos (só precificado / **2 colunas** / só real). O par
+  acessórios × insumos divide linha com nomes diferentes dos dois lados de propósito (no preço é o item
+  do catálogo, no real é a baixa do estoque). Uma linha some só quando as **duas** colunas são zero —
+  senão um componente que existe só de um lado sumiria. A `/producao` rotulou os dois números órfãos
+  ("custo real gasto") e os tornou detalháveis. A aba Produtos ganhou popover de composição do valor
+  parado, custo médio por SKU, mini-barras (CSS puro, `flex-grow` proporcional) e margem congelada.
+- **`CostBars`/`ProfitSummary` NÃO serviram** (o backlog citava os dois): consomem `PricingResult` —
+  produto **vivo**, com markup e preço sugerido — que é exatamente o que o FEAT-06 recusa.
+
+35 testes novos (álgebra, plano, rateio × units, overdraft, camada antiga, `qty=3` para pegar o ÷qty
+esquecido) — **281 no total**. Zero migração (Diretriz 7).
+
 ## ✅ 7e — Insumos no estoque + baixa do acessório na produção (2026-07-20)
 
 Fechou o **buraco de COGS**: acessórios já entravam no preço (`calculatePricing.ts`) mas ficavam de

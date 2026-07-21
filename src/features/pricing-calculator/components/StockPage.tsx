@@ -33,9 +33,16 @@ import {
 import {
   assemblyBreakdown,
   balanceOf,
+  goodCostComposition,
   goodValue,
   skuBalance,
+  skuValue,
 } from "../lib/finishedGoods";
+import { calculatePricing } from "../lib/calculatePricing";
+import { addFrozen, sumFrozen, ZERO_FROZEN } from "../lib/production";
+import { DEFAULT_FIXED_COSTS } from "../constants";
+import { useBusinessSettings } from "../hooks/useBusinessSettings";
+import { useMachines } from "../hooks/useMachines";
 import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useProduction } from "../hooks/useProduction";
 import { useProducts } from "../hooks/useProducts";
@@ -46,11 +53,14 @@ import type {
   CloudStatus,
   FilamentRoll,
   FinishedGood,
+  FixedCostSettings,
+  FrozenCostBreakdown,
   ProductionEvent,
   SavedProduct,
   StockFilament,
   StockFilamentPayload,
 } from "../types";
+import { CostDetail } from "./CostDetail";
 import { NavBar } from "./NavBar";
 import { StockAdjustModal } from "./StockAdjustModal";
 import { StockColorModal, type StockColorDraft } from "./StockColorModal";
@@ -172,6 +182,28 @@ export function StockPage() {
     return map;
   }, [products]);
 
+  // FEAT-06: o preço sugerido VIVO de cada produto, para confrontar com o custo
+  // CONGELADO das camadas e mostrar a margem que o estoque parado embute. Só o
+  // preço é vivo aqui — o custo vem da camada, nunca do catálogo (é o ponto do
+  // FEAT-06). O custo fixo fica de fora pelo mesmo motivo da /producao: ele não
+  // entra no custo real com que a margem é comparada.
+  const { machines } = useMachines();
+  const { fixedCostRate } = useBusinessSettings();
+  const priceByProduct = useMemo(() => {
+    const fixedCosts: FixedCostSettings = {
+      ...fixedCostRate,
+      enabled: DEFAULT_FIXED_COSTS.enabled,
+    };
+    const map = new Map<string, number>();
+    for (const product of products) {
+      map.set(
+        product.id,
+        calculatePricing(product, machines, fixedCosts, filaments).suggestedPrice,
+      );
+    }
+    return map;
+  }, [products, machines, fixedCostRate, filaments]);
+
   // Só produtos com algum saldo (≠ 0) aparecem; ordena por nome congelado.
   const stockedGoods = useMemo(
     () =>
@@ -186,7 +218,20 @@ export function StockPage() {
     const negatives = stockedGoods.filter((good) =>
       good.skus.some((sku) => skuBalance(sku) < 0),
     ).length;
-    return { count: stockedGoods.length, value, negatives };
+    // FEAT-06: a composição agregada de TODO o estoque parado, para o card do
+    // topo dizer para onde o dinheiro foi (é quase sempre material — quando não
+    // é, vale saber).
+    const comp = stockedGoods.reduce(
+      (acc, good) => {
+        const one = goodCostComposition(good);
+        return {
+          breakdown: addFrozen(acc.breakdown, one.breakdown),
+          unknown: acc.unknown + one.unknown,
+        };
+      },
+      { breakdown: ZERO_FROZEN, unknown: 0 },
+    );
+    return { count: stockedGoods.length, value, negatives, comp };
   }, [stockedGoods]);
 
   async function saveColor(draft: StockColorDraft) {
@@ -507,9 +552,104 @@ export function StockPage() {
   // FEAT-05c: card de um produto no Estoque de Produtos. Apresentação híbrida
   // "conjunto + lacuna": o inteiro montável = min das partes, e a divergência
   // vira peças avulsas ("conjunto sem X"). Só leitura — a baixa é o passo 8.
+  // FEAT-06: faixa de composição do valor parado — de que é feito o COGS que
+  // está na prateleira. CSS puro (flex-grow proporcional), sem biblioteca.
+  // Componentes zerados somem; valor negativo (D4) não vira barra (não há
+  // proporção que faça sentido num buraco) — o card já avisa do saldo negativo.
+  function renderCostBars(breakdown: FrozenCostBreakdown, total: number) {
+    if (total <= 0) return null;
+    const parts = [
+      { key: "material", label: "Material", value: breakdown.material },
+      { key: "labor", label: "Mão de obra", value: breakdown.labor },
+      { key: "supplies", label: "Insumos", value: breakdown.supplies },
+      { key: "energy", label: "Energia", value: breakdown.energy },
+      { key: "depreciation", label: "Desgaste", value: breakdown.depreciation },
+      { key: "maintenance", label: "Manutenção", value: breakdown.maintenance },
+    ].filter((part) => part.value > 0);
+    if (parts.length === 0) return null;
+    const sum = sumFrozen(breakdown);
+    return (
+      <div className="fg-comp">
+        <div className="fg-comp-bar">
+          {parts.map((part) => (
+            <span
+              key={part.key}
+              className={`fg-comp-seg ${part.key}`}
+              style={{ flexGrow: part.value }}
+              title={`${part.label}: ${formatCurrency(part.value)}`}
+            />
+          ))}
+        </div>
+        <div className="fg-comp-legend">
+          {parts.map((part) => (
+            <span className="fg-comp-item" key={part.key}>
+              <i className={`fg-comp-dot ${part.key}`} aria-hidden="true" />
+              {part.label} {Math.round((part.value / sum) * 100)}%
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // FEAT-06: custo congelado MÉDIO por unidade de uma SKU. Saldo 0 ou negativo
+  // não tem média que signifique alguma coisa — devolve null e a linha só mostra
+  // o saldo, como antes.
+  function skuUnitCost(sku: FinishedGood["skus"][number]) {
+    const balance = skuBalance(sku);
+    if (balance <= 0) return null;
+    return skuValue(sku) / balance;
+  }
+
+  // Custo congelado de UM conjunto = Σ do custo médio de cada parte. Devolve null
+  // se qualquer parte não tiver saldo — a soma estaria incompleta e a margem sairia
+  // otimista demais (parece barato só porque falta uma peça na conta).
+  function wholeUnitCost(
+    parts: { subitemId: string }[],
+    skuByKey: Map<string, FinishedGood["skus"][number]>,
+  ): number | null {
+    let total = 0;
+    for (const part of parts) {
+      const sku = skuByKey.get(part.subitemId);
+      const unit = sku ? skuUnitCost(sku) : null;
+      if (unit === null) return null;
+      total += unit;
+    }
+    return parts.length > 0 ? total : null;
+  }
+
+  // FEAT-06: a margem que o estoque parado embute — preço sugerido VIVO contra o
+  // custo CONGELADO da peça que está na prateleira. É a pergunta prática do dono:
+  // "se eu vender essa unidade hoje, quanto sobra?". Some quando o produto saiu do
+  // catálogo (sem preço) ou o custo não é calculável.
+  function renderMargin(price: number | undefined, unitCost: number | null) {
+    if (price === undefined || unitCost === null || price <= 0) return null;
+    const profit = price - unitCost;
+    const margin = (profit / price) * 100;
+    return (
+      <div className="fg-margin">
+        <span>
+          preço sugerido <strong className="mono">{formatCurrency(price)}</strong>{" "}
+          − custo congelado{" "}
+          <strong className="mono">{formatCurrency(unitCost)}</strong>
+        </span>
+        <span className={`fg-margin-val ${profit < 0 ? "sale-neg" : ""}`}>
+          <strong className="mono">{formatCurrency(profit)}</strong>
+          <em>{margin.toFixed(0)}% de margem</em>
+        </span>
+      </div>
+    );
+  }
+
   function renderProductCard(good: FinishedGood) {
     const product = productById.get(good.productId);
-    const value = goodValue(good);
+    // FEAT-06: o valor parado DECOMPOSTO — só existe para camadas novas; o que
+    // veio de produção antiga fica em `comp.unknown` ("não detalhado").
+    const comp = goodCostComposition(good);
+    const skuByKey = new Map(
+      good.skus.map((sku) => [sku.subitemId ?? "__whole__", sku]),
+    );
+    const price = priceByProduct.get(good.productId);
     const negative = good.skus.some((sku) => skuBalance(sku) < 0);
     // Subitens VIVOS do produto (o doc só guarda as SKUs já produzidas).
     const subitems =
@@ -528,8 +668,16 @@ export function StockPage() {
             <div className="stock-title">
               <strong>{good.productName}</strong>
               <span className="stock-sub">
-                {subitems.length} subitens · valor parado{" "}
-                {formatCurrency(value)}
+                {subitems.length} subitens ·{" "}
+                {/* FEAT-06: o valor parado virou detalhável — clique mostra de
+                    que é feito o COGS que está na prateleira. */}
+                <CostDetail
+                  real={comp.breakdown}
+                  realCogs={comp.total}
+                  realUnknown={comp.unknown}
+                  triggerLabel="valor parado"
+                  hint="▾"
+                />
               </span>
             </div>
             <div className="stock-balance">
@@ -556,23 +704,33 @@ export function StockPage() {
           ) : null}
 
           <div className="fg-parts">
-            {bd.parts.map((part) => (
-              <div className="fg-part" key={part.subitemId}>
-                <span className="fg-part-name">{part.name}</span>
-                <span
-                  className={`mono fg-part-bal ${
-                    part.balance < 0 ? "sale-neg" : ""
-                  }`}
-                >
-                  {part.balance} em estoque
-                </span>
-                {part.leftover > 0 ? (
-                  <em className="fg-leftover">
-                    +{part.leftover} avulsa{part.leftover === 1 ? "" : "s"}
-                  </em>
-                ) : null}
-              </div>
-            ))}
+            {bd.parts.map((part) => {
+              const sku = skuByKey.get(part.subitemId);
+              const unit = sku ? skuUnitCost(sku) : null;
+              return (
+                <div className="fg-part" key={part.subitemId}>
+                  <span className="fg-part-name">{part.name}</span>
+                  <span
+                    className={`mono fg-part-bal ${
+                      part.balance < 0 ? "sale-neg" : ""
+                    }`}
+                  >
+                    {part.balance} em estoque
+                  </span>
+                  {/* FEAT-06: o custo congelado médio da parte. */}
+                  {unit !== null ? (
+                    <span className="fg-part-cost mono">
+                      {formatCurrency(unit)}/un
+                    </span>
+                  ) : null}
+                  {part.leftover > 0 ? (
+                    <em className="fg-leftover">
+                      +{part.leftover} avulsa{part.leftover === 1 ? "" : "s"}
+                    </em>
+                  ) : null}
+                </div>
+              );
+            })}
             {wholeBalance !== 0 ? (
               <div className="fg-part">
                 <span className="fg-part-name">Inteiro (avulso)</span>
@@ -586,6 +744,13 @@ export function StockPage() {
               </div>
             ) : null}
           </div>
+
+          {renderCostBars(comp.breakdown, comp.total)}
+          {/* O custo de UM conjunto é a soma do custo médio de cada parte — não
+              o valor parado ÷ conjuntos, que diluiria as peças avulsas que
+              sobraram e não formam conjunto. Só quando todas as partes têm
+              saldo (senão a soma estaria incompleta). */}
+          {renderMargin(price, wholeUnitCost(bd.parts, skuByKey))}
         </div>
       );
     }
@@ -609,8 +774,14 @@ export function StockPage() {
           <div className="stock-title">
             <strong>{good.productName}</strong>
             <span className="stock-sub">
-              {product ? "unidade inteira" : "produto fora do catálogo"} · valor
-              parado {formatCurrency(value)}
+              {product ? "unidade inteira" : "produto fora do catálogo"} ·{" "}
+              <CostDetail
+                real={comp.breakdown}
+                realCogs={comp.total}
+                realUnknown={comp.unknown}
+                triggerLabel="valor parado"
+                hint="▾"
+              />
             </span>
           </div>
           <div className="stock-balance">
@@ -637,20 +808,43 @@ export function StockPage() {
 
         {rows.length > 1 ? (
           <div className="fg-parts">
-            {rows.map((row) => (
-              <div className="fg-part" key={row.key}>
-                <span className="fg-part-name">{row.name}</span>
-                <span
-                  className={`mono fg-part-bal ${
-                    row.balance < 0 ? "sale-neg" : ""
-                  }`}
-                >
-                  {row.balance} em estoque
-                </span>
-              </div>
-            ))}
+            {rows.map((row) => {
+              const sku = skuByKey.get(row.key);
+              const unit = sku ? skuUnitCost(sku) : null;
+              return (
+                <div className="fg-part" key={row.key}>
+                  <span className="fg-part-name">{row.name}</span>
+                  <span
+                    className={`mono fg-part-bal ${
+                      row.balance < 0 ? "sale-neg" : ""
+                    }`}
+                  >
+                    {row.balance} em estoque
+                  </span>
+                  {unit !== null ? (
+                    <span className="fg-part-cost mono">
+                      {formatCurrency(unit)}/un
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         ) : null}
+
+        {renderCostBars(comp.breakdown, comp.total)}
+        {/* SKU única: o custo congelado dela é o custo da unidade vendável. Com
+            várias SKUs num produto sem subitens vivos não há "a" unidade — a
+            margem sairia de uma média sem significado. */}
+        {rows.length === 1
+          ? renderMargin(
+              price,
+              (() => {
+                const sku = skuByKey.get(rows[0].key);
+                return sku ? skuUnitCost(sku) : null;
+              })(),
+            )
+          : null}
       </div>
     );
   }
@@ -791,7 +985,20 @@ export function StockPage() {
               >
                 {formatCurrency(productTotals.value)}
               </strong>
-              <span className="sales-total-sub">custo congelado em estoque</span>
+              {/* FEAT-06: para onde o dinheiro parado foi. */}
+              <span className="sales-total-sub">
+                {productTotals.value > 0 ? (
+                  <CostDetail
+                    real={productTotals.comp.breakdown}
+                    realCogs={productTotals.value}
+                    realUnknown={productTotals.comp.unknown}
+                    triggerLabel="custo congelado"
+                    hint="· composição ▾"
+                  />
+                ) : (
+                  "custo congelado em estoque"
+                )}
+              </span>
             </div>
             <div className="sales-total-card">
               <span>Saldo negativo</span>

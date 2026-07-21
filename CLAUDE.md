@@ -14,41 +14,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **7e — insumos no estoque, fechando o buraco de COGS.** Coleção nova `insumos`
-  (FIFO por lote), 3ª aba na `/estoque` (Filamentos · Insumos · Produtos), `Accessory.supplyId`
-  (avulso continua valendo, sem baixa) e **baixa por unidade na produção** — a encomenda da venda
-  herdou de graça (mesmo builder). O núcleo do FIFO virou `lib/fifo.ts`, compartilhado pelos dois
-  estoques. **`productionCost` agora soma `supplies`** ⇒ o lucro por peça de produções **novas** caiu
-  (ficou correto). Zero migração. 246 testes verdes. ⚠ **O dono precisa cadastrar os insumos e
-  religar os acessórios** — os já cadastrados seguem avulsos até lá.
-  *Ajuste de UI (mesmo dia):* no popover **Composição do custo**, "Acessórios" saiu das provisões
-  (agora é componente do custo real, junto de material/energia/desgaste/manutenção/mão de obra) —
-  sobraram como provisão só **reserva de falha** e **custo fixo**; texto explicativo reescrito
-  (precificado = estimativa do catálogo × real = o que saiu do estoque via FIFO).
+- **Última mudança:** **FEAT-06 — composição de custo CONGELADA na produção.** O `FrozenCostBreakdown`
+  (6 componentes, sem provisões) passou a ser gravado no evento, na camada do acabado e na venda
+  (`realCostBreakdown`, ao lado do precificado) ⇒ **o stopgap do COGS morreu** e o custo real virou
+  detalhável na venda, na `/producao` e na aba Produtos (`CostDetail` em 2 colunas). 281 testes.
+  ⚠ Zero migração: **produção/venda ANTERIOR só tem o total** — o popover de composição só aparece
+  nas novas (totais/lucro/margem das antigas seguem corretos).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
-- **▶ PRÓXIMA TAREFA sugerida:** **FEAT-06 — aba Produtos rica** (composição de custo CONGELADA na
-  produção: o acabado passa a guardar o `SaleCostBreakdown` inteiro, em vez do snapshot do catálogo).
-  O 7e, pré-requisito dele, já fechou. **Ordem (dono, 2026-07-20):** **FEAT-06** → FEAT-03/branding →
-  **Tier 4 inteiro** → TD-003/TD-006 → Dashboard (último). A trilha de UX (UX-01/FEAT-07/UX-02/FEAT-08)
-  está **fechada**.
+  Custo real agora é **decomponível ponta a ponta** (produção → acabado → venda).
+- **▶ PRÓXIMA TAREFA sugerida:** **FEAT-03 — melhorar o PDF do orçamento** + **branding/logo real**
+  (guarda-chuva: o dono escolhe quais ideias-semente viram tarefa — ver o item no BACKLOG).
+  **Ordem (dono, 2026-07-20):** FEAT-03/branding → **Tier 4 inteiro** → TD-003/TD-006 → Dashboard
+  (último). As trilhas de UX (UX-01/FEAT-07/UX-02/FEAT-08) e de custo (7e/FEAT-06) estão **fechadas**.
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
-- ⚠ **Gotcha que SOBROU do 7e (motiva o FEAT-06):** o buraco de COGS fechou (acessórios entram no
-  `frozenCost` desde 2026-07-20), mas o `costBreakdown` da venda de peça pronta **ainda é o snapshot
-  do catálogo vivo** (stopgap) — só o FEAT-06 congela a composição na produção. O COGS armazenado
-  (unitCost/lucro/margem) já é o custo real.
+- ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
+  os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - **`/maquinas` (ROI):** cruza `price`/`lifeHours` com o histórico — 2 barras (payback do investimento
   e vida útil consumida); as horas vêm do **registro de produção** (FEAT-04c). Matemática pura em
-  `lib/machineRoi.ts` (recebe `sales` **e** `production`).
-- **Restam da auditoria:** **TD-003** (capacidade por-máquina) e **TD-006** (paginação) — agora **antes**
-  do Dashboard. **Nenhum dos dois afeta a GRAVAÇÃO de dados** (verificado): as horas do histórico de
-  máquina vêm dos eventos de produção somados por `machineId` (`machineRoi.ts:87-89`) e já estão certas;
-  TD-003 é só **projeção** de capacidade na tela, TD-006 é custo/desempenho de **leitura**.
+  `lib/machineRoi.ts` (recebe `sales` **e** `production`). Ele lê a depreciação **precificada** da
+  venda; migrar para a real virou item de Tier 4 (o campo já existe desde o FEAT-06).
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
-- **TO-DO macro em aberto:** **Dashboard** (`/painel`, só com ~1-2 meses de vendas) e **logo real** no
-  PDF do orçamento. Todos em [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
 - **Decisões encerradas:** variáveis de Preview do Firebase não cadastradas (só Production, Diretriz 1);
   conversão peso↔metragem **descartada** pelo dono (não repropor).
 
@@ -93,7 +81,8 @@ src/
                             #     SupplyAdjustModal, ProductionPage (/producao — registro de
                             #     impressão), NumberInput (compartilhado),
                             #     ProfitSummary (rentabilidade compartilhada),
-                            #     CostDetail (custo real × precificado, expansível — venda e /vendas),
+                            #     CostDetail (composição do custo: 1 ou 2 colunas —
+                            #       precificado × real; venda, /vendas, /producao, /estoque),
                             #     AuthGate (login)
     hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
                             #     useSupplies (coleção insumos — 7e),
@@ -103,6 +92,9 @@ src/
                             #     useFinishedGoods (coleção acabados — FEAT-05)
     lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv,
                             #     fifo (núcleo FIFO compartilhado: ordem + overdraft D4),
+                            #     production também exporta a ÁLGEBRA do custo congelado
+                            #       (FEAT-06: ZERO_FROZEN/frozenOf/sumFrozen/addFrozen/scaleFrozen —
+                            #       o breakdown atravessa 3 escalas: placa, unidade, unidade×qtd),
                             #     supplies (estoque de insumos 7e: gêmeo do stock em unidades),
                             #     saleContext (foto congelada da venda — helpers puros do SaleModal),
                             #     filaments (cores por impressão, FEAT-02), stock (FIFO do estoque:
@@ -113,7 +105,8 @@ src/
                             #     material+energia+deprec.+manut.+labor+INSUMOS),
                             #     finishedGoods (estoque de acabados FEAT-05: camadas FIFO —
                             #     addProductionLayers/removeEventLayers/consumeFifo/apply+reverse
-                            #     FinishedConsumption/assemblableWholes/goodValue/assemblyBreakdown; puro),
+                            #     FinishedConsumption/assemblableWholes/goodValue/assemblyBreakdown +
+                            #     goodCostComposition (FEAT-06: valor parado DECOMPOSTO); puro),
                             #     productionPlan (builder puro produto/subitem→eventos: wholeEventRows/
                             #     subitemEventRows/planEventRows/buildProductionPayloads — usado pela
                             #     /producao E pela encomenda do passo 8),
@@ -123,7 +116,9 @@ src/
                             #     testado em paymentFees.test.ts via vitest)
     constants.ts, types.ts
   lib/
-    firebase/               # client.ts (init + db), productsRepository.ts (CRUD + subscribe),
+    firebase/               # client.ts (init + db), frozenCost.ts (FEAT-06: serialização do
+                            #   FrozenCostBreakdown — o mesmo objeto vai p/ 3 coleções),
+                            #   productsRepository.ts (CRUD + subscribe),
                             #   machinesRepository.ts (doc config/machines, realtime),
                             #   salesRepository.ts (coleção `vendas`, snapshots congelados;
                             #     reconcileRecibo = batch atômico vendas+producao+estoque+acabados — passo 8),

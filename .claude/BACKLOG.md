@@ -15,9 +15,8 @@
 
 1. ~~**UX / organização**~~ ✅ **FECHADA** — UX-01 · FEAT-07 · UX-02 · FEAT-08.
 2. ~~**7e — Insumos/acessórios no estoque**~~ ✅ **FECHADO (2026-07-20)**.
-3. **FEAT-06** (aba Produtos rica / composição congelada) — **◀ PRÓXIMA** (o 7e, seu pré-requisito,
-   já fechou: o quadro de custo a congelar agora inclui insumos).
-4. **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
+3. ~~**FEAT-06** (aba Produtos rica / composição congelada)~~ ✅ **FECHADO (2026-07-20)**.
+4. **FEAT-03** (PDF melhor) · **branding/logo real** no PDF — **◀ PRÓXIMA**.
 5. **Tier 4 inteiro** *(antecipado)*: numeração de orçamento no browser · labor na reserva de falha ·
    **DEC-01 pendência** (semântica do `contributionMargin`).
 6. **TD-003** (capacidade por-máquina) · **TD-006** (paginação) — **antes** do Dashboard.
@@ -92,30 +91,13 @@
   **Onde:** `generateQuotePdf.ts` + `QuotePage`/`config/orcamento`. Lista completa em `HISTORICO.md`.
 - **[branding/logo real]** trocar o logo placeholder (impressora) pela logo real no PDF — já há
   comentário no código. Overlap com FEAT-03.
-- **[FEAT-06] Aba Produtos rica** *(◀ PRÓXIMA)* — cada card da aba Produtos (`/estoque`) mostra os dados completos do
-  produto (composição de custo, margem, subitens, etapas…) mas com os **custos CONGELADOS** da
-  fabricação. **Decisão do dono: opção (b)** — o acabado passa a guardar a **composição inteira
-  congelada na produção** (`FinishedLayer`/evento `producao` ganham um `SaleCostBreakdown`), não puxa do
-  produto vivo. Consequência: o `costBreakdown` da venda de peça pronta passa a vir da camada congelada
-  (hoje é stopgap do snapshot do catálogo). **Onde:** `StockPage` + reusar `CostBars`/`ProfitSummary`.
-  Contexto completo em `HISTORICO.md`.
-  - **Incluir a `/producao` no escopo (levantado pelo dono, 2026-07-20).** A página mostra custo em
-    **dois** lugares e em nenhum diz *qual* custo é nem detalha: a prévia antes de salvar
-    (`ProductionPage.tsx:794`, "custo R$ x" = Σ dos eventos planejados) e o cartão de cada produção
-    recente (`ProductionPage.tsx:913`, só o `frozenCost` solto na lateral, sem nem a palavra "custo").
-    É o **custo real gasto** — o mesmo número que na venda aparece como "Custo real (base do lucro)":
-    `productionCost()` = material FIFO + energia + desgaste + manutenção + mão de obra + insumos, **sem**
-    reserva de falha e **sem** custo fixo.
-  - **Por que só dá pra detalhar dentro do FEAT-06:** o evento guarda o `frozenCost` como **um número
-    só** (`types.ts:653`) — a composição não é persistida. Reconstruir hoje só funciona pela metade:
-    material e insumos saem fiéis dos arrays congelados (`filaments`/`supplies`), mas energia/desgaste/
-    manutenção teriam que ser recalculados da **máquina viva** (editar watts/preço faz os componentes
-    pararem de somar o total gravado) e a **mão de obra não está gravada em lugar nenhum** do evento —
-    só sairia como resíduo. Gravar o `SaleCostBreakdown` no evento (o que o FEAT-06 já vai fazer)
-    resolve os três de uma vez.
-  - **Entregável extra:** rotular os dois números como "custo real gasto" e pendurar neles o mesmo
-    popover de composição da venda (`CostDetail.tsx`), reusando o componente. Vale só pra produções
-    **novas** (as antigas não têm o breakdown) — sem migração, Diretriz 7.
+- ~~**[FEAT-06] Aba Produtos rica / composição congelada**~~ ✅ **FEITO (2026-07-20)** — evento, camada
+  do acabado e venda passaram a guardar o `FrozenCostBreakdown`; `CostDetail` ganhou o modo de 2 colunas
+  (precificado × real); `/producao` rotulou os dois números órfãos; aba Produtos ganhou composição,
+  custo/un, mini-barras e margem congelada. Writeup + as 3 decisões em `HISTORICO.md`.
+  - **Follow-up que ficou:** `machineRoi.ts:63` segue lendo `costBreakdown.depreciation` (o
+    **precificado**). Com o `realCostBreakdown` agora gravado nas vendas novas, dá para migrar o ROI
+    para a depreciação **real** — muda o número em silêncio, então é decisão do dono. Item de Tier 4.
 
 ### Tier 3 — infra de cálculo/leitura (TD-*) e, por último, o Dashboard
 > Ordem interna: **TD-003 → TD-006 → Dashboard** (o Dashboard é o último item do backlog).
@@ -131,6 +113,9 @@
 ### Tier 4 — menores/oportunistas
 - **Numeração de orçamento derivada no browser** — 2 abas/2 cliques podem repetir o número.
 - **Labor incluído na reserva de falha** — impacto de centavos.
+- **[ROI pela depreciação real]** — `machineRoi.ts:63` usa a depreciação **precificada** da venda. As
+  vendas novas já têm `realCostBreakdown.depreciation` (FEAT-06). Trocar muda o payback exibido sem
+  aviso, e vendas antigas não têm o campo — decidir se vale.
 - **[DEC-01 pendência] Semântica do `contributionMargin`** — hoje é o **LUCRO por peça**, não a margem
   de contribuição clássica; alimenta só o ponto de equilíbrio. **Decisão que falta:** corrigir o
   cálculo do break-even (muda comportamento — o ponto diminui) ou só renomear a variável. Ver a NOTA no

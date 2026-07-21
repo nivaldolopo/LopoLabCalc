@@ -418,6 +418,135 @@
   white-space: nowrap;
 }
 
+/* ---------------------------------------------------------------------------
+   FEAT-06 — o card do acabado passou a mostrar de que é feito o custo parado.
+   --------------------------------------------------------------------------- */
+
+/* Custo congelado médio da SKU, ao lado do saldo. */
+.fg-part-cost {
+  font-size: 12px;
+  color: var(--muted2);
+  white-space: nowrap;
+}
+
+/* Paleta dos 6 componentes. Vive aqui (e não na base) porque só a composição de
+   custo usa: material puxa o accent da marca por ser quase sempre o dominante; o
+   resto acompanha em tons distinguíveis nos dois temas. */
+.fg-comp {
+  --c-material: var(--accent);
+  --c-labor: #2f7d8c;
+  --c-supplies: #7a5ea8;
+  --c-energy: #d9a021;
+  --c-depreciation: #6b7a99;
+  --c-maintenance: #a8617a;
+  margin-top: 10px;
+}
+
+[data-theme="dark"] .fg-comp {
+  --c-labor: #4db6c8;
+  --c-supplies: #a688d8;
+  --c-energy: #e8bc4d;
+  --c-depreciation: #8fa0c0;
+  --c-maintenance: #cf869e;
+}
+
+.fg-comp-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--border-soft);
+}
+
+/* `flex-grow` recebe o valor do componente (inline, no TSX): a largura sai
+   proporcional sozinha, sem calcular porcentagem nem depender de arredondamento. */
+.fg-comp-seg {
+  min-width: 2px;
+}
+
+.fg-comp-seg.material,
+.fg-comp-dot.material {
+  background: var(--c-material);
+}
+.fg-comp-seg.labor,
+.fg-comp-dot.labor {
+  background: var(--c-labor);
+}
+.fg-comp-seg.supplies,
+.fg-comp-dot.supplies {
+  background: var(--c-supplies);
+}
+.fg-comp-seg.energy,
+.fg-comp-dot.energy {
+  background: var(--c-energy);
+}
+.fg-comp-seg.depreciation,
+.fg-comp-dot.depreciation {
+  background: var(--c-depreciation);
+}
+.fg-comp-seg.maintenance,
+.fg-comp-dot.maintenance {
+  background: var(--c-maintenance);
+}
+
+.fg-comp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.fg-comp-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.fg-comp-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+/* Margem congelada: preço sugerido VIVO × custo da peça que está na prateleira. */
+.fg-margin {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.fg-margin-val {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--green);
+}
+
+.fg-margin-val.sale-neg {
+  color: var(--accent);
+}
+
+.fg-margin-val strong {
+  font-size: 14px;
+}
+
+.fg-margin-val em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--muted2);
+}
+
 .inline-link {
   color: var(--accent);
   text-decoration: underline;
