@@ -316,6 +316,22 @@ export type SaleCostBreakdown = {
   fixed: number;
 };
 
+// FEAT-06 — composição do custo REAL GASTO, congelada no momento da impressão.
+// Espelha `ProductionCostBreakdown` (lib/production) SEM o `total`: ele é
+// derivável (`sumFrozen`) e ter dois campos que precisam bater é convite a drift.
+// NÃO tem `failureReserve`/`fixed` — são provisões de PREÇO, não gasto; quem as
+// carrega é o `SaleCostBreakdown` acima. E o campo é `supplies` (não
+// `accessories`): aqui é o que de fato saiu do estoque de insumos via FIFO.
+// Invariante: Σ dos 6 campos === o total congelado (`frozenCost`/`unitCost`).
+export type FrozenCostBreakdown = {
+  material: number;
+  energy: number;
+  depreciation: number;
+  maintenance: number;
+  labor: number;
+  supplies: number;
+};
+
 // Passo 8: origem de reconciliação de UM item vendido. `acabado` = peça pronta,
 // decrementa o Estoque de Produtos (FEAT-05) via `consumeFifo` SEM rebaixar
 // filamento (o insumo já saiu na produção). `encomenda` = feita sob demanda, cria

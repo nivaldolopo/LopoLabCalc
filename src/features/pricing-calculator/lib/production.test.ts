@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  addFrozen,
+  frozenOf,
   planProduction,
   planSupplies,
   productionCost,
   reverseProduction,
   reverseSupplies,
+  scaleFrozen,
+  sumFrozen,
+  ZERO_FROZEN,
 } from "./production";
 import { balanceG } from "./stock";
 import type {
@@ -331,6 +336,64 @@ describe("productionCost", () => {
     expect(cost.maintenance).toBe(0);
     // material e labor não dependem de hora.
     expect(cost.total).toBe(6);
+  });
+
+  // FEAT-06: o invariante que sustenta a feature inteira. Se alguém acrescentar
+  // um 7º componente e esquecer de somá-lo no `total` (ou vice-versa), o custo
+  // congelado passa a mentir na hora de detalhar — este teste pega.
+  it("FEAT-06: a soma dos componentes é exatamente o total", () => {
+    const cost = productionCost(machine, 2, 0.8, 5, 3, 1.5);
+    expect(sumFrozen(frozenOf(cost))).toBeCloseTo(cost.total, 6);
+  });
+});
+
+describe("álgebra do custo congelado (FEAT-06)", () => {
+  const a = {
+    material: 5,
+    energy: 0.16,
+    depreciation: 2,
+    maintenance: 1,
+    labor: 3,
+    supplies: 1.5,
+  };
+
+  it("frozenOf descarta o total e preserva os 6 componentes", () => {
+    const cost = { ...a, total: 999 };
+    expect(frozenOf(cost)).toEqual(a);
+  });
+
+  it("sumFrozen soma os 6 campos", () => {
+    expect(sumFrozen(a)).toBeCloseTo(12.66, 6);
+  });
+
+  it("addFrozen é campo a campo e a soma acompanha", () => {
+    const soma = addFrozen(a, a);
+    expect(soma.material).toBe(10);
+    expect(sumFrozen(soma)).toBeCloseTo(sumFrozen(a) * 2, 6);
+  });
+
+  it("addFrozen com ZERO_FROZEN é identidade", () => {
+    expect(addFrozen(a, ZERO_FROZEN)).toEqual(a);
+  });
+
+  // A propriedade que garante o invariante nas travessias de escala: escalar o
+  // breakdown e escalar o total pelo MESMO fator dão o mesmo número.
+  it("scaleFrozen preserva a razão com o total", () => {
+    expect(sumFrozen(scaleFrozen(a, 0.25))).toBeCloseTo(sumFrozen(a) * 0.25, 6);
+  });
+
+  it("scaleFrozen por 0 zera tudo", () => {
+    expect(scaleFrozen(a, 0)).toEqual(ZERO_FROZEN);
+  });
+
+  // Overdraft (D4) e estorno atravessam fator negativo — não clampar.
+  it("scaleFrozen aceita fator negativo (saldo negativo D4)", () => {
+    expect(sumFrozen(scaleFrozen(a, -2))).toBeCloseTo(-sumFrozen(a) * 2, 6);
+  });
+
+  it("scaleFrozen com fator lixo cai para zero, sem NaN", () => {
+    const sujo = scaleFrozen(a, Number.NaN);
+    expect(sujo).toEqual(ZERO_FROZEN);
   });
 });
 

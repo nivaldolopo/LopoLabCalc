@@ -12,6 +12,7 @@ import {
 import { filamentTotalG } from "./filaments";
 import type {
   FilamentUsage,
+  FrozenCostBreakdown,
   Machine,
   ProductionMode,
   StockFilament,
@@ -272,15 +273,12 @@ export function reverseSupplies(
 // argumento das provisões, mas o ímã não é provisão: ele sai da gaveta e é
 // cobrado do cliente (`calculatePricing`). Fora do custo congelado, o lucro por
 // peça do histórico saía superestimado — este era o buraco de COGS do 7e.
-export type ProductionCostBreakdown = {
-  material: number;
-  energy: number;
-  depreciation: number;
-  maintenance: number;
-  labor: number;
-  supplies: number;
-  total: number;
-};
+//
+// FEAT-06 — a decomposição deixou de ser descartada no save. O tipo agora deriva
+// de `FrozenCostBreakdown` (types.ts) para que os 6 componentes tenham UMA
+// definição só: o que roda aqui é o mesmo objeto que é congelado no evento e na
+// camada do acabado, com o `total` a mais.
+export type ProductionCostBreakdown = FrozenCostBreakdown & { total: number };
 
 export function productionCost(
   machine: Machine,
@@ -308,5 +306,78 @@ export function productionCost(
     labor,
     supplies,
     total: material + energy + depreciation + maintenance + labor + supplies,
+  };
+}
+
+// --- Álgebra do custo congelado (FEAT-06) -----------------------------------
+//
+// O breakdown viaja por três escalas diferentes — evento (placa), camada de
+// acabado (unidade) e venda (unidade × quantidade) — e em cada travessia alguém
+// precisa somar ou escalar os 6 componentes. Centralizar aqui evita cópias do
+// mesmo spread espalhadas por `productionPlan`, `finishedGoods` e
+// `saleReconciliation`, e mantém UMA regra: escalar é sempre um fator escalar
+// único aplicado a todos os campos, para que `sumFrozen` continue batendo com o
+// total que foi escalado pelo MESMO fator.
+
+export const ZERO_FROZEN: FrozenCostBreakdown = {
+  material: 0,
+  energy: 0,
+  depreciation: 0,
+  maintenance: 0,
+  labor: 0,
+  supplies: 0,
+};
+
+// Descarta o `total` — a persistência guarda só os componentes.
+export function frozenOf(cost: ProductionCostBreakdown): FrozenCostBreakdown {
+  return {
+    material: cost.material,
+    energy: cost.energy,
+    depreciation: cost.depreciation,
+    maintenance: cost.maintenance,
+    labor: cost.labor,
+    supplies: cost.supplies,
+  };
+}
+
+export function sumFrozen(breakdown: FrozenCostBreakdown): number {
+  return (
+    breakdown.material +
+    breakdown.energy +
+    breakdown.depreciation +
+    breakdown.maintenance +
+    breakdown.labor +
+    breakdown.supplies
+  );
+}
+
+export function addFrozen(
+  a: FrozenCostBreakdown,
+  b: FrozenCostBreakdown,
+): FrozenCostBreakdown {
+  return {
+    material: a.material + b.material,
+    energy: a.energy + b.energy,
+    depreciation: a.depreciation + b.depreciation,
+    maintenance: a.maintenance + b.maintenance,
+    labor: a.labor + b.labor,
+    supplies: a.supplies + b.supplies,
+  };
+}
+
+// `factor` pode ser negativo (estorno) — não clampar: um saldo negativo de
+// acabados (overdraft D4) precisa refletir o buraco, igual `skuValue` já faz.
+export function scaleFrozen(
+  breakdown: FrozenCostBreakdown,
+  factor: number,
+): FrozenCostBreakdown {
+  const f = num(factor);
+  return {
+    material: breakdown.material * f,
+    energy: breakdown.energy * f,
+    depreciation: breakdown.depreciation * f,
+    maintenance: breakdown.maintenance * f,
+    labor: breakdown.labor * f,
+    supplies: breakdown.supplies * f,
   };
 }
