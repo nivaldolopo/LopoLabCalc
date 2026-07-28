@@ -105,6 +105,11 @@
 - **[Dashboard] (`/painel`)** — receita/custo/lucro do mês, lucro líquido (menos custos fixos),
   utilização das máquinas (comprar outra?), receita por máquina, lucro por material, produto mais
   lucrativo. Só vale com ~1-2 meses de vendas no banco.
+  - **Perda por falha + taxa observada:** o `/producao` já grava os eventos `outcome: "falha"` (baixa
+    de material/horas, sem creditar acabado — só histórico de uso). Consolidar aqui: material/horas/R$
+    perdidos por período e a **taxa de falha OBSERVADA** (falhas ÷ total de impressões) — o número que
+    embasa calibrar a taxa arbitrária da precificação. ⚠ **Só relatório** — NÃO realimentar a
+    `failureRate` do preço automaticamente (dial manual desacoplado de propósito; ver memória).
 - **[TD-003] Capacidade não é por-máquina** em produto multi-etapa (`calculateCapacity.ts` soma horas e
   multiplica por `machines` genérico). Atacar **junto do Dashboard** — é a base do "gargalo".
 - **[TD-006] Paginação** — `subscribeProducts`/`useSales` assinam a coleção inteira. Ok hoje; revisitar
