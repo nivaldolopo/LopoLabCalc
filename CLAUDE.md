@@ -23,9 +23,10 @@
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real agora é **decomponível ponta a ponta** (produção → acabado → venda).
-- **▶ PRÓXIMA TAREFA sugerida:** **FEAT-03 — melhorar o PDF do orçamento** + **branding/logo real**
-  (guarda-chuva: o dono escolhe quais ideias-semente viram tarefa — ver o item no BACKLOG).
-  **Ordem (dono, 2026-07-20):** FEAT-03/branding → **Tier 4 inteiro** → TD-003/TD-006 → Dashboard
+- **▶ PRÓXIMA TAREFA sugerida:** **Tier 4 inteiro** — numeração de orçamento no browser · labor na
+  reserva de falha · **DEC-01** (semântica do `contributionMargin`) · ROI pela depreciação real
+  (ver os itens no BACKLOG).
+  **Ordem (dono, 2026-07-31):** Tier 4 inteiro → TD-003/TD-006 → **FEAT-03/branding** → Dashboard
   (último). As trilhas de UX (UX-01/FEAT-07/UX-02/FEAT-08) e de custo (7e/FEAT-06) estão **fechadas**.
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).

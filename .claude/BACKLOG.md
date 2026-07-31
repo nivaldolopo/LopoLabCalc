@@ -11,15 +11,16 @@
 
 ## Ordem de prioridade
 
-> **Reordenado em 2026-07-20** pelo dono (ver "Porquês da ordem" abaixo).
+> **Reordenado em 2026-07-20** pelo dono; **FEAT-03 movido para penúltimo em 2026-07-31**
+> (ver "Porquês da ordem" abaixo).
 
 1. ~~**UX / organização**~~ ✅ **FECHADA** — UX-01 · FEAT-07 · UX-02 · FEAT-08.
 2. ~~**7e — Insumos/acessórios no estoque**~~ ✅ **FECHADO (2026-07-20)**.
 3. ~~**FEAT-06** (aba Produtos rica / composição congelada)~~ ✅ **FECHADO (2026-07-20)**.
-4. **FEAT-03** (PDF melhor) · **branding/logo real** no PDF — **◀ PRÓXIMA**.
-5. **Tier 4 inteiro** *(antecipado)*: numeração de orçamento no browser · labor na reserva de falha ·
-   **DEC-01 pendência** (semântica do `contributionMargin`).
-6. **TD-003** (capacidade por-máquina) · **TD-006** (paginação) — **antes** do Dashboard.
+4. **Tier 4 inteiro** *(antecipado)*: numeração de orçamento no browser · labor na reserva de falha ·
+   **DEC-01 pendência** (semântica do `contributionMargin`) — **◀ PRÓXIMA**.
+5. **TD-003** (capacidade por-máquina) · **TD-006** (paginação) — **antes** do Dashboard.
+6. **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
 7. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real.
 
 ### Porquês da ordem (decisões de 2026-07-20)
@@ -39,6 +40,10 @@
   horas de máquina do histórico vêm dos eventos de produção somados por `machineId`
   (`machineRoi.ts:87-89`) — dado real, já correto. TD-003 afeta só a **projeção** de capacidade na
   tela; TD-006 é custo/desempenho de **leitura**. O registro do `/maquinas` não está contaminado.
+- **FEAT-03 desceu pra penúltimo (dono, 2026-07-31):** o PDF/branding é comercial mas não bloqueia
+  nada do fluxo de custo/estoque; o dono preferiu fechar a infra de cálculo (Tier 4 + TD-003/TD-006)
+  antes de investir no acabamento do orçamento. Segue **antes** do Dashboard (que é sempre o último —
+  só vale com venda real acumulada).
 
 > Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
