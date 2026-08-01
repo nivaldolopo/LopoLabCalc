@@ -17,9 +17,9 @@
 1. ~~**UX / organização**~~ ✅ **FECHADA** — UX-01 · FEAT-07 · UX-02 · FEAT-08.
 2. ~~**7e — Insumos/acessórios no estoque**~~ ✅ **FECHADO (2026-07-20)**.
 3. ~~**FEAT-06** (aba Produtos rica / composição congelada)~~ ✅ **FECHADO (2026-07-20)**.
-4. **Tier 4 inteiro** *(antecipado)*: numeração de orçamento no browser · labor na reserva de falha ·
-   **DEC-01 pendência** (semântica do `contributionMargin`) — **◀ PRÓXIMA**.
-5. **TD-003** (capacidade por-máquina) · **TD-006** (paginação) — **antes** do Dashboard.
+4. ~~**Tier 4 inteiro**~~ ✅ **FECHADO (2026-07-31)** — numeração atômica · DEC-01 renomeado · ROI real ·
+   labor na reserva mantido.
+5. **TD-003** (capacidade por-máquina) · **TD-006** (paginação) — **antes** do Dashboard — **◀ PRÓXIMA**.
 6. **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
 7. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real.
 
@@ -100,9 +100,7 @@
   do acabado e venda passaram a guardar o `FrozenCostBreakdown`; `CostDetail` ganhou o modo de 2 colunas
   (precificado × real); `/producao` rotulou os dois números órfãos; aba Produtos ganhou composição,
   custo/un, mini-barras e margem congelada. Writeup + as 3 decisões em `HISTORICO.md`.
-  - **Follow-up que ficou:** `machineRoi.ts:63` segue lendo `costBreakdown.depreciation` (o
-    **precificado**). Com o `realCostBreakdown` agora gravado nas vendas novas, dá para migrar o ROI
-    para a depreciação **real** — muda o número em silêncio, então é decisão do dono. Item de Tier 4.
+  - ~~**Follow-up (ROI real)**~~ ✅ **FEITO (2026-07-31, Tier 4)** — ver abaixo.
 
 ### Tier 3 — infra de cálculo/leitura (TD-*) e, por último, o Dashboard
 > Ordem interna: **TD-003 → TD-006 → Dashboard** (o Dashboard é o último item do backlog).
@@ -120,16 +118,18 @@
 - **[TD-006] Paginação** — `subscribeProducts`/`useSales` assinam a coleção inteira. Ok hoje; revisitar
   quando `/vendas` acumular meses.
 
-### Tier 4 — menores/oportunistas
-- **Numeração de orçamento derivada no browser** — 2 abas/2 cliques podem repetir o número.
-- **Labor incluído na reserva de falha** — impacto de centavos.
-- **[ROI pela depreciação real]** — `machineRoi.ts:63` usa a depreciação **precificada** da venda. As
-  vendas novas já têm `realCostBreakdown.depreciation` (FEAT-06). Trocar muda o payback exibido sem
-  aviso, e vendas antigas não têm o campo — decidir se vale.
-- **[DEC-01 pendência] Semântica do `contributionMargin`** — hoje é o **LUCRO por peça**, não a margem
-  de contribuição clássica; alimenta só o ponto de equilíbrio. **Decisão que falta:** corrigir o
-  cálculo do break-even (muda comportamento — o ponto diminui) ou só renomear a variável. Ver a NOTA no
-  `calculatePricing.ts` e o detalhe em `HISTORICO.md`.
+### Tier 4 — menores/oportunistas ✅ FECHADO (2026-07-31)
+- ~~**Numeração de orçamento derivada no browser**~~ ✅ **FEITO** — contador atômico `config/orcamentoSeq`
+  (transação), reservado ANTES do PDF; `reserveQuoteNumber` em `quotesRepository.ts`. Efeito colateral
+  aceito: offline não gera mais orçamento (o número precisa ser reservado no servidor).
+- ~~**Labor incluído na reserva de falha**~~ ✅ **DECIDIDO: manter** (dono, 2026-07-31) — labor segue no
+  `printingCost` e, portanto, na reserva de falha. Sem mudança de código.
+- ~~**[ROI pela depreciação real]**~~ ✅ **FEITO** — `machineRoi.ts` usa `realCostBreakdown.depreciation`
+  (FEAT-06) na depreciação recuperada, repartida entre máquinas na proporção da precificada; venda antiga
+  (sem o campo) cai no fallback precificado. Payback/lucro não mudaram (seguem por horas).
+- ~~**[DEC-01] Semântica do `contributionMargin`**~~ ✅ **FEITO: opção A (renomear)** (dono, 2026-07-31) —
+  `contributionMargin` → `profitPerPiece`; cálculo e ponto de equilíbrio idênticos. Opção B (corrigir o
+  break-even) descartada.
 
 ### 7e — Insumos no estoque
 - ~~**[7e] Insumos no estoque**~~ ✅ **FEITO (2026-07-20)** — coleção `insumos` com FIFO por lote, 3ª

@@ -19,16 +19,19 @@ export type MachineRoi = {
   //   eventos), então é soma direta por `machineId`, sem repartição.
   // • DINHEIRO (payback/lucro/receita/depreciação recuperada) vem das VENDAS —
   //   é sobre o que voltou em caixa. Atribuição por `machineUsage` (congelado na
-  //   venda): cada máquina recebe a DEPRECIAÇÃO exata que rodou e uma fatia do
-  //   LUCRO/RECEITA proporcional às suas horas; vendas antigas (sem
-  //   `machineUsage`) caem no fallback: tudo na máquina principal (`machineId`).
+  //   venda): cada máquina recebe uma fatia do LUCRO/RECEITA proporcional às suas
+  //   horas; vendas antigas (sem `machineUsage`) caem no fallback: tudo na
+  //   máquina principal (`machineId`). A DEPRECIAÇÃO recuperada usa o custo REAL
+  //   congelado na produção (`realCostBreakdown`, FEAT-06), repartido entre as
+  //   máquinas na proporção da depreciação precificada; venda anterior ao FEAT-06
+  //   cai na precificada.
   printedCount: number; // nº de impressões (eventos de produção) nesta máquina
   printedHours: number; // Σ printHours dos eventos de produção desta máquina
   salesCount: number; // nº de vendas em que a máquina participou
   units: number; // Σ quantity vendida
   revenue: number; // Σ totalRevenue
   profit: number; // Σ profit (já líquido de taxa)
-  depreciationRecovered: number; // Σ costBreakdown.depreciation × quantity
+  depreciationRecovered: number; // Σ realCostBreakdown.depreciation × quantity (fallback: precificada)
   firstSaleDate: number | null;
   lastSaleDate: number | null;
 
@@ -109,9 +112,28 @@ export function computeMachineRoi(
       const fraction =
         totalHours > 0 ? num(share.hours) / totalHours : 1 / shares.length;
 
+      // Depreciação RECUPERADA (Tier 4): usa a composição REAL congelada na
+      // produção (`realCostBreakdown`, FEAT-06), não a precificada do preço. O
+      // real é um total por unidade; repartimos entre as máquinas da venda na
+      // MESMA proporção da depreciação precificada por máquina (`machineUsage`).
+      // Venda sem `realCostBreakdown` (anterior ao FEAT-06) cai na precificada —
+      // o comportamento antigo, sem quebrar.
+      let unitDepreciation = num(share.depreciation);
+      if (sale.realCostBreakdown) {
+        const pricedTotal = shares.reduce(
+          (sum, s) => sum + num(s.depreciation),
+          0,
+        );
+        unitDepreciation =
+          pricedTotal > 0
+            ? num(sale.realCostBreakdown.depreciation) *
+              (num(share.depreciation) / pricedTotal)
+            : num(sale.realCostBreakdown.depreciation) / shares.length;
+      }
+
       salesCount += 1;
       units += qty;
-      depreciationRecovered += num(share.depreciation) * qty;
+      depreciationRecovered += unitDepreciation * qty;
       revenue += num(sale.totalRevenue) * fraction;
       profit += num(sale.profit) * fraction;
 

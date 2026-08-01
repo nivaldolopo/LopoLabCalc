@@ -408,8 +408,8 @@ function CatalogDetails({
 
   const totalFixedMonth = fixedCosts.rent + fixedCosts.other;
   const breakEvenUnits =
-    totalFixedMonth > 0 && result.contributionMargin > 0
-      ? Math.ceil(totalFixedMonth / result.contributionMargin)
+    totalFixedMonth > 0 && result.profitPerPiece > 0
+      ? Math.ceil(totalFixedMonth / result.profitPerPiece)
       : null;
 
   const capacityResult = calculateCapacity(result, product, capacitySettings);

@@ -234,7 +234,11 @@ export type PricingResult = {
   margin: number;
   pieces: number;
   stagesCount: number;
-  contributionMargin: number;
+  // DEC-01 (opção A, resolvida): o LUCRO por peça (suggestedPrice − totalCost),
+  // NÃO a margem de contribuição clássica. Alimenta só o ponto de equilíbrio
+  // (custoFixoMês / profitPerPiece). Renomeado de `contributionMargin` para
+  // refletir a semântica real sem mudar o cálculo. Ver NOTA em calculatePricing.
+  profitPerPiece: number;
   // FEAT-02: consumo de filamento por cor do produto inteiro (etapa principal +
   // extras), agregado por cor. Pesos POR IMPRESSÃO (o que o spool perde de fato,
   // incluindo torre/purga) — não divididos por peça. mono vs multicolor =

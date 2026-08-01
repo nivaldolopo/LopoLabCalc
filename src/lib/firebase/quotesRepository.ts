@@ -4,6 +4,7 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
+  runTransaction,
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
@@ -64,6 +65,32 @@ export function subscribeQuotes(
     },
     (error) => onError(error),
   );
+}
+
+// Contador atômico da numeração de orçamento. Antes o próximo número era
+// derivado no browser (max do histórico + 1): duas abas ou dois cliques rápidos
+// geravam o MESMO número. Aqui uma transação reserva o número no servidor antes
+// de gerar o PDF, garantindo unicidade sob concorrência.
+//
+// `historyFloor` = maior `numberValue` já no histórico; semeia o contador na 1ª
+// vez (doc ainda inexistente) e serve de piso caso o doc seja apagado. `preferred`
+// = número digitado à mão pelo dono (override); quando ausente, usa piso + 1.
+// O contador NÃO decresce ao excluir orçamentos (sequência monotônica, correta
+// para números reais) — para zerar, apague o doc `config/orcamentoSeq`.
+const seqRef = doc(db, "config", "orcamentoSeq");
+
+export async function reserveQuoteNumber(
+  historyFloor: number,
+  preferred?: number,
+): Promise<number> {
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(seqRef);
+    const stored = snap.exists() ? num(snap.data().last) : 0;
+    const last = Math.max(stored, Math.max(0, num(historyFloor)));
+    const next = preferred != null && preferred > 0 ? preferred : last + 1;
+    tx.set(seqRef, { last: Math.max(last, next) }, { merge: true });
+    return next;
+  });
 }
 
 export async function createQuote(payload: QuoteRecordPayload): Promise<void> {

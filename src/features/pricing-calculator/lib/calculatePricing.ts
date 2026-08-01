@@ -361,14 +361,15 @@ export function calculatePricing(
     }
   }
 
-  // NOTA (DEC-01, pendência): sem markup no fixo, `contributionPrice` desconta o
-  // fixo → `contributionMargin` fica = suggestedPrice − totalCost, ou seja o
-  // LUCRO por peça, não a margem de contribuição clássica (preço − custo
-  // variável). Nome impróprio, mantido idêntico ao comportamento anterior de
-  // propósito (opção A). Corrigir a semântica mudaria o ponto de equilíbrio
-  // (opção B, adiada). Ver DEC-01 no CLAUDE.md.
-  const contributionPrice = suggestedPrice - fixedCost;
-  const contributionMargin = contributionPrice - variableCost;
+  // DEC-01 (opção A, RESOLVIDA — dono, 2026-07-31): sem markup no fixo,
+  // `priceMinusFixed` desconta o fixo → o resultado é suggestedPrice − totalCost,
+  // ou seja o LUCRO por peça, não a margem de contribuição clássica (preço −
+  // custo variável). Optou-se por RENOMEAR (`contributionMargin` → `profitPerPiece`)
+  // e manter o cálculo idêntico — o ponto de equilíbrio não muda. Corrigir a
+  // semântica (margem de contribuição de verdade) mudaria o break-even (opção B,
+  // descartada).
+  const priceMinusFixed = suggestedPrice - fixedCost;
+  const profitPerPiece = priceMinusFixed - variableCost;
   const margin =
     suggestedPrice > 0
       ? ((suggestedPrice - totalCost) / suggestedPrice) * 100
@@ -392,7 +393,7 @@ export function calculatePricing(
     margin,
     pieces,
     stagesCount: stagesList.length,
-    contributionMargin,
+    profitPerPiece,
     filaments: mergeFilaments(allFilaments),
     machineUsage,
     machineMissing: anyMachineMissing,

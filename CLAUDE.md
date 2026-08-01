@@ -14,19 +14,19 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **FEAT-06 — composição de custo CONGELADA na produção.** O `FrozenCostBreakdown`
-  (6 componentes, sem provisões) passou a ser gravado no evento, na camada do acabado e na venda
-  (`realCostBreakdown`, ao lado do precificado) ⇒ **o stopgap do COGS morreu** e o custo real virou
-  detalhável na venda, na `/producao` e na aba Produtos (`CostDetail` em 2 colunas). 281 testes.
-  ⚠ Zero migração: **produção/venda ANTERIOR só tem o total** — o popover de composição só aparece
-  nas novas (totais/lucro/margem das antigas seguem corretos).
+- **Última mudança:** **✅ TIER 4 FECHADO** (dono, 2026-07-31) — 4 itens: (1) **numeração de orçamento
+  atômica** (transação no `config/orcamentoSeq`, reservada antes do PDF — acaba a colisão de 2 abas/2
+  cliques; offline não gera mais, precisa reservar no servidor); (2) **DEC-01 = opção A**:
+  `contributionMargin` → **`profitPerPiece`** (só rename, cálculo/break-even idênticos); (3) **ROI pela
+  depreciação REAL** — `/maquinas` usa `realCostBreakdown.depreciation` (FEAT-06), repartida entre
+  máquinas na proporção da precificada (venda antiga cai no fallback precificado); (4) **labor na reserva
+  de falha = MANTIDO** (decidido, sem código). 283 testes.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
-  Custo real agora é **decomponível ponta a ponta** (produção → acabado → venda).
-- **▶ PRÓXIMA TAREFA sugerida:** **Tier 4 inteiro** — numeração de orçamento no browser · labor na
-  reserva de falha · **DEC-01** (semântica do `contributionMargin`) · ROI pela depreciação real
-  (ver os itens no BACKLOG).
-  **Ordem (dono, 2026-07-31):** Tier 4 inteiro → TD-003/TD-006 → **FEAT-03/branding** → Dashboard
+  Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
+- **▶ PRÓXIMA TAREFA sugerida:** **TD-003** (capacidade por-máquina em produto multi-etapa) → **TD-006**
+  (paginação) — **antes** do Dashboard (ver os porquês no BACKLOG).
+  **Ordem (dono, 2026-07-31):** ~~Tier 4~~ ✅ → **TD-003/TD-006** → **FEAT-03/branding** → Dashboard
   (último). As trilhas de UX (UX-01/FEAT-07/UX-02/FEAT-08) e de custo (7e/FEAT-06) estão **fechadas**.
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
@@ -34,8 +34,9 @@
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - **`/maquinas` (ROI):** cruza `price`/`lifeHours` com o histórico — 2 barras (payback do investimento
   e vida útil consumida); as horas vêm do **registro de produção** (FEAT-04c). Matemática pura em
-  `lib/machineRoi.ts` (recebe `sales` **e** `production`). Ele lê a depreciação **precificada** da
-  venda; migrar para a real virou item de Tier 4 (o campo já existe desde o FEAT-06).
+  `lib/machineRoi.ts` (recebe `sales` **e** `production`). A **depreciação recuperada** usa o custo
+  **REAL** (`realCostBreakdown`, Tier 4), repartido entre máquinas na proporção da precificada; venda
+  anterior ao FEAT-06 cai no fallback precificado. (Payback/lucro seguem por horas, não mudaram.)
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **Decisões encerradas:** variáveis de Preview do Firebase não cadastradas (só Production, Diretriz 1);

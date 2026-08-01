@@ -18,6 +18,7 @@ import { useProducts } from "../hooks/useProducts";
 import { useQuoteConfig } from "../hooks/useQuoteConfig";
 import { useQuotes } from "../hooks/useQuotes";
 import { useTheme } from "../hooks/useTheme";
+import { reserveQuoteNumber } from "@/lib/firebase/quotesRepository";
 import type { QuoteBusiness, QuoteRecord, QuoteRecordPayload } from "../types";
 import { NavBar } from "./NavBar";
 import { NumberInput } from "./NumberInput";
@@ -81,15 +82,18 @@ export function QuotePage() {
   const businessSeeded = useRef(false);
   const numberEdited = useRef(false);
 
-  // Próximo número = maior do histórico + 1 (ou 1 se vazio). Assim a numeração
-  // zera sozinha quando o histórico esvazia — sem contador separado no banco.
-  const nextNumber = useMemo(
+  // Sugestão exibida no campo Número = maior do histórico + 1 (ou 1 se vazio).
+  // É só sugestão: o número DEFINITIVO é reservado atomicamente no servidor na
+  // hora de gerar (reserveQuoteNumber), o que evita duas abas/cliques repetirem
+  // o mesmo número. `maxHistory` semeia/pisa o contador do servidor.
+  const maxHistory = useMemo(
     () =>
       quotes.length
-        ? Math.max(...quotes.map((quote) => quote.numberValue)) + 1
-        : 1,
+        ? Math.max(...quotes.map((quote) => quote.numberValue))
+        : 0,
     [quotes],
   );
+  const nextNumber = maxHistory + 1;
 
   // Semeia os dados do negócio quando o config chega (1x).
   useEffect(() => {
@@ -220,7 +224,17 @@ export function QuotePage() {
     }
     setFeedback(null);
 
-    const numberStr = String(quoteNumber).padStart(4, "0");
+    // O número é reservado no servidor (transação) ANTES do PDF, então precisa de
+    // conexão. Offline: a transação ficaria pendente para sempre — bloqueia com
+    // aviso antes de gerar qualquer coisa (o número precisa ser autoritativo).
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setFeedback({
+        kind: "error",
+        msg: "Sem conexão para gerar o orçamento (o número precisa ser reservado no servidor). Tente quando reconectar.",
+      });
+      return;
+    }
+
     const cleanItems = items.map((item) => ({
       description: item.description.trim(),
       quantity: Math.max(1, item.quantity || 1),
@@ -233,6 +247,25 @@ export function QuotePage() {
     const date = toTimestamp(dateStr);
     const days = Math.max(1, validityDays || 1);
 
+    setSaving(true);
+    let reserved: number;
+    try {
+      // Reserva atômica: quando o dono editou o campo, respeita o número digitado
+      // (override); senão, contador + 1. `maxHistory` semeia/pisa o contador.
+      reserved = await reserveQuoteNumber(
+        maxHistory,
+        numberEdited.current ? quoteNumber : undefined,
+      );
+    } catch (err) {
+      setFeedback({
+        kind: "error",
+        msg: `Não foi possível reservar o número do orçamento: ${(err as Error).message}. Tente de novo.`,
+      });
+      setSaving(false);
+      return;
+    }
+
+    const numberStr = String(reserved).padStart(4, "0");
     generateQuotePdf({
       business,
       number: numberStr,
@@ -246,7 +279,7 @@ export function QuotePage() {
     // Salva no histórico (congela o orçamento) + persiste os dados do negócio.
     const payload: QuoteRecordPayload = {
       number: numberStr,
-      numberValue: quoteNumber,
+      numberValue: reserved,
       customer: customer.trim(),
       date,
       validityDays: days,
@@ -258,16 +291,6 @@ export function QuotePage() {
     };
     // O PDF já baixou (client-side); a gravação no histórico pode falhar e antes
     // era fire-and-forget silenciosa. Agora aguarda e reporta (TD-004).
-    // Offline: o Firestore deixaria a Promise pendente para sempre (botão preso
-    // em "Gerando..."). Bloqueia o salvamento com aviso — o PDF já foi entregue.
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setFeedback({
-        kind: "error",
-        msg: "PDF gerado, mas sem conexão para salvar no histórico. Gere de novo quando reconectar.",
-      });
-      return;
-    }
-    setSaving(true);
     try {
       await Promise.all([addQuote(payload), saveBusiness(business)]);
       // Volta a numeração a seguir o histórico (o novo registro puxa o próximo nº).
@@ -279,7 +302,7 @@ export function QuotePage() {
     } catch (err) {
       setFeedback({
         kind: "error",
-        msg: `O PDF foi gerado, mas falhou ao salvar no histórico: ${(err as Error).message}. Tente gerar de novo.`,
+        msg: `O PDF foi gerado (nº ${numberStr}), mas falhou ao salvar no histórico: ${(err as Error).message}. Tente gerar de novo.`,
       });
     } finally {
       setSaving(false);

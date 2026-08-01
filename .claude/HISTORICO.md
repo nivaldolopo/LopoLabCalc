@@ -606,8 +606,20 @@ pendente da auditoria.
   `ProductCatalog`) — a aba Rentabilidade (`ProfitSummary`) NÃO usa, calcula lucro por conta
   (`suggestedPrice − totalCost`). Corrigir para a margem de contribuição correta faria o ponto de
   equilíbrio **diminuir** (margem maior) → é mudança de comportamento, mantida fora do DEC-01.
-  Decidir depois se vale corrigir o cálculo do break-even ou só renomear a variável. Ver a NOTA no
-  `calculatePricing.ts` (linha do `contributionPrice`). **Priorizada no Tier 4** (item 16).
+  Decidir depois se vale corrigir o cálculo do break-even ou só renomear a variável.
+  **✅ RESOLVIDO (2026-07-31, Tier 4) — opção A (renomear):** o dono optou por renomear
+  `contributionMargin` → **`profitPerPiece`** e manter o cálculo idêntico (o ponto de equilíbrio
+  não muda). Opção B (margem de contribuição de verdade, break-even menor) descartada.
+- ✅ **[Tier 4] Fechado (2026-07-31) — 4 itens.** (1) **Numeração de orçamento atômica:** o próximo
+  número era derivado no browser (`max(numberValue)+1`), e 2 abas/2 cliques repetiam. Agora
+  `reserveQuoteNumber` (`quotesRepository.ts`) reserva via transação num contador `config/orcamentoSeq`
+  ANTES de gerar o PDF (número autoritativo, sem colisão). Sequência monotônica (não decresce ao excluir;
+  para zerar, apagar o doc). Efeito colateral aceito: offline não gera mais orçamento. (2) **DEC-01 =
+  opção A** (ver acima). (3) **ROI pela depreciação real:** `machineRoi.ts` passou a usar
+  `realCostBreakdown.depreciation` (FEAT-06) na *depreciação recuperada*, repartida entre as máquinas na
+  proporção da precificada (`machineUsage`); venda anterior ao FEAT-06 cai no fallback precificado.
+  Payback/lucro não mudaram (seguem repartidos por horas). +2 testes. (4) **Labor na reserva de falha:**
+  decidido **manter** (labor segue no `printingCost` → na reserva); sem código.
 - ✅ **[UX-03] Telefone e Instagram clicáveis no PDF do orçamento — FEITO.** No cabeçalho do PDF,
   o **telefone** virou link de **WhatsApp** (`https://wa.me/...`, novo helper `whatsappUrl` garante
   o DDI **55** quando o número vem só com DDD — 10/11 díg.) e o **@ do Instagram** virou link pro
@@ -819,9 +831,6 @@ pendente da auditoria.
   decidir congelar breakdown na produção vs. puxar do produto vivo; ver item FEAT-06).
 - **Tier 3 (adiar até ter volume de vendas):** (12) **Item 4 — Dashboard** (`/painel`) + **TD-003**
   capacidade por-máquina; (13) **TD-006** paginação.
-- **Tier 4 (menores/oportunistas):** (14) numeração de orçamento derivada no browser;
-  (15) labor na reserva de falha; (16) **pendência do DEC-01 — semântica do
-  `contributionMargin`** (hoje é o LUCRO por peça, não a margem de contribuição clássica;
-  alimenta só o ponto de equilíbrio). **Decisão que falta:** corrigir o cálculo do break-even
-  (muda comportamento — o ponto de equilíbrio diminui) ou só renomear a variável. Detalhe no
-  item DEC-01 acima e na NOTA do `calculatePricing.ts`.
+- **Tier 4 (menores/oportunistas):** ✅ **FECHADO (2026-07-31)** — (14) numeração atômica de orçamento;
+  (15) labor na reserva de falha = mantido; (16) DEC-01 = opção A (rename); + ROI pela depreciação real.
+  Detalhe no bloco "[Tier 4] Fechado" acima.

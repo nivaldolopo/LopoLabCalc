@@ -127,6 +127,70 @@ describe("computeMachineRoi", () => {
     expect(roi.lifeUsedFraction).toBe(0);
   });
 
+  it("usa a depreciação REAL (realCostBreakdown) quando presente, não a precificada", () => {
+    const [roi] = computeMachineRoi(
+      [machine({ price: 5299, lifeHours: 10000 })],
+      [
+        sale({
+          quantity: 2,
+          // precificada = 1/un; real = 3/un (ex.: máquina reprecificada depois)
+          costBreakdown: {
+            material: 5,
+            energy: 1,
+            depreciation: 1,
+            maintenance: 0.5,
+            labor: 5,
+            accessories: 0,
+            failureReserve: 0,
+            fixed: 0,
+          },
+          realCostBreakdown: {
+            material: 5,
+            energy: 1,
+            depreciation: 3,
+            maintenance: 0.5,
+            labor: 5,
+            supplies: 0,
+          },
+        }),
+      ],
+    );
+    // Usa a REAL (3/un), não a precificada (1/un): 3 × 2 unidades.
+    expect(roi.depreciationRecovered).toBeCloseTo(6, 6);
+  });
+
+  it("reparte a depreciação real entre máquinas na proporção da precificada", () => {
+    const roi = computeMachineRoi(
+      [machine({ id: "a1", name: "A1" }), machine({ id: "x2d", name: "X2D" })],
+      [
+        sale({
+          machineId: "a1",
+          printHours: 4,
+          quantity: 1,
+          machineUsage: [
+            { machineId: "a1", machineName: "A1", hours: 3, depreciation: 3 },
+            { machineId: "x2d", machineName: "X2D", hours: 1, depreciation: 0.5 },
+          ],
+          // real dobrou o total (7 vs 3,5 precificado): reparte 3/3,5 e 0,5/3,5.
+          realCostBreakdown: {
+            material: 0,
+            energy: 0,
+            depreciation: 7,
+            maintenance: 0,
+            labor: 0,
+            supplies: 0,
+          },
+        }),
+      ],
+    );
+    const a1 = roi.find((r) => r.machine.id === "a1")!;
+    const x2d = roi.find((r) => r.machine.id === "x2d")!;
+    expect(a1.depreciationRecovered).toBeCloseTo(7 * (3 / 3.5), 6);
+    expect(x2d.depreciationRecovered).toBeCloseTo(7 * (0.5 / 3.5), 6);
+    // A soma pela frota preserva o total real congelado.
+    expect(a1.depreciationRecovered + x2d.depreciationRecovered).toBeCloseTo(7, 6);
+  });
+
   describe("vida útil vem da produção (FEAT-04c)", () => {
     it("soma horas de TODOS os desfechos, inclusive teste e falha", () => {
       const [roi] = computeMachineRoi(
