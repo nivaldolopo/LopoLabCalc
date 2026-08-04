@@ -25,8 +25,8 @@
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **▶ PRÓXIMA TAREFA sugerida:** **TD-006** (paginação — `subscribeProducts`/`useSales` assinam a
   coleção inteira; sobe por causa do marco de recadastro em massa) — **antes** do Dashboard.
-  **Ordem (dono, 2026-07-31):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → **TD-006** → **FEAT-03/branding** →
-  Dashboard (último). As trilhas de UX (UX-01/FEAT-07/UX-02/FEAT-08) e de custo (7e/FEAT-06) estão **fechadas**.
+  **Ordem (dono, 2026-07-31/08-04):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → **TD-006** → **UX-05** (busca
+  nas listas — mesma raiz da TD-006, desenhar juntas) → **FEAT-03/branding** → Dashboard (último). As trilhas de UX (UX-01/FEAT-07/UX-02/FEAT-08) e de custo (7e/FEAT-06) estão **fechadas**.
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —

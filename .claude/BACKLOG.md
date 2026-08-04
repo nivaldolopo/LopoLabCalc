@@ -20,7 +20,8 @@
 4. ~~**Tier 4 inteiro**~~ ✅ **FECHADO (2026-07-31)** — numeração atômica · DEC-01 renomeado · ROI real ·
    labor na reserva mantido.
 5. ~~**TD-003** (capacidade por-máquina) · **UX-04** (catálogo multi-máquina)~~ ✅ **FECHADO (2026-08-04)**.
-   · **TD-006** (paginação) — **antes** do Dashboard — **◀ PRÓXIMA**.
+   · **TD-006** (paginação) — **antes** do Dashboard — **◀ PRÓXIMA** · **UX-05** (busca nas listas) —
+   **logo após** a TD-006 (mesma raiz: leitura da coleção inteira — desenhar as duas juntas).
 6. **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
 7. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real.
 
@@ -87,6 +88,15 @@
 - ~~**[UX-04] Catálogo mostra só a 1ª máquina em produto multi-etapa**~~ ✅ **FEITO (2026-08-04, junto do
   TD-003)** — `MachineCell` lista as máquinas distintas de `machineUsage` ("A1 +1" compacto na linha,
   lista inteira no painel expandido); mantém o `machine-missing-badge` (TD-009).
+- **[UX-05] Busca/filtro nas listas** *(guarda-chuva; pedido do dono, 2026-08-04)*. Poder pesquisar um
+  item por nome nas 4 listas: **catálogo, vendas, estoque, produção**. **Onde:** `ProductCatalog`/
+  `CatalogPage`, `SalesPage`, `StockPage`, `ProductionPage` (+ os hooks `useProducts`/`useSales`/
+  `useStock`/`useProduction`).
+  ⚠ **Acoplado à TD-006 — desenhar as duas juntas.** Hoje os hooks assinam a **coleção inteira**, então
+  a busca seria `array.filter` client-side (de graça). Depois que a TD-006 paginar, não há mais a coleção
+  toda no cliente ⇒ a busca vira **query no Firestore** (índice + `where`/`orderBy`, busca por prefixo).
+  Por isso a ordem: **TD-006 → UX-05**, com a busca já nascendo server-side (evita fazer client-side e
+  jogar fora ao paginar). *Decisão do dono (2026-08-04): item separado, logo após a TD-006.*
 
 ### Tier 2 — comerciais
 - **[FEAT-03] Melhorar o PDF do orçamento** *(guarda-chuva)*. Ideias-semente (o dono escolhe o que vira
