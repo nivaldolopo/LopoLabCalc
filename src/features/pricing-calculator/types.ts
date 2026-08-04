@@ -281,6 +281,18 @@ export type CapacityResult = {
   // Se o custo fixo entrou no totalCost (toggle ligado). Define se o "líquido"
   // é lucro de verdade ("Lucro") ou apenas contribuição ("Contribuição").
   fixedIncluded: boolean;
+  // TD-003 — repartição por máquina. Uma entrada por impressora distinta que o
+  // produto usa, ordenada da mais ocupada (o gargalo) para a menos. `piecesMonth`
+  // é a capacidade mensal SE aquela máquina fosse o único limite; a do gargalo
+  // bate com o `piecesMonth` do produto, as outras mostram folga. Produto de uma
+  // máquina só tem uma entrada (a própria capacidade).
+  machineBreakdown: {
+    machineId: string;
+    machineName: string;
+    cycleHours: number; // horas desta máquina por impressão (ciclo)
+    piecesMonth: number;
+    isBottleneck: boolean;
+  }[];
 };
 
 export type CloudStatus = "connecting" | "synced" | "importing" | "error";

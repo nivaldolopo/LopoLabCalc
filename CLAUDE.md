@@ -14,20 +14,19 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ TIER 4 FECHADO** (dono, 2026-07-31) — 4 itens: (1) **numeração de orçamento
-  atômica** (transação no `config/orcamentoSeq`, reservada antes do PDF — acaba a colisão de 2 abas/2
-  cliques; offline não gera mais, precisa reservar no servidor); (2) **DEC-01 = opção A**:
-  `contributionMargin` → **`profitPerPiece`** (só rename, cálculo/break-even idênticos); (3) **ROI pela
-  depreciação REAL** — `/maquinas` usa `realCostBreakdown.depreciation` (FEAT-06), repartida entre
-  máquinas na proporção da precificada (venda antiga cai no fallback precificado); (4) **labor na reserva
-  de falha = MANTIDO** (decidido, sem código). 283 testes.
+- **Última mudança:** **✅ TD-003 + UX-04 FECHADOS** (2026-08-04) — capacidade pelo **gargalo**: em
+  produto multi-máquina as impressoras rodam em PARALELO, então quem limita é a mais ocupada (não a
+  soma das horas). `calculateCapacity` lê `machineUsage` (×`pieces` p/ voltar ao tempo por ciclo);
+  `CapacityResult.machineBreakdown` mostra gargalo × folga no painel. Produto de 1 máquina = número
+  idêntico ao antigo. **UX-04:** catálogo lista TODAS as máquinas do produto (`MachineCell`: "A1 +1"
+  na linha, lista inteira no painel) em vez de só a principal. 285 testes.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **▶ PRÓXIMA TAREFA sugerida:** **TD-003** (capacidade por-máquina em produto multi-etapa) → **TD-006**
-  (paginação) — **antes** do Dashboard (ver os porquês no BACKLOG).
-  **Ordem (dono, 2026-07-31):** ~~Tier 4~~ ✅ → **TD-003/TD-006** → **FEAT-03/branding** → Dashboard
-  (último). As trilhas de UX (UX-01/FEAT-07/UX-02/FEAT-08) e de custo (7e/FEAT-06) estão **fechadas**.
+- **▶ PRÓXIMA TAREFA sugerida:** **TD-006** (paginação — `subscribeProducts`/`useSales` assinam a
+  coleção inteira; sobe por causa do marco de recadastro em massa) — **antes** do Dashboard.
+  **Ordem (dono, 2026-07-31):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → **TD-006** → **FEAT-03/branding** →
+  Dashboard (último). As trilhas de UX (UX-01/FEAT-07/UX-02/FEAT-08) e de custo (7e/FEAT-06) estão **fechadas**.
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —

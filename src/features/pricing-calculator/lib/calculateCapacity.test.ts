@@ -65,6 +65,53 @@ describe("calculateCapacity", () => {
     expect(cap?.cyclesMonth).toBe(150);
   });
 
+  it("gargalo: máquinas diferentes rodam em paralelo (limita a mais lenta)", () => {
+    const product = makeProduct({
+      printHours: 3, // etapa principal na A1
+      stages: [
+        {
+          machineId: "x2d",
+          weightG: 10,
+          printHours: 2,
+          filamentPricePerKg: 110,
+          laborMinutes: 0,
+        },
+      ],
+    });
+    const cap = calculateCapacity(priceOf(product), product, {
+      hoursDay: 20,
+      machines: 1,
+    });
+    // Somar daria 5h -> floor(600/5)=120; o gargalo é a A1 (3h) -> floor(600/3)=200.
+    expect(cap?.cyclesMonth).toBe(200);
+    expect(cap?.piecesMonth).toBe(200);
+    const a1 = cap?.machineBreakdown.find((m) => m.machineId === "a1");
+    const x2d = cap?.machineBreakdown.find((m) => m.machineId === "x2d");
+    expect(a1?.isBottleneck).toBe(true);
+    expect(x2d?.isBottleneck).toBe(false);
+    expect(x2d?.piecesMonth).toBe(300); // folga: floor(600/2)=300
+  });
+
+  it("o multiplicador de máquinas escala o gargalo", () => {
+    const product = makeProduct({
+      printHours: 3,
+      stages: [
+        {
+          machineId: "x2d",
+          weightG: 10,
+          printHours: 2,
+          filamentPricePerKg: 110,
+          laborMinutes: 0,
+        },
+      ],
+    });
+    const cap = calculateCapacity(priceOf(product), product, {
+      hoursDay: 20,
+      machines: 2,
+    });
+    expect(cap?.cyclesMonth).toBe(400); // gargalo 3h -> 200, ×2 máquinas
+  });
+
   it("piecesCount multiplica as peças por ciclo", () => {
     const product = makeProduct({ piecesCount: 2 });
     const cap = calculateCapacity(priceOf(product), product, {

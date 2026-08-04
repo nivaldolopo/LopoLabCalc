@@ -9,6 +9,31 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ TD-003 (capacidade pelo gargalo) + UX-04 (catálogo multi-máquina) — 2026-08-04
+
+**O defeito:** `calculateCapacity` **somava** as horas de todas as etapas e dividia o horizonte
+mensal por esse total — como se uma única máquina ficasse ocupada a soma inteira. Num produto que
+imprime em duas impressoras (A1 3h + X2D 2h/peça) isso **subestima**: as máquinas rodam em
+**paralelo**, e quem limita o ritmo é a mais ocupada (o gargalo), não os 5h somados.
+
+**Decisão do dono (neste chat):** o painel é uma **estimativa branda** ("quanto consigo fazer e qual
+faturamento") — por isso os dois botões (máquinas dedicadas + horas/dia) **ficam**. Modelo escolhido:
+**gargalo/paralelo**. O número muda **só** em produto multi-máquina; produto de 1 máquina fica
+idêntico (`max === soma`), então os testes antigos seguem verdes (o teste da "etapa extra" usava duas
+etapas na MESMA `a1`).
+
+- **De onde vêm as horas por máquina:** `PricingResult.machineUsage` já existia (FEAT-04c/TD-003 base).
+  Ele é **por peça** (dividido por `pieces` em `calculatePricing.ts`), então `calculateCapacity`
+  multiplica de volta por `result.pieces` para voltar ao tempo por **impressão/ciclo**. `bottleneckHours
+  = max(cycleHours)`; `cyclesMonth = floor(horizonte / bottleneckHours) × máquinas`.
+- **`CapacityResult.machineBreakdown`** (campo novo): uma entrada por máquina distinta, ordenada da
+  mais ocupada; `piecesMonth` = capacidade SE aquela máquina fosse o único limite. A do gargalo bate
+  com o total; as outras aparecem como **folga** no `CapacityPanel` (linha só visível se >1 máquina).
+- **UX-04:** `MachineCell` (novo, em `ProductCatalog.tsx`) lista as máquinas distintas de
+  `machineUsage` — "A1 +1" compacto na linha (com `title` da lista inteira), lista completa no painel
+  expandido. Mantém o `machine-missing-badge` (TD-009). Substituiu os dois pontos que mostravam só
+  `result.machine.name` (a principal).
+
 ## ✅ FEAT-06 — Composição de custo congelada na produção (2026-07-20)
 
 Matou o **stopgap do COGS**: até aqui a venda de peça pronta gravava `costBreakdown` = snapshot do

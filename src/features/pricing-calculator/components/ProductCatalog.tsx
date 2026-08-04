@@ -39,6 +39,43 @@ function formatCount(value: number): string {
   return value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 }
 
+// UX-04: um produto pode usar mais de uma impressora (etapas em máquinas
+// diferentes). `machineUsage` traz cada máquina que participou; a principal nem
+// sempre é a única. Devolve os nomes DISTINTOS, na ordem em que aparecem.
+function machineNames(result: PricingResult): string[] {
+  const names = result.machineUsage.map((u) => u.machineName);
+  return names.length > 0 ? Array.from(new Set(names)) : [result.machine.name];
+}
+
+// Célula "Máquina" reusada na linha fechada (compacta: "A1 +1") e no painel
+// expandido (`full`: lista inteira). Mantém o badge de máquina órfã (TD-009).
+function MachineCell({
+  result,
+  full = false,
+}: {
+  result: PricingResult;
+  full?: boolean;
+}) {
+  if (result.machineMissing) {
+    return (
+      <span
+        className="machine-missing-badge"
+        title="Máquina não encontrada — usando esta como fallback. Reatribua a impressora."
+      >
+        ⚠ {result.machine.name}
+      </span>
+    );
+  }
+  const names = machineNames(result);
+  if (names.length <= 1) return <>{names[0]}</>;
+  if (full) return <>{names.join(" · ")}</>;
+  return (
+    <span title={names.join(" · ")}>
+      {names[0]} <span className="muted">+{names.length - 1}</span>
+    </span>
+  );
+}
+
 type ProductCatalogProps = {
   products: SavedProduct[];
   machines: Machine[];
@@ -265,16 +302,7 @@ export function ProductCatalog({
                         {result.margin.toFixed(0)}%
                       </td>
                       <td data-label="Máquina">
-                        {result.machineMissing ? (
-                          <span
-                            className="machine-missing-badge"
-                            title="Máquina não encontrada — usando esta como fallback. Reatribua a impressora."
-                          >
-                            ⚠ {result.machine.name}
-                          </span>
-                        ) : (
-                          result.machine.name
-                        )}
+                        <MachineCell result={result} />
                       </td>
                       <td className="col-actions">
                         {/* FEAT-08: a linha fechada age só sobre o produto
@@ -427,16 +455,7 @@ function CatalogDetails({
       <div className="cd-meta">
         <span>
           <span className="db-label">Máquina</span>{" "}
-          {result.machineMissing ? (
-            <span
-              className="machine-missing-badge"
-              title="Máquina não encontrada — usando esta como fallback. Reatribua a impressora."
-            >
-              ⚠ {result.machine.name}
-            </span>
-          ) : (
-            result.machine.name
-          )}
+          <MachineCell result={result} full />
         </span>
         <span>
           <span className="db-label">Markup</span> {product.markup.toFixed(1)}x

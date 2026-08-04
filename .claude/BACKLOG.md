@@ -19,7 +19,8 @@
 3. ~~**FEAT-06** (aba Produtos rica / composição congelada)~~ ✅ **FECHADO (2026-07-20)**.
 4. ~~**Tier 4 inteiro**~~ ✅ **FECHADO (2026-07-31)** — numeração atômica · DEC-01 renomeado · ROI real ·
    labor na reserva mantido.
-5. **TD-003** (capacidade por-máquina) · **TD-006** (paginação) — **antes** do Dashboard — **◀ PRÓXIMA**.
+5. ~~**TD-003** (capacidade por-máquina) · **UX-04** (catálogo multi-máquina)~~ ✅ **FECHADO (2026-08-04)**.
+   · **TD-006** (paginação) — **antes** do Dashboard — **◀ PRÓXIMA**.
 6. **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
 7. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real.
 
@@ -83,11 +84,9 @@
   **Onde:** `ProductCatalog.tsx` + `catalog.css`.
   ⚠ Lembrete: a linha **não é tabela**, é `display: grid`; as regras `sticky` de `col-actions` (~536)
   são mortas.
-- **[UX-04] Catálogo mostra só a 1ª máquina em produto multi-etapa** *(reportado pelo dono, 2026-07-20)*.
-  A coluna "Máquina" renderiza `result.machine.name` (`ProductCatalog.tsx:264-275`), que é a impressora
-  **principal** do produto — etapas extras com `machineId` próprio ficam invisíveis. Opções: listar as
-  máquinas distintas (ou "A1 +1") na coluna e detalhar no painel expandido. **Parente do TD-003**
-  (capacidade não é por-máquina) — vale conferir se sai junto.
+- ~~**[UX-04] Catálogo mostra só a 1ª máquina em produto multi-etapa**~~ ✅ **FEITO (2026-08-04, junto do
+  TD-003)** — `MachineCell` lista as máquinas distintas de `machineUsage` ("A1 +1" compacto na linha,
+  lista inteira no painel expandido); mantém o `machine-missing-badge` (TD-009).
 
 ### Tier 2 — comerciais
 - **[FEAT-03] Melhorar o PDF do orçamento** *(guarda-chuva)*. Ideias-semente (o dono escolhe o que vira
@@ -113,8 +112,10 @@
     perdidos por período e a **taxa de falha OBSERVADA** (falhas ÷ total de impressões) — o número que
     embasa calibrar a taxa arbitrária da precificação. ⚠ **Só relatório** — NÃO realimentar a
     `failureRate` do preço automaticamente (dial manual desacoplado de propósito; ver memória).
-- **[TD-003] Capacidade não é por-máquina** em produto multi-etapa (`calculateCapacity.ts` soma horas e
-  multiplica por `machines` genérico). Atacar **junto do Dashboard** — é a base do "gargalo".
+- ~~**[TD-003] Capacidade não é por-máquina**~~ ✅ **FEITO (2026-08-04)** — modelo do **gargalo**: máquinas
+  distintas rodam em paralelo, quem limita é a mais ocupada (`max` das horas por máquina, não a soma).
+  Mantém os dois botões (máquinas dedicadas + horas/dia) — é estimativa branda por decisão do dono.
+  `machineBreakdown` no `CapacityResult` mostra gargalo × folga. Detalhe em `HISTORICO.md`.
 - **[TD-006] Paginação** — `subscribeProducts`/`useSales` assinam a coleção inteira. Ok hoje; revisitar
   quando `/vendas` acumular meses.
 

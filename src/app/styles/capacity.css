@@ -69,3 +69,22 @@
   margin-bottom: 4px;
 }
 
+/* TD-003: gargalo/folga — só aparece em produto multi-máquina. */
+.capacity-bottleneck {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(46, 125, 50, 0.15);
+  font-size: 11px;
+}
+
+.capacity-bottleneck .cb-limit {
+  color: var(--ink);
+}
+
+.capacity-bottleneck .cb-slack {
+  color: var(--muted2);
+}
+

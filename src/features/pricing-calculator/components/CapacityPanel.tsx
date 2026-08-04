@@ -83,6 +83,21 @@ export function CapacityPanel({
           </div>
         </div>
       </div>
+      {result && result.machineBreakdown.length > 1 ? (
+        <div className="capacity-bottleneck">
+          {result.machineBreakdown.map((m) =>
+            m.isBottleneck ? (
+              <span key={m.machineId} className="cb-limit">
+                🔧 Gargalo: <strong>{m.machineName}</strong> ({m.piecesMonth}/mês)
+              </span>
+            ) : (
+              <span key={m.machineId} className="cb-slack">
+                {m.machineName} tem folga (daria {m.piecesMonth}/mês)
+              </span>
+            ),
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
