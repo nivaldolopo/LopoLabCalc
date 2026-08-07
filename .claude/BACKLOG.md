@@ -22,7 +22,8 @@
 5. ~~**TD-003** (capacidade por-máquina) · **UX-04** (catálogo multi-máquina)~~ ✅ **FECHADO (2026-08-04)**.
    · **TD-006** (paginação) — **antes** do Dashboard — **◀ PRÓXIMA** · **UX-05** (busca nas listas) —
    **logo após** a TD-006 (mesma raiz: leitura da coleção inteira — desenhar as duas juntas).
-6. **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
+6. **Tier 2 comerciais** (ordem interna à escolha do dono): **FEAT-09** (desconto na venda) ·
+   **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
 7. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real.
 
 ### Porquês da ordem (decisões de 2026-07-20)
@@ -99,6 +100,20 @@
   jogar fora ao paginar). *Decisão do dono (2026-08-04): item separado, logo após a TD-006.*
 
 ### Tier 2 — comerciais
+- **[FEAT-09] Desconto na venda** *(pedido do dono, 2026-08-07)*. Dar um desconto ao registrar a venda
+  e que **o lucro/margem da venda recalculem sobre o preço COM desconto** (não sobre o de tabela).
+  **Decisões do dono (2026-08-07):**
+  - **Escopo — por item _XOR_ no total:** o desconto é **por linha (produto/subitem)** OU **no total do
+    Recibo** — **um modo ou o outro por venda, nunca os dois juntos**.
+  - **Formato — R$ ou %:** aceita valor absoluto ou percentual; o snapshot guarda o **valor final
+    aplicado** (o R$ efetivo), não só a taxa.
+  - ⚠ **Congelar no Recibo** (Diretriz 7 — protege dado futuro): o desconto entra no **snapshot
+    congelado** da venda (`salesRepository`/`saleContext`), não é recalculado depois. Custo real não
+    muda — só o **preço** cai, então o lucro = preço_com_desconto − custo real.
+  **Onde:** `SaleModal`/`SaleFlow`, `saleContext`, `ProfitSummary`/`CostDetail`, `salesRepository`.
+  **≠ FEAT-03:** lá o "desconto/acréscimo" é semente do **PDF do orçamento** (uma *proposta*); aqui é a
+  **venda real**. Podem se conversar no futuro (o desconto do orçamento fluir pra venda), mas são itens
+  distintos.
 - **[FEAT-03] Melhorar o PDF do orçamento** *(guarda-chuva)*. Ideias-semente (o dono escolhe o que vira
   tarefa): prazo de entrega, foto/thumbnail do item, formas de pagamento/condições, termos/observações,
   QR code do WhatsApp, detalhar etapas/subitens (usa FEAT-01), desconto/acréscimo, branding real.
