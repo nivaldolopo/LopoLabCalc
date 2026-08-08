@@ -31,6 +31,18 @@
   width: auto;
 }
 
+/* UX-05: linha exibida quando a busca não casa com nenhum produto. */
+.catalog-no-results td {
+  padding: 22px 16px;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* No catálogo o campo de busca não precisa esticar como numa página inteira. */
+.catalog-actions .search-box {
+  min-width: 170px;
+}
+
 .catalog-card {
   overflow: hidden;
 }

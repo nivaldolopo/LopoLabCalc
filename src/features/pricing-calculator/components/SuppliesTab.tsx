@@ -14,6 +14,7 @@ import {
 import { formatCurrency } from "@/lib/formatting/currency";
 import { formatDate } from "@/lib/formatting/date";
 import { num } from "@/lib/number";
+import { matchesQuery } from "@/lib/text";
 import {
   activeLot,
   adjustLot,
@@ -32,6 +33,7 @@ import type {
   SupplyLot,
   SupplyPayload,
 } from "../types";
+import { SearchBox } from "./SearchBox";
 import { SupplyAdjustModal } from "./SupplyAdjustModal";
 import { SupplyLotModal } from "./SupplyLotModal";
 import { SupplyModal, type SupplyDraft } from "./SupplyModal";
@@ -78,6 +80,8 @@ export function SuppliesTab({
   const [lotForId, setLotForId] = useState<string | null>(null);
   const [adjustForId, setAdjustForId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // UX-05: busca por nome do insumo. Client-side (insumos têm teto natural).
+  const [query, setQuery] = useState("");
   const [feedback, setFeedback] = useState<{
     kind: "ok" | "error";
     msg: string;
@@ -100,6 +104,16 @@ export function SuppliesTab({
       archived: sorted.filter((supply) => supply.archived),
     };
   }, [supplies]);
+
+  // UX-05: só a lista visível filtra; os totais do topo contam o estoque inteiro.
+  const activeShown = useMemo(
+    () => active.filter((supply) => matchesQuery(query, supply.name)),
+    [active, query],
+  );
+  const archivedShown = useMemo(
+    () => archived.filter((supply) => matchesQuery(query, supply.name)),
+    [archived, query],
+  );
 
   const totals = useMemo(() => {
     // Valor parado = saldo de cada lote ao preço REAL pago nele (não ao de
@@ -490,13 +504,31 @@ export function SuppliesTab({
           cadastre o item e registre a última compra dele.
         </div>
       ) : (
-        <div className="stock-list">{active.map(renderCard)}</div>
+        <>
+          {active.length > 0 ? (
+            <div className="stock-search">
+              <SearchBox
+                value={query}
+                onChange={setQuery}
+                placeholder="Buscar insumo..."
+                resultCount={activeShown.length}
+              />
+            </div>
+          ) : null}
+          {activeShown.length === 0 && query.trim() ? (
+            <div className="sales-empty">
+              Nenhum insumo encontrado para “{query.trim()}”.
+            </div>
+          ) : (
+            <div className="stock-list">{activeShown.map(renderCard)}</div>
+          )}
+        </>
       )}
 
-      {archived.length > 0 ? (
+      {archivedShown.length > 0 ? (
         <details className="stock-archived-box">
-          <summary>Insumos arquivados ({archived.length})</summary>
-          <div className="stock-list">{archived.map(renderCard)}</div>
+          <summary>Insumos arquivados ({archivedShown.length})</summary>
+          <div className="stock-list">{archivedShown.map(renderCard)}</div>
         </details>
       ) : null}
 

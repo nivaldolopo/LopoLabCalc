@@ -18,6 +18,7 @@ import {
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import { formatDate } from "@/lib/formatting/date";
 import { num } from "@/lib/number";
+import { matchesQuery } from "@/lib/text";
 import {
   activeRoll,
   adjustRoll,
@@ -62,6 +63,7 @@ import type {
 } from "../types";
 import { CostDetail } from "./CostDetail";
 import { NavBar } from "./NavBar";
+import { SearchBox } from "./SearchBox";
 import { StockAdjustModal } from "./StockAdjustModal";
 import { StockColorModal, type StockColorDraft } from "./StockColorModal";
 import { StockRollModal } from "./StockRollModal";
@@ -134,6 +136,10 @@ export function StockPage() {
   const [tab, setTab] = useState<"filamentos" | "insumos" | "produtos">(
     "filamentos",
   );
+  // UX-05: busca por aba. Client-side — filamentos e acabados têm teto natural,
+  // moram inteiros no cliente (não paginam na TD-006).
+  const [colorQuery, setColorQuery] = useState("");
+  const [goodQuery, setGoodQuery] = useState("");
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [rollForId, setRollForId] = useState<string | null>(null);
@@ -164,6 +170,17 @@ export function StockPage() {
       archived: sorted.filter((color) => color.archived),
     };
   }, [filaments]);
+
+  // UX-05: filtro por nome/material da cor. Os totais do topo seguem no conjunto
+  // inteiro (contam o estoque, não a busca) — só a lista visível filtra.
+  const activeShown = useMemo(
+    () => active.filter((color) => matchesQuery(colorQuery, filamentLabel(color))),
+    [active, colorQuery],
+  );
+  const archivedShown = useMemo(
+    () => archived.filter((color) => matchesQuery(colorQuery, filamentLabel(color))),
+    [archived, colorQuery],
+  );
 
   const totals = useMemo(() => {
     const totalG = active.reduce((sum, color) => sum + balanceG(color), 0);
@@ -211,6 +228,13 @@ export function StockPage() {
         .filter((good) => good.skus.some((sku) => skuBalance(sku) !== 0))
         .sort((a, b) => a.productName.localeCompare(b.productName, "pt-BR")),
     [goods],
+  );
+
+  // UX-05: filtro por nome do produto acabado. Os totais do topo seguem no
+  // conjunto inteiro; só a lista visível filtra.
+  const stockedGoodsShown = useMemo(
+    () => stockedGoods.filter((good) => matchesQuery(goodQuery, good.productName)),
+    [stockedGoods, goodQuery],
   );
 
   const productTotals = useMemo(() => {
@@ -952,13 +976,31 @@ export function StockPage() {
           cadastre a cor e registre o rolo que está na impressora.
         </div>
       ) : (
-        <div className="stock-list">{active.map(renderCard)}</div>
+        <>
+          {active.length > 0 ? (
+            <div className="stock-search">
+              <SearchBox
+                value={colorQuery}
+                onChange={setColorQuery}
+                placeholder="Buscar cor ou material..."
+                resultCount={activeShown.length}
+              />
+            </div>
+          ) : null}
+          {activeShown.length === 0 && colorQuery.trim() ? (
+            <div className="sales-empty">
+              Nenhuma cor encontrada para “{colorQuery.trim()}”.
+            </div>
+          ) : (
+            <div className="stock-list">{activeShown.map(renderCard)}</div>
+          )}
+        </>
       )}
 
-      {archived.length > 0 ? (
+      {archivedShown.length > 0 ? (
         <details className="stock-archived-box">
-          <summary>Cores arquivadas ({archived.length})</summary>
-          <div className="stock-list">{archived.map(renderCard)}</div>
+          <summary>Cores arquivadas ({archivedShown.length})</summary>
+          <div className="stock-list">{archivedShown.map(renderCard)}</div>
         </details>
       ) : null}
         </>
@@ -1031,9 +1073,25 @@ export function StockPage() {
               e a peça aparece aqui.
             </div>
           ) : (
-            <div className="stock-list">
-              {stockedGoods.map(renderProductCard)}
-            </div>
+            <>
+              <div className="stock-search">
+                <SearchBox
+                  value={goodQuery}
+                  onChange={setGoodQuery}
+                  placeholder="Buscar produto..."
+                  resultCount={stockedGoodsShown.length}
+                />
+              </div>
+              {stockedGoodsShown.length === 0 ? (
+                <div className="sales-empty">
+                  Nenhum produto encontrado para “{goodQuery.trim()}”.
+                </div>
+              ) : (
+                <div className="stock-list">
+                  {stockedGoodsShown.map(renderProductCard)}
+                </div>
+              )}
+            </>
           )}
         </>
       )}

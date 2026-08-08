@@ -22,6 +22,7 @@ import type {
   SortMode,
   StockFilament,
 } from "../types";
+import { matchesQuery } from "@/lib/text";
 import { calculatePricing } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { filamentsTotalG, normalizeFilaments } from "../lib/filaments";
@@ -32,6 +33,7 @@ import {
 } from "../lib/productCsv";
 import { CostBars } from "./CostBars";
 import { ProfitSummary } from "./ProfitSummary";
+import { SearchBox } from "./SearchBox";
 
 // Diário pode ser fracionário (mesa que dura mais de um dia). Até 1 casa, sem
 // zeros à toa: 4 → "4", 0.25 → "0,3".
@@ -119,6 +121,9 @@ export function ProductCatalog({
   onNewSale,
 }: ProductCatalogProps) {
   const [openProductId, setOpenProductId] = useState<string | null>(null);
+  // UX-05: busca por nome. Client-side porque o catálogo mora inteiro no
+  // cliente (produtos têm teto natural — não paginam na TD-006).
+  const [query, setQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // Resultado da importação de CSV, inline no lugar do window.alert (TD-004).
   const [importMsg, setImportMsg] = useState<
@@ -158,6 +163,11 @@ export function ProductCatalog({
         return nextProducts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     }
   }, [products, resultFor, sortMode]);
+
+  const filteredProducts = useMemo(
+    () => sortedProducts.filter((product) => matchesQuery(query, product.name)),
+    [sortedProducts, query],
+  );
 
   if (products.length === 0) return null;
 
@@ -211,6 +221,12 @@ export function ProductCatalog({
           >
             <Receipt size={15} /> Nova venda
           </button>
+          <SearchBox
+            value={query}
+            onChange={setQuery}
+            placeholder="Buscar produto..."
+            resultCount={filteredProducts.length}
+          />
           <select
             value={sortMode}
             onChange={(event) => onSortModeChange(event.target.value as SortMode)}
@@ -267,7 +283,14 @@ export function ProductCatalog({
               </tr>
             </thead>
             <tbody>
-              {sortedProducts.map((product) => {
+              {filteredProducts.length === 0 ? (
+                <tr className="catalog-no-results">
+                  <td colSpan={7}>
+                    Nenhum produto encontrado para “{query.trim()}”.
+                  </td>
+                </tr>
+              ) : null}
+              {filteredProducts.map((product) => {
                 const result = resultFor(product);
                 const isOpen = openProductId === product.id;
 

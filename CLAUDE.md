@@ -14,19 +14,23 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ TD-003 + UX-04 FECHADOS** (2026-08-04) — capacidade pelo **gargalo**: em
-  produto multi-máquina as impressoras rodam em PARALELO, então quem limita é a mais ocupada (não a
-  soma das horas). `calculateCapacity` lê `machineUsage` (×`pieces` p/ voltar ao tempo por ciclo);
-  `CapacityResult.machineBreakdown` mostra gargalo × folga no painel. Produto de 1 máquina = número
-  idêntico ao antigo. **UX-04:** catálogo lista TODAS as máquinas do produto (`MachineCell`: "A1 +1"
-  na linha, lista inteira no painel) em vez de só a principal. 285 testes.
+- **Última mudança:** **✅ UX-05 FASE 1** (2026-08-07) — busca **client-side** por nome nas listas de
+  **teto natural**: catálogo + as 3 abas do estoque (filamentos, insumos, produtos). Helper
+  compartilhado `src/lib/text.ts` (`matchesQuery` — tolerante a acento/caixa, casa por palavra) +
+  componente `SearchBox.tsx` (input + limpar + contador). Só a lista visível filtra; os totais do topo
+  seguem no conjunto inteiro. **Vendas/produção NÃO** têm busca ainda — crescem sem teto, entram na
+  Fase 2/3 (paginar + busca server-side). Estilo em `base.css` (`.search-box`, global).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **▶ PRÓXIMA TAREFA sugerida:** **TD-006** (paginação — `subscribeProducts`/`useSales` assinam a
-  coleção inteira; sobe por causa do marco de recadastro em massa) — **antes** do Dashboard.
-  **Ordem (dono, 2026-07-31/08-04):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → **TD-006** → **UX-05** (busca
-  nas listas — mesma raiz da TD-006, desenhar juntas) → **FEAT-03/branding** → Dashboard (último). As trilhas de UX (UX-01/FEAT-07/UX-02/FEAT-08) e de custo (7e/FEAT-06) estão **fechadas**.
+- **▶ PRÓXIMA TAREFA sugerida:** **TD-006 = UX-05 Fase 2/3** — paginar **vendas + produção** (crescem
+  sem teto) por recência (cursor `startAfter` + "carregar mais"), depois **busca server-side** nessas
+  duas (query no Firestore, filtro por produto+período — não `array.filter`). Produtos/estoque ficam
+  inteiros (teto natural, já buscáveis pela Fase 1). ⚠ **Ressalva combinada c/ o dono:** paginar resolve
+  a **lista**, não a **análise** — o ROI (`/maquinas`) e o futuro Dashboard **agregam o histórico
+  inteiro**; eliminar isso de vez exigiria agregação server-side (Cloud Functions), a adiar pro Dashboard.
+  **Ordem (dono, 2026-07-31/08-04):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → ~~UX-05 Fase 1~~ ✅ →
+  **TD-006/UX-05 Fase 2-3** → **FEAT-03/branding** → Dashboard (último).
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —

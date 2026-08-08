@@ -26,6 +26,16 @@
   flex: 0 0 auto;
 }
 
+/* UX-05: barra da busca acima da lista de cards. */
+.stock-search {
+  margin: 0 0 16px;
+}
+
+.stock-search .search-box {
+  width: 100%;
+  max-width: 340px;
+}
+
 .stock-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));

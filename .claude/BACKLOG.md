@@ -89,15 +89,16 @@
 - ~~**[UX-04] Catálogo mostra só a 1ª máquina em produto multi-etapa**~~ ✅ **FEITO (2026-08-04, junto do
   TD-003)** — `MachineCell` lista as máquinas distintas de `machineUsage` ("A1 +1" compacto na linha,
   lista inteira no painel expandido); mantém o `machine-missing-badge` (TD-009).
-- **[UX-05] Busca/filtro nas listas** *(guarda-chuva; pedido do dono, 2026-08-04)*. Poder pesquisar um
-  item por nome nas 4 listas: **catálogo, vendas, estoque, produção**. **Onde:** `ProductCatalog`/
-  `CatalogPage`, `SalesPage`, `StockPage`, `ProductionPage` (+ os hooks `useProducts`/`useSales`/
-  `useStock`/`useProduction`).
-  ⚠ **Acoplado à TD-006 — desenhar as duas juntas.** Hoje os hooks assinam a **coleção inteira**, então
-  a busca seria `array.filter` client-side (de graça). Depois que a TD-006 paginar, não há mais a coleção
-  toda no cliente ⇒ a busca vira **query no Firestore** (índice + `where`/`orderBy`, busca por prefixo).
-  Por isso a ordem: **TD-006 → UX-05**, com a busca já nascendo server-side (evita fazer client-side e
-  jogar fora ao paginar). *Decisão do dono (2026-08-04): item separado, logo após a TD-006.*
+- **[UX-05] Busca/filtro nas listas** *(guarda-chuva; pedido do dono, 2026-08-04)*. Pesquisar por nome.
+  - ✅ **Fase 1 FEITA (2026-08-07)** — busca **client-side** nas listas de **teto natural**: catálogo +
+    3 abas do estoque (filamentos, insumos, produtos). Helper `src/lib/text.ts` (`matchesQuery`) +
+    `SearchBox.tsx`. Só a lista visível filtra; totais do topo intactos.
+  - ⏳ **Fase 2/3 = TD-006** (vendas + produção). Essas duas **crescem sem teto** → paginam, e aí a busca
+    vira **query no Firestore** (índice + `where`/`orderBy`, filtro por produto+período), não
+    `array.filter`. Desenhar junto com a paginação (evita client-side jogado fora ao paginar). **Onde:**
+    `SalesPage`, `ProductionPage`, `salesRepository`/`productionRepository`, `useSales`/`useProduction`.
+  ⚠ **Ressalva (2026-08-07):** paginar resolve a **lista**, não a **análise** — ROI (`/maquinas`) e o
+  Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (adiar pro Dashboard).
 
 ### Tier 2 — comerciais
 - **[FEAT-09] Desconto na venda** *(pedido do dono, 2026-08-07)*. Dar um desconto ao registrar a venda
