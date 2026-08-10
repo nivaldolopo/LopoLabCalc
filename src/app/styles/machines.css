@@ -109,9 +109,11 @@
 
 .roi-metrics {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  padding-top: 4px;
+  /* BUG-04: 4×1fr num card estreito (min 340px) não cabia — "R$ 861,92/mês" em
+     mono estourava a borda. 2×2 garante ~130px+ por célula, nenhum valor quebra. */
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 14px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
 }
 
@@ -119,6 +121,9 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  /* Deixa a célula encolher abaixo do conteúdo (grid trilha `1fr` tem
+     min-width:auto por padrão) — trava definitiva contra o vazamento. */
+  min-width: 0;
 }
 
 .roi-metric > span {
