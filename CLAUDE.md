@@ -14,23 +14,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ UX-05 FASE 1** (2026-08-07) — busca **client-side** por nome nas listas de
-  **teto natural**: catálogo + as 3 abas do estoque (filamentos, insumos, produtos). Helper
-  compartilhado `src/lib/text.ts` (`matchesQuery` — tolerante a acento/caixa, casa por palavra) +
-  componente `SearchBox.tsx` (input + limpar + contador). Só a lista visível filtra; os totais do topo
-  seguem no conjunto inteiro. **Vendas/produção NÃO** têm busca ainda — crescem sem teto, entram na
-  Fase 2/3 (paginar + busca server-side). Estilo em `base.css` (`.search-box`, global).
+- **Última mudança:** **✅ TD-006 FASE 2** (2026-08-07) — **paginação** (limite crescente + realtime) das
+  listas de **/vendas** e **/produção**: assinam só a janela recente por data ("carregar mais"), via
+  hooks novos `useSalesPage`/`useProductionPage` (repos: `subscribeSalesPage`/`subscribeProductionPage`,
+  buscam `limit+1` p/ saber `hasMore`, um `orderBy` só → sem índice composto). Totais de /vendas agora vêm
+  de **aggregation query** server-side (`fetchSalesTotals` — soma o histórico inteiro sem baixar docs; a
+  /produção tem `fetchProductionCount` p/ "X de N"). Estorno de venda/edição **desacoplado da janela** —
+  resolve os eventos de produção **por id** (`fetchProductionEventsByIds`), consertando bug latente (venda
+  antiga fora da janela não estornaria estoque). Export CSV lê tudo sob demanda (`fetchAllSales`). **ROI
+  (/maquinas) mantém `useSales`/`useProduction` cheios** (ressalva). ⚠ recibo no limite da página pode
+  aparecer partido até "carregar mais" (itens do mesmo dia não são contíguos) — os cards não erram (vêm da
+  agregação). **Falta a Fase 3.**
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **▶ PRÓXIMA TAREFA sugerida:** **TD-006 = UX-05 Fase 2/3** — paginar **vendas + produção** (crescem
-  sem teto) por recência (cursor `startAfter` + "carregar mais"), depois **busca server-side** nessas
-  duas (query no Firestore, filtro por produto+período — não `array.filter`). Produtos/estoque ficam
-  inteiros (teto natural, já buscáveis pela Fase 1). ⚠ **Ressalva combinada c/ o dono:** paginar resolve
-  a **lista**, não a **análise** — o ROI (`/maquinas`) e o futuro Dashboard **agregam o histórico
-  inteiro**; eliminar isso de vez exigiria agregação server-side (Cloud Functions), a adiar pro Dashboard.
+- **▶ PRÓXIMA TAREFA:** **TD-006 FASE 3** — busca em **/vendas** e **/produção**. **Decidido c/ o dono
+  (2026-08-07): "os dois juntos"** — filtro **produto + período** (query no Firestore: `where`/`orderBy` +
+  índice; o Firestore não faz substring de texto server-side) **+** caixa de **nome** que refina o que
+  está na janela (client-side, `matchesQuery`). Os totais agregados (`fetchSalesTotals`) passam a receber
+  a query filtrada p/ os cards respeitarem o filtro. ⚠ **Ressalva:** paginar/filtrar resolve a **lista**,
+  não a **análise** — o ROI (`/maquinas`) e o Dashboard **agregam o histórico inteiro**; eliminar de vez
+  exige agregação server-side (Cloud Functions), a adiar pro Dashboard.
   **Ordem (dono, 2026-07-31/08-04):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → ~~UX-05 Fase 1~~ ✅ →
-  **TD-006/UX-05 Fase 2-3** → **FEAT-03/branding** → Dashboard (último).
+  ~~TD-006 Fase 2~~ ✅ → **TD-006 Fase 3** → **FEAT-03/branding** → Dashboard (último).
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —

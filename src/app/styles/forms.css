@@ -343,6 +343,24 @@ input[type="range"]::-webkit-slider-thumb {
   background: var(--green);
 }
 
+/* TD-006: botão "carregar mais" das listas paginadas (/vendas, /producao). */
+.btn.ghost {
+  background: var(--field-bg);
+  border: 1.5px solid var(--field-border);
+  color: var(--ink);
+}
+
+.btn.ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.load-more-row {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0 4px;
+}
+
 .btn-secondary,
 .icon-label-button {
   background: var(--field-bg);

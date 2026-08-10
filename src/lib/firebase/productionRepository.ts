@@ -2,7 +2,12 @@ import {
   collection,
   deleteDoc,
   doc,
+  getCountFromServer,
+  getDoc,
+  limit as fsLimit,
   onSnapshot,
+  orderBy,
+  query,
   writeBatch,
   type DocumentData,
 } from "firebase/firestore";
@@ -200,6 +205,56 @@ export function subscribeProduction(
     },
     (error) => onError(error),
   );
+}
+
+// TD-006: assinatura PAGINADA da produção (limite crescente por `at`). Gêmea da
+// `subscribeSalesPage` — mesma lógica de `hasMore` (busca 1 a mais) e mesmo
+// dispensar índice composto (um `orderBy` só). Substitui a assinatura da coleção
+// inteira na /producao; o ROI (/maquinas) segue lendo tudo por `subscribeProduction`.
+export function subscribeProductionPage(
+  pageLimit: number,
+  onProduction: (events: ProductionEvent[], hasMore: boolean) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(productionCollection, orderBy("at", "desc"), fsLimit(pageLimit + 1)),
+    (snapshot) => {
+      const docs = snapshot.docs;
+      const hasMore = docs.length > pageLimit;
+      const page = hasMore ? docs.slice(0, pageLimit) : docs;
+      onProduction(
+        page.map((item) => toProduction(item.id, item.data())),
+        hasMore,
+      );
+    },
+    (error) => onError(error),
+  );
+}
+
+// TD-006: contagem total de eventos (aggregation) — para "X de N" na lista
+// paginada, sem baixar a coleção. 1 leitura.
+export async function fetchProductionCount(): Promise<number> {
+  const snap = await getCountFromServer(productionCollection);
+  return num(snap.data().count);
+}
+
+// TD-006: resolve eventos de produção POR ID direto no banco, sem depender da
+// lista em memória. O estorno de uma venda/encomenda (SalesPage/SaleModal) lia os
+// eventos pela lista assinada; com a produção paginada, um evento antigo fora da
+// janela carregada não seria encontrado e o estoque NÃO seria estornado. Buscar
+// por id garante o estorno correto de qualquer venda, nova ou antiga. Um evento já
+// apagado à mão vem ausente (filtrado) — não estorna em dobro, como antes.
+export async function fetchProductionEventsByIds(
+  ids: string[],
+): Promise<ProductionEvent[]> {
+  const unique = [...new Set(ids)].filter(Boolean);
+  const events = await Promise.all(
+    unique.map(async (id) => {
+      const snap = await getDoc(doc(productionCollection, id));
+      return snap.exists() ? toProduction(snap.id, snap.data()) : null;
+    }),
+  );
+  return events.filter((event): event is ProductionEvent => event !== null);
 }
 
 // Grava N eventos de produção e dá baixa dos rolos ATOMICAMENTE (ou entra tudo,

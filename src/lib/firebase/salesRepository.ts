@@ -1,8 +1,15 @@
 import {
   collection,
+  count,
   deleteDoc,
   doc,
+  getAggregateFromServer,
+  getDocs,
+  limit as fsLimit,
   onSnapshot,
+  orderBy,
+  query,
+  sum,
   writeBatch,
   type DocumentData,
 } from "firebase/firestore";
@@ -147,6 +154,73 @@ export function subscribeSales(
     },
     (error) => onError(error),
   );
+}
+
+// TD-006: assinatura PAGINADA das vendas (limite crescente). Em vez de baixar a
+// coleção inteira (o marco traz um volume grande de uma vez), assina só as
+// `pageLimit` vendas mais recentes por `saleDate`. Mantém realtime na janela
+// carregada; "carregar mais" re-assina com um limite maior (a query roda do topo
+// de novo — sem cursor, sem risco de pular doc no limite). `orderBy` num campo só
+// dispensa índice composto (o Firestore auto-indexa cada campo nas duas ordens).
+// Busca `pageLimit + 1` docs para saber se ainda há mais (`hasMore`) sem contar.
+export function subscribeSalesPage(
+  pageLimit: number,
+  onSales: (sales: Sale[], hasMore: boolean) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(salesCollection, orderBy("saleDate", "desc"), fsLimit(pageLimit + 1)),
+    (snapshot) => {
+      const docs = snapshot.docs;
+      const hasMore = docs.length > pageLimit;
+      const page = hasMore ? docs.slice(0, pageLimit) : docs;
+      onSales(
+        page.map((item) => toSale(item.id, item.data())),
+        hasMore,
+      );
+    },
+    (error) => onError(error),
+  );
+}
+
+// TD-006: totais do histórico INTEIRO via aggregation query (sum/count) — o
+// servidor soma sem baixar os docs (1 leitura), então o número segue certo
+// mesmo com a lista paginada. Sem filtro aqui (Fase 2); a Fase 3 passa a query
+// filtrada por produto/período para os cards respeitarem o filtro ativo.
+export type SalesTotals = {
+  count: number;
+  revenue: number;
+  cost: number;
+  fee: number;
+  profit: number;
+};
+
+// TD-006: lê o histórico INTEIRO de uma vez (ordenado por data). Só para o
+// export CSV — ação explícita do dono, que quer o arquivo completo, não a janela
+// paginada. Não é usado no fluxo de tela (que pagina).
+export async function fetchAllSales(): Promise<Sale[]> {
+  const snapshot = await getDocs(
+    query(salesCollection, orderBy("saleDate", "desc")),
+  );
+  return snapshot.docs.map((item) => toSale(item.id, item.data()));
+}
+
+export async function fetchSalesTotals(): Promise<SalesTotals> {
+  const snap = await getAggregateFromServer(salesCollection, {
+    count: count(),
+    revenue: sum("totalRevenue"),
+    cost: sum("totalCost"),
+    fee: sum("feeAmount"),
+    profit: sum("profit"),
+  });
+  const data = snap.data();
+  return {
+    count: num(data.count),
+    revenue: num(data.revenue),
+    cost: num(data.cost),
+    fee: num(data.fee),
+    profit: num(data.profit),
+  };
 }
 
 // Grava um recibo inteiro (cria e/ou edita) numa transação atômica. Cada upsert

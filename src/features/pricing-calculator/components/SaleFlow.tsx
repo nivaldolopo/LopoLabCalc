@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { reconcileRecibo } from "@/lib/firebase/salesRepository";
 import { useFees } from "../hooks/useFees";
 import { useFinishedGoods } from "../hooks/useFinishedGoods";
-import { useProduction } from "../hooks/useProduction";
 import { calculatePricing } from "../lib/calculatePricing";
 import {
   productPrintHours,
@@ -52,7 +51,6 @@ export function SaleFlow({
 }: SaleFlowProps) {
   const { fees, saveFees } = useFees();
   const { goods } = useFinishedGoods();
-  const { events: production } = useProduction();
   // 7e: insumos para a baixa dos acessórios na encomenda. Assinado aqui (e não
   // vindo por prop) pelo mesmo motivo dos outros 3 hooks: é do modal, não da
   // página, e só sobe quando o modal abre.
@@ -105,7 +103,9 @@ export function SaleFlow({
       products={products}
       machines={machines}
       fixedCosts={fixedCosts}
-      production={production}
+      // Venda NOVA não estorna produção existente — o `production` só serve ao
+      // caminho de edição (SalesPage), que resolve os eventos por id. Vazio aqui.
+      production={[]}
       onClose={onClose}
       onConfirm={reconcileRecibo}
     />

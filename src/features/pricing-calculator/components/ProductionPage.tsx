@@ -38,7 +38,7 @@ import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
-import { useProduction } from "../hooks/useProduction";
+import { useProductionPage } from "../hooks/useProductionPage";
 import { useStock } from "../hooks/useStock";
 import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
@@ -103,8 +103,16 @@ export function ProductionPage() {
     () => ({ ...fixedCostRate, enabled: DEFAULT_FIXED_COSTS.enabled }),
     [fixedCostRate],
   );
-  const { events, status, error, addProduction, deleteProduction } =
-    useProduction();
+  const {
+    events,
+    totalCount,
+    hasMore,
+    loadMore,
+    status,
+    error,
+    addProduction,
+    deleteProduction,
+  } = useProductionPage();
   // Leitura viva dos acabados: a submissão empilha camada no doc do produto e a
   // exclusão a estorna (FEAT-05b). O incremento/estorno grava no batch do evento.
   const { goods } = useFinishedGoods();
@@ -884,13 +892,15 @@ export function ProductionPage() {
       </div>
 
       <div className="section-label prod-recent-label">
-        Produções recentes {recent.length > 0 ? `(${recent.length})` : ""}
+        Produções recentes{" "}
+        {totalCount > 0 ? `(${recent.length} de ${totalCount})` : ""}
       </div>
       {recent.length === 0 ? (
         <div className="sales-empty">
           Nenhuma produção registrada ainda.
         </div>
       ) : (
+        <>
         <div className="prod-list">
           {recent.map((event) => {
             const totalG = event.filaments.reduce(
@@ -946,6 +956,18 @@ export function ProductionPage() {
             );
           })}
         </div>
+        {hasMore ? (
+          <div className="load-more-row">
+            <button
+              className="btn ghost load-more"
+              type="button"
+              onClick={loadMore}
+            >
+              Carregar mais produções
+            </button>
+          </div>
+        ) : null}
+        </>
       )}
     </main>
   );

@@ -15,14 +15,17 @@ import { useFees } from "../hooks/useFees";
 import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
-import { useProduction } from "../hooks/useProduction";
-import { useSales } from "../hooks/useSales";
+import { useSalesPage } from "../hooks/useSalesPage";
 import { useStock } from "../hooks/useStock";
 import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
 import { reverseReciboReconciliation } from "../lib/saleReconciliation";
 import type { CloudStatus, ProductionEvent, RoundingMode, Sale } from "../types";
-import { reconcileRecibo } from "@/lib/firebase/salesRepository";
+import {
+  fetchAllSales,
+  reconcileRecibo,
+} from "@/lib/firebase/salesRepository";
+import { fetchProductionEventsByIds } from "@/lib/firebase/productionRepository";
 import { CostDetail } from "./CostDetail";
 import { NavBar } from "./NavBar";
 import { SaleModal, type EditReciboSeed } from "./SaleModal";
@@ -168,7 +171,8 @@ function buildCsv(sales: Sale[]): string {
 
 export function SalesPage() {
   const { theme, toggleTheme } = useTheme();
-  const { sales, status, error } = useSales();
+  const { sales, totals: salesTotals, hasMore, loadMore, status, error } =
+    useSalesPage();
   const { products } = useProducts();
   const { machines } = useMachines();
   const { fixedCostRate } = useBusinessSettings();
@@ -178,8 +182,11 @@ export function SalesPage() {
   // 7e: insumos — o estorno da venda devolve também os acessórios da encomenda.
   const { supplies } = useSupplies();
   const { goods } = useFinishedGoods();
-  const { events: production } = useProduction();
   const [editRecibo, setEditRecibo] = useState<EditReciboSeed | null>(null);
+  // TD-006: eventos de produção da encomenda do recibo em edição, resolvidos por
+  // id ao abrir (a coleção não é mais assinada inteira). Alimentam o estorno do
+  // SaleModal — sem eles, editar uma venda antiga não devolveria o filamento.
+  const [editEvents, setEditEvents] = useState<ProductionEvent[]>([]);
   const [newSale, setNewSale] = useState(false);
   const [sortMode, setSortMode] = useState<SalesSortMode>("recent");
 
@@ -295,22 +302,17 @@ export function SalesPage() {
     }
   }, [recibos, sortMode]);
 
-  const totals = useMemo(() => {
-    const revenue = sales.reduce((sum, sale) => sum + sale.totalRevenue, 0);
-    const cost = sales.reduce((sum, sale) => sum + sale.totalCost, 0);
-    const fee = sales.reduce((sum, sale) => sum + sale.feeAmount, 0);
-    const profit = sales.reduce((sum, sale) => sum + sale.profit, 0);
-    return {
-      revenue,
-      cost,
-      fee,
-      profit,
-      margin: revenue > 0 ? (profit / revenue) * 100 : 0,
-    };
-  }, [sales]);
+  // TD-006: os cards somam o histórico INTEIRO via aggregation query
+  // (`salesTotals`), não a janela paginada. Só a margem é derivada aqui.
+  const margin =
+    salesTotals.revenue > 0
+      ? (salesTotals.profit / salesTotals.revenue) * 100
+      : 0;
 
-  function exportCsv() {
-    const flat = recibos.flatMap((recibo) => recibo.items);
+  // TD-006: o export lê o histórico COMPLETO sob demanda (`fetchAllSales`) — não a
+  // janela paginada — para o CSV nunca sair truncado. É ação explícita do dono.
+  async function exportCsv() {
+    const flat = await fetchAllSales();
     const blob = new Blob([`﻿${buildCsv(flat)}`], {
       type: "text/csv;charset=utf-8;",
     });
@@ -322,14 +324,6 @@ export function SalesPage() {
     URL.revokeObjectURL(url);
   }
 
-  // Eventos de produção (encomendas) de uma venda, resolvidos na coleção para o
-  // estorno. Um evento já apagado à mão some da lista → não estorna em dobro.
-  function eventsOf(sale: Sale): ProductionEvent[] {
-    return (sale.productionEventIds ?? [])
-      .map((id) => production.find((event) => event.id === id))
-      .filter((event): event is ProductionEvent => Boolean(event));
-  }
-
   async function handleDelete(sale: Sale) {
     const ok = window.confirm(
       `Excluir "${sale.productName}" (${formatDate(sale.saleDate)})? Isso não pode ser desfeito.`,
@@ -337,7 +331,9 @@ export function SalesPage() {
     if (!ok) return;
     // Passo 8: excluir uma venda estorna o que ela consumiu — acabado (finishedMoves)
     // e/ou filamento das encomendas — e apaga os eventos de produção, tudo atômico.
-    const events = eventsOf(sale);
+    // TD-006: os eventos vêm por id do banco (não da janela paginada) — um evento
+    // já apagado à mão vem ausente e não estorna em dobro, como antes.
+    const events = await fetchProductionEventsByIds(sale.productionEventIds ?? []);
     const { colorUpdates, supplyUpdates, finishedUpdates } =
       reverseReciboReconciliation(
         sale.finishedMoves ?? [],
@@ -357,7 +353,11 @@ export function SalesPage() {
     });
   }
 
-  function openEdit(recibo: Recibo) {
+  async function openEdit(recibo: Recibo) {
+    // TD-006: resolve por id os eventos de produção das encomendas do recibo, para
+    // o estorno na edição (a janela paginada pode não conter os eventos antigos).
+    const ids = recibo.items.flatMap((item) => item.productionEventIds ?? []);
+    setEditEvents(await fetchProductionEventsByIds(ids));
     setEditRecibo({
       reciboId: recibo.reciboId,
       customer: recibo.customer,
@@ -426,27 +426,27 @@ export function SalesPage() {
       <div className="sales-totals">
         <div className="sales-total-card">
           <span>Vendas</span>
-          <strong className="sg">{recibos.length}</strong>
-          <span className="sales-total-sub">{sales.length} itens</span>
+          <strong className="sg">{salesTotals.count}</strong>
+          <span className="sales-total-sub">itens no histórico</span>
         </div>
         <div className="sales-total-card">
           <span>Receita</span>
-          <strong className="sg mono">{formatCurrency(totals.revenue)}</strong>
+          <strong className="sg mono">
+            {formatCurrency(salesTotals.revenue)}
+          </strong>
         </div>
         <div className="sales-total-card">
           <span>Custo</span>
-          <strong className="sg mono">{formatCurrency(totals.cost)}</strong>
+          <strong className="sg mono">{formatCurrency(salesTotals.cost)}</strong>
         </div>
         <div className="sales-total-card">
           <span>Lucro</span>
           <strong
-            className={`sg mono ${totals.profit < 0 ? "sale-neg" : "sale-pos"}`}
+            className={`sg mono ${salesTotals.profit < 0 ? "sale-neg" : "sale-pos"}`}
           >
-            {formatCurrency(totals.profit)}
+            {formatCurrency(salesTotals.profit)}
           </strong>
-          <span className="sales-total-sub">
-            margem {totals.margin.toFixed(0)}%
-          </span>
+          <span className="sales-total-sub">margem {margin.toFixed(0)}%</span>
         </div>
       </div>
 
@@ -473,7 +473,7 @@ export function SalesPage() {
           <button
             className="icon-label-button"
             type="button"
-            onClick={exportCsv}
+            onClick={() => void exportCsv()}
             disabled={recibos.length === 0}
           >
             Exportar CSV
@@ -491,6 +491,7 @@ export function SalesPage() {
           e registre pelo card de preço.
         </div>
       ) : (
+        <>
         <div className="recibo-list">
           {sortedRecibos.map((recibo) => (
             <div className="recibo-card" key={recibo.reciboId}>
@@ -544,7 +545,7 @@ export function SalesPage() {
                   <button
                     className="icon-button edit"
                     type="button"
-                    onClick={() => openEdit(recibo)}
+                    onClick={() => void openEdit(recibo)}
                     title="Editar venda"
                   >
                     <Edit3 size={15} />
@@ -607,6 +608,18 @@ export function SalesPage() {
             </div>
           ))}
         </div>
+        {hasMore ? (
+          <div className="load-more-row">
+            <button
+              className="btn ghost load-more"
+              type="button"
+              onClick={loadMore}
+            >
+              Carregar mais vendas
+            </button>
+          </div>
+        ) : null}
+        </>
       )}
 
       {editRecibo ? (
@@ -621,8 +634,11 @@ export function SalesPage() {
           products={products}
           machines={machines}
           fixedCosts={fixedCosts}
-          production={production}
-          onClose={() => setEditRecibo(null)}
+          production={editEvents}
+          onClose={() => {
+            setEditRecibo(null);
+            setEditEvents([]);
+          }}
           onConfirm={reconcileRecibo}
         />
       ) : null}
@@ -639,7 +655,8 @@ export function SalesPage() {
           products={products}
           machines={machines}
           fixedCosts={fixedCosts}
-          production={production}
+          // Venda nova não estorna produção — o `production` só serve à edição.
+          production={[]}
           onClose={() => setNewSale(false)}
           onConfirm={reconcileRecibo}
         />
