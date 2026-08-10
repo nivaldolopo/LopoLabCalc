@@ -305,8 +305,8 @@ export function ProductCatalog({
                       }
                     >
                       {/* UX-03: a faixa de "Ações" (146px, FEAT-08) trunca o
-                          nome abaixo de ~860px; o `title` é o único jeito de
-                          ler o nome inteiro hoje. */}
+                          nome; o `title` ajuda no hover (desktop) e o painel
+                          expandido repete o nome inteiro (toque/mobile). */}
                       <td className="col-name strong" title={product.name}>
                         <span className="arrow-icon">▼</span>
                         {product.name}
@@ -475,6 +475,10 @@ function CatalogDetails({
 
   return (
     <div className="catalog-details">
+      {/* UX-03: o nome trunca na linha fechada e o `title` não serve em toque.
+          Repetido aqui inteiro (quebra em várias linhas) — quem não conseguiu
+          ler o nome expande o card e vê. */}
+      <h3 className="cd-product-name">{product.name}</h3>
       <div className="cd-meta">
         <span>
           <span className="db-label">Máquina</span>{" "}

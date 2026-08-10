@@ -74,17 +74,10 @@
 - ~~**[FEAT-08] Ações "Produzir"/"Orçar" no card**~~ **✅ FEITO (2026-07-20)** — as 3 ações (vender,
   produzir, orçar) na coluna Ações e no painel expandido, **para o inteiro e por subitem**; seed
   `?produto=&subitem=`. Detalhe (inclusive por que a "derivação pura" não servia) em `HISTORICO.md`.
-- **[UX-03] Nome do produto truncado sem escape no catálogo** *(reportado pelo dono, 2026-07-20 — efeito
-  colateral aceito do FEAT-08)*. A faixa de "Ações" foi de 76px pra 146px (`catalog.css`) e, abaixo de
-  ~860px, o `.col-name` corta com reticências — **e não há como ler o nome inteiro**: a célula não tem
-  `title` e o painel expandido também não repete o nome.
-  **Paliativo APLICADO (2026-07-20):** `title={product.name}` na célula ⇒ o nome inteiro aparece ao
-  passar o mouse. **Continua aberto** o que o `title` NÃO resolve: **toque/mobile não tem hover**, e o
-  painel expandido segue sem repetir o nome. Saídas restantes: nome no cabeçalho do painel expandido,
-  ou repensar a grade (nome em 2 linhas / ações compactadas em menu).
-  **Onde:** `ProductCatalog.tsx` + `catalog.css`.
-  ⚠ Lembrete: a linha **não é tabela**, é `display: grid`; as regras `sticky` de `col-actions` (~536)
-  são mortas.
+- ~~**[UX-03] Nome do produto truncado sem escape no catálogo**~~ ✅ **FEITO (2026-08-10)** — o painel
+  expandido agora abre com o **nome inteiro** (`.cd-product-name`, `overflow-wrap: anywhere`), resolvendo
+  o que o `title` não cobria (toque/mobile sem hover + o expandido não repetia o nome). `title` na linha
+  fechada mantido pro hover no desktop. **Onde:** `ProductCatalog.tsx` + `catalog.css`.
 - ~~**[UX-04] Catálogo mostra só a 1ª máquina em produto multi-etapa**~~ ✅ **FEITO (2026-08-04, junto do
   TD-003)** — `MachineCell` lista as máquinas distintas de `machineUsage` ("A1 +1" compacto na linha,
   lista inteira no painel expandido); mantém o `machine-missing-badge` (TD-009).

@@ -9,6 +9,14 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ UX-03 (nome do produto truncado no catálogo) — 2026-08-10
+
+Efeito colateral do FEAT-08 (a faixa de Ações cresceu p/ 146px): o `.col-name` corta com reticências e o
+`title` só se lê no hover — inútil em toque/mobile, e o painel expandido não repetia o nome. **Fix:** o
+painel expandido (`CatalogDetails`) abre com o **nome inteiro** num `<h3 class="cd-product-name">`
+(`overflow-wrap: anywhere`, quebra em várias linhas). `title` na linha fechada mantido pro hover no
+desktop. Só `ProductCatalog.tsx` + `catalog.css`.
+
 ## ✅ TD-006 (paginação) + UX-05 Fase 2/3 (busca em vendas/produção) — 2026-08-10
 
 **O problema:** `/vendas` e `/produção` assinavam a **coleção inteira** (`onSnapshot` sem limite). Ok

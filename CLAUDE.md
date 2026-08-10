@@ -14,15 +14,11 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ TD-006 FECHADA — FASE 3** (2026-08-10) — **busca** em **/vendas** e **/produção**.
-  **Filtro produto + período server-side** (decidido "os dois juntos"): produto por `where(==)`
-  equality-only + período por range no **mesmo campo** do `orderBy` (`saleDate`/`at`) → **sem índice
-  composto**; com produto selecionado a query traz o conjunto todo do produto (limitado) e refina o período
-  no cliente, sem paginar. **+ caixa de nome** que refina a janela carregada (`matchesQuery`, client-side).
-  Totais/contagem respeitam o filtro (agregação por período; soma local no caminho de produto). Componente
-  `HistoryFilterBar` compartilhado. **Fase 2 (paginação + totais agregados + estorno por id) já estava no ar.**
-  ⚠ recibo no limite da página pode aparecer partido até "carregar mais" (itens do mesmo dia não são
-  contíguos) — os cards não erram (vêm da agregação). ROI (/maquinas) segue lendo tudo (ressalva).
+- **Última mudança:** **✅ UX-03 FECHADO** (2026-08-10) — nome do produto truncado no catálogo. O painel
+  expandido agora abre com o **nome inteiro** (`.cd-product-name`, quebra em várias linhas), cobrindo o que
+  o `title` não resolvia (toque/mobile sem hover + o expandido não repetia o nome). Só `ProductCatalog.tsx`
+  + `catalog.css`. **TD-006 Fase 3 (busca server-side em /vendas e /produção) fechada logo antes**, já no ar;
+  ⚠ ROI (/maquinas) segue lendo o histórico inteiro (ressalva de análise, adiada pro Dashboard).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
