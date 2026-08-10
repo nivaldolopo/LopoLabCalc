@@ -53,12 +53,9 @@
 ## Itens abertos
 
 ### Bugs
-- **[BUG-04] Métricas do card de ROI vazam pra fora da caixa** *(dono, 2026-08-10)* — em `/maquinas`, os 4
-  números do rodapé (Vendas/Receita/Lucro/Ritmo) estouram a borda do card (ver print do dono). Causa:
-  `.roi-metrics` é `grid repeat(4, 1fr)` num card de ~340px; `"R$ 861,92/mês"` em mono 14px não cabe em
-  ~70px e, como `1fr` não encolhe abaixo do conteúdo (`min-width: auto`) e não há `overflow`/wrap, o texto
-  transborda. **Fix (CSS puro, ~10 min):** `min-width: 0` nas células + deixar o valor quebrar/encolher (ou
-  2×2 em card estreito). **Onde:** `machines.css` (`.roi-metrics`/`.roi-metric`). **Quick-win — fora da fila.**
+- ~~**[BUG-04] Métricas do card de ROI vazam pra fora da caixa**~~ ✅ **FEITO (2026-08-10)** — `.roi-metrics`
+  passou de `repeat(4, 1fr)` (não cabia "R$ 861,92/mês" em card de 340px) p/ **2×2** + `min-width: 0` nas
+  células. **Onde:** `machines.css`.
 - ~~**[BUG-03]** Histórico de vendas e extrato de rolos fora de ordem~~ **✅ FEITO (2026-07-19)** — `Recibo`
   ganhou `createdAt` (max dos itens) e os sorts por data usam `(saleDate, createdAt)`; `colorStatement`
   desempata por `seq` (createdAt do evento no consumo). Rolos/ajustes seguem só com o dia.
