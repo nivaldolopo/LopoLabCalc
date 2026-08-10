@@ -9,6 +9,30 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ FEAT-09 — Desconto na venda (2026-08-10)
+
+Pedido do dono (2026-08-07): dar desconto ao registrar a venda, com lucro/margem recalculando **sobre o
+preço COM desconto** (não o de tabela). **Escopo (decisão do dono):** por **item** _XOR_ no **total** do
+recibo — um modo ou o outro por venda, nunca os dois. **Formato:** R$ ou %.
+
+**Modelo (congelado, Diretriz 7):** `SaleInput` ganhou `discountKind` (`"item"|"total"`), `discountInput`
+(`{mode:"abs"|"pct", value}` — o que o dono digitou, p/ exibir "10%") e `discountAmount` (o **R$ efetivo**
+da linha; no modo total, já a fatia rateada). Congelados no snapshot; `profit`/`margin`/`feeAmount` já
+entram líquidos. Custo real **não muda** → lucro = preço_com_desconto − custo real.
+
+**Matemática (`paymentFees.ts`, testada):** `discountAmountOf(base, discount)` (clamp: nunca <0 nem >base,
+% até 100%, round2); `saleItemFinancials` ganhou `discountAmount` — receita = bruto − desconto e a **taxa
+incide sobre o valor JÁ com desconto** (é o que a maquininha cobra); `apportionDiscount(lineGross, total)`
+rateia o desconto-total **proporcional à receita bruta** de cada linha, com o resíduo de arredondamento na
+última linha (Σ fatias = desconto total). **Duas decisões confirmadas pelo dono (2026-08-10):** taxa sobre
+o valor com desconto; rateio proporcional à receita.
+
+**UI (`SaleModal`):** seletor de modo (Nenhum/Por item/No total) reforça o XOR; campo `DiscountInput`
+(número + toggle R$/%) por item ou no total; resumo mostra Subtotal/Desconto/Receita quando há desconto.
+Round-trip na edição (reconstrói o modo do recibo salvo). Exibição em `/vendas` (nota "−R$X" na linha,
+"(rateado)" no modo total) + coluna no CSV. `toSale`/`saleToDocument` (salesRepository) leem/gravam os 3
+campos. Sem migração de venda antiga (Diretriz 7): sem os campos, a tela mostra a venda como sempre.
+
 ## ✅ UX-03 (nome do produto truncado no catálogo) — 2026-08-10
 
 Efeito colateral do FEAT-08 (a faixa de Ações cresceu p/ 146px): o `.col-name` corta com reticências e o

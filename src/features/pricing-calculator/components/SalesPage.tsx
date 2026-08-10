@@ -134,6 +134,7 @@ function buildCsv(sales: Sale[]): string {
     "Qtd",
     "Preco Sugerido (R$)",
     "Preco Venda (R$)",
+    "Desconto (R$)",
     "Custo Unit (R$)",
     "Custo Total (R$)",
     "Receita (R$)",
@@ -159,6 +160,7 @@ function buildCsv(sales: Sale[]): string {
       String(sale.quantity),
       formatDecimal(sale.suggestedPrice),
       formatDecimal(sale.salePrice),
+      formatDecimal(sale.discountAmount ?? 0),
       formatDecimal(sale.unitCost),
       formatDecimal(sale.totalCost),
       formatDecimal(sale.totalRevenue),
@@ -426,6 +428,12 @@ export function SalesPage() {
         quantity: sale.quantity,
         salePrice: sale.salePrice,
         createdAt: sale.createdAt,
+        // FEAT-09: reabre a venda com o desconto congelado (modo + valor + R$).
+        ...(sale.discountKind ? { discountKind: sale.discountKind } : {}),
+        ...(sale.discountInput ? { discountInput: sale.discountInput } : {}),
+        ...(sale.discountAmount !== undefined
+          ? { discountAmount: sale.discountAmount }
+          : {}),
         // Passo 8: carrega o rastro da reconciliação salva para o estorno da edição.
         ...(sale.origem ? { origem: sale.origem } : {}),
         ...(sale.finishedMoves ? { finishedMoves: sale.finishedMoves } : {}),
@@ -634,6 +642,12 @@ export function SalesPage() {
                       <td className="num mono ri-qty">{sale.quantity}×</td>
                       <td className="num mono ri-price">
                         {formatCurrency(sale.salePrice)}
+                        {sale.discountAmount && sale.discountAmount > 0 ? (
+                          <div className="ri-discount sale-neg">
+                            −{formatCurrency(sale.discountAmount)}
+                            {sale.discountKind === "total" ? " (rateado)" : ""}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="num mono ri-rev">
                         {formatCurrency(sale.totalRevenue)}

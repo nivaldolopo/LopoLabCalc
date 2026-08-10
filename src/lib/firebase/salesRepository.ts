@@ -126,6 +126,23 @@ function toSale(id: string, data: DocumentData): Sale {
     feeRate: num(data.feeRate),
     feeAmount: num(data.feeAmount),
     feePassedToCustomer: Boolean(data.feePassedToCustomer),
+    // FEAT-09: desconto congelado. Ausente em venda sem desconto ou anterior ao
+    // recurso → campos omitidos e a tela mostra a venda como sempre.
+    ...(data.discountKind === "item" || data.discountKind === "total"
+      ? { discountKind: data.discountKind }
+      : {}),
+    ...(data.discountInput &&
+    (data.discountInput.mode === "abs" || data.discountInput.mode === "pct")
+      ? {
+          discountInput: {
+            mode: data.discountInput.mode,
+            value: num(data.discountInput.value),
+          },
+        }
+      : {}),
+    ...(num(data.discountAmount) > 0
+      ? { discountAmount: num(data.discountAmount) }
+      : {}),
     profit: num(data.profit),
     margin: num(data.margin),
     // Passo 8 — reconciliação. Ausentes nas vendas anteriores ao recurso (não

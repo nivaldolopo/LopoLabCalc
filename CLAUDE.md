@@ -14,22 +14,23 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ UX-03 FECHADO** (2026-08-10) — nome do produto truncado no catálogo. O painel
-  expandido agora abre com o **nome inteiro** (`.cd-product-name`, quebra em várias linhas), cobrindo o que
-  o `title` não resolvia (toque/mobile sem hover + o expandido não repetia o nome). Só `ProductCatalog.tsx`
-  + `catalog.css`. **TD-006 Fase 3 (busca server-side em /vendas e /produção) fechada logo antes**, já no ar;
-  ⚠ ROI (/maquinas) segue lendo o histórico inteiro (ressalva de análise, adiada pro Dashboard).
+- **Última mudança:** **✅ FEAT-09 FECHADO** (2026-08-10) — desconto na venda, **por item _XOR_ no total**
+  do recibo, em **R$ ou %**, **congelado** no snapshot (`discountKind`/`discountInput`/`discountAmount` no
+  `SaleInput`). Matemática em `paymentFees.ts` (`discountAmountOf` + `apportionDiscount` + `saleItemFinancials`
+  ganhou `discountAmount`; **taxa incide sobre o valor com desconto**; rateio do total **proporcional à
+  receita** da linha). UI no `SaleModal` (seletor de modo + campo R$/% por item ou no total), round-trip na
+  edição, exibição em `/vendas` + CSV. Custo real intacto → lucro = preço_com_desconto − custo real.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **▶ PRÓXIMA TAREFA:** **Tier 2 comerciais** — ordem interna à escolha do dono: **FEAT-09** (desconto na
-  venda, por item XOR total, R$ ou %, congelado no recibo) · **FEAT-03** (PDF do orçamento melhor) ·
-  **branding/logo real** no PDF. Depois só o **Dashboard** (último — só com ~1-2 meses de venda real).
+- **▶ PRÓXIMA TAREFA:** **Tier 2 comerciais (resto)** — ordem interna à escolha do dono: **FEAT-03** (PDF do
+  orçamento melhor) · **branding/logo real** no PDF. Depois só o **Dashboard** (último — só com ~1-2 meses de
+  venda real). (FEAT-09 ✅ fechado.)
   ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
   Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (Cloud
   Functions), a adiar pro Dashboard.
   **Ordem (dono, 2026-07-31/08-04):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → ~~UX-05 Fase 1~~ ✅ →
-  ~~TD-006 (paginação + busca)~~ ✅ → **Tier 2 comerciais** → Dashboard (último).
+  ~~TD-006 (paginação + busca)~~ ✅ → ~~FEAT-09~~ ✅ → **FEAT-03 / branding** → Dashboard (último).
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —

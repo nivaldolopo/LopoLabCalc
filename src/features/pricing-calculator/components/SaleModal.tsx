@@ -20,7 +20,12 @@ import type { ReciboWrite } from "@/lib/firebase/salesRepository";
 import { CostDetail } from "./CostDetail";
 import { balanceOf } from "../lib/finishedGoods";
 import { freezeFilaments, materialsLabel } from "../lib/filaments";
-import { feeRateForMethod, saleItemFinancials } from "../lib/paymentFees";
+import {
+  apportionDiscount,
+  discountAmountOf,
+  feeRateForMethod,
+  saleItemFinancials,
+} from "../lib/paymentFees";
 import {
   planReciboReconciliation,
   reconcileReciboWrite,
@@ -33,6 +38,8 @@ import {
 } from "../lib/saleContext";
 import { NumberInput } from "./NumberInput";
 import type {
+  Discount,
+  DiscountKind,
   FinishedGood,
   FinishedMove,
   FixedCostSettings,
@@ -58,6 +65,10 @@ export type SaleModalEditItem = {
   quantity: number;
   salePrice: number;
   createdAt: number;
+  // FEAT-09: desconto congelado desta linha (para reabrir a venda sem perder).
+  discountKind?: DiscountKind;
+  discountInput?: Discount;
+  discountAmount?: number;
   // Passo 8: reconciliação da venda salva, para o estorno-e-reaplicação da edição.
   origem?: SaleItemOrigin;
   finishedMoves?: FinishedMove[];
@@ -86,9 +97,16 @@ type CestaItem = {
   productName: string;
   quantity: number;
   salePrice: number;
+  // FEAT-09: desconto DESTA linha (só usado no modo "por item"; no modo "total" o
+  // desconto vive em `totalDiscount` e é rateado). Ausente = linha sem desconto.
+  discount?: Discount;
   // Passo 8: caminho de reconciliação deste item (default por saldo do acabado).
   origem: SaleItemOrigin;
 };
+
+// FEAT-09: qual modo de desconto está ativo no recibo (XOR — nunca os dois).
+type DiscountMode = "none" | "item" | "total";
+const ZERO_DISCOUNT: Discount = { mode: "abs", value: 0 };
 
 type SaleModalProps = {
   // Produto que abriu o modal (do card ou do catálogo) — vira o 1º item.
@@ -125,6 +143,44 @@ function formatDecimalPct(value: number): string {
   return (Number(value) || 0).toLocaleString("pt-BR", {
     maximumFractionDigits: 2,
   });
+}
+
+// FEAT-09: campo de desconto (número + alternância R$/%). O `mode` decide o passo
+// e como o valor é interpretado no cálculo (valor absoluto ou percentual).
+function DiscountInput({
+  value,
+  onChange,
+}: {
+  value: Discount;
+  onChange: (discount: Discount) => void;
+}) {
+  return (
+    <div className="discount-input">
+      <NumberInput
+        className="field-input"
+        min={0}
+        step={value.mode === "pct" ? "0.1" : "0.01"}
+        value={value.value}
+        onChange={(v) => onChange({ ...value, value: v })}
+      />
+      <div className="discount-unit-toggle">
+        <button
+          type="button"
+          className={value.mode === "abs" ? "on" : ""}
+          onClick={() => onChange({ ...value, mode: "abs" })}
+        >
+          R$
+        </button>
+        <button
+          type="button"
+          className={value.mode === "pct" ? "on" : ""}
+          onClick={() => onChange({ ...value, mode: "pct" })}
+        >
+          %
+        </button>
+      </div>
+    </div>
+  );
 }
 
 let itemSeq = 0;
@@ -181,6 +237,11 @@ export function SaleModal({
         productName: entry.productName,
         quantity: entry.quantity,
         salePrice: entry.salePrice,
+        // FEAT-09: só o desconto POR ITEM volta pra linha; o desconto NO TOTAL é
+        // reconstruído em `totalDiscount` abaixo (não fica na linha).
+        ...(entry.discountKind === "item" && entry.discountInput
+          ? { discount: entry.discountInput }
+          : {}),
         origem: entry.origem ?? defaultOrigin(entry.source),
       }));
     }
@@ -201,6 +262,20 @@ export function SaleModal({
     editRecibo?.feePassedToCustomer ?? false,
   );
   const [notes, setNotes] = useState(editRecibo?.notes ?? "");
+  // FEAT-09: modo de desconto (XOR) + o desconto do modo "total". Reconstruídos do
+  // recibo salvo ao editar (o desconto por item já voltou pras linhas acima).
+  const [discountMode, setDiscountMode] = useState<DiscountMode>(() => {
+    const items = editRecibo?.items ?? [];
+    if (items.some((entry) => entry.discountKind === "total")) return "total";
+    if (items.some((entry) => entry.discountKind === "item")) return "item";
+    return "none";
+  });
+  const [totalDiscount, setTotalDiscount] = useState<Discount>(() => {
+    const totalEntry = editRecibo?.items.find(
+      (entry) => entry.discountKind === "total" && entry.discountInput,
+    );
+    return totalEntry?.discountInput ?? ZERO_DISCOUNT;
+  });
   const [addPick, setAddPick] = useState("");
   const [showFeesEditor, setShowFeesEditor] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -310,6 +385,32 @@ export function SaleModal({
   const unitCostOf = (item: CestaItem): number =>
     reconByKey.get(item.key)?.cogsUnit ?? item.source.unitCost;
 
+  // Bruto da linha (preço de tabela × qtd), antes do desconto.
+  const grossOf = (item: CestaItem): number =>
+    Math.max(0, Number(item.salePrice) || 0) *
+    Math.max(1, Number(item.quantity) || 1);
+
+  // FEAT-09: R$ efetivo do desconto por linha. No modo "item" cada linha aplica o
+  // seu; no modo "total" o desconto do recibo é rateado proporcional ao bruto de
+  // cada linha (soma das fatias = desconto total). "none" → tudo zero.
+  const discountByKey = useMemo(() => {
+    const map = new Map<string, number>();
+    if (discountMode === "item") {
+      for (const item of items) {
+        map.set(item.key, discountAmountOf(grossOf(item), item.discount));
+      }
+    } else if (discountMode === "total") {
+      const lineGross = items.map(grossOf);
+      const grossSum = lineGross.reduce((acc, g) => acc + g, 0);
+      const totalR = discountAmountOf(grossSum, totalDiscount);
+      const shares = apportionDiscount(lineGross, totalR);
+      items.forEach((item, idx) => map.set(item.key, shares[idx] ?? 0));
+    }
+    return map;
+  }, [items, discountMode, totalDiscount]);
+  const discountOf = (item: CestaItem): number =>
+    discountByKey.get(item.key) ?? 0;
+
   const totals = useMemo(() => {
     return items.reduce(
       (acc, item) => {
@@ -318,16 +419,19 @@ export function SaleModal({
           quantity: item.quantity,
           unitCost: unitCostOf(item),
           feeRatePct,
+          discountAmount: discountOf(item),
         });
+        acc.gross += grossOf(item);
+        acc.discount += discountOf(item);
         acc.revenue += fin.totalRevenue;
         acc.cost += fin.totalCost;
         acc.fee += fin.feeAmount;
         return acc;
       },
-      { revenue: 0, cost: 0, fee: 0 },
+      { gross: 0, discount: 0, revenue: 0, cost: 0, fee: 0 },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, feeRatePct, reconByKey]);
+  }, [items, feeRatePct, reconByKey, discountByKey]);
 
   const profit = totals.revenue - totals.cost - totals.fee;
   const margin = totals.revenue > 0 ? (profit / totals.revenue) * 100 : 0;
@@ -403,11 +507,14 @@ export function SaleModal({
       const r = wByKey.get(item.key);
       // COGS = custo real de produção (D3): camadas do acabado ou FIFO da encomenda.
       const unitCost = r?.cogsUnit ?? item.source.unitCost;
+      // FEAT-09: R$ efetivo do desconto desta linha (já rateado no modo total).
+      const discountAmount = discountByKey.get(item.key) ?? 0;
       const fin = saleItemFinancials({
         chargedUnitPrice: unitPrice,
         quantity: qty,
         unitCost,
         feeRatePct,
+        discountAmount,
       });
       // FEAT-02/D7: congela as cores resolvendo material/marca da cor viva; o
       // "material" da venda passa a ser DERIVADO delas (não mais texto livre).
@@ -453,6 +560,19 @@ export function SaleModal({
         feeRate: feeRatePct,
         feeAmount: fin.feeAmount,
         feePassedToCustomer,
+        // FEAT-09: congela o desconto só quando há um efetivo nesta linha (o
+        // Firestore rejeita undefined). `discountInput` guarda o que o dono
+        // digitou; no modo total é o desconto do recibo inteiro (informativo).
+        ...(discountMode !== "none" && discountAmount > 0
+          ? {
+              discountKind: discountMode,
+              discountInput:
+                discountMode === "item"
+                  ? (item.discount ?? ZERO_DISCOUNT)
+                  : totalDiscount,
+              discountAmount,
+            }
+          : {}),
         profit: fin.profit,
         margin: fin.margin,
         // Preserva o createdAt de itens já salvos (mantém a ordem no recibo);
@@ -666,11 +786,13 @@ export function SaleModal({
             const unitPrice = Math.max(0, Number(item.salePrice) || 0);
             const r = reconByKey.get(item.key);
             const unitCost = unitCostOf(item);
+            const itemDiscount = discountOf(item);
             const fin = saleItemFinancials({
               chargedUnitPrice: unitPrice,
               quantity: qty,
               unitCost,
               feeRatePct,
+              discountAmount: itemDiscount,
             });
             const itemProfit = fin.profit;
             const priceDelta = unitPrice - item.source.suggestedPrice;
@@ -725,6 +847,23 @@ export function SaleModal({
                     />
                   </div>
                 </div>
+
+                {discountMode === "item" ? (
+                  <div className="cesta-discount">
+                    <span className="cesta-discount-label">Desconto</span>
+                    <DiscountInput
+                      value={item.discount ?? ZERO_DISCOUNT}
+                      onChange={(discount) =>
+                        updateItem(item.key, { discount })
+                      }
+                    />
+                    <span className="cesta-discount-eff">
+                      {itemDiscount > 0
+                        ? `−${formatCurrency(itemDiscount)}`
+                        : "—"}
+                    </span>
+                  </div>
+                ) : null}
 
                 <div className="cesta-origem">
                   <select
@@ -789,6 +928,12 @@ export function SaleModal({
                         {formatCurrency(Math.abs(priceDelta))})
                       </span>
                     ) : null}
+                    {itemDiscount > 0 ? (
+                      <span className="sale-neg">
+                        {" "}
+                        · desc −{formatCurrency(itemDiscount)}
+                      </span>
+                    ) : null}
                   </span>
                   <span>
                     lucro{" "}
@@ -834,7 +979,61 @@ export function SaleModal({
           />
         </div>
 
+        <div className="discount-block">
+          <div className="discount-modes">
+            <span className="discount-modes-label">Desconto</span>
+            <div className="discount-mode-toggle">
+              {(
+                [
+                  ["none", "Nenhum"],
+                  ["item", "Por item"],
+                  ["total", "No total"],
+                ] as [DiscountMode, string][]
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={discountMode === mode ? "on" : ""}
+                  onClick={() => setDiscountMode(mode)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {discountMode === "item" ? (
+            <p className="discount-hint">
+              Defina o desconto em cada item acima. Um modo ou outro por venda —
+              nunca os dois juntos.
+            </p>
+          ) : null}
+          {discountMode === "total" ? (
+            <div className="discount-total">
+              <DiscountInput value={totalDiscount} onChange={setTotalDiscount} />
+              <span className="discount-total-eff">
+                {totals.discount > 0
+                  ? `−${formatCurrency(totals.discount)} no recibo`
+                  : "sem desconto"}
+              </span>
+            </div>
+          ) : null}
+        </div>
+
         <div className="sale-summary">
+          {totals.discount > 0 ? (
+            <>
+              <div className="sale-summary-item">
+                <span>Subtotal</span>
+                <strong className="mono">{formatCurrency(totals.gross)}</strong>
+              </div>
+              <div className="sale-summary-item">
+                <span>Desconto</span>
+                <strong className="mono sale-neg">
+                  −{formatCurrency(totals.discount)}
+                </strong>
+              </div>
+            </>
+          ) : null}
           <div className="sale-summary-item">
             <span>Receita</span>
             <strong className="mono">{formatCurrency(totals.revenue)}</strong>

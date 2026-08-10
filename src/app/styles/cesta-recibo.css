@@ -93,6 +93,124 @@
   flex: 1;
 }
 
+/* --- FEAT-09: desconto na venda (por item XOR no total) --- */
+
+/* Campo reutilizável: número + alternância R$/%. */
+.discount-input {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.discount-input .field-input {
+  width: 90px;
+}
+
+.discount-unit-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.discount-unit-toggle button {
+  border: 0;
+  background: var(--details-bg);
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.discount-unit-toggle button + button {
+  border-left: 1px solid var(--border);
+}
+
+.discount-unit-toggle button.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Desconto POR ITEM: linha dentro do cartão do item. */
+.cesta-discount {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cesta-discount-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cesta-discount-eff {
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+/* Bloco do modo de desconto (seletor + campo do modo total), antes do resumo. */
+.discount-block {
+  margin-top: 16px;
+}
+
+.discount-modes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.discount-modes-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.discount-mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.discount-mode-toggle button {
+  border: 0;
+  background: var(--details-bg);
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.discount-mode-toggle button + button {
+  border-left: 1px solid var(--border);
+}
+
+.discount-mode-toggle button.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.discount-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.discount-total {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.discount-total-eff {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* Detalhe de custo (CostDetail): gatilho inline + JANELA FLUTUANTE (Popover API).
    Compartilhado pela cesta (modal) e pelo histórico (/vendas). O popover vive na
    top-layer, então não é cortado pelo scroll do modal e centraliza sozinho. */
@@ -384,6 +502,12 @@
 
 .ri-cost {
   color: var(--muted);
+}
+
+/* FEAT-09: desconto congelado da linha, abaixo do preço de tabela no /vendas. */
+.ri-discount {
+  font-size: 11px;
+  margin-top: 2px;
 }
 
 .ri-actions {
