@@ -24,9 +24,13 @@ import type { CloudStatus, ProductionEvent, RoundingMode, Sale } from "../types"
 import {
   fetchAllSales,
   reconcileRecibo,
+  type SalesQuery,
 } from "@/lib/firebase/salesRepository";
 import { fetchProductionEventsByIds } from "@/lib/firebase/productionRepository";
+import { toTimestamp } from "@/lib/formatting/date";
+import { matchesQuery } from "@/lib/text";
 import { CostDetail } from "./CostDetail";
+import { HistoryFilterBar } from "./HistoryFilterBar";
 import { NavBar } from "./NavBar";
 import { SaleModal, type EditReciboSeed } from "./SaleModal";
 import {
@@ -171,8 +175,22 @@ function buildCsv(sales: Sale[]): string {
 
 export function SalesPage() {
   const { theme, toggleTheme } = useTheme();
+  // TD-006 Fase 3: filtro server-side (produto + período) + refino por nome
+  // (client-side sobre a janela carregada).
+  const [filterProductId, setFilterProductId] = useState("");
+  const [startStr, setStartStr] = useState("");
+  const [endStr, setEndStr] = useState("");
+  const [nameQuery, setNameQuery] = useState("");
+  const salesFilter = useMemo<SalesQuery>(
+    () => ({
+      productId: filterProductId || null,
+      start: startStr ? toTimestamp(startStr) : null,
+      end: endStr ? toTimestamp(endStr) : null,
+    }),
+    [filterProductId, startStr, endStr],
+  );
   const { sales, totals: salesTotals, hasMore, loadMore, status, error } =
-    useSalesPage();
+    useSalesPage(salesFilter);
   const { products } = useProducts();
   const { machines } = useMachines();
   const { fixedCostRate } = useBusinessSettings();
@@ -301,6 +319,34 @@ export function SalesPage() {
         );
     }
   }, [recibos, sortMode]);
+
+  // Opções do seletor de produto do filtro (catálogo atual, por nome).
+  const productOptions = useMemo(
+    () =>
+      [...products]
+        .map((product) => ({
+          id: product.id,
+          name: product.name || product.mainStageName || "(sem nome)",
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    [products],
+  );
+
+  // Refino por nome (client-side sobre a janela já filtrada no banco): casa por
+  // produto ou cliente. Não mexe nos totais (que refletem o filtro server-side).
+  const visibleRecibos = useMemo(() => {
+    if (!nameQuery.trim()) return sortedRecibos;
+    return sortedRecibos.filter((recibo) =>
+      matchesQuery(
+        nameQuery,
+        recibo.customer,
+        ...recibo.items.map((item) => item.productName),
+      ),
+    );
+  }, [sortedRecibos, nameQuery]);
+
+  const hasServerFilter =
+    filterProductId !== "" || startStr !== "" || endStr !== "";
 
   // TD-006: os cards somam o histórico INTEIRO via aggregation query
   // (`salesTotals`), não a janela paginada. Só a margem é derivada aqui.
@@ -481,19 +527,39 @@ export function SalesPage() {
         </div>
       </div>
 
-      {recibos.length === 0 ? (
+      <HistoryFilterBar
+        products={productOptions}
+        productId={filterProductId}
+        onProductId={setFilterProductId}
+        startStr={startStr}
+        onStart={setStartStr}
+        endStr={endStr}
+        onEnd={setEndStr}
+        name={nameQuery}
+        onName={setNameQuery}
+        namePlaceholder="Refinar por produto ou cliente…"
+        resultCount={visibleRecibos.length}
+      />
+
+      {visibleRecibos.length === 0 ? (
         <div className="sales-empty">
-          Nenhuma venda registrada ainda. Use{" "}
-          <strong>Nova venda</strong> no topo da página, ou abra a{" "}
-          <Link href="/" className="link-inline">
-            calculadora
-          </Link>{" "}
-          e registre pelo card de preço.
+          {hasServerFilter || nameQuery.trim() ? (
+            "Nenhuma venda para esse filtro."
+          ) : (
+            <>
+              Nenhuma venda registrada ainda. Use{" "}
+              <strong>Nova venda</strong> no topo da página, ou abra a{" "}
+              <Link href="/" className="link-inline">
+                calculadora
+              </Link>{" "}
+              e registre pelo card de preço.
+            </>
+          )}
         </div>
       ) : (
         <>
         <div className="recibo-list">
-          {sortedRecibos.map((recibo) => (
+          {visibleRecibos.map((recibo) => (
             <div className="recibo-card" key={recibo.reciboId}>
               <div className="recibo-head">
                 <div className="recibo-head-main">

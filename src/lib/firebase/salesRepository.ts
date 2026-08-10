@@ -10,8 +10,10 @@ import {
   orderBy,
   query,
   sum,
+  where,
   writeBatch,
   type DocumentData,
+  type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "./client";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
@@ -156,20 +158,64 @@ export function subscribeSales(
   );
 }
 
-// TD-006: assinatura PAGINADA das vendas (limite crescente). Em vez de baixar a
-// coleção inteira (o marco traz um volume grande de uma vez), assina só as
-// `pageLimit` vendas mais recentes por `saleDate`. Mantém realtime na janela
-// carregada; "carregar mais" re-assina com um limite maior (a query roda do topo
-// de novo — sem cursor, sem risco de pular doc no limite). `orderBy` num campo só
-// dispensa índice composto (o Firestore auto-indexa cada campo nas duas ordens).
-// Busca `pageLimit + 1` docs para saber se ainda há mais (`hasMore`) sem contar.
+// TD-006 Fase 3: filtro server-side das vendas. `productId` filtra o produto
+// (inteiro + subitens, que compartilham o id); `start`/`end` (ms, meio-dia local
+// — ver formatting/date) delimitam o período por `saleDate`, INCLUSIVO nas duas
+// pontas (toda venda do dia tem saleDate = meio-dia daquele dia).
+export type SalesQuery = {
+  productId?: string | null;
+  start?: number | null;
+  end?: number | null;
+};
+
+// Restrições de PERÍODO sobre `saleDate` — mesmo campo do `orderBy`, então
+// dispensam índice composto. Usadas na janela paginada E na agregação.
+function periodConstraints(filter: SalesQuery): QueryConstraint[] {
+  const constraints: QueryConstraint[] = [];
+  if (filter.start != null) constraints.push(where("saleDate", ">=", filter.start));
+  if (filter.end != null) constraints.push(where("saleDate", "<=", filter.end));
+  return constraints;
+}
+
+function withinPeriod(sale: Sale, filter: SalesQuery): boolean {
+  if (filter.start != null && sale.saleDate < filter.start) return false;
+  if (filter.end != null && sale.saleDate > filter.end) return false;
+  return true;
+}
+
+// TD-006: assinatura PAGINADA + FILTRADA das vendas. Duas formas, ambas SEM
+// índice composto:
+//  • com `productId` → equality só (`where(productId ==)`); traz TODAS as vendas
+//    do produto (conjunto naturalmente limitado), refina o período no cliente e
+//    NÃO pagina (`hasMore` = false). Evita o índice composto equality+range.
+//  • sem `productId` → range de período (mesmo campo do `orderBy`) + limite
+//    crescente. Realtime na janela; "carregar mais" re-assina com limite maior
+//    (sem cursor, sem risco de pular doc). Busca `limit + 1` p/ saber `hasMore`.
 export function subscribeSalesPage(
+  filter: SalesQuery,
   pageLimit: number,
   onSales: (sales: Sale[], hasMore: boolean) => void,
   onError: (error: Error) => void,
 ): () => void {
+  if (filter.productId) {
+    return onSnapshot(
+      query(salesCollection, where("productId", "==", filter.productId)),
+      (snapshot) => {
+        const sales = snapshot.docs
+          .map((item) => toSale(item.id, item.data()))
+          .filter((sale) => withinPeriod(sale, filter));
+        onSales(sales, false);
+      },
+      (error) => onError(error),
+    );
+  }
   return onSnapshot(
-    query(salesCollection, orderBy("saleDate", "desc"), fsLimit(pageLimit + 1)),
+    query(
+      salesCollection,
+      ...periodConstraints(filter),
+      orderBy("saleDate", "desc"),
+      fsLimit(pageLimit + 1),
+    ),
     (snapshot) => {
       const docs = snapshot.docs;
       const hasMore = docs.length > pageLimit;
@@ -183,10 +229,12 @@ export function subscribeSalesPage(
   );
 }
 
-// TD-006: totais do histórico INTEIRO via aggregation query (sum/count) — o
-// servidor soma sem baixar os docs (1 leitura), então o número segue certo
-// mesmo com a lista paginada. Sem filtro aqui (Fase 2); a Fase 3 passa a query
-// filtrada por produto/período para os cards respeitarem o filtro ativo.
+// TD-006: totais via aggregation query (sum/count) — o servidor soma sem baixar
+// os docs (1 leitura), então o número segue certo mesmo com a lista paginada. A
+// Fase 3 aplica o filtro de PERÍODO aqui (mesmo campo do orderBy, sem índice
+// composto) para os cards respeitarem o filtro. O caminho de PRODUTO não passa
+// por aqui — o hook soma no cliente o conjunto (limitado) do produto, evitando o
+// índice composto equality+range.
 export type SalesTotals = {
   count: number;
   revenue: number;
@@ -194,6 +242,20 @@ export type SalesTotals = {
   fee: number;
   profit: number;
 };
+
+// Soma um conjunto de vendas já em memória (usado no caminho de produto).
+export function totalsOfSales(sales: Sale[]): SalesTotals {
+  return sales.reduce<SalesTotals>(
+    (acc, sale) => ({
+      count: acc.count + 1,
+      revenue: acc.revenue + sale.totalRevenue,
+      cost: acc.cost + sale.totalCost,
+      fee: acc.fee + sale.feeAmount,
+      profit: acc.profit + sale.profit,
+    }),
+    { count: 0, revenue: 0, cost: 0, fee: 0, profit: 0 },
+  );
+}
 
 // TD-006: lê o histórico INTEIRO de uma vez (ordenado por data). Só para o
 // export CSV — ação explícita do dono, que quer o arquivo completo, não a janela
@@ -205,14 +267,19 @@ export async function fetchAllSales(): Promise<Sale[]> {
   return snapshot.docs.map((item) => toSale(item.id, item.data()));
 }
 
-export async function fetchSalesTotals(): Promise<SalesTotals> {
-  const snap = await getAggregateFromServer(salesCollection, {
-    count: count(),
-    revenue: sum("totalRevenue"),
-    cost: sum("totalCost"),
-    fee: sum("feeAmount"),
-    profit: sum("profit"),
-  });
+export async function fetchSalesTotals(
+  filter: SalesQuery = {},
+): Promise<SalesTotals> {
+  const snap = await getAggregateFromServer(
+    query(salesCollection, ...periodConstraints(filter)),
+    {
+      count: count(),
+      revenue: sum("totalRevenue"),
+      cost: sum("totalCost"),
+      fee: sum("feeAmount"),
+      profit: sum("profit"),
+    },
+  );
   const data = snap.data();
   return {
     count: num(data.count),

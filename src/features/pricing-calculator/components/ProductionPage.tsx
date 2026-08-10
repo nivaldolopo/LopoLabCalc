@@ -13,7 +13,9 @@ import { num } from "@/lib/number";
 import {
   newProductionId,
   type FinishedUpdate,
+  type ProductionQuery,
 } from "@/lib/firebase/productionRepository";
+import { matchesQuery } from "@/lib/text";
 import { DEFAULT_FIXED_COSTS, DEFAULT_PRODUCT_INPUT } from "../constants";
 import { calculatePricing } from "../lib/calculatePricing";
 import { filamentTotalG } from "../lib/filaments";
@@ -50,6 +52,7 @@ import type {
   ProductionOutcome,
 } from "../types";
 import { CostDetail } from "./CostDetail";
+import { HistoryFilterBar } from "./HistoryFilterBar";
 import { NavBar } from "./NavBar";
 import { NumberInput } from "./NumberInput";
 import { PrintTimeField } from "./ProductForm";
@@ -103,6 +106,19 @@ export function ProductionPage() {
     () => ({ ...fixedCostRate, enabled: DEFAULT_FIXED_COSTS.enabled }),
     [fixedCostRate],
   );
+  // TD-006 Fase 3: filtro server-side (produto + período) + refino por nome.
+  const [filterProductId, setFilterProductId] = useState("");
+  const [filterStart, setFilterStart] = useState("");
+  const [filterEnd, setFilterEnd] = useState("");
+  const [nameQuery, setNameQuery] = useState("");
+  const productionFilter = useMemo<ProductionQuery>(
+    () => ({
+      productId: filterProductId || null,
+      start: filterStart ? toTimestamp(filterStart) : null,
+      end: filterEnd ? toTimestamp(filterEnd) : null,
+    }),
+    [filterProductId, filterStart, filterEnd],
+  );
   const {
     events,
     totalCount,
@@ -112,7 +128,7 @@ export function ProductionPage() {
     error,
     addProduction,
     deleteProduction,
-  } = useProductionPage();
+  } = useProductionPage(productionFilter);
   // Leitura viva dos acabados: a submissão empilha camada no doc do produto e a
   // exclusão a estorna (FEAT-05b). O incremento/estorno grava no batch do evento.
   const { goods } = useFinishedGoods();
@@ -517,6 +533,30 @@ export function ProductionPage() {
     [events],
   );
 
+  // Opções do seletor de produto do filtro (catálogo atual, por nome).
+  const filterProductOptions = useMemo(
+    () =>
+      [...products]
+        .map((product) => ({
+          id: product.id,
+          name: product.name || product.mainStageName || "(sem nome)",
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    [products],
+  );
+
+  // Refino por nome (client-side sobre a janela já filtrada no banco): casa por
+  // nome da impressão ou observações.
+  const visibleEvents = useMemo(() => {
+    if (!nameQuery.trim()) return recent;
+    return recent.filter((event) =>
+      matchesQuery(nameQuery, event.productName, event.notes ?? ""),
+    );
+  }, [recent, nameQuery]);
+
+  const hasServerFilter =
+    filterProductId !== "" || filterStart !== "" || filterEnd !== "";
+
   // BUG-02: peças por placa do produto selecionado (mesa de N), para escalar o
   // acabado e mostrar quantas unidades saem. Avulso/sem produto = 1.
   const selectedPieces = useMemo(() => {
@@ -893,16 +933,33 @@ export function ProductionPage() {
 
       <div className="section-label prod-recent-label">
         Produções recentes{" "}
-        {totalCount > 0 ? `(${recent.length} de ${totalCount})` : ""}
+        {totalCount > 0 ? `(${visibleEvents.length} de ${totalCount})` : ""}
       </div>
-      {recent.length === 0 ? (
+
+      <HistoryFilterBar
+        products={filterProductOptions}
+        productId={filterProductId}
+        onProductId={setFilterProductId}
+        startStr={filterStart}
+        onStart={setFilterStart}
+        endStr={filterEnd}
+        onEnd={setFilterEnd}
+        name={nameQuery}
+        onName={setNameQuery}
+        namePlaceholder="Refinar por nome…"
+        resultCount={visibleEvents.length}
+      />
+
+      {visibleEvents.length === 0 ? (
         <div className="sales-empty">
-          Nenhuma produção registrada ainda.
+          {hasServerFilter || nameQuery.trim()
+            ? "Nenhuma produção para esse filtro."
+            : "Nenhuma produção registrada ainda."}
         </div>
       ) : (
         <>
         <div className="prod-list">
-          {recent.map((event) => {
+          {visibleEvents.map((event) => {
             const totalG = event.filaments.reduce(
               (sum, f) => sum + filamentTotalG(f),
               0,

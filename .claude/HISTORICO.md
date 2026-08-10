@@ -9,6 +9,50 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ TD-006 (paginação) + UX-05 Fase 2/3 (busca em vendas/produção) — 2026-08-10
+
+**O problema:** `/vendas` e `/produção` assinavam a **coleção inteira** (`onSnapshot` sem limite). Ok
+com dados de teste, mas o **marco** (recadastro de tudo de uma vez — Diretriz 7) chega como um volume
+grande; paginar importa *no* marco. UX-05 (busca por nome) foi acoplada porque tem a mesma raiz: ao
+paginar, a busca client-side da Fase 1 só varreria o que está carregado — precisa virar query no banco.
+
+**Fase 2 — paginação (limite crescente + realtime):** hooks novos `useSalesPage`/`useProductionPage`
+substituem `useSales`/`useProduction` nas duas listas. Assinam `query(orderBy(saleDate|at desc),
+limit(pageLimit+1))` — o `+1` diz se há mais (`hasMore`) sem uma contagem à parte; "carregar mais"
+re-assina com limite maior (padrão **limite crescente**, não cursor `startAfter` — a query roda do topo
+de novo, então empates no limite nunca pulam doc). **Um `orderBy` só ⇒ dispensa índice composto** (o
+Firestore auto-indexa cada campo nas duas ordens). Os `useSales`/`useProduction` cheios **continuam** —
+o ROI (`/maquinas`) os usa (agrega o histórico inteiro; a ressalva registra que isso só some com
+agregação server-side no Dashboard).
+
+- **Totais server-side:** os cards de /vendas passaram a somar o histórico INTEIRO via **aggregation
+  query** (`fetchSalesTotals` — `sum`/`count`, 1 leitura, não baixa docs). A /produção usa
+  `fetchProductionCount` p/ "X de N". Decidido com o dono (a alternativa "só do carregado" foi descartada).
+- **Estorno desacoplado da janela (bug latente consertado):** o estorno de venda/edição resolvia os
+  eventos de produção da encomenda pela **lista em memória** (`production.find(id)`); com a janela
+  paginada, um evento antigo fora dela não seria achado e **o estoque não estornaria**.
+  `fetchProductionEventsByIds` resolve por id direto no banco. `SaleFlow`/nova venda passam
+  `production=[]` (venda nova não estorna); a edição em `SalesPage` busca os eventos por id ao abrir.
+- **Export CSV** lê tudo sob demanda (`fetchAllSales`) p/ não truncar.
+- ⚠ **Recibo no limite:** itens do mesmo dia não são contíguos (empate por `__name__`), então um recibo
+  pode aparecer partido no limite da página até "carregar mais". Os cards não erram (vêm da agregação).
+
+**Fase 3 — busca ("os dois juntos", decisão do dono):** o Firestore **não faz substring de texto**
+server-side. Então: **filtro produto + período** vai ao banco, **caixa de nome** refina no cliente.
+- **Produto:** `where("productId","==",X)` — **equality-only, sem orderBy** → traz o conjunto todo do
+  produto (naturalmente limitado), refina período **no cliente** e não pagina. Evita de propósito o
+  índice composto equality+range.
+- **Período:** range em `saleDate`/`at` — **mesmo campo do `orderBy`** → sem índice composto. Como
+  `toTimestamp` ancora ao **meio-dia**, toda venda/evento do dia tem o mesmo timestamp e `>= start && <=
+  end` (ambos meio-dia) fica exato e inclusivo, sem off-by-one.
+- **Totais/contagem respeitam o filtro:** agregação recebe o período; no caminho de produto soma-se
+  local (`totalsOfSales`) sobre o conjunto carregado.
+- **Nome:** `matchesQuery` (helper da Fase 1) sobre a janela — casa produto/cliente (vendas) ou
+  nome/observações (produção). Não mexe nos totais (que refletem o filtro server-side).
+- **UI:** `HistoryFilterBar` (novo) compartilhado — seletor de produto + datas de/até + `SearchBox`. O
+  reset da janela ao trocar filtro usa o padrão do React de **ajustar estado no render** (chave derivada),
+  não `setState` em effect (o lint proíbe).
+
 ## ✅ TD-003 (capacidade pelo gargalo) + UX-04 (catálogo multi-máquina) — 2026-08-04
 
 **O defeito:** `calculateCapacity` **somava** as horas de todas as etapas e dividia o horizonte

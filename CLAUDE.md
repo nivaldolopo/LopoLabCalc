@@ -14,29 +14,26 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ TD-006 FASE 2** (2026-08-07) — **paginação** (limite crescente + realtime) das
-  listas de **/vendas** e **/produção**: assinam só a janela recente por data ("carregar mais"), via
-  hooks novos `useSalesPage`/`useProductionPage` (repos: `subscribeSalesPage`/`subscribeProductionPage`,
-  buscam `limit+1` p/ saber `hasMore`, um `orderBy` só → sem índice composto). Totais de /vendas agora vêm
-  de **aggregation query** server-side (`fetchSalesTotals` — soma o histórico inteiro sem baixar docs; a
-  /produção tem `fetchProductionCount` p/ "X de N"). Estorno de venda/edição **desacoplado da janela** —
-  resolve os eventos de produção **por id** (`fetchProductionEventsByIds`), consertando bug latente (venda
-  antiga fora da janela não estornaria estoque). Export CSV lê tudo sob demanda (`fetchAllSales`). **ROI
-  (/maquinas) mantém `useSales`/`useProduction` cheios** (ressalva). ⚠ recibo no limite da página pode
-  aparecer partido até "carregar mais" (itens do mesmo dia não são contíguos) — os cards não erram (vêm da
-  agregação). **Falta a Fase 3.**
+- **Última mudança:** **✅ TD-006 FECHADA — FASE 3** (2026-08-10) — **busca** em **/vendas** e **/produção**.
+  **Filtro produto + período server-side** (decidido "os dois juntos"): produto por `where(==)`
+  equality-only + período por range no **mesmo campo** do `orderBy` (`saleDate`/`at`) → **sem índice
+  composto**; com produto selecionado a query traz o conjunto todo do produto (limitado) e refina o período
+  no cliente, sem paginar. **+ caixa de nome** que refina a janela carregada (`matchesQuery`, client-side).
+  Totais/contagem respeitam o filtro (agregação por período; soma local no caminho de produto). Componente
+  `HistoryFilterBar` compartilhado. **Fase 2 (paginação + totais agregados + estorno por id) já estava no ar.**
+  ⚠ recibo no limite da página pode aparecer partido até "carregar mais" (itens do mesmo dia não são
+  contíguos) — os cards não erram (vêm da agregação). ROI (/maquinas) segue lendo tudo (ressalva).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **▶ PRÓXIMA TAREFA:** **TD-006 FASE 3** — busca em **/vendas** e **/produção**. **Decidido c/ o dono
-  (2026-08-07): "os dois juntos"** — filtro **produto + período** (query no Firestore: `where`/`orderBy` +
-  índice; o Firestore não faz substring de texto server-side) **+** caixa de **nome** que refina o que
-  está na janela (client-side, `matchesQuery`). Os totais agregados (`fetchSalesTotals`) passam a receber
-  a query filtrada p/ os cards respeitarem o filtro. ⚠ **Ressalva:** paginar/filtrar resolve a **lista**,
-  não a **análise** — o ROI (`/maquinas`) e o Dashboard **agregam o histórico inteiro**; eliminar de vez
-  exige agregação server-side (Cloud Functions), a adiar pro Dashboard.
+- **▶ PRÓXIMA TAREFA:** **Tier 2 comerciais** — ordem interna à escolha do dono: **FEAT-09** (desconto na
+  venda, por item XOR total, R$ ou %, congelado no recibo) · **FEAT-03** (PDF do orçamento melhor) ·
+  **branding/logo real** no PDF. Depois só o **Dashboard** (último — só com ~1-2 meses de venda real).
+  ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
+  Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (Cloud
+  Functions), a adiar pro Dashboard.
   **Ordem (dono, 2026-07-31/08-04):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → ~~UX-05 Fase 1~~ ✅ →
-  ~~TD-006 Fase 2~~ ✅ → **TD-006 Fase 3** → **FEAT-03/branding** → Dashboard (último).
+  ~~TD-006 (paginação + busca)~~ ✅ → **Tier 2 comerciais** → Dashboard (último).
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import {
   fetchSalesTotals,
   subscribeSalesPage,
+  totalsOfSales,
+  type SalesQuery,
   type SalesTotals,
 } from "@/lib/firebase/salesRepository";
 import type { CloudStatus, Sale } from "../types";
@@ -18,12 +20,14 @@ const EMPTY_TOTALS: SalesTotals = {
   profit: 0,
 };
 
-// TD-006: versão PAGINADA do `useSales` para a lista da /vendas. Assina só a
-// janela mais recente (limite crescente via "carregar mais") em vez da coleção
-// inteira. Os totais dos cards vêm de uma aggregation query do histórico INTEIRO
-// (não da janela) — re-buscada a cada snapshot da janela, o que cobre venda
-// nova/excluída/editada visível. O ROI (/maquinas) segue no `useSales` cheio.
-export function useSalesPage() {
+// TD-006: versão PAGINADA + FILTRADA do `useSales` para a lista da /vendas.
+// Assina só a janela recente (limite crescente via "carregar mais") OU, quando um
+// produto está selecionado, o conjunto (limitado) daquele produto. Os totais dos
+// cards respeitam o filtro: por período vêm de aggregation query server-side; por
+// produto são somados no cliente sobre o conjunto carregado. O ROI (/maquinas)
+// segue no `useSales` cheio.
+export function useSalesPage(filter: SalesQuery) {
+  const { productId, start, end } = filter;
   const [pageLimit, setPageLimit] = useState(PAGE_SIZE);
   const [sales, setSales] = useState<Sale[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -31,20 +35,37 @@ export function useSalesPage() {
   const [status, setStatus] = useState<CloudStatus>("connecting");
   const [error, setError] = useState<string | null>(null);
 
+  // Filtro novo recomeça a janela do topo. Padrão do React de ajustar estado no
+  // render (não em effect) quando uma "chave" derivada muda — evita a cascata de
+  // renders de resetar via useEffect.
+  const filterKey = `${productId ?? ""}|${start ?? ""}|${end ?? ""}`;
+  const [prevKey, setPrevKey] = useState(filterKey);
+  if (filterKey !== prevKey) {
+    setPrevKey(filterKey);
+    setPageLimit(PAGE_SIZE);
+  }
+
   useEffect(() => {
     let cancelled = false;
+    const activeFilter: SalesQuery = { productId, start, end };
     const unsubscribe = subscribeSalesPage(
+      activeFilter,
       pageLimit,
       (nextSales, more) => {
         setSales(nextSales);
         setHasMore(more);
         setStatus("synced");
         setError(null);
-        fetchSalesTotals()
-          .then((next) => {
-            if (!cancelled) setTotals(next);
-          })
-          .catch(() => {});
+        if (productId) {
+          // Caminho de produto: conjunto inteiro em memória → soma no cliente.
+          setTotals(totalsOfSales(nextSales));
+        } else {
+          fetchSalesTotals(activeFilter)
+            .then((next) => {
+              if (!cancelled) setTotals(next);
+            })
+            .catch(() => {});
+        }
       },
       (nextError) => {
         setStatus("error");
@@ -55,7 +76,7 @@ export function useSalesPage() {
       cancelled = true;
       unsubscribe();
     };
-  }, [pageLimit]);
+  }, [productId, start, end, pageLimit]);
 
   function loadMore() {
     setPageLimit((current) => current + PAGE_SIZE);

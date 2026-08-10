@@ -8,8 +8,10 @@ import {
   onSnapshot,
   orderBy,
   query,
+  where,
   writeBatch,
   type DocumentData,
+  type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "./client";
 import { serializeRolls } from "./stockRepository";
@@ -207,17 +209,58 @@ export function subscribeProduction(
   );
 }
 
-// TD-006: assinatura PAGINADA da produção (limite crescente por `at`). Gêmea da
-// `subscribeSalesPage` — mesma lógica de `hasMore` (busca 1 a mais) e mesmo
-// dispensar índice composto (um `orderBy` só). Substitui a assinatura da coleção
-// inteira na /producao; o ROI (/maquinas) segue lendo tudo por `subscribeProduction`.
+// TD-006 Fase 3: filtro server-side da produção. `productId` filtra o produto
+// (inteiro + subitens; o avulso não tem id e some do filtro — correto);
+// `start`/`end` (ms, meio-dia local) delimitam o período por `at`, inclusivo.
+export type ProductionQuery = {
+  productId?: string | null;
+  start?: number | null;
+  end?: number | null;
+};
+
+function periodConstraints(filter: ProductionQuery): QueryConstraint[] {
+  const constraints: QueryConstraint[] = [];
+  if (filter.start != null) constraints.push(where("at", ">=", filter.start));
+  if (filter.end != null) constraints.push(where("at", "<=", filter.end));
+  return constraints;
+}
+
+function withinPeriod(event: ProductionEvent, filter: ProductionQuery): boolean {
+  if (filter.start != null && event.at < filter.start) return false;
+  if (filter.end != null && event.at > filter.end) return false;
+  return true;
+}
+
+// TD-006: assinatura PAGINADA + FILTRADA da produção. Gêmea da
+// `subscribeSalesPage` — com `productId` traz todo o produto (equality só) e
+// refina o período no cliente sem paginar; sem `productId` pagina por `at` com o
+// range de período (mesmo campo do orderBy). Nenhuma das formas usa índice
+// composto. O ROI (/maquinas) segue lendo tudo por `subscribeProduction`.
 export function subscribeProductionPage(
+  filter: ProductionQuery,
   pageLimit: number,
   onProduction: (events: ProductionEvent[], hasMore: boolean) => void,
   onError: (error: Error) => void,
 ): () => void {
+  if (filter.productId) {
+    return onSnapshot(
+      query(productionCollection, where("productId", "==", filter.productId)),
+      (snapshot) => {
+        const events = snapshot.docs
+          .map((item) => toProduction(item.id, item.data()))
+          .filter((event) => withinPeriod(event, filter));
+        onProduction(events, false);
+      },
+      (error) => onError(error),
+    );
+  }
   return onSnapshot(
-    query(productionCollection, orderBy("at", "desc"), fsLimit(pageLimit + 1)),
+    query(
+      productionCollection,
+      ...periodConstraints(filter),
+      orderBy("at", "desc"),
+      fsLimit(pageLimit + 1),
+    ),
     (snapshot) => {
       const docs = snapshot.docs;
       const hasMore = docs.length > pageLimit;
@@ -231,10 +274,15 @@ export function subscribeProductionPage(
   );
 }
 
-// TD-006: contagem total de eventos (aggregation) — para "X de N" na lista
-// paginada, sem baixar a coleção. 1 leitura.
-export async function fetchProductionCount(): Promise<number> {
-  const snap = await getCountFromServer(productionCollection);
+// TD-006: contagem de eventos (aggregation) para o "X de N" — respeita o período
+// (mesmo campo do orderBy, sem índice composto). O caminho de produto conta no
+// cliente (conjunto já em memória), então não passa por aqui.
+export async function fetchProductionCount(
+  filter: ProductionQuery = {},
+): Promise<number> {
+  const snap = await getCountFromServer(
+    query(productionCollection, ...periodConstraints(filter)),
+  );
   return num(snap.data().count);
 }
 

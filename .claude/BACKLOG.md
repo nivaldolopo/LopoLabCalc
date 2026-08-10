@@ -19,11 +19,10 @@
 3. ~~**FEAT-06** (aba Produtos rica / composição congelada)~~ ✅ **FECHADO (2026-07-20)**.
 4. ~~**Tier 4 inteiro**~~ ✅ **FECHADO (2026-07-31)** — numeração atômica · DEC-01 renomeado · ROI real ·
    labor na reserva mantido.
-5. ~~**TD-003** (capacidade por-máquina) · **UX-04** (catálogo multi-máquina)~~ ✅ **FECHADO (2026-08-04)**.
-   · **TD-006** (paginação) — **antes** do Dashboard — **◀ PRÓXIMA** · **UX-05** (busca nas listas) —
-   **logo após** a TD-006 (mesma raiz: leitura da coleção inteira — desenhar as duas juntas).
-6. **Tier 2 comerciais** (ordem interna à escolha do dono): **FEAT-09** (desconto na venda) ·
-   **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
+5. ~~**TD-003** (capacidade por-máquina) · **UX-04** (catálogo multi-máquina)~~ ✅ **FECHADO (2026-08-04)**
+   · ~~**TD-006** (paginação) + **UX-05 Fase 2/3** (busca em vendas/produção)~~ ✅ **FECHADO (2026-08-10)**.
+6. **Tier 2 comerciais** (ordem interna à escolha do dono) — **◀ PRÓXIMA**: **FEAT-09** (desconto na
+   venda) · **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
 7. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real.
 
 ### Porquês da ordem (decisões de 2026-07-20)
@@ -89,16 +88,14 @@
 - ~~**[UX-04] Catálogo mostra só a 1ª máquina em produto multi-etapa**~~ ✅ **FEITO (2026-08-04, junto do
   TD-003)** — `MachineCell` lista as máquinas distintas de `machineUsage` ("A1 +1" compacto na linha,
   lista inteira no painel expandido); mantém o `machine-missing-badge` (TD-009).
-- **[UX-05] Busca/filtro nas listas** *(guarda-chuva; pedido do dono, 2026-08-04)*. Pesquisar por nome.
-  - ✅ **Fase 1 FEITA (2026-08-07)** — busca **client-side** nas listas de **teto natural**: catálogo +
-    3 abas do estoque (filamentos, insumos, produtos). Helper `src/lib/text.ts` (`matchesQuery`) +
-    `SearchBox.tsx`. Só a lista visível filtra; totais do topo intactos.
-  - ⏳ **Fase 2/3 = TD-006** (vendas + produção). Essas duas **crescem sem teto** → paginam, e aí a busca
-    vira **query no Firestore** (índice + `where`/`orderBy`, filtro por produto+período), não
-    `array.filter`. Desenhar junto com a paginação (evita client-side jogado fora ao paginar). **Onde:**
-    `SalesPage`, `ProductionPage`, `salesRepository`/`productionRepository`, `useSales`/`useProduction`.
-  ⚠ **Ressalva (2026-08-07):** paginar resolve a **lista**, não a **análise** — ROI (`/maquinas`) e o
-  Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (adiar pro Dashboard).
+- ~~**[UX-05] Busca/filtro nas listas**~~ ✅ **FECHADO** *(guarda-chuva; pedido do dono, 2026-08-04)*.
+  - ✅ **Fase 1 (2026-08-07)** — busca **client-side** nas listas de **teto natural**: catálogo + 3 abas do
+    estoque. Helper `src/lib/text.ts` (`matchesQuery`) + `SearchBox.tsx`.
+  - ✅ **Fase 2/3 = TD-006 (2026-08-10)** — vendas + produção **paginam** e a busca virou **filtro no
+    Firestore** (produto por `where(==)` + período por range no mesmo campo do `orderBy` → sem índice
+    composto) **+** caixa de nome que refina a janela (`HistoryFilterBar`). Detalhe em `HISTORICO.md`.
+  ⚠ **Ressalva:** paginar resolve a **lista**, não a **análise** — ROI (`/maquinas`) e o Dashboard
+  **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (adiar pro Dashboard).
 
 ### Tier 2 — comerciais
 - **[FEAT-09] Desconto na venda** *(pedido do dono, 2026-08-07)*. Dar um desconto ao registrar a venda
@@ -142,8 +139,9 @@
   distintas rodam em paralelo, quem limita é a mais ocupada (`max` das horas por máquina, não a soma).
   Mantém os dois botões (máquinas dedicadas + horas/dia) — é estimativa branda por decisão do dono.
   `machineBreakdown` no `CapacityResult` mostra gargalo × folga. Detalhe em `HISTORICO.md`.
-- **[TD-006] Paginação** — `subscribeProducts`/`useSales` assinam a coleção inteira. Ok hoje; revisitar
-  quando `/vendas` acumular meses.
+- ~~**[TD-006] Paginação**~~ ✅ **FEITO (2026-08-10)** — /vendas e /produção paginam (limite crescente +
+  realtime), totais via aggregation query, estorno resolve eventos por id, busca server-side (junto do
+  UX-05 Fase 2/3). Produtos/estoque seguem inteiros (teto natural). Detalhe em `HISTORICO.md`.
 
 ### Tier 4 — menores/oportunistas ✅ FECHADO (2026-07-31)
 - ~~**Numeração de orçamento derivada no browser**~~ ✅ **FEITO** — contador atômico `config/orcamentoSeq`

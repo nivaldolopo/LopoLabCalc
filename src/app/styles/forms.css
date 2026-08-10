@@ -361,6 +361,59 @@ input[type="range"]::-webkit-slider-thumb {
   margin: 16px 0 4px;
 }
 
+/* TD-006 Fase 3: barra de filtro das listas paginadas (produto + período no
+   banco; caixa de nome refina o carregado). */
+.history-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.history-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.history-filter-product {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.history-filter-date {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.history-filter-date input {
+  width: auto;
+}
+
+.history-filter-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1.5px solid var(--field-border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.history-filter-clear:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .btn-secondary,
 .icon-label-button {
   background: var(--field-bg);
