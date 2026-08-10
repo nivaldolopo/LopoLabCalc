@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Edit3, Plus, Trash2 } from "lucide-react";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import {
@@ -29,7 +29,7 @@ import {
 import { fetchProductionEventsByIds } from "@/lib/firebase/productionRepository";
 import { toTimestamp } from "@/lib/formatting/date";
 import { matchesQuery } from "@/lib/text";
-import { CostDetail } from "./CostDetail";
+import { CostBreakdownTable } from "./CostDetail";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { NavBar } from "./NavBar";
 import { SaleModal, type EditReciboSeed } from "./SaleModal";
@@ -209,6 +209,8 @@ export function SalesPage() {
   const [editEvents, setEditEvents] = useState<ProductionEvent[]>([]);
   const [newSale, setNewSale] = useState(false);
   const [sortMode, setSortMode] = useState<SalesSortMode>("recent");
+  // UX-06: qual item do recibo está com o detalhe aberto (linha + dropdown).
+  const [openSaleId, setOpenSaleId] = useState<string | null>(null);
 
   // Taxa de custo fixo real do negócio (TD-001) para reprecificar os itens de
   // catálogo ao editar um recibo. O toggle `enabled` vem do produto.
@@ -629,54 +631,144 @@ export function SalesPage() {
 
               <table className="recibo-items">
                 <tbody>
-                  {recibo.items.map((sale) => (
-                    <tr key={sale.id}>
-                      <td className="ri-name">
-                        <div className="sales-product">{sale.productName}</div>
-                        {sale.material ? (
-                          <div className="sales-product-sub">
-                            {sale.material}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="num mono ri-qty">{sale.quantity}×</td>
-                      <td className="num mono ri-price">
-                        {formatCurrency(sale.salePrice)}
-                        {sale.discountAmount && sale.discountAmount > 0 ? (
-                          <div className="ri-discount sale-neg">
-                            −{formatCurrency(sale.discountAmount)}
-                            {sale.discountKind === "total" ? " (rateado)" : ""}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="num mono ri-rev">
-                        {formatCurrency(sale.totalRevenue)}
-                      </td>
-                      <td className="ri-cost">
-                        <CostDetail
-                          breakdown={sale.costBreakdown}
-                          real={sale.realCostBreakdown}
-                          realCogs={sale.unitCost}
-                          quantity={sale.quantity}
-                        />
-                      </td>
-                      <td
-                        className={`num mono ri-profit ${sale.profit < 0 ? "sale-neg" : "sale-pos"}`}
-                      >
-                        {formatCurrency(sale.profit)}
-                      </td>
-                      <td className="ri-actions">
-                        <button
-                          className="icon-button danger"
-                          type="button"
-                          onClick={() => handleDelete(sale)}
-                          title="Excluir item"
+                  {recibo.items.map((sale) => {
+                    const isOpen = openSaleId === sale.id;
+                    return (
+                      <Fragment key={sale.id}>
+                        {/* UX-06: a linha do item vira gatilho; o dropdown abaixo
+                            absorve o antigo popover de custo (CostBreakdownTable). */}
+                        <tr
+                          className={`ri-row ${isOpen ? "open" : ""}`}
+                          onClick={() =>
+                            setOpenSaleId((current) =>
+                              current === sale.id ? null : sale.id,
+                            )
+                          }
                         >
-                          <Trash2 size={15} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                          <td className="ri-name">
+                            <span className="arrow-icon">▼</span>
+                            <span className="ri-name-text">
+                              <span className="sales-product">
+                                {sale.productName}
+                              </span>
+                              {sale.material ? (
+                                <span className="sales-product-sub">
+                                  {sale.material}
+                                </span>
+                              ) : null}
+                            </span>
+                          </td>
+                          <td className="num mono ri-qty">{sale.quantity}×</td>
+                          <td className="num mono ri-price">
+                            {formatCurrency(sale.salePrice)}
+                            {sale.discountAmount && sale.discountAmount > 0 ? (
+                              <div className="ri-discount sale-neg">
+                                −{formatCurrency(sale.discountAmount)}
+                                {sale.discountKind === "total"
+                                  ? " (rateado)"
+                                  : ""}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="num mono ri-rev">
+                            {formatCurrency(sale.totalRevenue)}
+                          </td>
+                          <td className="ri-cost mono">
+                            custo real{" "}
+                            <strong>
+                              {formatCurrency(
+                                sale.unitCost * Math.max(1, sale.quantity),
+                              )}
+                            </strong>
+                          </td>
+                          <td
+                            className={`num mono ri-profit ${sale.profit < 0 ? "sale-neg" : "sale-pos"}`}
+                          >
+                            {formatCurrency(sale.profit)}
+                          </td>
+                          <td className="ri-actions">
+                            <button
+                              className="icon-button danger"
+                              type="button"
+                              onClick={(clickEvent) => {
+                                clickEvent.stopPropagation();
+                                handleDelete(sale);
+                              }}
+                              title="Excluir item"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                        {isOpen ? (
+                          <tr className="ri-details-row">
+                            <td colSpan={7}>
+                              <div className="ri-details">
+                                <div className="cd-meta">
+                                  <span>
+                                    <span className="db-label">Máquina</span>{" "}
+                                    {sale.machineName || "—"}
+                                  </span>
+                                  <span>
+                                    <span className="db-label">Tempo</span>{" "}
+                                    {formatDecimal(sale.printHours)} h
+                                  </span>
+                                  <span>
+                                    <span className="db-label">Qtd</span>{" "}
+                                    {sale.quantity}×
+                                  </span>
+                                  {sale.discountAmount &&
+                                  sale.discountAmount > 0 ? (
+                                    <span>
+                                      <span className="db-label">Desconto</span>{" "}
+                                      {sale.discountInput
+                                        ? sale.discountInput.mode === "pct"
+                                          ? `${sale.discountInput.value}%`
+                                          : formatCurrency(
+                                              sale.discountInput.value,
+                                            )
+                                        : ""}
+                                      {sale.discountKind === "total"
+                                        ? " (rateado do total)"
+                                        : ""}{" "}
+                                      = −{formatCurrency(sale.discountAmount)}
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                {sale.filaments &&
+                                sale.filaments.length > 0 ? (
+                                  <div className="details-span">
+                                    <div className="db-label">
+                                      Filamento por cor
+                                    </div>
+                                    <div className="details-tags">
+                                      {sale.filaments.map((fil, index) => (
+                                        <span key={fil.id ?? index}>
+                                          {fil.colorName || "(cor)"}{" "}
+                                          <em>
+                                            {Math.round(fil.totalG)} g ·{" "}
+                                            {formatCurrency(fil.pricePerKg)}/kg
+                                          </em>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                <CostBreakdownTable
+                                  breakdown={sale.costBreakdown}
+                                  real={sale.realCostBreakdown}
+                                  realCogs={sale.unitCost}
+                                  quantity={sale.quantity}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
 

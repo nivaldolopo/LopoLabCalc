@@ -14,27 +14,27 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ FEAT-09 FECHADO** (2026-08-10) — desconto na venda, **por item _XOR_ no total**
-  do recibo, em **R$ ou %**, **congelado** no snapshot (`discountKind`/`discountInput`/`discountAmount` no
-  `SaleInput`). Matemática em `paymentFees.ts` (`discountAmountOf` + `apportionDiscount` + `saleItemFinancials`
-  ganhou `discountAmount`; **taxa incide sobre o valor com desconto**; rateio do total **proporcional à
-  receita** da linha). UI no `SaleModal` (seletor de modo + campo R$/% por item ou no total), round-trip na
-  edição, exibição em `/vendas` + CSV. Custo real intacto → lucro = preço_com_desconto − custo real.
+- **Última mudança:** **✅ UX-06 + UX-07(a) FECHADOS** (2026-08-10) — cluster **"linha + dropdown de
+  detalhe"**: o item do recibo em `/vendas`, a produção recente em `/producao` e a aba **Produtos** do
+  estoque viraram **linha clicável + dropdown**, no padrão do catálogo. O dropdown **absorve** o popover
+  `CostDetail` — a tabela de composição virou o subcomponente compartilhado **`CostBreakdownTable`**
+  (`CostDetail.tsx`), e o popover segue só na venda **VIVA** do `SaleModal` e no **tile de totais** do
+  estoque. CSS `.cost-detail-pop .cost-detail-table` → **`.cost-detail-body`** (wrapper comum). Só
+  **apresentação** — dado intacto, matemática inalterada (294 testes). **UX-07(b)** (acabado→eventos)
+  segue adiado pro Dashboard.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **▶ PRÓXIMA TAREFA (dono, 2026-08-10):** **Cluster "linha + dropdown de detalhe"** — **UX-06**
-  (detalhe expansível por item em `/vendas` e `/producao`, no padrão do catálogo; o dropdown **absorve**
-  o popover `CostDetail`) **+ UX-07(a)** (aba Produtos do estoque em linha + dropdown, só a parte barata:
-  composição do valor parado/custo-un/margem que já existem no card). **Reempacotamento de apresentação,
-  o dado já existe.** **UX-07(b)** (ligar acabado→eventos de produção) **fica fora → vai pro Dashboard**
-  (mesma agregação server-side). **Depois:** **FEAT-03** (PDF melhor) · **branding/logo real**; **Dashboard**
-  por último. (FEAT-09 ✅ fechado.)
+- **▶ PRÓXIMA TAREFA (dono, 2026-08-10):** **FEAT-03** (melhorar o PDF do orçamento) + **branding/logo
+  real** no PDF — guarda-chuva comercial; o dono escolhe as sementes que viram tarefa (prazo, foto,
+  formas de pagamento, termos, QR do WhatsApp, desconto…). **Onde:** `generateQuotePdf.ts` +
+  `QuotePage`/`config/orcamento`. **Depois:** **Dashboard** por último (absorve UX-07(b) + perda por
+  falha/taxa observada; só com ~1-2 meses de venda real).
   ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
   Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (Cloud
   Functions), a adiar pro Dashboard.
   **Ordem (dono, 2026-07-31/08-04/08-10):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → ~~UX-05 Fase 1~~ ✅ →
-  ~~TD-006 (paginação + busca)~~ ✅ → ~~FEAT-09~~ ✅ → **UX-06 + UX-07(a)** → **FEAT-03 / branding** →
+  ~~TD-006 (paginação + busca)~~ ✅ → ~~FEAT-09~~ ✅ → ~~UX-06 + UX-07(a)~~ ✅ → **FEAT-03 / branding** →
   Dashboard (último; absorve UX-07(b)).
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
@@ -92,7 +92,9 @@ src/
                             #     impressão), NumberInput (compartilhado),
                             #     ProfitSummary (rentabilidade compartilhada),
                             #     CostDetail (composição do custo: 1 ou 2 colunas —
-                            #       precificado × real; venda, /vendas, /producao, /estoque),
+                            #       precificado × real; exporta CostBreakdownTable, a tabela
+                            #       inline reusada pelo popover (SaleModal/tile de totais) E pelos
+                            #       dropdowns de detalhe de /vendas · /producao · /estoque — UX-06/07a),
                             #     AuthGate (login)
     hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
                             #     useSupplies (coleção insumos — 7e),

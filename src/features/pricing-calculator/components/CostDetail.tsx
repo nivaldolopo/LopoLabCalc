@@ -4,16 +4,19 @@ import { useEffect, useId, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import type { FrozenCostBreakdown, SaleCostBreakdown } from "../types";
 
-// Detalhe do custo — usado na SaleModal (venda viva), no histórico (/vendas), na
-// /producao e na aba Produtos da /estoque. O gatilho mostra o custo REAL; ao
-// clicar, abre uma JANELA FLUTUANTE ANCORADA nele (Popover API nativa na
-// top-layer — não é cortada pelo scroll do modal — posicionada via
-// getBoundingClientRect) com a composição.
+// Detalhe do custo — a COMPOSIÇÃO (precificado × real) vive no `CostBreakdownTable`
+// abaixo, e é reusada de dois jeitos:
+//  • `CostDetail` (este arquivo) — gatilho inline + JANELA FLUTUANTE ancorada
+//    (Popover API nativa na top-layer). Usado na venda VIVA do `SaleModal`, onde o
+//    conteúdo vive dentro de um modal com scroll e um popover não é cortado.
+//  • direto (`CostBreakdownTable`) — DENTRO do dropdown de detalhe das listas
+//    (/vendas, /producao, /estoque). O dropdown já é o container; não precisa de
+//    popover (UX-06/UX-07a: "a linha expande e o detalhe aparece").
 //
 // FEAT-06: o custo real deixou de ser um número único e opaco. A composição é
-// congelada na produção e desce pela camada do acabado até a venda, então o
-// popover passa a ter DUAS colunas — precificado × real —, que é o payoff da
-// feature: dá para ver onde a estimativa errou, componente a componente.
+// congelada na produção e desce pela camada do acabado até a venda, então a tabela
+// tem DUAS colunas — precificado × real —, que é o payoff da feature: dá para ver
+// onde a estimativa errou, componente a componente.
 //
 // Três modos, conforme o que chega:
 //  1. só `breakdown`  → uma coluna precificada (venda anterior ao FEAT-06);
@@ -23,15 +26,8 @@ import type { FrozenCostBreakdown, SaleCostBreakdown } from "../types";
 //
 // As provisões (reserva de falha e custo fixo) nunca têm coluna real: não são
 // gasto, existem só no preço. Falhas reais são registradas à parte na produção.
-export function CostDetail({
-  breakdown,
-  real,
-  realCogs,
-  realUnknown = 0,
-  quantity = 1,
-  triggerLabel = "custo real",
-  hint = "· composição do preço ▾",
-}: {
+
+type CostData = {
   // O custo PRECIFICADO (estimativa do catálogo). Ausente fora da venda.
   breakdown?: SaleCostBreakdown;
   // FEAT-06: o custo REAL decomposto. Ausente em registro anterior.
@@ -44,6 +40,174 @@ export function CostDetail({
   // (mostra por unidade, a qtd aparece à parte); o histórico passa a qtd da
   // venda, para a coluna bater com receita/lucro (também totais).
   quantity?: number;
+};
+
+// A tabela de composição, sem popover — o mesmo bloco que o popover mostra e que
+// os dropdowns de detalhe embutem. `.cost-detail-body` escopa o CSS da tabela
+// (blinda contra `.recibo-items td` etc.) tanto no popover quanto inline.
+export function CostBreakdownTable({
+  breakdown,
+  real,
+  realCogs,
+  realUnknown = 0,
+  quantity = 1,
+}: CostData) {
+  const q = Math.max(1, quantity);
+  const cogs = realCogs * q;
+  const unknown = realUnknown * q;
+  const twoCols = Boolean(breakdown && real);
+
+  // Os componentes que compõem o custo FÍSICO, pareados: mesma linha para o que
+  // o catálogo estimou e para o que de fato saiu. O par acessórios/insumos tem
+  // nomes diferentes dos dois lados de propósito — no preço é o item do catálogo,
+  // no real é a baixa do estoque de insumos (7e).
+  const physical: { label: string; priced?: number; real?: number }[] = [
+    { label: "Material", priced: breakdown?.material, real: real?.material },
+    { label: "Energia", priced: breakdown?.energy, real: real?.energy },
+    { label: "Desgaste", priced: breakdown?.depreciation, real: real?.depreciation },
+    { label: "Manutenção", priced: breakdown?.maintenance, real: real?.maintenance },
+    { label: "Mão de obra", priced: breakdown?.labor, real: real?.labor },
+    {
+      label: twoCols ? "Acessórios / insumos" : real ? "Insumos" : "Acessórios",
+      priced: breakdown?.accessories,
+      real: real?.supplies,
+    },
+  ]
+    .map((row) => ({
+      ...row,
+      priced: row.priced === undefined ? undefined : row.priced * q,
+      real: row.real === undefined ? undefined : row.real * q,
+    }))
+    // Some só quando as DUAS colunas são zero — senão um componente que existe
+    // só de um lado (insumo sem acessório precificado, p. ex.) desapareceria.
+    .filter((row) => (row.priced ?? 0) !== 0 || (row.real ?? 0) !== 0);
+
+  // Provisões: só no preço. No modo 3 nem aparecem (não há preço envolvido).
+  const provisions = breakdown
+    ? [
+        { label: "Reserva de falha", value: breakdown.failureReserve * q },
+        { label: "Custo fixo", value: breakdown.fixed * q },
+      ].filter((row) => row.value > 0)
+    : [];
+
+  const priced = breakdown
+    ? physical.reduce((sum, row) => sum + (row.priced ?? 0), 0) +
+      provisions.reduce((sum, row) => sum + row.value, 0)
+    : 0;
+
+  const cols = twoCols ? 3 : 2;
+  const money = (value: number | undefined) =>
+    value === undefined ? "—" : formatCurrency(value);
+
+  return (
+    <div className="cost-detail-body">
+      {!twoCols ? (
+        <div className="cost-detail-section">
+          {breakdown
+            ? "Custo precificado (estimado, base do preço)"
+            : "Custo real gasto (o que saiu do estoque)"}
+        </div>
+      ) : null}
+
+      <table className="cost-detail-table">
+        {twoCols ? (
+          <thead>
+            <tr>
+              <th />
+              <th className="num">Precificado</th>
+              <th className="num">Real</th>
+            </tr>
+          </thead>
+        ) : null}
+        <tbody>
+          {physical.map((row) => (
+            <tr key={row.label}>
+              <td>{row.label}</td>
+              {breakdown ? (
+                <td className="num mono">{money(row.priced)}</td>
+              ) : null}
+              {real ? <td className="num mono">{money(row.real)}</td> : null}
+            </tr>
+          ))}
+
+          {/* Camada anterior ao FEAT-06: o valor existe, a composição não.
+              Só faz sentido (e só fecha a contagem de colunas) quando há
+              coluna real — sem ela, `realUnknown` não teria onde aparecer. */}
+          {real && unknown !== 0 ? (
+            <tr className="cost-detail-prov">
+              <td>Não detalhado</td>
+              {twoCols ? <td className="num mono">—</td> : null}
+              <td className="num mono">{formatCurrency(unknown)}</td>
+            </tr>
+          ) : null}
+
+          {provisions.length > 0 ? (
+            <>
+              <tr className="cost-detail-divider">
+                <td colSpan={cols}>Provisões — só no preço, não são gasto</td>
+              </tr>
+              {provisions.map((row) => (
+                <tr className="cost-detail-prov" key={row.label}>
+                  <td>{row.label}</td>
+                  <td className="num mono">{formatCurrency(row.value)}</td>
+                  {twoCols ? <td className="num mono">—</td> : null}
+                </tr>
+              ))}
+            </>
+          ) : null}
+
+          {breakdown ? (
+            <tr className="cost-detail-total">
+              <td>Custo precificado</td>
+              <td className="num mono">{formatCurrency(priced)}</td>
+              {twoCols ? <td className="num mono">—</td> : null}
+            </tr>
+          ) : null}
+          {/* O total real fica na coluna "Real" quando ela existe; nos modos
+              de coluna única, na única que há. */}
+          <tr className="cost-detail-total real">
+            <td>Custo real gasto (base do lucro)</td>
+            {twoCols ? <td className="num mono">—</td> : null}
+            <td className="num mono">{formatCurrency(cogs)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p className="cost-detail-note">
+        {breakdown ? (
+          <>
+            O <strong>precificado</strong> é a estimativa do catálogo que gerou
+            o preço. O <strong>custo real</strong> é o que de fato saiu do
+            estoque nesta peça — pelo preço do rolo e do lote realmente usados
+            — e é ele que define o lucro. Os dois raramente batem: as provisões
+            só existem no preço, e o preço de compra do material muda a cada
+            lote. Falhas reais são registradas à parte na produção.
+          </>
+        ) : (
+          <>
+            É o que de fato <strong>saiu do estoque</strong> nesta impressão,
+            pelo preço do rolo e do lote realmente usados. Não inclui reserva
+            de falha nem custo fixo — essas são provisões do preço, não gasto.
+            É este número que vira o custo da peça quando ela for vendida.
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
+// Gatilho inline (mostra o custo REAL) + JANELA FLUTUANTE ancorada nele (Popover
+// API nativa na top-layer — não é cortada pelo scroll do modal — posicionada via
+// getBoundingClientRect). Usado na venda VIVA do `SaleModal`.
+export function CostDetail({
+  breakdown,
+  real,
+  realCogs,
+  realUnknown = 0,
+  quantity = 1,
+  triggerLabel = "custo real",
+  hint = "· composição do preço ▾",
+}: CostData & {
   triggerLabel?: string;
   hint?: string;
 }) {
@@ -101,52 +265,8 @@ export function CostDetail({
     };
   }, [open]);
 
-  const q = Math.max(1, quantity);
-  const cogs = realCogs * q;
-  const unknown = realUnknown * q;
+  const cogs = realCogs * Math.max(1, quantity);
   const twoCols = Boolean(breakdown && real);
-
-  // Os componentes que compõem o custo FÍSICO, pareados: mesma linha para o que
-  // o catálogo estimou e para o que de fato saiu. O par acessórios/insumos tem
-  // nomes diferentes dos dois lados de propósito — no preço é o item do catálogo,
-  // no real é a baixa do estoque de insumos (7e).
-  const physical: { label: string; priced?: number; real?: number }[] = [
-    { label: "Material", priced: breakdown?.material, real: real?.material },
-    { label: "Energia", priced: breakdown?.energy, real: real?.energy },
-    { label: "Desgaste", priced: breakdown?.depreciation, real: real?.depreciation },
-    { label: "Manutenção", priced: breakdown?.maintenance, real: real?.maintenance },
-    { label: "Mão de obra", priced: breakdown?.labor, real: real?.labor },
-    {
-      label: twoCols ? "Acessórios / insumos" : real ? "Insumos" : "Acessórios",
-      priced: breakdown?.accessories,
-      real: real?.supplies,
-    },
-  ]
-    .map((row) => ({
-      ...row,
-      priced: row.priced === undefined ? undefined : row.priced * q,
-      real: row.real === undefined ? undefined : row.real * q,
-    }))
-    // Some só quando as DUAS colunas são zero — senão um componente que existe
-    // só de um lado (insumo sem acessório precificado, p. ex.) desapareceria.
-    .filter((row) => (row.priced ?? 0) !== 0 || (row.real ?? 0) !== 0);
-
-  // Provisões: só no preço. No modo 3 nem aparecem (não há preço envolvido).
-  const provisions = breakdown
-    ? [
-        { label: "Reserva de falha", value: breakdown.failureReserve * q },
-        { label: "Custo fixo", value: breakdown.fixed * q },
-      ].filter((row) => row.value > 0)
-    : [];
-
-  const priced = breakdown
-    ? physical.reduce((sum, row) => sum + (row.priced ?? 0), 0) +
-      provisions.reduce((sum, row) => sum + row.value, 0)
-    : 0;
-
-  const cols = twoCols ? 3 : 2;
-  const money = (value: number | undefined) =>
-    value === undefined ? "—" : formatCurrency(value);
 
   return (
     <>
@@ -179,97 +299,13 @@ export function CostDetail({
           </button>
         </div>
 
-        {!twoCols ? (
-          <div className="cost-detail-section">
-            {breakdown
-              ? "Custo precificado (estimado, base do preço)"
-              : "Custo real gasto (o que saiu do estoque)"}
-          </div>
-        ) : null}
-
-        <table className="cost-detail-table">
-          {twoCols ? (
-            <thead>
-              <tr>
-                <th />
-                <th className="num">Precificado</th>
-                <th className="num">Real</th>
-              </tr>
-            </thead>
-          ) : null}
-          <tbody>
-            {physical.map((row) => (
-              <tr key={row.label}>
-                <td>{row.label}</td>
-                {breakdown ? (
-                  <td className="num mono">{money(row.priced)}</td>
-                ) : null}
-                {real ? <td className="num mono">{money(row.real)}</td> : null}
-              </tr>
-            ))}
-
-            {/* Camada anterior ao FEAT-06: o valor existe, a composição não.
-                Só faz sentido (e só fecha a contagem de colunas) quando há
-                coluna real — sem ela, `realUnknown` não teria onde aparecer. */}
-            {real && unknown !== 0 ? (
-              <tr className="cost-detail-prov">
-                <td>Não detalhado</td>
-                {twoCols ? <td className="num mono">—</td> : null}
-                <td className="num mono">{formatCurrency(unknown)}</td>
-              </tr>
-            ) : null}
-
-            {provisions.length > 0 ? (
-              <>
-                <tr className="cost-detail-divider">
-                  <td colSpan={cols}>Provisões — só no preço, não são gasto</td>
-                </tr>
-                {provisions.map((row) => (
-                  <tr className="cost-detail-prov" key={row.label}>
-                    <td>{row.label}</td>
-                    <td className="num mono">{formatCurrency(row.value)}</td>
-                    {twoCols ? <td className="num mono">—</td> : null}
-                  </tr>
-                ))}
-              </>
-            ) : null}
-
-            {breakdown ? (
-              <tr className="cost-detail-total">
-                <td>Custo precificado</td>
-                <td className="num mono">{formatCurrency(priced)}</td>
-                {twoCols ? <td className="num mono">—</td> : null}
-              </tr>
-            ) : null}
-            {/* O total real fica na coluna "Real" quando ela existe; nos modos
-                de coluna única, na única que há. */}
-            <tr className="cost-detail-total real">
-              <td>Custo real gasto (base do lucro)</td>
-              {twoCols ? <td className="num mono">—</td> : null}
-              <td className="num mono">{formatCurrency(cogs)}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <p className="cost-detail-note">
-          {breakdown ? (
-            <>
-              O <strong>precificado</strong> é a estimativa do catálogo que gerou
-              o preço. O <strong>custo real</strong> é o que de fato saiu do
-              estoque nesta peça — pelo preço do rolo e do lote realmente usados
-              — e é ele que define o lucro. Os dois raramente batem: as provisões
-              só existem no preço, e o preço de compra do material muda a cada
-              lote. Falhas reais são registradas à parte na produção.
-            </>
-          ) : (
-            <>
-              É o que de fato <strong>saiu do estoque</strong> nesta impressão,
-              pelo preço do rolo e do lote realmente usados. Não inclui reserva
-              de falha nem custo fixo — essas são provisões do preço, não gasto.
-              É este número que vira o custo da peça quando ela for vendida.
-            </>
-          )}
-        </p>
+        <CostBreakdownTable
+          breakdown={breakdown}
+          real={real}
+          realCogs={realCogs}
+          realUnknown={realUnknown}
+          quantity={quantity}
+        />
       </div>
     </>
   );

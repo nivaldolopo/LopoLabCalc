@@ -9,6 +9,41 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ UX-06 + UX-07(a) — Cluster "linha + dropdown de detalhe" (2026-08-10)
+
+Pedido do dono (2026-08-10): unificar o padrão de "abrir detalhe" do catálogo nas outras listas. Três
+superfícies viraram **linha clicável + dropdown**: o item do recibo em `/vendas`, a produção recente em
+`/producao` e a aba **Produtos** do estoque. Só **apresentação** — dado intacto, matemática inalterada
+(294 testes seguem verdes); build/lint limpos.
+
+**Decisão-chave — o dropdown absorve o `CostDetail`.** O popover de composição de custo saiu dessas
+listas. Para não duplicar a tabela (precificado × real, provisões, totais, nota), extraí a parte interna
+do `CostDetail` num subcomponente exportado **`CostBreakdownTable`** (`CostDetail.tsx`), renderizado
+**inline** dentro de cada dropdown. O `CostDetail` (gatilho + Popover API na top-layer) passou a reusar
+esse mesmo subcomponente e **continua como popover** só onde o popover faz sentido: a venda **VIVA** do
+`SaleModal` (modal com scroll) e o **tile de totais** da aba Produtos (agregado, não é linha).
+
+**CSS reescopado:** as regras da tabela mudaram de `.cost-detail-pop .cost-detail-table` para
+**`.cost-detail-body`** — o wrapper que agora envolve a tabela nos dois contextos (dentro do popover E
+inline). O prefixo continua blindando contra `.recibo-items td` (nowrap/padding/borda) por
+especificidade, e o `table-layout: fixed` + `min-width: 0` seguem anulando o `table { min-width: 600px }`
+global.
+
+**Por superfície:**
+- **`/producao`** (fácil, lista plana): `.prod-card` empilhou head (linha) + `.prod-card-details`; o custo
+  na linha virou texto simples e a composição desceu pro dropdown, junto de máquina, tempo, desfecho/modo,
+  filamento por cor e observações.
+- **aba Produtos (UX-07a)**: os cards saíram da grade `.stock-list` pra uma coluna `.fg-list`; a linha
+  (`.fg-head`) mostra nome + valor parado (texto) + saldo, e o `.fg-details` carrega avisos, partes,
+  barras (`renderCostBars`), margem congelada e o `CostBreakdownTable`.
+- **`/vendas`** (aninhado): cada item da `.recibo-items` ganhou um `<tr className="ri-details-row">` irmão
+  (Fragment), aberto por `openSaleId`; o dropdown traz máquina, tempo, qtd, **desconto congelado**
+  (FEAT-09), filamento por cor e a tabela precificado × real.
+
+**UX-07(b) ficou de fora** (ligar o acabado aos eventos de `producao` que o geraram): puxa buscar
+`producao` por `productId` sob demanda (pós-TD-006 a coleção não é assinada inteira) — a mesma agregação
+server-side do painel, adiada pro **Dashboard**.
+
 ## ✅ FEAT-09 — Desconto na venda (2026-08-10)
 
 Pedido do dono (2026-08-07): dar desconto ao registrar a venda, com lucro/margem recalculando **sobre o

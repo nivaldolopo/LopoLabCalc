@@ -289,37 +289,38 @@
   color: var(--muted);
 }
 
-/* Regras escopadas sob `.cost-detail-pop` DE PROPÓSITO: a tabela vive dentro de um
-   `td.ri-cost` no /vendas, então `.recibo-items td` (nowrap + padding 12px + borda)
-   casaria com estas células e, por vir depois no arquivo com mesma especificidade,
-   venceria — reaplicando nowrap e estourando a largura (scroll lateral). O prefixo
-   `.cost-detail-pop` sobe a especificidade e blinda. `table-layout: fixed` garante
-   que a tabela nunca passe da largura do popover. */
-.cost-detail-pop .cost-detail-table {
+/* Regras escopadas sob `.cost-detail-body` DE PROPÓSITO: o wrapper comum ao
+   popover (SaleModal) e ao dropdown de detalhe das listas (UX-06/UX-07a). No
+   /vendas a tabela vive dentro de um `td` do recibo, então `.recibo-items td`
+   (nowrap + padding 12px + borda) casaria com estas células e, por vir depois no
+   arquivo com mesma especificidade, venceria — reaplicando nowrap e estourando a
+   largura (scroll lateral). O prefixo `.cost-detail-body` sobe a especificidade e
+   blinda. `table-layout: fixed` garante que a tabela nunca passe da largura. */
+.cost-detail-body .cost-detail-table {
   width: 100%;
   /* Anula o `table { min-width: 600px }` global (catalog.css) — era ELE que
-     forçava a tabela interna a 600px e estourava o popover (scroll lateral). */
+     forçava a tabela interna a 600px e estourava o container (scroll lateral). */
   min-width: 0;
   table-layout: fixed;
   border-collapse: collapse;
 }
 
-.cost-detail-pop .cost-detail-table td {
+.cost-detail-body .cost-detail-table td {
   padding: 2px 0;
   border: 0;
   white-space: normal;
   color: var(--fg);
 }
 
-.cost-detail-pop .cost-detail-table td.num {
+.cost-detail-body .cost-detail-table td.num {
   width: 96px;
   text-align: right;
   white-space: nowrap;
 }
 
-/* Cabeçalho das 2 colunas (FEAT-06). Mesmo `.cost-detail-pop` escopando pelo
+/* Cabeçalho das 2 colunas (FEAT-06). Mesmo `.cost-detail-body` escopando pelo
    motivo do bloco acima: `.recibo-items th` casaria com estas células. */
-.cost-detail-pop .cost-detail-table th {
+.cost-detail-body .cost-detail-table th {
   padding: 0 0 4px;
   border: 0;
   font-size: 11px;
@@ -330,12 +331,12 @@
   white-space: nowrap;
 }
 
-.cost-detail-pop .cost-detail-table th.num {
+.cost-detail-body .cost-detail-table th.num {
   width: 96px;
   text-align: right;
 }
 
-.cost-detail-pop .cost-detail-divider td {
+.cost-detail-body .cost-detail-divider td {
   padding-top: 8px;
   font-size: 11px;
   letter-spacing: 0.04em;
@@ -343,17 +344,17 @@
   color: var(--muted);
 }
 
-.cost-detail-pop .cost-detail-prov td {
+.cost-detail-body .cost-detail-prov td {
   color: var(--muted);
 }
 
-.cost-detail-pop .cost-detail-total td {
+.cost-detail-body .cost-detail-total td {
   padding-top: 6px;
   border-top: 1px solid var(--border-soft);
   font-weight: 600;
 }
 
-.cost-detail-pop .cost-detail-total.real td {
+.cost-detail-body .cost-detail-total.real td {
   color: var(--green);
 }
 
@@ -496,12 +497,62 @@
   white-space: normal;
 }
 
+/* UX-06: a linha do item vira gatilho do detalhe (linha + dropdown). */
+.ri-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ri-row:hover {
+  background: var(--details-bg);
+}
+
+.ri-name .arrow-icon {
+  vertical-align: top;
+  margin-top: 1px;
+}
+
+.ri-row.open .arrow-icon {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+.ri-name-text {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .recibo-items .num {
   text-align: right;
 }
 
 .ri-cost {
   color: var(--muted);
+}
+
+.ri-cost strong {
+  color: var(--fg);
+}
+
+/* Dropdown de detalhe do item (UX-06): meta + filamento por cor + composição
+   precificado × real (CostBreakdownTable inline). O `td` zera o padding/nowrap
+   herdado de `.recibo-items td` e o `.ri-details` repõe o próprio espaçamento. */
+.ri-details-row td {
+  padding: 0;
+  white-space: normal;
+  background: var(--details-bg);
+}
+
+.ri-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.ri-details .cost-detail-body {
+  max-width: 460px;
 }
 
 /* FEAT-09: desconto congelado da linha, abaixo do preço de tabela no /vendas. */

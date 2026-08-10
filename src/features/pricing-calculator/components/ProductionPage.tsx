@@ -51,7 +51,7 @@ import type {
   ProductionMode,
   ProductionOutcome,
 } from "../types";
-import { CostDetail } from "./CostDetail";
+import { CostBreakdownTable, CostDetail } from "./CostDetail";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { NavBar } from "./NavBar";
 import { NumberInput } from "./NumberInput";
@@ -134,6 +134,8 @@ export function ProductionPage() {
   const { goods } = useFinishedGoods();
 
   const [selectedKey, setSelectedKey] = useState("");
+  // UX-06: qual produção recente está com o detalhe aberto (linha + dropdown).
+  const [openEventId, setOpenEventId] = useState<string | null>(null);
   const [rows, setRows] = useState<EventRow[]>([]);
   // BUG-02: uma submissão pode ser P PLACAS de uma vez (o quiosque imprime a mesa
   // cheia). Escala filamento/horas e os acabados; default 1.
@@ -964,51 +966,114 @@ export function ProductionPage() {
               (sum, f) => sum + filamentTotalG(f),
               0,
             );
+            const hoursLabel = num(event.printHours).toLocaleString("pt-BR", {
+              maximumFractionDigits: 2,
+            });
+            const isOpen = openEventId === event.id;
             return (
-              <div className="prod-card" key={event.id}>
-                <div className="prod-card-main">
-                  <strong>{event.productName || "(sem nome)"}</strong>
-                  <span className="prod-card-sub">
-                    {formatDate(event.at)} · {event.machineName || "—"} ·{" "}
-                    {num(event.printHours).toLocaleString("pt-BR", {
-                      maximumFractionDigits: 2,
-                    })}{" "}
-                    h · {grams(totalG)}
-                  </span>
-                </div>
-                <div className="prod-card-side">
-                  <span className={`prod-badge ${event.outcome}`}>
-                    {outcomeLabel(event.outcome)}
-                  </span>
-                  {event.mode === "historico" ? (
-                    <span className="prod-badge hist">histórico</span>
-                  ) : null}
-                  {/* FEAT-06: produção nova é detalhável; a antiga só tem o
-                      total, então segue como número rotulado (sem migração). */}
-                  {event.frozenBreakdown ? (
-                    <CostDetail
-                      real={event.frozenBreakdown}
-                      realCogs={event.frozenCost}
-                      triggerLabel="custo real"
-                      hint="▾"
-                    />
-                  ) : (
+              <div
+                className={`prod-card ${isOpen ? "open" : ""}`}
+                key={event.id}
+              >
+                {/* UX-06: a linha vira gatilho do detalhe; o dropdown abaixo
+                    absorve o antigo popover de custo (CostBreakdownTable). */}
+                <div
+                  className="prod-card-head"
+                  onClick={() =>
+                    setOpenEventId((current) =>
+                      current === event.id ? null : event.id,
+                    )
+                  }
+                >
+                  <div className="prod-card-main">
+                    <strong>
+                      <span className="arrow-icon">▼</span>
+                      {event.productName || "(sem nome)"}
+                    </strong>
+                    <span className="prod-card-sub">
+                      {formatDate(event.at)} · {event.machineName || "—"} ·{" "}
+                      {hoursLabel} h · {grams(totalG)}
+                    </span>
+                  </div>
+                  <div className="prod-card-side">
+                    <span className={`prod-badge ${event.outcome}`}>
+                      {outcomeLabel(event.outcome)}
+                    </span>
+                    {event.mode === "historico" ? (
+                      <span className="prod-badge hist">histórico</span>
+                    ) : null}
                     <span className="prod-card-cost">
                       custo real{" "}
                       <strong className="mono">
                         {formatCurrency(event.frozenCost)}
                       </strong>
                     </span>
-                  )}
-                  <button
-                    className="icon-button danger"
-                    type="button"
-                    onClick={() => void remove(event)}
-                    title="Excluir e estornar"
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                    <button
+                      className="icon-button danger"
+                      type="button"
+                      onClick={(clickEvent) => {
+                        clickEvent.stopPropagation();
+                        void remove(event);
+                      }}
+                      title="Excluir e estornar"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
+
+                {isOpen ? (
+                  <div className="prod-card-details">
+                    <div className="cd-meta">
+                      <span>
+                        <span className="db-label">Máquina</span>{" "}
+                        {event.machineName || "—"}
+                      </span>
+                      <span>
+                        <span className="db-label">Tempo</span> {hoursLabel} h
+                      </span>
+                      <span>
+                        <span className="db-label">Desfecho</span>{" "}
+                        {outcomeLabel(event.outcome)}
+                      </span>
+                      <span>
+                        <span className="db-label">Modo</span>{" "}
+                        {event.mode === "historico"
+                          ? "Histórico (não deduz)"
+                          : "Real (deduz do estoque)"}
+                      </span>
+                      {event.notes ? (
+                        <span>
+                          <span className="db-label">Obs.</span> {event.notes}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {event.filaments.length > 0 ? (
+                      <div className="details-span">
+                        <div className="db-label">Filamento por cor</div>
+                        <div className="details-tags">
+                          {event.filaments.map((fil, index) => (
+                            <span key={fil.id ?? index}>
+                              {fil.colorName || "(cor)"}{" "}
+                              <em>
+                                {grams(filamentTotalG(fil))} ·{" "}
+                                {formatCurrency(fil.pricePerKg)}/kg
+                              </em>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* FEAT-06: composição congelada. Produção antiga sem
+                        breakdown mostra só o total real (sem migração). */}
+                    <CostBreakdownTable
+                      real={event.frozenBreakdown}
+                      realCogs={event.frozenCost}
+                    />
+                  </div>
+                ) : null}
               </div>
             );
           })}

@@ -22,11 +22,10 @@
    labor na reserva mantido.
 5. ~~**TD-003** (capacidade por-máquina) · **UX-04** (catálogo multi-máquina)~~ ✅ **FECHADO (2026-08-04)**
    · ~~**TD-006** (paginação) + **UX-05 Fase 2/3** (busca em vendas/produção)~~ ✅ **FECHADO (2026-08-10)**.
-6. **◀ PRÓXIMA — Cluster "linha + dropdown de detalhe"** (dono, 2026-08-10): **UX-06** (detalhe
-   expansível em `/vendas` e `/producao`) **+ UX-07(a)** (aba Produtos do estoque em linha + dropdown,
-   só a parte barata). Mesmo padrão do catálogo, reempacotamento de apresentação. **UX-07(b)** (ligar
-   acabado→eventos de produção) fica adiado pro Dashboard (mesma agregação server-side).
-7. **Tier 2 comerciais** — **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
+6. ~~**Cluster "linha + dropdown de detalhe"**~~ ✅ **FECHADO (2026-08-10)** — **UX-06** (`/vendas` +
+   `/producao`) **+ UX-07(a)** (aba Produtos do estoque) viraram linha + dropdown; o popover `CostDetail`
+   virou a tabela compartilhada `CostBreakdownTable`. **UX-07(b)** segue adiado pro Dashboard.
+7. **◀ PRÓXIMA — Tier 2 comerciais** — **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
    (~~**FEAT-09** desconto na venda~~ ✅ **FECHADO 2026-08-10**.)
 8. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
 
@@ -104,25 +103,19 @@
     composto) **+** caixa de nome que refina a janela (`HistoryFilterBar`). Detalhe em `HISTORICO.md`.
   ⚠ **Ressalva:** paginar resolve a **lista**, não a **análise** — ROI (`/maquinas`) e o Dashboard
   **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (adiar pro Dashboard).
-- **[UX-06] Detalhe expansível por item em `/vendas` e `/producao`** *(dono, 2026-08-10)* — trocar a
-  apresentação atual (tabela de itens no card de recibo + popover `CostDetail`) por **linha/card
-  expansível** no padrão do catálogo (`main-row` + `details-row`, `ProductCatalog.tsx`). O dado já existe —
-  é reempacotamento de **apresentação**. **Decisão de design:** o dropdown **absorve** o `CostDetail` (o
-  popover sai) e ganha espaço p/ composição de custo, máquina, horas, filamento por cor, desconto
-  congelado. **Esforço médio:** `/producao` é fácil (lista plana); `/vendas` expande **dentro** do card de
-  recibo (aninhamento a resolver). Irmão do **[UX-07]** — mesmo padrão de "abrir detalhe" no app inteiro.
-  **Onde:** `SalesPage.tsx`/`ProductionPage.tsx` + `sales.css`/`production.css`; referência em
-  `ProductCatalog.tsx`.
-- **[UX-07] Aba Produtos do estoque em linha + dropdown** *(dono, 2026-08-10)* — na `/estoque` aba
-  Produtos, trocar os cards em grade por **linhas com dropdown** de detalhe (irmão do **[UX-06]**). Duas
-  partes de custo bem diferente: **(a)** "detalhes do produto" é **barata** — composição do valor parado,
-  custo/un e margem congelada já existem no card (FEAT-06, `StockPage.tsx`), é só reempacotar; **(b)**
-  "detalhes da **produção**" (ligar o acabado aos eventos que o geraram) é a novidade e puxa dependência de
-  dados: as camadas da SKU têm `sourceEventId`, mas a `StockPage` lê só `useFinishedGoods` e, pós-TD-006, a
-  coleção `producao` **não é mais assinada inteira** → exige **buscar eventos por `productId` sob demanda**.
-  ⚠ **É a mesma agregação server-side do Dashboard** — **decidido (dono, 2026-08-10): fazer (a) no
-  cluster atual e mover (b) inteiro pro Dashboard.** As "informações de produção" na aba Produtos
-  saem deste item. **Onde:** `StockPage.tsx` (`renderProductCard`) + `stock.css`.
+- ~~**[UX-06] Detalhe expansível por item em `/vendas` e `/producao`**~~ ✅ **FEITO (2026-08-10)** — item do
+  recibo (`/vendas`) e produção recente (`/producao`) viraram **linha clicável + dropdown**; o dropdown
+  **absorveu** o popover `CostDetail` (composição precificado × real inline) e ganhou máquina, horas,
+  filamento por cor e desconto congelado. **Onde:** `SalesPage.tsx`/`ProductionPage.tsx` +
+  `cesta-recibo.css`/`production.css`.
+- ~~**[UX-07(a)] Aba Produtos do estoque em linha + dropdown**~~ ✅ **FEITO (2026-08-10)** — os cards em
+  grade viraram **linhas + dropdown** (`.fg-list`/`.fg-head`/`.fg-details`); o "valor parado" saiu do
+  popover pra linha e a composição (barras + `CostBreakdownTable`), partes e margem congelada desceram pro
+  dropdown. **Onde:** `StockPage.tsx` (`renderProductCard`) + `stock.css`.
+  - **[UX-07(b)] — produção do acabado:** ligar cada acabado aos eventos de `producao` que o geraram
+    (camadas da SKU têm `sourceEventId`). Puxa buscar `producao` por `productId` sob demanda (pós-TD-006 a
+    coleção não é assinada inteira) = a mesma agregação server-side do painel. **Adiado pro Dashboard**
+    (dono, 2026-08-10) — ver o item [Dashboard].
 
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em

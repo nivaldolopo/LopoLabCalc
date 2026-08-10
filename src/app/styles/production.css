@@ -139,15 +139,32 @@
   gap: 10px;
 }
 
+/* UX-06: o card virou "linha + dropdown". O `.prod-card` agora empilha a linha
+   (head) e o detalhe; o layout de linha que era do card mora no `.prod-card-head`. */
 .prod-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+}
+
+.prod-card.open {
+  border-color: var(--accent);
+}
+
+.prod-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--card-bg);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.prod-card-head:hover {
+  background: var(--bg);
 }
 
 .prod-card-main {
@@ -195,6 +212,24 @@
   white-space: nowrap;
 }
 
+.prod-card-cost strong {
+  color: var(--fg);
+}
+
+/* Dropdown de detalhe da produção (UX-06) — meta + filamento por cor +
+   composição de custo (CostBreakdownTable inline). */
+.prod-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 16px 16px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.prod-card-details .cost-detail-body {
+  max-width: 460px;
+}
+
 .prod-badge {
   font-size: 10px;
   font-weight: 600;
@@ -220,7 +255,7 @@
 }
 
 @media (max-width: 640px) {
-  .prod-card {
+  .prod-card-head {
     flex-direction: column;
     align-items: flex-start;
   }
