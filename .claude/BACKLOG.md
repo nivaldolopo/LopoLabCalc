@@ -11,7 +11,8 @@
 
 ## Ordem de prioridade
 
-> **Reordenado em 2026-07-20** pelo dono; **FEAT-03 movido para penúltimo em 2026-07-31**
+> **Reordenado em 2026-07-20** pelo dono; **FEAT-03 movido para penúltimo em 2026-07-31**;
+> **UX-06 + UX-07(a) escolhidos como próxima em 2026-08-10** (dono), à frente do FEAT-03
 > (ver "Porquês da ordem" abaixo).
 
 1. ~~**UX / organização**~~ ✅ **FECHADA** — UX-01 · FEAT-07 · UX-02 · FEAT-08.
@@ -21,9 +22,13 @@
    labor na reserva mantido.
 5. ~~**TD-003** (capacidade por-máquina) · **UX-04** (catálogo multi-máquina)~~ ✅ **FECHADO (2026-08-04)**
    · ~~**TD-006** (paginação) + **UX-05 Fase 2/3** (busca em vendas/produção)~~ ✅ **FECHADO (2026-08-10)**.
-6. **Tier 2 comerciais** (ordem interna à escolha do dono) — ~~**FEAT-09** (desconto na venda)~~ ✅
-   **FECHADO (2026-08-10)** · **◀ PRÓXIMA**: **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
-7. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real.
+6. **◀ PRÓXIMA — Cluster "linha + dropdown de detalhe"** (dono, 2026-08-10): **UX-06** (detalhe
+   expansível em `/vendas` e `/producao`) **+ UX-07(a)** (aba Produtos do estoque em linha + dropdown,
+   só a parte barata). Mesmo padrão do catálogo, reempacotamento de apresentação. **UX-07(b)** (ligar
+   acabado→eventos de produção) fica adiado pro Dashboard (mesma agregação server-side).
+7. **Tier 2 comerciais** — **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
+   (~~**FEAT-09** desconto na venda~~ ✅ **FECHADO 2026-08-10**.)
+8. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
 
 ### Porquês da ordem (decisões de 2026-07-20)
 
@@ -42,6 +47,13 @@
   horas de máquina do histórico vêm dos eventos de produção somados por `machineId`
   (`machineRoi.ts:87-89`) — dado real, já correto. TD-003 afeta só a **projeção** de capacidade na
   tela; TD-006 é custo/desempenho de **leitura**. O registro do `/maquinas` não está contaminado.
+- **UX-06 + UX-07(a) viraram a próxima (dono, 2026-08-10):** os dois são o mesmo padrão "linha +
+  dropdown de detalhe" e são só reempacotamento de apresentação (o dado já existe) — baratos e
+  coerentes de fazer juntos. Ficam à frente do FEAT-03 (polimento comercial, sem bloquear nada).
+  **UX-07(b) fica de fora do cluster** (decisão do dono, mesmo dia): as **informações de produção**
+  na aba Produtos do estoque (ligar o acabado aos eventos que o geraram) **vão pro Dashboard** — é a
+  mesma agregação server-side (buscar `producao` por `productId` sob demanda). O dropdown de Produtos
+  entra só com o que já existe no card (composição do valor parado, custo/un, margem congelada).
 - **FEAT-03 desceu pra penúltimo (dono, 2026-07-31):** o PDF/branding é comercial mas não bloqueia
   nada do fluxo de custo/estoque; o dono preferiu fechar a infra de cálculo (Tier 4 + TD-003/TD-006)
   antes de investir no acabamento do orçamento. Segue **antes** do Dashboard (que é sempre o último —
@@ -108,8 +120,9 @@
   "detalhes da **produção**" (ligar o acabado aos eventos que o geraram) é a novidade e puxa dependência de
   dados: as camadas da SKU têm `sourceEventId`, mas a `StockPage` lê só `useFinishedGoods` e, pós-TD-006, a
   coleção `producao` **não é mais assinada inteira** → exige **buscar eventos por `productId` sob demanda**.
-  ⚠ **É a mesma agregação server-side do Dashboard** — sugiro **fazer (a) neste cluster e adiar (b) pro
-  Dashboard**. **Onde:** `StockPage.tsx` (`renderProductCard`) + `stock.css`.
+  ⚠ **É a mesma agregação server-side do Dashboard** — **decidido (dono, 2026-08-10): fazer (a) no
+  cluster atual e mover (b) inteiro pro Dashboard.** As "informações de produção" na aba Produtos
+  saem deste item. **Onde:** `StockPage.tsx` (`renderProductCard`) + `stock.css`.
 
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em
@@ -141,6 +154,10 @@
     perdidos por período e a **taxa de falha OBSERVADA** (falhas ÷ total de impressões) — o número que
     embasa calibrar a taxa arbitrária da precificação. ⚠ **Só relatório** — NÃO realimentar a
     `failureRate` do preço automaticamente (dial manual desacoplado de propósito; ver memória).
+  - **UX-07(b) — produção do acabado (movido pra cá, dono 2026-08-10):** ligar cada acabado aos
+    eventos de `producao` que o geraram (as camadas da SKU têm `sourceEventId`). Puxa buscar `producao`
+    por `productId` sob demanda (pós-TD-006 a coleção não é mais assinada inteira) = a mesma agregação
+    server-side do painel. Sai da aba Produtos do estoque e entra aqui.
 - ~~**[TD-003] Capacidade não é por-máquina**~~ ✅ **FEITO (2026-08-04)** — modelo do **gargalo**: máquinas
   distintas rodam em paralelo, quem limita é a mais ocupada (`max` das horas por máquina, não a soma).
   Mantém os dois botões (máquinas dedicadas + horas/dia) — é estimativa branda por decisão do dono.

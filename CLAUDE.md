@@ -23,14 +23,19 @@
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **▶ PRÓXIMA TAREFA:** **Tier 2 comerciais (resto)** — ordem interna à escolha do dono: **FEAT-03** (PDF do
-  orçamento melhor) · **branding/logo real** no PDF. Depois só o **Dashboard** (último — só com ~1-2 meses de
-  venda real). (FEAT-09 ✅ fechado.)
+- **▶ PRÓXIMA TAREFA (dono, 2026-08-10):** **Cluster "linha + dropdown de detalhe"** — **UX-06**
+  (detalhe expansível por item em `/vendas` e `/producao`, no padrão do catálogo; o dropdown **absorve**
+  o popover `CostDetail`) **+ UX-07(a)** (aba Produtos do estoque em linha + dropdown, só a parte barata:
+  composição do valor parado/custo-un/margem que já existem no card). **Reempacotamento de apresentação,
+  o dado já existe.** **UX-07(b)** (ligar acabado→eventos de produção) **fica fora → vai pro Dashboard**
+  (mesma agregação server-side). **Depois:** **FEAT-03** (PDF melhor) · **branding/logo real**; **Dashboard**
+  por último. (FEAT-09 ✅ fechado.)
   ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
   Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (Cloud
   Functions), a adiar pro Dashboard.
-  **Ordem (dono, 2026-07-31/08-04):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → ~~UX-05 Fase 1~~ ✅ →
-  ~~TD-006 (paginação + busca)~~ ✅ → ~~FEAT-09~~ ✅ → **FEAT-03 / branding** → Dashboard (último).
+  **Ordem (dono, 2026-07-31/08-04/08-10):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → ~~UX-05 Fase 1~~ ✅ →
+  ~~TD-006 (paginação + busca)~~ ✅ → ~~FEAT-09~~ ✅ → **UX-06 + UX-07(a)** → **FEAT-03 / branding** →
+  Dashboard (último; absorve UX-07(b)).
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
