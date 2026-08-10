@@ -53,6 +53,12 @@
 ## Itens abertos
 
 ### Bugs
+- **[BUG-04] Métricas do card de ROI vazam pra fora da caixa** *(dono, 2026-08-10)* — em `/maquinas`, os 4
+  números do rodapé (Vendas/Receita/Lucro/Ritmo) estouram a borda do card (ver print do dono). Causa:
+  `.roi-metrics` é `grid repeat(4, 1fr)` num card de ~340px; `"R$ 861,92/mês"` em mono 14px não cabe em
+  ~70px e, como `1fr` não encolhe abaixo do conteúdo (`min-width: auto`) e não há `overflow`/wrap, o texto
+  transborda. **Fix (CSS puro, ~10 min):** `min-width: 0` nas células + deixar o valor quebrar/encolher (ou
+  2×2 em card estreito). **Onde:** `machines.css` (`.roi-metrics`/`.roi-metric`). **Quick-win — fora da fila.**
 - ~~**[BUG-03]** Histórico de vendas e extrato de rolos fora de ordem~~ **✅ FEITO (2026-07-19)** — `Recibo`
   ganhou `createdAt` (max dos itens) e os sorts por data usam `(saleDate, createdAt)`; `colorStatement`
   desempata por `seq` (createdAt do evento no consumo). Rolos/ajustes seguem só com o dia.
@@ -89,6 +95,24 @@
     composto) **+** caixa de nome que refina a janela (`HistoryFilterBar`). Detalhe em `HISTORICO.md`.
   ⚠ **Ressalva:** paginar resolve a **lista**, não a **análise** — ROI (`/maquinas`) e o Dashboard
   **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (adiar pro Dashboard).
+- **[UX-06] Detalhe expansível por item em `/vendas` e `/producao`** *(dono, 2026-08-10)* — trocar a
+  apresentação atual (tabela de itens no card de recibo + popover `CostDetail`) por **linha/card
+  expansível** no padrão do catálogo (`main-row` + `details-row`, `ProductCatalog.tsx`). O dado já existe —
+  é reempacotamento de **apresentação**. **Decisão de design:** o dropdown **absorve** o `CostDetail` (o
+  popover sai) e ganha espaço p/ composição de custo, máquina, horas, filamento por cor, desconto
+  congelado. **Esforço médio:** `/producao` é fácil (lista plana); `/vendas` expande **dentro** do card de
+  recibo (aninhamento a resolver). Irmão do **[UX-07]** — mesmo padrão de "abrir detalhe" no app inteiro.
+  **Onde:** `SalesPage.tsx`/`ProductionPage.tsx` + `sales.css`/`production.css`; referência em
+  `ProductCatalog.tsx`.
+- **[UX-07] Aba Produtos do estoque em linha + dropdown** *(dono, 2026-08-10)* — na `/estoque` aba
+  Produtos, trocar os cards em grade por **linhas com dropdown** de detalhe (irmão do **[UX-06]**). Duas
+  partes de custo bem diferente: **(a)** "detalhes do produto" é **barata** — composição do valor parado,
+  custo/un e margem congelada já existem no card (FEAT-06, `StockPage.tsx`), é só reempacotar; **(b)**
+  "detalhes da **produção**" (ligar o acabado aos eventos que o geraram) é a novidade e puxa dependência de
+  dados: as camadas da SKU têm `sourceEventId`, mas a `StockPage` lê só `useFinishedGoods` e, pós-TD-006, a
+  coleção `producao` **não é mais assinada inteira** → exige **buscar eventos por `productId` sob demanda**.
+  ⚠ **É a mesma agregação server-side do Dashboard** — sugiro **fazer (a) neste cluster e adiar (b) pro
+  Dashboard**. **Onde:** `StockPage.tsx` (`renderProductCard`) + `stock.css`.
 
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em
