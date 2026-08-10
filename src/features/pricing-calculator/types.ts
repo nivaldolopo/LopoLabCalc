@@ -354,6 +354,17 @@ export type FrozenCostBreakdown = {
 // evento(s) de produção (deduz filamento FIFO + horas) que a venda referencia.
 export type SaleItemOrigin = "acabado" | "encomenda";
 
+// FEAT-09: desconto na venda. `mode` é como o dono digitou (R$ absoluto ou %);
+// `value` é o número cru. O R$ efetivo (o que de fato sai do preço) é derivado e
+// CONGELADO na venda (`discountAmount` abaixo) — não recalculado depois.
+export type DiscountMode = "abs" | "pct";
+export type Discount = { mode: DiscountMode; value: number };
+
+// FEAT-09: onde o desconto foi aplicado no recibo — por LINHA (item) ou no TOTAL
+// (rateado entre as linhas na proporção da receita). Um modo XOR o outro por
+// venda, nunca os dois juntos (decisão do dono, 2026-08-07).
+export type DiscountKind = "item" | "total";
+
 export type SaleInput = {
   // Agrupa itens de uma mesma compra/recibo. Na fase 1a cada venda tem o seu;
   // a fase 1b (cesta) reaproveita este campo para juntar vários produtos.
@@ -395,7 +406,17 @@ export type SaleInput = {
   // de camada sem composição — aí a tela mostra só o total real, como antes.
   realCostBreakdown?: FrozenCostBreakdown;
   totalCost: number; // unitCost × quantity
-  totalRevenue: number; // salePrice × quantity (o que o cliente paga)
+  // O que o cliente paga na linha: salePrice × quantity − desconto (FEAT-09).
+  // Sem desconto, é salePrice × quantity, como antes.
+  totalRevenue: number;
+  // FEAT-09: desconto CONGELADO nesta linha. Ausentes = venda sem desconto (ou
+  // anterior ao recurso). `discountKind` diz se foi definido por item ou no total
+  // do recibo (rateado); `discountInput` é o que o dono digitou (p/ exibir
+  // "10%"/"R$ 5"); `discountAmount` é o R$ EFETIVO desta linha (no modo total, já
+  // a fatia rateada). O `profit`/`margin`/`feeAmount` abaixo já entram líquidos.
+  discountKind?: DiscountKind;
+  discountInput?: Discount;
+  discountAmount?: number;
   // Taxa da forma de pagamento congelada no momento da venda. `feeRate` é o
   // percentual (ex.: 4.5); `feeAmount` é o valor absoluto descontado (R$) no
   // total do item; `feePassedToCustomer` indica se o preço já foi inflado para

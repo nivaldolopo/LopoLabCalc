@@ -120,6 +120,7 @@ export const THEME_STORAGE_KEY = "calc3d-theme";
 export const ALLOWED_EMAILS = [
   "nivaldo.lopo@gmail.com",
   "lopolab3d@gmail.com",
+  "joao.zarbielli@gmail.com",
 ];
 
 // Opções de forma de pagamento e canal usadas no registro de venda.
