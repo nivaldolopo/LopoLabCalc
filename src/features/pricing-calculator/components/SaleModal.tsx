@@ -18,7 +18,7 @@ import {
 import { newProductionId } from "@/lib/firebase/productionRepository";
 import type { ReciboWrite } from "@/lib/firebase/salesRepository";
 import { CostDetail } from "./CostDetail";
-import { balanceOf } from "../lib/finishedGoods";
+import { assemblableWholes, balanceOf } from "../lib/finishedGoods";
 import { freezeFilaments, materialsLabel } from "../lib/filaments";
 import {
   apportionDiscount,
@@ -219,8 +219,17 @@ export function SaleModal({
 
   // Saldo do acabado (a SKU = o subitem) deste item, e o caminho default: peça
   // pronta quando há saldo, senão encomenda (decisão do dono — por item).
+  // BUG-05: o INTEIRO de um produto que vende por partes não tem SKU própria — o
+  // saldo é quantos conjuntos dá para montar (min das partes), casando com a baixa
+  // do `consumeWholeFifo` na reconciliação.
   function balanceForItem(source: SaleModalContext): number {
     const good = goods.find((g) => g.productId === source.productId);
+    if (!source.subitemId) {
+      const product = products.find((p) => p.id === source.productId);
+      if (product?.sellBySubitems && product.subitems.length > 0) {
+        return assemblableWholes(good, product.subitems.map((s) => s.id));
+      }
+    }
     return balanceOf(good, source.subitemId);
   }
   function defaultOrigin(source: SaleModalContext): SaleItemOrigin {

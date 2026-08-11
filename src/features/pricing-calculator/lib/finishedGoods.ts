@@ -321,6 +321,38 @@ export function consumeFifo(
   };
 }
 
+/**
+ * Consumo do INTEIRO de um produto que vende por PARTES (BUG-05). O acabado desse
+ * produto guarda uma SKU por subitem (a produção do inteiro credita as partes; não
+ * existe uma SKU `__whole__`), então vender `qty` conjuntos drena `qty` de CADA
+ * parte — uma montagem. Agrega os `FinishedMove` de todas as partes num resultado
+ * só (é o mesmo `FinishedConsumptionResult` da venda de uma peça): custo e
+ * composição somam as partes; o `shortfall` é o MAIOR entre as partes (quantos
+ * conjuntos passaram da parte mais escassa = qty − inteiros montáveis). Sem
+ * subitens cai no consumo do inteiro (SKU `__whole__`).
+ */
+export function consumeWholeFifo(
+  good: FinishedGood | null | undefined,
+  subitemIds: string[],
+  qty: number,
+): FinishedConsumptionResult {
+  if (subitemIds.length === 0) return consumeFifo(good, undefined, qty);
+  const moves: FinishedMove[] = [];
+  let cost = 0;
+  let breakdown = ZERO_FROZEN;
+  let costUnknown = 0;
+  let shortfall = 0;
+  for (const subitemId of subitemIds) {
+    const res = consumeFifo(good, subitemId, qty);
+    moves.push(...res.moves);
+    cost += res.cost;
+    breakdown = addFrozen(breakdown, res.breakdown);
+    costUnknown += res.costUnknown;
+    shortfall = Math.max(shortfall, res.shortfall);
+  }
+  return { moves, cost, shortfall, breakdown, costUnknown };
+}
+
 // O mínimo para mexer no saldo de uma camada — satisfeito pelo `FinishedMove` que
 // `consumeFifo` descreve e que a venda grava. É o que deixa o estorno ler o doc da
 // venda e devolver por camada, sem depender do custo (molde do `RollDelta`).

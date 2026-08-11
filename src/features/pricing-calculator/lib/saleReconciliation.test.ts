@@ -162,6 +162,48 @@ describe("planReciboReconciliation — peça pronta (acabado)", () => {
   });
 });
 
+// BUG-05: o INTEIRO de um produto que vende por partes sai do acabado das PARTES
+// (não de uma SKU do inteiro, que a produção nunca cria).
+describe("planReciboReconciliation — inteiro de produto com subitens (BUG-05)", () => {
+  const kit = makeGood([
+    { subitemId: "a", name: "Base", layers: [{ id: "e1__a", at: 0, qty: 3, unitCost: 6, sourceEventId: "e1" }] },
+    { subitemId: "b", name: "Topo", layers: [{ id: "e1__b", at: 0, qty: 2, unitCost: 4, sourceEventId: "e1" }] },
+  ]);
+  const kitProduct = makeProduct({
+    sellBySubitems: true,
+    subitems: [
+      { id: "a", name: "Base", stageKeys: [] },
+      { id: "b", name: "Topo", stageKeys: [] },
+    ],
+  });
+
+  it("vender 1 inteiro drena uma de cada parte; COGS = soma das partes", () => {
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 1 })], // subitemId undefined = o inteiro
+      ctx({ goods: [kit], products: [kitProduct] }),
+    );
+    const item = recon.items[0];
+    expect(item.finishedMoves).toHaveLength(2);
+    expect(item.cogsTotal).toBe(6 + 4);
+    expect(item.finishedShortfall).toBe(0);
+    // As partes decrementam: a 3→2, b 2→1.
+    const after = { ...recon.finishedUpdates[0], id: "p1" };
+    expect(balanceOf(after, "a")).toBe(2);
+    expect(balanceOf(after, "b")).toBe(1);
+  });
+
+  it("D4: vender além dos conjuntos montáveis fura a parte mais escassa", () => {
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 3 })], // só 2 montáveis (min = topo)
+      ctx({ goods: [kit], products: [kitProduct] }),
+    );
+    expect(recon.items[0].finishedShortfall).toBe(1); // 3 − min(3,2)
+    const after = { ...recon.finishedUpdates[0], id: "p1" };
+    expect(balanceOf(after, "a")).toBe(0);
+    expect(balanceOf(after, "b")).toBe(-1); // topo vai a negativo, não trava
+  });
+});
+
 describe("planReciboReconciliation — encomenda (dispara produção)", () => {
   const product = makeProduct({
     filaments: [

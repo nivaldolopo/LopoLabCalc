@@ -64,14 +64,12 @@
 ## Itens abertos
 
 ### Bugs
-- **[BUG-05] Produto multi-etapa não aparece inteiro no estoque (mostra 0 un.)** — quando o produto tem
-  mais de uma etapa vendável (subitens), a aba **Produtos** do estoque só lista as **partes**; ao vender/
-  selecionar o **produto inteiro** ele aparece com **0 unidades**, mesmo tendo sido produzido "pra estoque".
-  Provável causa: a produção do inteiro credita as SKUs das **partes** (não uma SKU do produto montado),
-  e a venda do inteiro não está lendo o "montável" a partir das partes (`assemblableWholes`/`goodValue`
-  em `finishedGoods.ts`). **Investigar:** `useFinishedGoods` + `finishedGoods.ts` (camadas por SKU) e como
-  `/producao` credita o inteiro vs. subitem (`productionPlan.ts`). Verificar se é falta de exibir o
-  "montável" na aba Produtos ou um furo real na baixa/crédito.
+- ~~**[BUG-05] Produto multi-etapa não aparece inteiro no estoque (mostra 0 un.)**~~ ✅ **FEITO
+  (2026-08-10)** — era só na **venda** do inteiro (a aba Produtos já mostrava conjuntos = min das partes).
+  A produção do inteiro-com-subitens credita as SKUs das **partes** (não uma SKU `__whole__`), então a
+  venda do inteiro lia/consumia a SKU vazia → **0 disp.** e sem baixa. Nova primitiva **`consumeWholeFifo`**
+  (`finishedGoods.ts`) drena uma de cada parte; a reconciliação (caminho `acabado`) e o saldo do `SaleModal`
+  (`assemblableWholes`) passam a usá-la p/ o inteiro. +6 testes.
 - ~~**[BUG-04] Métricas do card de ROI vazam pra fora da caixa**~~ ✅ **FEITO (2026-08-10)** — `.roi-metrics`
   passou de `repeat(4, 1fr)` (não cabia "R$ 861,92/mês" em card de 340px) p/ **2×2** + `min-width: 0` nas
   células. **Onde:** `machines.css`.
@@ -130,8 +128,8 @@
   "abrir nova venda" e reselecionar. Encaixa no padrão linha + dropdown recém-feito (UX-07a): uma ação
   "Vender" na linha/dropdown que reusa a fiação do `SaleFlow`/`SaleModal` com o produto semeado (mesma
   ideia do seed `?produto=&subitem=` das ações do catálogo — FEAT-08). **Onde:** `StockPage.tsx`
-  (`renderProductCard`) + `SaleFlow`/`SaleModal`. **Depende de/beneficia do BUG-05** (o inteiro precisa
-  aparecer certo no estoque pra vender dali).
+  (`renderProductCard`) + `SaleFlow`/`SaleModal`. (BUG-05 já resolveu o pré-requisito: o inteiro de
+  produto com subitens já aparece/baixa certo na venda.)
 
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em

@@ -6,6 +6,7 @@ import {
   assemblyBreakdown,
   balanceOf,
   consumeFifo,
+  consumeWholeFifo,
   findSku,
   goodCostComposition,
   goodValue,
@@ -298,6 +299,50 @@ describe("assemblableWholes (min das partes)", () => {
       skus: [{ name: "Boneco", layers: [{ id: "e1__whole", at: 0, qty: 4, unitCost: 5, sourceEventId: "e1" }] }],
     });
     expect(assemblableWholes(whole, [])).toBe(4);
+  });
+});
+
+// BUG-05: vender o INTEIRO de um produto que vende por partes drena uma de cada
+// parte (o acabado guarda SKUs de subitem, não uma do inteiro).
+describe("consumeWholeFifo (venda do conjunto — BUG-05)", () => {
+  const kit = makeGood({
+    skus: [
+      { subitemId: "a", name: "Base", layers: [{ id: "e1__a", at: 0, qty: 3, unitCost: 6, sourceEventId: "e1" }] },
+      { subitemId: "b", name: "Topo", layers: [{ id: "e1__b", at: 0, qty: 1, unitCost: 4, sourceEventId: "e1" }] },
+    ],
+  });
+
+  it("um conjunto consome uma de cada parte; custo = soma das partes", () => {
+    const res = consumeWholeFifo(kit, ["a", "b"], 1);
+    expect(res.moves).toHaveLength(2);
+    expect(res.moves.map((m) => m.layerId).sort()).toEqual(["e1__a", "e1__b"]);
+    expect(res.cost).toBe(6 + 4);
+    expect(res.shortfall).toBe(0);
+  });
+
+  it("D4: além do conjunto montável, a parte mais escassa fura (shortfall = qty − min)", () => {
+    const res = consumeWholeFifo(kit, ["a", "b"], 2); // só 1 montável (topo)
+    expect(res.shortfall).toBe(1); // 2 − min(3,1)
+    expect(res.cost).toBe(2 * 6 + 2 * 4); // topo vai a negativo, não trunca
+    // O excedente engrossa o move da camada do topo, sem criar um segundo.
+    expect(res.moves.filter((m) => m.layerId === "e1__b")).toHaveLength(1);
+    expect(res.moves.find((m) => m.layerId === "e1__b")?.qty).toBe(2);
+  });
+
+  it("parte nunca produzida conta no shortfall (sem move)", () => {
+    const res = consumeWholeFifo(kit, ["a", "b", "c"], 1);
+    expect(res.shortfall).toBe(1); // 'c' não existe → 1 conjunto incompleto
+    expect(res.cost).toBe(6 + 4); // a e b saem; c não tem de onde tirar
+  });
+
+  it("sem subitens cai no consumo do inteiro (SKU __whole__)", () => {
+    const whole = makeGood({
+      skus: [{ name: "Boneco", layers: [{ id: "e1__whole", at: 0, qty: 4, unitCost: 5, sourceEventId: "e1" }] }],
+    });
+    const res = consumeWholeFifo(whole, [], 2);
+    expect(res.moves).toHaveLength(1);
+    expect(res.moves[0].layerId).toBe("e1__whole");
+    expect(res.cost).toBe(2 * 5);
   });
 });
 

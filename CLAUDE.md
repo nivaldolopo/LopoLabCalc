@@ -14,14 +14,13 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ UX-06 + UX-07(a) FECHADOS** (2026-08-10) — cluster **"linha + dropdown de
-  detalhe"**: o item do recibo em `/vendas`, a produção recente em `/producao` e a aba **Produtos** do
-  estoque viraram **linha clicável + dropdown**, no padrão do catálogo. O dropdown **absorve** o popover
-  `CostDetail` — a tabela de composição virou o subcomponente compartilhado **`CostBreakdownTable`**
-  (`CostDetail.tsx`), e o popover segue só na venda **VIVA** do `SaleModal` e no **tile de totais** do
-  estoque. CSS `.cost-detail-pop .cost-detail-table` → **`.cost-detail-body`** (wrapper comum). Só
-  **apresentação** — dado intacto, matemática inalterada (294 testes). **UX-07(b)** (acabado→eventos)
-  segue adiado pro Dashboard.
+- **Última mudança:** **✅ BUG-05 FECHADO** (2026-08-10) — vender o **INTEIRO** de um produto que vende
+  por partes agora sai do acabado das **partes** (min das partes = conjuntos montáveis), não de uma SKU
+  `__whole__` que a produção nunca cria (mostrava **0 disp.** e não dava baixa). Nova primitiva pura
+  **`consumeWholeFifo`** (`finishedGoods.ts`: drena uma de cada parte, agrega moves/custo/composição,
+  `shortfall` = maior entre as partes); a reconciliação (`saleReconciliation.ts`, caminho `acabado`) e o
+  saldo exibido no `SaleModal` (`assemblableWholes`) passam a usá-la p/ o inteiro-com-subitens. Estorno
+  round-trip intacto (moves por camada). 300 testes (+6).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.

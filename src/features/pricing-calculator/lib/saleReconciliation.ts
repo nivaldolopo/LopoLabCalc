@@ -3,6 +3,7 @@ import { calculatePricing } from "./calculatePricing";
 import {
   applyFinishedConsumption,
   consumeFifo,
+  consumeWholeFifo,
   reverseFinishedConsumption,
 } from "./finishedGoods";
 import { reverseProduction, reverseSupplies, scaleFrozen } from "./production";
@@ -215,7 +216,16 @@ function applyForward(
 
     if (item.origem === "acabado") {
       const good = state.goodsById.get(item.productId) ?? null;
-      const res = consumeFifo(good, item.subitemId, qty);
+      // BUG-05: o acabado de um produto que vende por partes guarda uma SKU por
+      // subitem (não uma do inteiro). Vender o CONJUNTO drena uma de cada parte.
+      const product = productsById.get(item.productId);
+      const wholeParts =
+        !item.subitemId && product?.sellBySubitems && product.subitems.length > 0
+          ? product.subitems.map((s) => s.id)
+          : null;
+      const res = wholeParts
+        ? consumeWholeFifo(good, wholeParts, qty)
+        : consumeFifo(good, item.subitemId, qty);
       if (good && res.moves.length > 0) {
         state.goodsById.set(
           item.productId,
