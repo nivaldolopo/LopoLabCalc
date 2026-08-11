@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Archive,
   ArchiveRestore,
@@ -9,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
+  Factory,
   Package,
   Palette,
   Pencil,
@@ -122,6 +124,7 @@ function errorMessage(err: unknown): string {
 }
 
 export function StockPage() {
+  const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const {
     filaments,
@@ -714,10 +717,19 @@ export function StockPage() {
     setSaleOpen(true);
   }
 
-  // Botão compacto de venda. Só aparece pra produto que ainda vive no catálogo —
-  // sem ele não há precificação viva pra congelar a foto da venda.
-  function sellButton(
+  // FEAT-08: manda pra /producao já semeado com o produto (e o subitem, pra
+  // "fechar conjunto" produzindo só a parte que falta). Mesma query do catálogo.
+  function produce(productId: string, subitemId?: string) {
+    const params = new URLSearchParams({ produto: productId });
+    if (subitemId) params.set("subitem", subitemId);
+    router.push(`/producao?${params.toString()}`);
+  }
+
+  // Botão compacto de ação (vender/produzir). Só aparece pra produto que ainda
+  // vive no catálogo — sem ele não há precificação viva pra congelar a foto/semear.
+  function actionButton(
     product: SavedProduct | undefined,
+    icon: ReactNode,
     label: string,
     onClick: () => void,
     variant: "primary" | "secondary",
@@ -729,7 +741,7 @@ export function StockPage() {
         type="button"
         onClick={onClick}
       >
-        <ShoppingCart size={13} /> {label}
+        {icon} {label}
       </button>
     );
   }
@@ -787,16 +799,29 @@ export function StockPage() {
 
           {isOpen ? (
             <div className="fg-details">
-              {product && bd.wholes > 0 ? (
+              {product ? (
                 <div className="fg-sell-bar">
-                  {sellButton(
+                  {bd.wholes > 0
+                    ? actionButton(
+                        product,
+                        <ShoppingCart size={13} />,
+                        `Vender conjunto (${bd.wholes})`,
+                        () =>
+                          openSaleWhole(product, pricingByProduct.get(product.id)!),
+                        "primary",
+                      )
+                    : null}
+                  {actionButton(
                     product,
-                    `Vender conjunto (${bd.wholes})`,
-                    () => openSaleWhole(product, pricingByProduct.get(product.id)!),
-                    "primary",
+                    <Factory size={13} />,
+                    "Produzir conjunto",
+                    () => produce(product.id),
+                    "secondary",
                   )}
                   <span className="fg-sell-hint">
-                    ou venda uma parte pelo botão de cada peça abaixo.
+                    {bd.wholes > 0
+                      ? "ou venda / produza uma parte pelos botões de cada peça."
+                      : "produza a parte que falta pra fechar um conjunto (botões de cada peça)."}
                   </span>
                 </div>
               ) : null}
@@ -839,11 +864,13 @@ export function StockPage() {
                       <span className="fg-part-cost mono">
                         {unit !== null ? `${formatCurrency(unit)}/un` : ""}
                       </span>
-                      {/* UX-08: vender só esta parte (subitem) do estoque. */}
+                      {/* UX-08: vender / produzir só esta parte (subitem). Produzir
+                          fecha conjunto: imprime a peça que falta. */}
                       <span className="fg-part-action">
                         {part.balance > 0
-                          ? sellButton(
+                          ? actionButton(
                               product,
+                              <ShoppingCart size={13} />,
                               "Vender",
                               () =>
                                 openSaleSubitem(
@@ -854,6 +881,13 @@ export function StockPage() {
                               "secondary",
                             )
                           : null}
+                        {actionButton(
+                          product,
+                          <Factory size={13} />,
+                          "Produzir",
+                          () => produce(product!.id, part.subitemId),
+                          "secondary",
+                        )}
                       </span>
                     </div>
                   );
@@ -936,13 +970,24 @@ export function StockPage() {
 
         {isOpen ? (
           <div className="fg-details">
-            {product && headline > 0 ? (
+            {product ? (
               <div className="fg-sell-bar">
-                {sellButton(
+                {headline > 0
+                  ? actionButton(
+                      product,
+                      <ShoppingCart size={13} />,
+                      "Vender",
+                      () =>
+                        openSaleWhole(product, pricingByProduct.get(product.id)!),
+                      "primary",
+                    )
+                  : null}
+                {actionButton(
                   product,
-                  "Vender",
-                  () => openSaleWhole(product, pricingByProduct.get(product.id)!),
-                  "primary",
+                  <Factory size={13} />,
+                  "Produzir",
+                  () => produce(product.id),
+                  "secondary",
                 )}
               </div>
             ) : null}

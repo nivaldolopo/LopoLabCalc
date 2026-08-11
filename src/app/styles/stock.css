@@ -449,10 +449,12 @@
   text-align: right;
 }
 
-/* Coluna da ação: alinha os botões à direita e reserva a largura mesmo vazia. */
+/* Coluna da ação: alinha os botões (vender/produzir) à direita, com respiro, e
+   reserva a largura mesmo quando vazia. */
 .fg-part-action {
   display: flex;
   justify-content: flex-end;
+  gap: 6px;
 }
 
 /* Paleta dos 6 componentes. Vive aqui (e não na base) porque só a composição de

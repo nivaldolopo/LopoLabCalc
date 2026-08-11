@@ -14,14 +14,15 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ UX-08 — vender direto do estoque** (2026-08-11, com polimento) — aba **Produtos**
-  do `/estoque` ganhou botões **"Vender"**: "Vender conjunto (N)" (inteiro) + **"Vender" por parte** (subitem,
-  `saleContextFromSubitem`) na linha de cada peça, e "Vender" no produto sem subitens. `StockPage` computa o
-  **`PricingResult` completo** (`pricingByProduct`) e fia o `SaleFlow`. **2 correções junto:** (1) botão
-  compacto (`.fg-sell-btn { flex:0 0 auto }` — o `.btn.primary` global tem `flex:1` e esticava); (2) **bug do
-  origem**: `defaultOrigin` congelava **"encomenda"** porque o `SaleModal` abre com `goods=[]` (assinatura
-  assíncrona) — agora um `useEffect` reavalia o default dos itens não-tocados quando os acabados chegam
-  (`touchedOrigem` ref preserva a escolha manual; edição preserva o salvo). Afetava o catálogo também.
+- **Última mudança:** **✅ UX-08 — vender E produzir direto do estoque** (2026-08-11) — aba **Produtos** do
+  `/estoque` ganhou, por linha (grid alinhado + rótulos de seção), botões **"Vender"** e **"Produzir"** pro
+  inteiro/conjunto E por subitem: "Vender conjunto (N)" + "Produzir conjunto" no topo, e "Vender"/"Produzir"
+  em cada peça (o "Produzir" da parte serve pra **fechar conjunto** — imprime só a que falta). Vender semeia o
+  `SaleModal` (`saleContextFromResult`/`FromSubitem`); Produzir roteia pra `/producao?produto=&subitem=` (mesma
+  query do catálogo, FEAT-08). `StockPage` computa o `PricingResult` completo (`pricingByProduct`) e fia o
+  `SaleFlow`. **Correções junto:** botão não estica mais (especificidade `.fg-details .btn.fg-sell-btn` vs o
+  `flex:1` do `.btn.primary`); e **bug do origem** (o `SaleModal` abria com `goods=[]` e congelava "encomenda"
+  — `useEffect` reavalia quando os acabados chegam; `touchedOrigem` preserva escolha manual). Afetava o catálogo.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
