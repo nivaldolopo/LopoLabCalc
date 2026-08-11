@@ -64,6 +64,14 @@
 ## Itens abertos
 
 ### Bugs
+- **[BUG-05] Produto multi-etapa não aparece inteiro no estoque (mostra 0 un.)** — quando o produto tem
+  mais de uma etapa vendável (subitens), a aba **Produtos** do estoque só lista as **partes**; ao vender/
+  selecionar o **produto inteiro** ele aparece com **0 unidades**, mesmo tendo sido produzido "pra estoque".
+  Provável causa: a produção do inteiro credita as SKUs das **partes** (não uma SKU do produto montado),
+  e a venda do inteiro não está lendo o "montável" a partir das partes (`assemblableWholes`/`goodValue`
+  em `finishedGoods.ts`). **Investigar:** `useFinishedGoods` + `finishedGoods.ts` (camadas por SKU) e como
+  `/producao` credita o inteiro vs. subitem (`productionPlan.ts`). Verificar se é falta de exibir o
+  "montável" na aba Produtos ou um furo real na baixa/crédito.
 - ~~**[BUG-04] Métricas do card de ROI vazam pra fora da caixa**~~ ✅ **FEITO (2026-08-10)** — `.roi-metrics`
   passou de `repeat(4, 1fr)` (não cabia "R$ 861,92/mês" em card de 340px) p/ **2×2** + `min-width: 0` nas
   células. **Onde:** `machines.css`.
@@ -116,6 +124,14 @@
     (camadas da SKU têm `sourceEventId`). Puxa buscar `producao` por `productId` sob demanda (pós-TD-006 a
     coleção não é assinada inteira) = a mesma agregação server-side do painel. **Adiado pro Dashboard**
     (dono, 2026-08-10) — ver o item [Dashboard].
+
+- **[UX-08] Vender direto do estoque** — na aba **Produtos** do estoque, clicar num produto deveria
+  permitir **vendê-lo ali mesmo** (abrir o `SaleModal` já com o produto selecionado), sem ter que ir em
+  "abrir nova venda" e reselecionar. Encaixa no padrão linha + dropdown recém-feito (UX-07a): uma ação
+  "Vender" na linha/dropdown que reusa a fiação do `SaleFlow`/`SaleModal` com o produto semeado (mesma
+  ideia do seed `?produto=&subitem=` das ações do catálogo — FEAT-08). **Onde:** `StockPage.tsx`
+  (`renderProductCard`) + `SaleFlow`/`SaleModal`. **Depende de/beneficia do BUG-05** (o inteiro precisa
+  aparecer certo no estoque pra vender dali).
 
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em
