@@ -393,39 +393,48 @@
   border-color: #c4836b55;
 }
 
+/* UX-08: as peças viraram uma "tabelinha" alinhada — nome (+ nota de avulsas) |
+   saldo | custo/un | ação de venda. As colunas `auto` alinham entre as linhas e a
+   coluna da ação reserva a largura mesmo quando a peça não tem botão. */
 .fg-parts {
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
 
 .fg-part {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto minmax(76px, auto);
+  align-items: center;
+  gap: 14px;
   font-size: 13px;
-  padding: 5px 0;
+  padding: 9px 0;
   border-top: 1px solid var(--border-soft);
 }
 
-.fg-part-name {
-  flex: 1;
+.fg-part-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
+}
+
+.fg-part-name {
   color: var(--ink);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.fg-part-note {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
 }
 
 .fg-part-bal {
   color: var(--muted);
   font-size: 12px;
   white-space: nowrap;
-}
-
-.fg-leftover {
-  font-style: normal;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent);
-  white-space: nowrap;
+  text-align: right;
 }
 
 /* ---------------------------------------------------------------------------
@@ -437,6 +446,13 @@
   font-size: 12px;
   color: var(--muted2);
   white-space: nowrap;
+  text-align: right;
+}
+
+/* Coluna da ação: alinha os botões à direita e reserva a largura mesmo vazia. */
+.fg-part-action {
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* Paleta dos 6 componentes. Vive aqui (e não na base) porque só a composição de
@@ -619,7 +635,7 @@
 .fg-sell-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -628,16 +644,16 @@
   color: var(--muted2);
 }
 
-/* O botão de venda NÃO estica (o `.btn.primary` global tem flex:1). Compacto e
-   com o ícone alinhado ao texto. */
-.fg-sell-btn {
+/* O botão de venda NÃO estica. Especificidade 0,3,0 (`.fg-details .btn.fg-sell-btn`)
+   pra vencer o `.btn.primary` (0,2,0) global, que tem `flex:1`. */
+.fg-details .btn.fg-sell-btn {
   flex: 0 0 auto;
+  padding: 8px 14px;
 }
 
-/* Na linha da parte (baseline), o botão fica centralizado e bem miúdo. */
-.fg-part .fg-sell-btn {
-  align-self: center;
-  padding: 3px 9px;
+/* Na coluna de ação da peça o botão é bem miúdo. */
+.fg-part .btn.fg-sell-btn {
+  padding: 4px 10px;
 }
 
 .inline-link {

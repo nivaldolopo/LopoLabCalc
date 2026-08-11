@@ -812,13 +812,22 @@ export function StockPage() {
                 </div>
               ) : null}
 
+              <div className="section-label">Peças em estoque</div>
               <div className="fg-parts">
                 {bd.parts.map((part) => {
                   const sku = skuByKey.get(part.subitemId);
                   const unit = sku ? skuUnitCost(sku) : null;
                   return (
                     <div className="fg-part" key={part.subitemId}>
-                      <span className="fg-part-name">{part.name}</span>
+                      <div className="fg-part-main">
+                        <span className="fg-part-name">{part.name}</span>
+                        {part.leftover > 0 ? (
+                          <span className="fg-part-note">
+                            +{part.leftover} avulsa
+                            {part.leftover === 1 ? "" : "s"} (não fecham conjunto)
+                          </span>
+                        ) : null}
+                      </div>
                       <span
                         className={`mono fg-part-bal ${
                           part.balance < 0 ? "sale-neg" : ""
@@ -827,36 +836,33 @@ export function StockPage() {
                         {part.balance} em estoque
                       </span>
                       {/* FEAT-06: o custo congelado médio da parte. */}
-                      {unit !== null ? (
-                        <span className="fg-part-cost mono">
-                          {formatCurrency(unit)}/un
-                        </span>
-                      ) : null}
-                      {part.leftover > 0 ? (
-                        <em className="fg-leftover">
-                          +{part.leftover} avulsa{part.leftover === 1 ? "" : "s"}
-                        </em>
-                      ) : null}
+                      <span className="fg-part-cost mono">
+                        {unit !== null ? `${formatCurrency(unit)}/un` : ""}
+                      </span>
                       {/* UX-08: vender só esta parte (subitem) do estoque. */}
-                      {part.balance > 0
-                        ? sellButton(
-                            product,
-                            "Vender",
-                            () =>
-                              openSaleSubitem(
-                                product!,
-                                pricingByProduct.get(product!.id)!,
-                                part.subitemId,
-                              ),
-                            "secondary",
-                          )
-                        : null}
+                      <span className="fg-part-action">
+                        {part.balance > 0
+                          ? sellButton(
+                              product,
+                              "Vender",
+                              () =>
+                                openSaleSubitem(
+                                  product!,
+                                  pricingByProduct.get(product!.id)!,
+                                  part.subitemId,
+                                ),
+                              "secondary",
+                            )
+                          : null}
+                      </span>
                     </div>
                   );
                 })}
                 {wholeBalance !== 0 ? (
                   <div className="fg-part">
-                    <span className="fg-part-name">Inteiro (avulso)</span>
+                    <div className="fg-part-main">
+                      <span className="fg-part-name">Inteiro (avulso)</span>
+                    </div>
                     <span
                       className={`mono fg-part-bal ${
                         wholeBalance < 0 ? "sale-neg" : ""
@@ -864,10 +870,15 @@ export function StockPage() {
                     >
                       {wholeBalance} em estoque
                     </span>
+                    <span className="fg-part-cost" />
+                    <span className="fg-part-action" />
                   </div>
                 ) : null}
               </div>
 
+              {comp.total > 0 ? (
+                <div className="section-label">Composição do custo parado</div>
+              ) : null}
               {renderCostBars(comp.breakdown, comp.total)}
               {/* O custo de UM conjunto é a soma do custo médio de cada parte —
                   não o valor parado ÷ conjuntos, que diluiria as peças avulsas
@@ -948,31 +959,38 @@ export function StockPage() {
             ) : null}
 
             {rows.length > 1 ? (
-              <div className="fg-parts">
-                {rows.map((row) => {
-                  const sku = skuByKey.get(row.key);
-                  const unit = sku ? skuUnitCost(sku) : null;
-                  return (
-                    <div className="fg-part" key={row.key}>
-                      <span className="fg-part-name">{row.name}</span>
-                      <span
-                        className={`mono fg-part-bal ${
-                          row.balance < 0 ? "sale-neg" : ""
-                        }`}
-                      >
-                        {row.balance} em estoque
-                      </span>
-                      {unit !== null ? (
-                        <span className="fg-part-cost mono">
-                          {formatCurrency(unit)}/un
+              <>
+                <div className="section-label">SKUs em estoque</div>
+                <div className="fg-parts">
+                  {rows.map((row) => {
+                    const sku = skuByKey.get(row.key);
+                    const unit = sku ? skuUnitCost(sku) : null;
+                    return (
+                      <div className="fg-part" key={row.key}>
+                        <div className="fg-part-main">
+                          <span className="fg-part-name">{row.name}</span>
+                        </div>
+                        <span
+                          className={`mono fg-part-bal ${
+                            row.balance < 0 ? "sale-neg" : ""
+                          }`}
+                        >
+                          {row.balance} em estoque
                         </span>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
+                        <span className="fg-part-cost mono">
+                          {unit !== null ? `${formatCurrency(unit)}/un` : ""}
+                        </span>
+                        <span className="fg-part-action" />
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             ) : null}
 
+            {comp.total > 0 ? (
+              <div className="section-label">Composição do custo parado</div>
+            ) : null}
             {renderCostBars(comp.breakdown, comp.total)}
             {/* SKU única: o custo congelado dela é o custo da unidade vendável.
                 Com várias SKUs num produto sem subitens vivos não há "a" unidade
