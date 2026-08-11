@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { CatalogPage } from "@/features/pricing-calculator/components/CatalogPage";
 
 export const metadata: Metadata = {
@@ -7,5 +8,11 @@ export const metadata: Metadata = {
 };
 
 export default function Catalogo() {
-  return <CatalogPage />;
+  // UX-08: lê `?produto=` (ação "Ver no catálogo" do estoque) com
+  // `useSearchParams`, que o Next exige dentro de um limite de Suspense.
+  return (
+    <Suspense>
+      <CatalogPage />
+    </Suspense>
+  );
 }

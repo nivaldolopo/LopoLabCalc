@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DEFAULT_FIXED_COSTS } from "../constants";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useMachines } from "../hooks/useMachines";
@@ -39,7 +39,16 @@ const statusLabel: Record<CloudStatus, string> = {
 // ficou só calculadora/cadastro; aqui o catálogo tem a página inteira.
 export function CatalogPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { theme, toggleTheme } = useTheme();
+
+  // UX-08: "Ver no catálogo" (aba Produtos do estoque) manda pra cá com
+  // `?produto=<id>` — o card abre expandido. Lido UMA vez; a URL é limpa depois
+  // pra um refresh não re-focar. Congelado em estado (o efeito abaixo zera a query).
+  const [focusId] = useState<string | null>(() => searchParams.get("produto"));
+  useEffect(() => {
+    if (focusId) window.history.replaceState(null, "", "/catalogo");
+  }, [focusId]);
   const { machines } = useMachines();
   const { filaments: stock } = useStock();
   const { fixedCostRate } = useBusinessSettings();
@@ -176,6 +185,7 @@ export function CatalogPage() {
           fixedCosts={fixedCosts}
           pricingByProduct={pricingByProduct}
           capacitySettings={capacitySettings}
+          initialOpenId={focusId}
           sortMode={sortMode}
           onSortModeChange={setSortMode}
           onLoadProduct={editProduct}

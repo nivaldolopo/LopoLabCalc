@@ -10,7 +10,7 @@ import {
   Upload,
 } from "lucide-react";
 import { Fragment } from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import { round2 } from "@/lib/number";
 import type {
@@ -85,6 +85,9 @@ type ProductCatalogProps = {
   fixedCosts: FixedCostSettings;
   pricingByProduct: Map<string, PricingResult>;
   capacitySettings: CapacitySettings;
+  // UX-08: produto a abrir já expandido ao entrar (vindo do "Ver no catálogo" do
+  // estoque). Ausente = nada aberto.
+  initialOpenId?: string | null;
   sortMode: SortMode;
   onSortModeChange: (sortMode: SortMode) => void;
   onLoadProduct: (product: SavedProduct) => void;
@@ -110,6 +113,7 @@ export function ProductCatalog({
   fixedCosts,
   pricingByProduct,
   capacitySettings,
+  initialOpenId,
   sortMode,
   onSortModeChange,
   onLoadProduct,
@@ -120,7 +124,19 @@ export function ProductCatalog({
   onQuote,
   onNewSale,
 }: ProductCatalogProps) {
-  const [openProductId, setOpenProductId] = useState<string | null>(null);
+  const [openProductId, setOpenProductId] = useState<string | null>(
+    initialOpenId ?? null,
+  );
+  // UX-08: ao entrar via "Ver no catálogo", rola até o card semeado. Uma vez só
+  // (mount) — o produto pode não estar na 1ª tela.
+  useEffect(() => {
+    if (!initialOpenId) return;
+    document
+      .getElementById(`cat-row-${initialOpenId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Só no mount — o foco inicial não deve refazer scroll a cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // UX-05: busca por nome. Client-side porque o catálogo mora inteiro no
   // cliente (produtos têm teto natural — não paginam na TD-006).
   const [query, setQuery] = useState("");
@@ -297,6 +313,7 @@ export function ProductCatalog({
                 return (
                   <Fragment key={product.id}>
                     <tr
+                      id={`cat-row-${product.id}`}
                       className={`main-row ${isOpen ? "open" : ""}`}
                       onClick={() =>
                         setOpenProductId((current) =>

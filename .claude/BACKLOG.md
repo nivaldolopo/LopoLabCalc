@@ -127,12 +127,14 @@
   por linha (grid alinhado + rótulos de seção), **"Vender"** e **"Produzir"** pro inteiro/conjunto E por
   subitem: "Vender conjunto (N)" + "Produzir conjunto" no topo, "Vender"/"Produzir" em cada peça (o Produzir
   da parte **fecha conjunto** — imprime só a que falta). Vender semeia o `SaleModal`
-  (`saleContextFromResult`/`FromSubitem`); Produzir roteia pra `/producao?produto=&subitem=` (FEAT-08).
-  `StockPage` computa o `PricingResult` completo (`pricingByProduct`) e fia o `SaleFlow`. Só p/ produto vivo
-  no catálogo. **Correções no polimento:** botão não estica (especificidade `.fg-details .btn.fg-sell-btn`
-  vs `flex:1` do `.btn.primary`) + **bug do origem** que abria como "encomenda" (`SaleModal` abre com
-  `goods=[]`; `useEffect` reavalia quando os acabados chegam, `touchedOrigem` preserva escolha manual).
-  **Onde:** `StockPage.tsx` + `SaleModal.tsx` + `stock.css`.
+  (`saleContextFromResult`/`FromSubitem`); Produzir roteia pra `/producao?produto=&subitem=` (FEAT-08, default
+  1 placa) e **"Ver no catálogo"** abre o produto expandido lá (`/catalogo?produto=`; `ProductCatalog` ganhou
+  `initialOpenId` + scroll; página em `<Suspense>`). `StockPage` computa o `PricingResult` completo
+  (`pricingByProduct`) e fia o `SaleFlow`. Só p/ produto vivo no catálogo. **Correções no polimento:** botão
+  não estica (especificidade `.fg-details .btn.fg-sell-btn` vs `flex:1` do `.btn.primary`) + **bug do origem**
+  que abria como "encomenda" (`SaleModal` abre com `goods=[]`; `useEffect` reavalia quando os acabados chegam,
+  `touchedOrigem` preserva escolha manual). **Onde:** `StockPage.tsx` + `SaleModal.tsx` + `CatalogPage.tsx` +
+  `ProductCatalog.tsx` + `catalogo/page.tsx` + `stock.css`.
 
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em

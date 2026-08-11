@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
+  ExternalLink,
   Factory,
   Package,
   Palette,
@@ -725,6 +726,11 @@ export function StockPage() {
     router.push(`/producao?${params.toString()}`);
   }
 
+  // Abre o produto no catálogo (card expandido, com as ações por parte de lá).
+  function openInCatalog(productId: string) {
+    router.push(`/catalogo?produto=${encodeURIComponent(productId)}`);
+  }
+
   // Botão compacto de ação (vender/produzir). Só aparece pra produto que ainda
   // vive no catálogo — sem ele não há precificação viva pra congelar a foto/semear.
   function actionButton(
@@ -818,10 +824,17 @@ export function StockPage() {
                     () => produce(product.id),
                     "secondary",
                   )}
+                  {actionButton(
+                    product,
+                    <ExternalLink size={13} />,
+                    "Ver no catálogo",
+                    () => openInCatalog(product.id),
+                    "secondary",
+                  )}
                   <span className="fg-sell-hint">
                     {bd.wholes > 0
-                      ? "ou venda / produza uma parte pelos botões de cada peça."
-                      : "produza a parte que falta pra fechar um conjunto (botões de cada peça)."}
+                      ? "ou venda / produza uma peça pelos botões de cada linha."
+                      : "produza a peça que falta pra fechar o conjunto — abre a Produção com 1 unidade (ajuste lá)."}
                   </span>
                 </div>
               ) : null}
@@ -987,6 +1000,13 @@ export function StockPage() {
                   <Factory size={13} />,
                   "Produzir",
                   () => produce(product.id),
+                  "secondary",
+                )}
+                {actionButton(
+                  product,
+                  <ExternalLink size={13} />,
+                  "Ver no catálogo",
+                  () => openInCatalog(product.id),
                   "secondary",
                 )}
               </div>
