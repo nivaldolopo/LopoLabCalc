@@ -14,13 +14,12 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ BUG-05 FECHADO** (2026-08-10) — vender o **INTEIRO** de um produto que vende
-  por partes agora sai do acabado das **partes** (min das partes = conjuntos montáveis), não de uma SKU
-  `__whole__` que a produção nunca cria (mostrava **0 disp.** e não dava baixa). Nova primitiva pura
-  **`consumeWholeFifo`** (`finishedGoods.ts`: drena uma de cada parte, agrega moves/custo/composição,
-  `shortfall` = maior entre as partes); a reconciliação (`saleReconciliation.ts`, caminho `acabado`) e o
-  saldo exibido no `SaleModal` (`assemblableWholes`) passam a usá-la p/ o inteiro-com-subitens. Estorno
-  round-trip intacto (moves por camada). 300 testes (+6).
+- **Última mudança:** **✅ 2 tweaks no `SaleModal`** (2026-08-10) — (1) a **lixeira remove qualquer item**
+  da cesta, inclusive o último (cesta pode ficar vazia; antes só com 2+ itens, item errado sozinho obrigava
+  a reabrir); (2) novo seletor **"Adicionar do estoque de produtos…"** (ícone `Boxes`) ao lado do catálogo:
+  lista só o que TEM saldo de acabado (`stockItems` = catálogo filtrado por `balanceForItem>0`, mostra a
+  qtd) e entra já como **peça pronta** (`origem: "acabado"`). Só UI. **Antes:** BUG-05 (venda do inteiro
+  com subitens sai do acabado das partes via `consumeWholeFifo`; 300 testes).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.

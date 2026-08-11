@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Boxes, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import {
   toDateInput,
@@ -286,6 +286,7 @@ export function SaleModal({
     return totalEntry?.discountInput ?? ZERO_DISCOUNT;
   });
   const [addPick, setAddPick] = useState("");
+  const [stockPick, setStockPick] = useState("");
   const [showFeesEditor, setShowFeesEditor] = useState(false);
   const [saving, setSaving] = useState(false);
   // Aviso inline (validação ou erro de gravação), no lugar do window.alert.
@@ -334,10 +335,11 @@ export function SaleModal({
     );
   }
 
+  // Remove um item da cesta — inclusive o último (a cesta pode ficar vazia: o
+  // botão de registrar já fica desabilitado e o seletor abaixo repõe). Antes só
+  // deixava com 2+ itens, então um item errado sozinho obrigava a reabrir o modal.
   function removeItem(key: string) {
-    setItems((current) =>
-      current.length > 1 ? current.filter((item) => item.key !== key) : current,
-    );
+    setItems((current) => current.filter((item) => item.key !== key));
   }
 
   function addFromCatalog(indexStr: string) {
@@ -351,6 +353,32 @@ export function SaleModal({
     }
     setItems((current) => [...current, item]);
     setAddPick("");
+  }
+
+  // Itens do catálogo QUE TÊM saldo no estoque de acabados (inteiro = conjuntos
+  // montáveis; subitem/inteiro-sem-partes = saldo da SKU). É o "o que já tenho
+  // pronto" ao lado do catálogo cru — o dono escolhe direto da prateleira.
+  const stockItems = useMemo(
+    () =>
+      catalogItems
+        .map((source, index) => ({ source, index, balance: balanceForItem(source) }))
+        .filter((entry) => entry.balance > 0),
+    // `balanceForItem` deriva de goods/products; catalogItems é a lista.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [catalogItems, goods, products],
+  );
+
+  function addFromStock(indexStr: string) {
+    const index = Number(indexStr);
+    const source = catalogItems[index];
+    if (!source) return;
+    // Veio da prateleira → já nasce como peça pronta (acabado), não encomenda.
+    const item = itemFromContext(source, "acabado");
+    if (feePassedToCustomer && hasFee) {
+      item.salePrice = chargedWithFee(source, feeRatePct);
+    }
+    setItems((current) => [...current, item]);
+    setStockPick("");
   }
 
   // Itens no formato da reconciliação (o preview vivo, com id de evento fixo — o
@@ -819,16 +847,14 @@ export function SaleModal({
                     }
                     placeholder="Nome do produto vendido"
                   />
-                  {multiItem ? (
-                    <button
-                      className="icon-button danger"
-                      type="button"
-                      onClick={() => removeItem(item.key)}
-                      title="Remover item"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  ) : null}
+                  <button
+                    className="icon-button danger"
+                    type="button"
+                    onClick={() => removeItem(item.key)}
+                    title="Remover item"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
 
                 <div className="cesta-item-grid">
@@ -955,6 +981,27 @@ export function SaleModal({
             );
           })}
         </div>
+
+        {stockItems.length > 0 ? (
+          <div className="cesta-add">
+            <Boxes size={15} />
+            <select
+              className="field-input"
+              value={stockPick}
+              onChange={(event) => addFromStock(event.target.value)}
+            >
+              <option value="">Adicionar do estoque de produtos…</option>
+              {stockItems.map(({ source, index, balance }) => (
+                <option
+                  key={`stock-${source.productId}-${source.subitemId ?? "w"}-${index}`}
+                  value={index}
+                >
+                  {source.defaultProductName} — {Math.round(balance)} em estoque
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         {catalogItems.length > 0 ? (
           <div className="cesta-add">
