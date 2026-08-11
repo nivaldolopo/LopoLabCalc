@@ -13,6 +13,7 @@ import {
   Palette,
   Pencil,
   Plus,
+  ShoppingCart,
   Trash2,
 } from "lucide-react";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
@@ -40,6 +41,11 @@ import {
   skuValue,
 } from "../lib/finishedGoods";
 import { calculatePricing } from "../lib/calculatePricing";
+import {
+  productPrintHours,
+  saleContextFromResult,
+  type SaleModalContext,
+} from "../lib/saleContext";
 import { addFrozen, sumFrozen, ZERO_FROZEN } from "../lib/production";
 import { DEFAULT_FIXED_COSTS } from "../constants";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
@@ -56,6 +62,7 @@ import type {
   FinishedGood,
   FixedCostSettings,
   FrozenCostBreakdown,
+  PricingResult,
   ProductionEvent,
   SavedProduct,
   StockFilament,
@@ -63,6 +70,7 @@ import type {
 } from "../types";
 import { CostBreakdownTable, CostDetail } from "./CostDetail";
 import { NavBar } from "./NavBar";
+import { SaleFlow } from "./SaleFlow";
 import { SearchBox } from "./SearchBox";
 import { StockAdjustModal } from "./StockAdjustModal";
 import { StockColorModal, type StockColorDraft } from "./StockColorModal";
@@ -147,6 +155,10 @@ export function StockPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // UX-07a: qual produto acabado está com o detalhe aberto (linha + dropdown).
   const [openGoodId, setOpenGoodId] = useState<string | null>(null);
+  // UX-08: venda direto do estoque — reusa a fiação do SaleFlow/SaleModal com o
+  // produto semeado (peça pronta). null = fechado.
+  const [saleSeed, setSaleSeed] = useState<SaleModalContext | null>(null);
+  const [saleOpen, setSaleOpen] = useState(false);
   const [feedback, setFeedback] = useState<{
     kind: "ok" | "error";
     msg: string;
@@ -208,20 +220,21 @@ export function StockPage() {
   // entra no custo real com que a margem é comparada.
   const { machines } = useMachines();
   const { fixedCostRate } = useBusinessSettings();
-  const priceByProduct = useMemo(() => {
-    const fixedCosts: FixedCostSettings = {
-      ...fixedCostRate,
-      enabled: DEFAULT_FIXED_COSTS.enabled,
-    };
-    const map = new Map<string, number>();
+  // O `enabled` segue o mesmo racional do catálogo: cada produto traz o próprio
+  // `includeFixed`, aplicado por cima deste piso pelo `calculatePricing`.
+  const fixedCosts = useMemo<FixedCostSettings>(
+    () => ({ ...fixedCostRate, enabled: DEFAULT_FIXED_COSTS.enabled }),
+    [fixedCostRate],
+  );
+  // Precifica cada produto UMA vez: alimenta a margem congelada da aba Produtos
+  // (só o `suggestedPrice`) E o seed da venda direto do estoque (UX-08).
+  const pricingByProduct = useMemo(() => {
+    const map = new Map<string, PricingResult>();
     for (const product of products) {
-      map.set(
-        product.id,
-        calculatePricing(product, machines, fixedCosts, filaments).suggestedPrice,
-      );
+      map.set(product.id, calculatePricing(product, machines, fixedCosts, filaments));
     }
     return map;
-  }, [products, machines, fixedCostRate, filaments]);
+  }, [products, machines, fixedCosts, filaments]);
 
   // Só produtos com algum saldo (≠ 0) aparecem; ordena por nome congelado.
   const stockedGoods = useMemo(
@@ -667,6 +680,45 @@ export function StockPage() {
     );
   }
 
+  // UX-08: abre o modal de venda com o produto INTEIRO já na cesta. Semeia a foto
+  // congelada (mesmo helper do catálogo); o SaleModal escolhe "acabado" sozinho
+  // porque há saldo (defaultOrigin). Produto fora do catálogo não tem precificação
+  // viva pra montar a foto — o botão só aparece pra produto vivo.
+  function openSale(product: SavedProduct, result: PricingResult) {
+    const baseName = product.name || product.mainStageName || "";
+    setSaleSeed(
+      saleContextFromResult(
+        baseName,
+        product.id,
+        result,
+        productPrintHours(product),
+        product.roundingMode,
+      ),
+    );
+    setSaleOpen(true);
+  }
+
+  // A barra de ação "Vender" no topo do dropdown (só quando o produto ainda vive
+  // no catálogo — sem ele não há como precificar/congelar a foto da venda).
+  function renderSellBar(product: SavedProduct | undefined) {
+    const result = product ? pricingByProduct.get(product.id) : undefined;
+    if (!product || !result) return null;
+    return (
+      <div className="fg-sell-bar">
+        <button
+          className="btn primary btn-sm"
+          type="button"
+          onClick={() => openSale(product, result)}
+        >
+          <ShoppingCart size={14} /> Vender
+        </button>
+        <span className="fg-sell-hint">
+          Abre a venda com este produto na cesta, já como peça pronta do estoque.
+        </span>
+      </div>
+    );
+  }
+
   function renderProductCard(good: FinishedGood) {
     const product = productById.get(good.productId);
     // FEAT-06: o valor parado DECOMPOSTO — só existe para camadas novas; o que
@@ -675,7 +727,7 @@ export function StockPage() {
     const skuByKey = new Map(
       good.skus.map((sku) => [sku.subitemId ?? "__whole__", sku]),
     );
-    const price = priceByProduct.get(good.productId);
+    const price = pricingByProduct.get(good.productId)?.suggestedPrice;
     const negative = good.skus.some((sku) => skuBalance(sku) < 0);
     // UX-07a: linha + dropdown (irmão do catálogo/produção). O "valor parado"
     // que era popover agora é texto na linha e a composição desce pro dropdown.
@@ -720,6 +772,7 @@ export function StockPage() {
 
           {isOpen ? (
             <div className="fg-details">
+              {renderSellBar(product)}
               {negative ? (
                 <div className="fg-warn neg">
                   Saldo negativo: vendeu/consumiu mais do que produziu. Registre
@@ -831,6 +884,7 @@ export function StockPage() {
 
         {isOpen ? (
           <div className="fg-details">
+            {renderSellBar(product)}
             {negative ? (
               <div className="fg-warn neg">
                 Saldo negativo: vendeu/consumiu mais do que produziu. Registre a
@@ -1142,6 +1196,18 @@ export function StockPage() {
           color={adjustFor}
           onClose={() => setAdjustForId(null)}
           onSave={(input) => saveAdjust(adjustFor, input)}
+        />
+      ) : null}
+
+      {saleOpen ? (
+        <SaleFlow
+          seed={saleSeed}
+          products={products}
+          machines={machines}
+          stock={filaments}
+          fixedCosts={fixedCosts}
+          pricingByProduct={pricingByProduct}
+          onClose={() => setSaleOpen(false)}
         />
       ) : null}
     </main>

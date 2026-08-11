@@ -14,12 +14,14 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ 2 tweaks no `SaleModal`** (2026-08-10) — (1) a **lixeira remove qualquer item**
-  da cesta, inclusive o último (cesta pode ficar vazia; antes só com 2+ itens, item errado sozinho obrigava
-  a reabrir); (2) novo seletor **"Adicionar do estoque de produtos…"** (ícone `Boxes`) ao lado do catálogo:
-  lista só o que TEM saldo de acabado (`stockItems` = catálogo filtrado por `balanceForItem>0`, mostra a
-  qtd) e entra já como **peça pronta** (`origem: "acabado"`). Só UI. **Antes:** BUG-05 (venda do inteiro
-  com subitens sai do acabado das partes via `consumeWholeFifo`; 300 testes).
+- **Última mudança:** **✅ UX-08 — vender direto do estoque** (2026-08-11) — a aba **Produtos** do
+  `/estoque` ganhou ação **"Vender"** no topo do dropdown de cada produto (`renderSellBar`, ícone
+  `ShoppingCart`). Semeia o `SaleModal` com o produto inteiro já na cesta (mesmo helper do catálogo,
+  `saleContextFromResult`); o `defaultOrigin` escolhe **"acabado"** sozinho porque há saldo. `StockPage`
+  passou a computar o **`PricingResult` completo** (`pricingByProduct`, antes só `suggestedPrice`) —
+  reusa na margem congelada E no seed — e a fiar o `SaleFlow`. Só produto vivo no catálogo mostra o botão
+  (fora do catálogo não há precificação viva). **Antes:** 2 tweaks no `SaleModal` (lixeira remove qualquer
+  item + seletor "Adicionar do estoque de produtos").
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
@@ -32,8 +34,8 @@
   Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (Cloud
   Functions), a adiar pro Dashboard.
   **Ordem (dono, 2026-07-31/08-04/08-10):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → ~~UX-05 Fase 1~~ ✅ →
-  ~~TD-006 (paginação + busca)~~ ✅ → ~~FEAT-09~~ ✅ → ~~UX-06 + UX-07(a)~~ ✅ → **FEAT-03 / branding** →
-  Dashboard (último; absorve UX-07(b)).
+  ~~TD-006 (paginação + busca)~~ ✅ → ~~FEAT-09~~ ✅ → ~~UX-06 + UX-07(a)~~ ✅ → ~~UX-08~~ ✅ →
+  **FEAT-03 / branding** → Dashboard (último; absorve UX-07(b)).
   **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
   **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —

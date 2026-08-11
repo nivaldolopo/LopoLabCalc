@@ -615,6 +615,19 @@
   max-width: 460px;
 }
 
+/* UX-08: barra de ação "Vender" no topo do dropdown da aba Produtos. */
+.fg-sell-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fg-sell-hint {
+  font-size: 12px;
+  color: var(--muted2);
+}
+
 .inline-link {
   color: var(--accent);
   text-decoration: underline;
