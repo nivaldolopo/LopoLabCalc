@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Boxes, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import {
@@ -292,6 +292,26 @@ export function SaleModal({
   // Aviso inline (validação ou erro de gravação), no lugar do window.alert.
   const [error, setError] = useState<string | null>(null);
 
+  // O default "acabado" vs "encomenda" depende do saldo do acabado (`goods`), que
+  // sobe ASSÍNCRONO: o modal abre com `goods=[]` e a assinatura só chega depois.
+  // Sem isto, um item semeado (ex.: "Vender" na aba Produtos) congelaria
+  // "encomenda" mesmo havendo estoque. Ao carregar/mudar os acabados, reavalia o
+  // default dos itens que o usuário AINDA não mexeu (os tocados ficam no ref);
+  // o modo edição preserva o `origem` salvo no recibo.
+  const touchedOrigem = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (editRecibo) return;
+    setItems((current) =>
+      current.map((item) =>
+        touchedOrigem.current.has(item.key)
+          ? item
+          : { ...item, origem: defaultOrigin(item.source) },
+      ),
+    );
+    // `defaultOrigin` deriva de goods/products — recomputa quando eles chegam.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goods, products, editRecibo]);
+
   const feeRatePct = feeRateForMethod(fees, paymentMethod);
   const hasFee = feeRatePct > 0;
 
@@ -372,8 +392,10 @@ export function SaleModal({
     const index = Number(indexStr);
     const source = catalogItems[index];
     if (!source) return;
-    // Veio da prateleira → já nasce como peça pronta (acabado), não encomenda.
+    // Veio da prateleira → já nasce como peça pronta (acabado), não encomenda. É
+    // escolha explícita: marca como "tocado" pra o efeito de default não reverter.
     const item = itemFromContext(source, "acabado");
+    touchedOrigem.current.add(item.key);
     if (feePassedToCustomer && hasFee) {
       item.salePrice = chargedWithFee(source, feeRatePct);
     }
@@ -904,11 +926,13 @@ export function SaleModal({
                   <select
                     className="field-input"
                     value={item.origem}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      // Escolha manual manda — o efeito de default não a reverte.
+                      touchedOrigem.current.add(item.key);
                       updateItem(item.key, {
                         origem: event.target.value as SaleItemOrigin,
-                      })
-                    }
+                      });
+                    }}
                     title="De onde sai esta peça: estoque de acabados (pronta) ou produzida agora (encomenda)."
                   >
                     <option value="acabado">

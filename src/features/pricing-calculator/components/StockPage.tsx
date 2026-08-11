@@ -44,6 +44,7 @@ import { calculatePricing } from "../lib/calculatePricing";
 import {
   productPrintHours,
   saleContextFromResult,
+  saleContextFromSubitem,
   type SaleModalContext,
 } from "../lib/saleContext";
 import { addFrozen, sumFrozen, ZERO_FROZEN } from "../lib/production";
@@ -682,9 +683,8 @@ export function StockPage() {
 
   // UX-08: abre o modal de venda com o produto INTEIRO já na cesta. Semeia a foto
   // congelada (mesmo helper do catálogo); o SaleModal escolhe "acabado" sozinho
-  // porque há saldo (defaultOrigin). Produto fora do catálogo não tem precificação
-  // viva pra montar a foto — o botão só aparece pra produto vivo.
-  function openSale(product: SavedProduct, result: PricingResult) {
+  // porque há saldo (defaultOrigin).
+  function openSaleWhole(product: SavedProduct, result: PricingResult) {
     const baseName = product.name || product.mainStageName || "";
     setSaleSeed(
       saleContextFromResult(
@@ -698,24 +698,39 @@ export function StockPage() {
     setSaleOpen(true);
   }
 
-  // A barra de ação "Vender" no topo do dropdown (só quando o produto ainda vive
-  // no catálogo — sem ele não há como precificar/congelar a foto da venda).
-  function renderSellBar(product: SavedProduct | undefined) {
-    const result = product ? pricingByProduct.get(product.id) : undefined;
-    if (!product || !result) return null;
+  // UX-08: venda de UMA parte (subitem) direto do estoque — a foto congela só o
+  // custo/consumo daquele subitem (FEAT-01), casando com a baixa da SKU da parte.
+  function openSaleSubitem(
+    product: SavedProduct,
+    result: PricingResult,
+    subitemId: string,
+  ) {
+    const subitem = result.subitems?.find((item) => item.id === subitemId);
+    if (!subitem) return;
+    const baseName = product.name || product.mainStageName || "";
+    setSaleSeed(
+      saleContextFromSubitem(baseName, product.id, subitem, product.roundingMode),
+    );
+    setSaleOpen(true);
+  }
+
+  // Botão compacto de venda. Só aparece pra produto que ainda vive no catálogo —
+  // sem ele não há precificação viva pra congelar a foto da venda.
+  function sellButton(
+    product: SavedProduct | undefined,
+    label: string,
+    onClick: () => void,
+    variant: "primary" | "secondary",
+  ) {
+    if (!product || !pricingByProduct.get(product.id)) return null;
     return (
-      <div className="fg-sell-bar">
-        <button
-          className="btn primary btn-sm"
-          type="button"
-          onClick={() => openSale(product, result)}
-        >
-          <ShoppingCart size={14} /> Vender
-        </button>
-        <span className="fg-sell-hint">
-          Abre a venda com este produto na cesta, já como peça pronta do estoque.
-        </span>
-      </div>
+      <button
+        className={`btn ${variant === "primary" ? "primary" : "btn-secondary"} btn-sm fg-sell-btn`}
+        type="button"
+        onClick={onClick}
+      >
+        <ShoppingCart size={13} /> {label}
+      </button>
     );
   }
 
@@ -772,7 +787,19 @@ export function StockPage() {
 
           {isOpen ? (
             <div className="fg-details">
-              {renderSellBar(product)}
+              {product && bd.wholes > 0 ? (
+                <div className="fg-sell-bar">
+                  {sellButton(
+                    product,
+                    `Vender conjunto (${bd.wholes})`,
+                    () => openSaleWhole(product, pricingByProduct.get(product.id)!),
+                    "primary",
+                  )}
+                  <span className="fg-sell-hint">
+                    ou venda uma parte pelo botão de cada peça abaixo.
+                  </span>
+                </div>
+              ) : null}
               {negative ? (
                 <div className="fg-warn neg">
                   Saldo negativo: vendeu/consumiu mais do que produziu. Registre
@@ -810,6 +837,20 @@ export function StockPage() {
                           +{part.leftover} avulsa{part.leftover === 1 ? "" : "s"}
                         </em>
                       ) : null}
+                      {/* UX-08: vender só esta parte (subitem) do estoque. */}
+                      {part.balance > 0
+                        ? sellButton(
+                            product,
+                            "Vender",
+                            () =>
+                              openSaleSubitem(
+                                product!,
+                                pricingByProduct.get(product!.id)!,
+                                part.subitemId,
+                              ),
+                            "secondary",
+                          )
+                        : null}
                     </div>
                   );
                 })}
@@ -884,7 +925,16 @@ export function StockPage() {
 
         {isOpen ? (
           <div className="fg-details">
-            {renderSellBar(product)}
+            {product && headline > 0 ? (
+              <div className="fg-sell-bar">
+                {sellButton(
+                  product,
+                  "Vender",
+                  () => openSaleWhole(product, pricingByProduct.get(product.id)!),
+                  "primary",
+                )}
+              </div>
+            ) : null}
             {negative ? (
               <div className="fg-warn neg">
                 Saldo negativo: vendeu/consumiu mais do que produziu. Registre a

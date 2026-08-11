@@ -123,12 +123,14 @@
     coleção não é assinada inteira) = a mesma agregação server-side do painel. **Adiado pro Dashboard**
     (dono, 2026-08-10) — ver o item [Dashboard].
 
-- ~~**[UX-08] Vender direto do estoque**~~ ✅ **FEITO (2026-08-11)** — a aba **Produtos** ganhou ação
-  **"Vender"** no topo do dropdown (`renderSellBar`, ícone `ShoppingCart`); semeia o `SaleModal` com o
-  produto inteiro na cesta (`saleContextFromResult`, mesmo helper do catálogo) e o `defaultOrigin` já
-  escolhe **"acabado"** por haver saldo. `StockPage` passou a computar o `PricingResult` completo
-  (`pricingByProduct`, antes só `suggestedPrice`) e a fiar o `SaleFlow`. Botão só p/ produto vivo no
-  catálogo (sem ele não há precificação p/ congelar a foto). **Onde:** `StockPage.tsx` + `stock.css`.
+- ~~**[UX-08] Vender direto do estoque**~~ ✅ **FEITO (2026-08-11)** — a aba **Produtos** ganhou botões
+  **"Vender"**: "Vender conjunto (N)" (inteiro, `saleContextFromResult`) + **"Vender" por parte** (subitem,
+  `saleContextFromSubitem`) e "Vender" no produto sem subitens. `StockPage` computa o `PricingResult`
+  completo (`pricingByProduct`) e fia o `SaleFlow`. Botão só p/ produto vivo no catálogo. **2 correções
+  no polimento:** botão compacto (`.fg-sell-btn`, o `.btn.primary` tem `flex:1` e esticava) + **bug do
+  origem** que abria como "encomenda" (o `SaleModal` abre com `goods=[]`; `useEffect` reavalia o default
+  quando os acabados chegam, `touchedOrigem` preserva a escolha manual). **Onde:** `StockPage.tsx` +
+  `SaleModal.tsx` + `stock.css`.
 
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em

@@ -14,14 +14,14 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ UX-08 — vender direto do estoque** (2026-08-11) — a aba **Produtos** do
-  `/estoque` ganhou ação **"Vender"** no topo do dropdown de cada produto (`renderSellBar`, ícone
-  `ShoppingCart`). Semeia o `SaleModal` com o produto inteiro já na cesta (mesmo helper do catálogo,
-  `saleContextFromResult`); o `defaultOrigin` escolhe **"acabado"** sozinho porque há saldo. `StockPage`
-  passou a computar o **`PricingResult` completo** (`pricingByProduct`, antes só `suggestedPrice`) —
-  reusa na margem congelada E no seed — e a fiar o `SaleFlow`. Só produto vivo no catálogo mostra o botão
-  (fora do catálogo não há precificação viva). **Antes:** 2 tweaks no `SaleModal` (lixeira remove qualquer
-  item + seletor "Adicionar do estoque de produtos").
+- **Última mudança:** **✅ UX-08 — vender direto do estoque** (2026-08-11, com polimento) — aba **Produtos**
+  do `/estoque` ganhou botões **"Vender"**: "Vender conjunto (N)" (inteiro) + **"Vender" por parte** (subitem,
+  `saleContextFromSubitem`) na linha de cada peça, e "Vender" no produto sem subitens. `StockPage` computa o
+  **`PricingResult` completo** (`pricingByProduct`) e fia o `SaleFlow`. **2 correções junto:** (1) botão
+  compacto (`.fg-sell-btn { flex:0 0 auto }` — o `.btn.primary` global tem `flex:1` e esticava); (2) **bug do
+  origem**: `defaultOrigin` congelava **"encomenda"** porque o `SaleModal` abre com `goods=[]` (assinatura
+  assíncrona) — agora um `useEffect` reavalia o default dos itens não-tocados quando os acabados chegam
+  (`touchedOrigem` ref preserva a escolha manual; edição preserva o salvo). Afetava o catálogo também.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
