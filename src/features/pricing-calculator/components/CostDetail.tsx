@@ -215,9 +215,13 @@ export function CostDetail({
   note,
   triggerLabel = "custo real",
   hint = "· composição do preço ▾",
+  showAmount = true,
 }: CostData & {
   triggerLabel?: string;
   hint?: string;
+  // Quando o valor já aparece grande ao lado (o card "Valor parado" da /estoque),
+  // repeti-lo no gatilho é ruído — aí o gatilho vira só um link de composição.
+  showAmount?: boolean;
 }) {
   const popId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -284,8 +288,9 @@ export function CostDetail({
         className="cost-detail-trigger"
         popoverTarget={popId}
       >
-        {triggerLabel} <strong>{formatCurrency(cogs)}</strong>
-        {hint ? <span className="cost-detail-hint">{hint}</span> : null}
+        {triggerLabel}
+        {showAmount ? <strong> {formatCurrency(cogs)}</strong> : null}
+        {hint ? <span className="cost-detail-hint"> {hint}</span> : null}
       </button>
 
       <div

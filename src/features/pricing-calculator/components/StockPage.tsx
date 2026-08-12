@@ -1270,8 +1270,9 @@ export function StockPage() {
                     realCogs={productTotals.value}
                     realUnknown={productTotals.comp.unknown}
                     note={STOCK_COST_NOTE}
-                    triggerLabel="custo congelado"
-                    hint="· composição ▾"
+                    triggerLabel="ver composição"
+                    hint="▾"
+                    showAmount={false}
                   />
                 ) : (
                   "custo congelado em estoque"
