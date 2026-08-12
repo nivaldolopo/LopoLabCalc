@@ -25,9 +25,12 @@
 6. ~~**Cluster "linha + dropdown de detalhe"**~~ ✅ **FECHADO (2026-08-10)** — **UX-06** (`/vendas` +
    `/producao`) **+ UX-07(a)** (aba Produtos do estoque) viraram linha + dropdown; o popover `CostDetail`
    virou a tabela compartilhada `CostBreakdownTable`. **UX-07(b)** segue adiado pro Dashboard.
-7. **◀ PRÓXIMA — Tier 2 comerciais** — **FEAT-03** (PDF melhor) · **branding/logo real** no PDF.
+7. **⏸ Tier 2 comerciais — ADIADO (dono, 2026-08-12)** — **FEAT-03** (PDF melhor) · **branding/logo real**.
+   **Bloqueado por dado externo: a marca ainda não existe.** Fazer o PDF antes da logo obriga a refazer o
+   cabeçalho depois. Destrava quando o dono avisar que a identidade visual está pronta.
    (~~**FEAT-09** desconto na venda~~ ✅ **FECHADO 2026-08-10**.)
 8. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
+   ⚠ **Com o 7 adiado, o backlog codificável ficou vazio** — o gargalo passou a ser **uso real**, não código.
 
 ### Porquês da ordem (decisões de 2026-07-20)
 

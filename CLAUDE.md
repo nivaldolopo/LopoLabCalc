@@ -27,11 +27,15 @@
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **▶ PRÓXIMA TAREFA (dono, 2026-08-10):** **FEAT-03** (melhorar o PDF do orçamento) + **branding/logo
-  real** no PDF — guarda-chuva comercial; o dono escolhe as sementes que viram tarefa (prazo, foto,
-  formas de pagamento, termos, QR do WhatsApp, desconto…). **Onde:** `generateQuotePdf.ts` +
-  `QuotePage`/`config/orcamento`. **Depois:** **Dashboard** por último (absorve UX-07(b) + perda por
-  falha/taxa observada; só com ~1-2 meses de venda real).
+- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **a marca ainda não está pronta** — mexer no PDF
+  agora significaria refazer o cabeçalho quando a logo chegar. Volta à fila quando o dono avisar que a
+  identidade visual existe. **Onde (quando voltar):** `generateQuotePdf.ts` + `QuotePage`/`config/orcamento`;
+  as 8 sementes (prazo, foto, formas de pagamento, termos, QR, subitens, desconto, branding) estão no
+  `BACKLOG.md`.
+- **▶ PRÓXIMA TAREFA: em aberto** — com o FEAT-03 adiado, o backlog codificável está **vazio**: só resta o
+  **Dashboard**, que por decisão do dono só vale com ~1-2 meses de venda real (absorve UX-07(b) + perda por
+  falha/taxa observada). Ou seja, o gargalo agora é **uso real**, não código. O dono escolhe: operar/acumular
+  venda, antecipar o marco (Diretriz 7), ou levantar item novo.
   ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
   Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (Cloud
   Functions), a adiar pro Dashboard.
