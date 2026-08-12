@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import type { FrozenCostBreakdown, SaleCostBreakdown } from "../types";
 
@@ -40,6 +40,10 @@ type CostData = {
   // (mostra por unidade, a qtd aparece à parte); o histórico passa a qtd da
   // venda, para a coluna bater com receita/lucro (também totais).
   quantity?: number;
+  // Sobrescreve a nota do rodapé no modo real-only. O default é escrito para
+  // UMA impressão (a /producao); a /estoque, que mostra o valor PARADO somando
+  // várias impressões, passa um texto próprio ("nesta impressão" não caberia).
+  note?: ReactNode;
 };
 
 // A tabela de composição, sem popover — o mesmo bloco que o popover mostra e que
@@ -51,6 +55,7 @@ export function CostBreakdownTable({
   realCogs,
   realUnknown = 0,
   quantity = 1,
+  note,
 }: CostData) {
   const q = Math.max(1, quantity);
   const cogs = realCogs * q;
@@ -184,12 +189,14 @@ export function CostBreakdownTable({
             lote. Falhas reais são registradas à parte na produção.
           </>
         ) : (
-          <>
-            É o que de fato <strong>saiu do estoque</strong> nesta impressão,
-            pelo preço do rolo e do lote realmente usados. Não inclui reserva
-            de falha nem custo fixo — essas são provisões do preço, não gasto.
-            É este número que vira o custo da peça quando ela for vendida.
-          </>
+          note ?? (
+            <>
+              É o que de fato <strong>saiu do estoque</strong> nesta impressão,
+              pelo preço do rolo e do lote realmente usados. Não inclui reserva
+              de falha nem custo fixo — essas são provisões do preço, não gasto.
+              É este número que vira o custo da peça quando ela for vendida.
+            </>
+          )
         )}
       </p>
     </div>
@@ -205,6 +212,7 @@ export function CostDetail({
   realCogs,
   realUnknown = 0,
   quantity = 1,
+  note,
   triggerLabel = "custo real",
   hint = "· composição do preço ▾",
 }: CostData & {
@@ -305,6 +313,7 @@ export function CostDetail({
           realCogs={realCogs}
           realUnknown={realUnknown}
           quantity={quantity}
+          note={note}
         />
       </div>
     </>

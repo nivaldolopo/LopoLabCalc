@@ -92,6 +92,19 @@ function grams(value: number): string {
   return `${Math.round(num(value))} g`;
 }
 
+// Nota do rodapé da composição do custo na /estoque. O default do
+// CostBreakdownTable fala em "nesta impressão" (certo para a /producao, que é
+// um evento só); aqui o valor é o custo real PARADO em estoque, somando as
+// várias impressões que encheram o saldo — então o texto precisa refletir isso.
+const STOCK_COST_NOTE = (
+  <>
+    É o custo real <strong>parado em estoque</strong> nestas peças já impressas,
+    pelo preço do rolo e do lote realmente usados na produção de cada uma. Não
+    inclui reserva de falha nem custo fixo — essas são provisões do preço, não
+    gasto. É este número que vira o custo da peça quando ela for vendida.
+  </>
+);
+
 // Rótulo curto do desfecho da produção, para a linha de consumo do extrato.
 const OUTCOME_SHORT: Record<ProductionEvent["outcome"], string> = {
   estoque: "estoque",
@@ -943,6 +956,7 @@ export function StockPage() {
                 real={comp.breakdown}
                 realCogs={comp.total}
                 realUnknown={comp.unknown}
+                note={STOCK_COST_NOTE}
               />
             </div>
           ) : null}
@@ -1086,6 +1100,7 @@ export function StockPage() {
               real={comp.breakdown}
               realCogs={comp.total}
               realUnknown={comp.unknown}
+              note={STOCK_COST_NOTE}
             />
           </div>
         ) : null}
@@ -1254,6 +1269,7 @@ export function StockPage() {
                     real={productTotals.comp.breakdown}
                     realCogs={productTotals.value}
                     realUnknown={productTotals.comp.unknown}
+                    note={STOCK_COST_NOTE}
                     triggerLabel="custo congelado"
                     hint="· composição ▾"
                   />
