@@ -374,6 +374,16 @@
   color: var(--muted);
 }
 
+/* O popover mora no DOM dentro do gatilho. Na /estoque isso o põe sob
+   `.sales-total-card strong { font-size: 22px }` (combinador descendente), que
+   casaria com o <strong> da nota e o estouraria. font-size de strong não é
+   herdado, então o reset base em `.cost-detail-pop` não pega — precisa vencer o
+   seletor do card por especificidade (0,0,2,1 > 0,0,1,1). */
+.cost-detail-pop .cost-detail-note strong {
+  font-size: inherit;
+  font-weight: 600;
+}
+
 .cesta-warn {
   margin-top: 6px;
   font-size: 12px;
