@@ -237,7 +237,13 @@
 
 /* Janela flutuante ANCORADA ao gatilho — o JS posiciona (left/top) via
    getBoundingClientRect; a UA já dá position:fixed e a top-layer. `white-space:
-   normal` reseta o nowrap herdado das células da tabela (senão rolava pro lado). */
+   normal` reseta o nowrap herdado das células da tabela (senão rolava pro lado).
+   A herança de CSS segue a ÁRVORE DO DOM, não a posição visual: o popover mora
+   dentro do gatilho, então propriedades herdadas do container vazam pra cá. Na
+   /estoque o gatilho fica sob `.sales-total-card > span` (uppercase +
+   letter-spacing 0.4px + 11px) e isso deixava TODO o popover em maiúsculas, com
+   spacing torto e fontes brigando. Fixamos a tipografia base e zeramos o que é
+   herdado, pra o popover renderizar igual não importa de onde é aberto. */
 .cost-detail-pop {
   width: 360px;
   max-width: calc(100vw - 16px);
@@ -247,6 +253,9 @@
   border-radius: 12px;
   background: var(--card-bg);
   color: var(--fg);
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
   white-space: normal;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
