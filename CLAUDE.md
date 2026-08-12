@@ -24,7 +24,10 @@
   computa o `PricingResult` completo (`pricingByProduct`) e fia o `SaleFlow`. **Correções junto:** botão não
   estica (especificidade `.fg-details .btn.fg-sell-btn` vs `flex:1` do `.btn.primary`); e **bug do origem** (o
   `SaleModal` abria com `goods=[]` e congelava "encomenda" — `useEffect` reavalia quando os acabados chegam;
-  `touchedOrigem` preserva escolha manual). Afetava o catálogo.
+  `touchedOrigem` preserva escolha manual). Afetava o catálogo. **+ clareza da tiragem** (2026-08-11): a
+  Produção mostra ao vivo sob "Quantas placas" quantas peças a tiragem rende (mesa de N), e a aba Produtos
+  explicita que Produzir rende N por impressão (dica por card + intro) — o "peças por impressão" é decisão
+  do produto, não se muda a Produção.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.

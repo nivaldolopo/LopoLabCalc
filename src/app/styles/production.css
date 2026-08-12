@@ -110,6 +110,11 @@
   line-height: 1.4;
 }
 
+/* Dica ao vivo sob "Quantas placas": quantas peças a tiragem vai render. */
+.prod-plates-hint {
+  margin-top: 6px;
+}
+
 .prod-warn {
   font-size: 12px;
   line-height: 1.4;

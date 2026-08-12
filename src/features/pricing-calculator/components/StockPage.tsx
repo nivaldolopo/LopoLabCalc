@@ -762,6 +762,9 @@ export function StockPage() {
     );
     const price = pricingByProduct.get(good.productId)?.suggestedPrice;
     const negative = good.skus.some((sku) => skuBalance(sku) < 0);
+    // "Peças por impressão" (mesa de N): cada Produzir abre a Produção com 1 placa,
+    // que rende N peças. Deixa isso explícito na dica (produzir NÃO faz sempre 1).
+    const pieces = Math.max(1, num(product?.piecesCount) || 1);
     // UX-07a: linha + dropdown (irmão do catálogo/produção). O "valor parado"
     // que era popover agora é texto na linha e a composição desce pro dropdown.
     const isOpen = openGoodId === good.id;
@@ -833,8 +836,11 @@ export function StockPage() {
                   )}
                   <span className="fg-sell-hint">
                     {bd.wholes > 0
-                      ? "ou venda / produza uma peça pelos botões de cada linha."
-                      : "produza a peça que falta pra fechar o conjunto — abre a Produção com 1 unidade (ajuste lá)."}
+                      ? "Vender / produzir por peça nos botões de cada linha."
+                      : "Produza a peça que falta pra fechar o conjunto (botões de cada linha)."}
+                    {pieces > 1
+                      ? ` Cada impressão deste produto rende ${pieces} peças (mesa de ${pieces}).`
+                      : ""}
                   </span>
                 </div>
               ) : null}
@@ -1009,6 +1015,12 @@ export function StockPage() {
                   () => openInCatalog(product.id),
                   "secondary",
                 )}
+                {pieces > 1 ? (
+                  <span className="fg-sell-hint">
+                    Cada impressão deste produto rende {pieces} peças (mesa de{" "}
+                    {pieces}).
+                  </span>
+                ) : null}
               </div>
             ) : null}
             {negative ? (
@@ -1267,7 +1279,9 @@ export function StockPage() {
               momento da produção. A produção enche este estoque; a venda vai
               esvaziá-lo no próximo passo. Para produtos com subitens, o número em
               destaque é quantos conjuntos completos dá para montar (o menor saldo
-              entre as partes).
+              entre as partes). Ao <strong>Produzir</strong>, cada impressão rende
+              a quantidade definida em &ldquo;peças por impressão&rdquo; do produto
+              (mesa de N) — ajuste a tiragem na tela de Produção.
             </p>
           </div>
 

@@ -777,6 +777,17 @@ export function ProductionPage() {
                 value={plates}
                 onChange={(value) => setPlates(Math.max(1, Math.round(value)))}
               />
+              {isProductSelected && selectedPieces > 1 ? (
+                <div className="prod-note prod-plates-hint">
+                  Este produto sai <strong>{selectedPieces} por impressão</strong>{" "}
+                  (mesa de {selectedPieces}) → esta tiragem produz{" "}
+                  <strong>
+                    {finishedUnits} {finishedUnits === 1 ? "peça" : "peças"}
+                  </strong>
+                  . Pra fazer menos, ajuste o &ldquo;peças por impressão&rdquo; do
+                  produto na calculadora.
+                </div>
+              ) : null}
             </div>
 
             <div className="two-col">
