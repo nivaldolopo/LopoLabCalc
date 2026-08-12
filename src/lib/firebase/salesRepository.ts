@@ -126,6 +126,14 @@ function toSale(id: string, data: DocumentData): Sale {
     feeRate: num(data.feeRate),
     feeAmount: num(data.feeAmount),
     feePassedToCustomer: Boolean(data.feePassedToCustomer),
+    // Bandeira e parcelas congeladas (só em venda de cartão). Ausentes em Pix/
+    // dinheiro/outro e em vendas anteriores ao recurso → campos omitidos.
+    ...(data.cardBrandTier === "visamaster" || data.cardBrandTier === "amexelo"
+      ? { cardBrandTier: data.cardBrandTier }
+      : {}),
+    ...(num(data.installments) > 0
+      ? { installments: Math.round(num(data.installments)) }
+      : {}),
     // FEAT-09: desconto congelado. Ausente em venda sem desconto ou anterior ao
     // recurso → campos omitidos e a tela mostra a venda como sempre.
     ...(data.discountKind === "item" || data.discountKind === "total"

@@ -315,9 +315,28 @@ export type PaymentMethod = "dinheiro" | "pix" | "debito" | "credito" | "outro";
 
 export type SaleChannel = "quiosque" | "online" | "encomenda" | "outro";
 
-// Taxa (%) cobrada por forma de pagamento (maquininha/gateway). Ex.: crédito
-// come ~4,5%, Pix/dinheiro 0%. Config global, guardada em `config/taxas`.
-export type PaymentFeeSettings = Record<PaymentMethod, number>;
+// Grupos de bandeira da maquininha. A adquirente cobra a MESMA taxa em pares
+// (Visa = Mastercard; Amex = Elo), então modelamos os dois GRUPOS que ela cobra —
+// não 4 bandeiras independentes. Se um dia divergirem, vira mais um tier (sem
+// migração, Diretriz 7).
+export type CardBrandTier = "visamaster" | "amexelo";
+
+// Taxas de cartão de UM grupo de bandeira. `credito` é por PARCELA: índice 0 = à
+// vista, 1 = 2x, 2 = 3x (o dono parcela até 3x). Débito não parcela.
+export type CardTierRates = {
+  debito: number;
+  credito: number[]; // [à vista, 2x, 3x]
+};
+
+// Taxa (%) cobrada por forma de pagamento (maquininha/gateway). Pix/dinheiro/outro
+// são planos (tipicamente 0%); cartão varia por bandeira E parcela (matriz `card`).
+// Config global, guardada em `config/taxas`.
+export type PaymentFeeSettings = {
+  pix: number;
+  dinheiro: number;
+  outro: number;
+  card: Record<CardBrandTier, CardTierRates>;
+};
 
 // Detalhamento do custo (por unidade), congelado. Guardado inteiro para o
 // dashboard futuro (lucro por material, custo por categoria) já nascer pronto.
@@ -424,6 +443,12 @@ export type SaleInput = {
   feeRate: number;
   feeAmount: number;
   feePassedToCustomer: boolean;
+  // Bandeira e parcelas congeladas (só em venda de CARTÃO). `cardBrandTier` acompanha
+  // débito/crédito; `installments` só o crédito (1 = à vista). Informativos p/ o
+  // histórico/dashboard — o `feeRate` acima já é a taxa RESOLVIDA da combinação.
+  // Ausentes em Pix/dinheiro/outro e em vendas anteriores ao recurso.
+  cardBrandTier?: CardBrandTier;
+  installments?: number;
   profit: number; // LÍQUIDO da taxa: totalRevenue − totalCost − feeAmount
   margin: number; // profit / totalRevenue (%)
   // Passo 8 — reconciliação. Ausentes nas vendas anteriores ao recurso (não

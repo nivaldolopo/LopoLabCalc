@@ -1,5 +1,6 @@
 import type {
   CapacitySettings,
+  CardBrandTier,
   FixedCostSettings,
   Machine,
   PaymentFeeSettings,
@@ -142,16 +143,29 @@ export const SALE_CHANNELS: { value: SaleChannel; label: string }[] = [
 export const DEFAULT_PAYMENT_METHOD: PaymentMethod = "pix";
 export const DEFAULT_SALE_CHANNEL: SaleChannel = "quiosque";
 
-// Taxas padrão (%) por forma de pagamento — editáveis no app (doc config/taxas).
-// Pix/dinheiro não têm taxa; débito ~2% e crédito ~4,5% são a faixa típica de
-// maquininha no Brasil (varia por adquirente/plano). Servem só de ponto de
-// partida — o dono ajusta com os números da própria maquininha.
+// Máximo de parcelas oferecidas no crédito (o dono parcela até 3x). Define o
+// tamanho do vetor `credito` de cada bandeira: [à vista, 2x, 3x].
+export const MAX_INSTALLMENTS = 3;
+
+// Grupos de bandeira selecionáveis na venda e no editor de taxas.
+export const CARD_BRAND_TIERS: { value: CardBrandTier; label: string }[] = [
+  { value: "visamaster", label: "Visa / Mastercard" },
+  { value: "amexelo", label: "Amex / Elo" },
+];
+
+export const DEFAULT_CARD_BRAND_TIER: CardBrandTier = "visamaster";
+
+// Taxas padrão (%) — editáveis no app (doc config/taxas). Valores REAIS da
+// maquininha do dono (ago/2026): Pix isento; Visa/Master mais baratas que Amex/Elo;
+// crédito sobe a cada parcela. O dono ajusta se a adquirente repactuar.
 export const DEFAULT_PAYMENT_FEES: PaymentFeeSettings = {
   pix: 0,
   dinheiro: 0,
-  debito: 2,
-  credito: 4.5,
   outro: 0,
+  card: {
+    visamaster: { debito: 1.36, credito: [3.14, 5.38, 6.11] },
+    amexelo: { debito: 2.57, credito: [4.9, 6.46, 7.19] },
+  },
 };
 
 // Orçamento (PDF). Dados do negócio começam com o nome e vazios no contato —

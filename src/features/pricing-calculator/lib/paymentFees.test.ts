@@ -3,8 +3,8 @@ import {
   apportionDiscount,
   discountAmountOf,
   feeFraction,
-  feeRateForMethod,
   grossUpForFee,
+  resolveFeeRate,
   saleItemFinancials,
 } from "./paymentFees";
 import { DEFAULT_PAYMENT_FEES } from "../constants";
@@ -26,14 +26,26 @@ describe("feeFraction", () => {
   });
 });
 
-describe("feeRateForMethod", () => {
-  it("lê a taxa do método (percentual)", () => {
-    expect(feeRateForMethod(DEFAULT_PAYMENT_FEES, "credito")).toBe(4.5);
-    expect(feeRateForMethod(DEFAULT_PAYMENT_FEES, "pix")).toBe(0);
+describe("resolveFeeRate", () => {
+  it("débito lê a taxa da bandeira", () => {
+    expect(resolveFeeRate(DEFAULT_PAYMENT_FEES, "debito", "visamaster")).toBeCloseTo(1.36, 6);
+    expect(resolveFeeRate(DEFAULT_PAYMENT_FEES, "debito", "amexelo")).toBeCloseTo(2.57, 6);
   });
 
-  it("devolve 0 para config ausente", () => {
-    expect(feeRateForMethod(null, "credito")).toBe(0);
+  it("crédito lê a taxa por parcela (à vista / 2x / 3x)", () => {
+    expect(resolveFeeRate(DEFAULT_PAYMENT_FEES, "credito", "visamaster", 1)).toBeCloseTo(3.14, 6);
+    expect(resolveFeeRate(DEFAULT_PAYMENT_FEES, "credito", "visamaster", 3)).toBeCloseTo(6.11, 6);
+    expect(resolveFeeRate(DEFAULT_PAYMENT_FEES, "credito", "amexelo", 2)).toBeCloseTo(6.46, 6);
+  });
+
+  it("clamp da parcela fora da faixa (acima → última; abaixo → à vista)", () => {
+    expect(resolveFeeRate(DEFAULT_PAYMENT_FEES, "credito", "visamaster", 9)).toBeCloseTo(6.11, 6);
+    expect(resolveFeeRate(DEFAULT_PAYMENT_FEES, "credito", "visamaster", 0)).toBeCloseTo(3.14, 6);
+  });
+
+  it("pix/dinheiro e config ausente devolvem 0", () => {
+    expect(resolveFeeRate(DEFAULT_PAYMENT_FEES, "pix", "visamaster")).toBe(0);
+    expect(resolveFeeRate(null, "credito", "visamaster", 1)).toBe(0);
   });
 });
 

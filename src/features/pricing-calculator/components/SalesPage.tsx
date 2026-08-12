@@ -73,6 +73,8 @@ type Recibo = {
   customer: string;
   channel: Sale["channel"];
   paymentMethod: Sale["paymentMethod"];
+  cardBrandTier?: Sale["cardBrandTier"];
+  installments?: Sale["installments"];
   revenue: number;
   cost: number;
   fee: number;
@@ -276,6 +278,8 @@ export function SalesPage() {
         customer: first.customer,
         channel: first.channel,
         paymentMethod: first.paymentMethod,
+        cardBrandTier: first.cardBrandTier,
+        installments: first.installments,
         revenue,
         cost,
         fee,
@@ -413,6 +417,8 @@ export function SalesPage() {
       customer: recibo.customer,
       saleDate: recibo.saleDate,
       paymentMethod: recibo.paymentMethod,
+      cardBrandTier: recibo.cardBrandTier,
+      installments: recibo.installments,
       channel: recibo.channel,
       feePassedToCustomer: recibo.items[0]?.feePassedToCustomer ?? false,
       // notes é compartilhado no recibo — pega o primeiro item que tiver.

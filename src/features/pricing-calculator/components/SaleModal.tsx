@@ -10,8 +10,11 @@ import {
 } from "@/lib/formatting/date";
 import { round2 } from "@/lib/number";
 import {
+  CARD_BRAND_TIERS,
+  DEFAULT_CARD_BRAND_TIER,
   DEFAULT_PAYMENT_METHOD,
   DEFAULT_SALE_CHANNEL,
+  MAX_INSTALLMENTS,
   PAYMENT_METHODS,
   SALE_CHANNELS,
 } from "../constants";
@@ -23,7 +26,7 @@ import { freezeFilaments, materialsLabel } from "../lib/filaments";
 import {
   apportionDiscount,
   discountAmountOf,
-  feeRateForMethod,
+  resolveFeeRate,
   saleItemFinancials,
 } from "../lib/paymentFees";
 import {
@@ -38,6 +41,7 @@ import {
 } from "../lib/saleContext";
 import { NumberInput } from "./NumberInput";
 import type {
+  CardBrandTier,
   Discount,
   DiscountKind,
   FinishedGood,
@@ -81,6 +85,9 @@ export type EditReciboSeed = {
   customer: string;
   saleDate: number;
   paymentMethod: PaymentMethod;
+  // Bandeira/parcela do recibo salvo (só em cartão) — restauradas ao reabrir.
+  cardBrandTier?: CardBrandTier;
+  installments?: number;
   channel: SaleChannel;
   feePassedToCustomer: boolean;
   notes: string;
@@ -263,6 +270,16 @@ export function SaleModal({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
     editRecibo?.paymentMethod ?? DEFAULT_PAYMENT_METHOD,
   );
+  // Bandeira e parcelas do cartão (só relevantes em débito/crédito). Persistem no
+  // estado mesmo fora do cartão, pra não perder a escolha ao alternar o método.
+  const [cardBrandTier, setCardBrandTier] = useState<CardBrandTier>(
+    editRecibo?.cardBrandTier ?? DEFAULT_CARD_BRAND_TIER,
+  );
+  const [installments, setInstallments] = useState<number>(
+    editRecibo?.installments && editRecibo.installments > 0
+      ? editRecibo.installments
+      : 1,
+  );
   const [channel, setChannel] = useState<SaleChannel>(
     editRecibo?.channel ?? DEFAULT_SALE_CHANNEL,
   );
@@ -312,8 +329,11 @@ export function SaleModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goods, products, editRecibo]);
 
-  const feeRatePct = feeRateForMethod(fees, paymentMethod);
+  const feeRatePct = resolveFeeRate(fees, paymentMethod, cardBrandTier, installments);
   const hasFee = feeRatePct > 0;
+  // Bandeira só importa em cartão; parcela só no crédito.
+  const isCard = paymentMethod === "debito" || paymentMethod === "credito";
+  const isCredit = paymentMethod === "credito";
 
   // Ao mudar a forma de pagamento OU ligar/desligar o repasse, recalcula o preço
   // cobrado de cada item a partir do sugerido (gross-up se repassa; sugerido puro
@@ -333,7 +353,22 @@ export function SaleModal({
   function changePaymentMethod(method: PaymentMethod) {
     setPaymentMethod(method);
     if (feePassedToCustomer) {
-      repriceItems(true, feeRateForMethod(fees, method));
+      repriceItems(true, resolveFeeRate(fees, method, cardBrandTier, installments));
+    }
+  }
+
+  function changeCardBrandTier(tier: CardBrandTier) {
+    setCardBrandTier(tier);
+    if (feePassedToCustomer) {
+      repriceItems(true, resolveFeeRate(fees, paymentMethod, tier, installments));
+    }
+  }
+
+  function changeInstallments(next: number) {
+    const n = Math.min(Math.max(1, Math.round(next) || 1), MAX_INSTALLMENTS);
+    setInstallments(n);
+    if (feePassedToCustomer) {
+      repriceItems(true, resolveFeeRate(fees, paymentMethod, cardBrandTier, n));
     }
   }
 
@@ -343,10 +378,29 @@ export function SaleModal({
     repriceItems(next, feeRatePct);
   }
 
-  function updateFee(method: PaymentMethod, valueStr: string) {
+  // Editor de taxas — planos (pix/dinheiro/outro) e a matriz de cartão por bandeira.
+  function updateFlatFee(key: "pix" | "dinheiro" | "outro", valueStr: string) {
+    if (!onFeesChange) return;
+    onFeesChange({ ...fees, [key]: Math.max(0, Number(valueStr) || 0) });
+  }
+
+  function updateTierDebito(tier: CardBrandTier, valueStr: string) {
     if (!onFeesChange) return;
     const value = Math.max(0, Number(valueStr) || 0);
-    onFeesChange({ ...fees, [method]: value });
+    onFeesChange({
+      ...fees,
+      card: { ...fees.card, [tier]: { ...fees.card[tier], debito: value } },
+    });
+  }
+
+  function updateTierCredito(tier: CardBrandTier, index: number, valueStr: string) {
+    if (!onFeesChange) return;
+    const value = Math.max(0, Number(valueStr) || 0);
+    const credito = fees.card[tier].credito.map((v, i) => (i === index ? value : v));
+    onFeesChange({
+      ...fees,
+      card: { ...fees.card, [tier]: { ...fees.card[tier], credito } },
+    });
   }
 
   function updateItem(key: string, patch: Partial<CestaItem>) {
@@ -619,6 +673,9 @@ export function SaleModal({
         feeRate: feeRatePct,
         feeAmount: fin.feeAmount,
         feePassedToCustomer,
+        // Bandeira/parcela congeladas só em cartão (o Firestore rejeita undefined).
+        ...(isCard ? { cardBrandTier } : {}),
+        ...(isCredit ? { installments } : {}),
         // FEAT-09: congela o desconto só quando há um efetivo nesta linha (o
         // Firestore rejeita undefined). `discountInput` guarda o que o dono
         // digitou; no modo total é o desconto do recibo inteiro (informativo).
@@ -748,18 +805,57 @@ export function SaleModal({
                 changePaymentMethod(event.target.value as PaymentMethod)
               }
             >
-              {PAYMENT_METHODS.map((option) => {
-                const rate = feeRateForMethod(fees, option.value);
-                return (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                    {rate > 0 ? ` (${formatDecimalPct(rate)}%)` : ""}
-                  </option>
-                );
-              })}
+              {PAYMENT_METHODS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>
+
+        {/* Cartão: bandeira (débito e crédito) + parcelas (só crédito). A taxa
+            resolvida aparece na descrição do repasse logo abaixo. */}
+        {isCard ? (
+          <div className="two-col">
+            <div className="field-block compact">
+              <div className="section-label">Bandeira</div>
+              <select
+                className="field-input"
+                value={cardBrandTier}
+                onChange={(event) =>
+                  changeCardBrandTier(event.target.value as CardBrandTier)
+                }
+              >
+                {CARD_BRAND_TIERS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {isCredit ? (
+              <div className="field-block compact">
+                <div className="section-label">Parcelas</div>
+                <select
+                  className="field-input"
+                  value={installments}
+                  onChange={(event) =>
+                    changeInstallments(Number(event.target.value))
+                  }
+                >
+                  {Array.from({ length: MAX_INSTALLMENTS }, (_, i) => i + 1).map(
+                    (n) => (
+                      <option key={n} value={n}>
+                        {n === 1 ? "À vista" : `${n}x`}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className={`fee-row ${hasFee ? "" : "fee-row-muted"}`}>
           <button
@@ -804,26 +900,77 @@ export function SaleModal({
 
         {showFeesEditor && onFeesChange ? (
           <div className="fee-editor">
-            <div className="fee-editor-title">Taxas por forma de pagamento (%)</div>
+            <div className="fee-editor-title">Taxas da maquininha (%)</div>
             <div className="fee-editor-grid">
-              {PAYMENT_METHODS.map((option) => (
-                <div className="fee-editor-item" key={option.value}>
-                  <label>{option.label}</label>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.1"
-                    value={fees[option.value] ?? 0}
-                    onChange={(event) =>
-                      updateFee(option.value, event.target.value)
-                    }
-                  />
-                </div>
-              ))}
+              <div className="fee-editor-item">
+                <label>Pix</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={fees.pix ?? 0}
+                  onChange={(event) => updateFlatFee("pix", event.target.value)}
+                />
+              </div>
+              <div className="fee-editor-item">
+                <label>Dinheiro</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={fees.dinheiro ?? 0}
+                  onChange={(event) => updateFlatFee("dinheiro", event.target.value)}
+                />
+              </div>
+              <div className="fee-editor-item">
+                <label>Outro</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={fees.outro ?? 0}
+                  onChange={(event) => updateFlatFee("outro", event.target.value)}
+                />
+              </div>
             </div>
+            {CARD_BRAND_TIERS.map((tier) => (
+              <div className="fee-editor-tier" key={tier.value}>
+                <div className="fee-editor-subtitle">{tier.label}</div>
+                <div className="fee-editor-grid">
+                  <div className="fee-editor-item">
+                    <label>Débito</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      value={fees.card[tier.value].debito ?? 0}
+                      onChange={(event) =>
+                        updateTierDebito(tier.value, event.target.value)
+                      }
+                    />
+                  </div>
+                  {fees.card[tier.value].credito.map((rate, index) => (
+                    <div className="fee-editor-item" key={index}>
+                      <label>
+                        {index === 0 ? "Créd. à vista" : `Créd. ${index + 1}x`}
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.1"
+                        value={rate ?? 0}
+                        onChange={(event) =>
+                          updateTierCredito(tier.value, index, event.target.value)
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
             <div className="fee-editor-hint">
-              Use os valores da sua maquininha. Salvo na nuvem e compartilhado
-              entre aparelhos.
+              Use os valores da sua maquininha (variam por bandeira e parcela). Salvo
+              na nuvem e compartilhado entre aparelhos.
             </div>
           </div>
         ) : null}

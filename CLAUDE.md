@@ -14,20 +14,16 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ UX-08 — vender E produzir direto do estoque** (2026-08-11) — aba **Produtos** do
-  `/estoque` ganhou, por linha (grid alinhado + rótulos de seção), botões **"Vender"** e **"Produzir"** pro
-  inteiro/conjunto E por subitem: "Vender conjunto (N)" + "Produzir conjunto" no topo, e "Vender"/"Produzir"
-  em cada peça (o "Produzir" da parte serve pra **fechar conjunto** — imprime só a que falta). Vender semeia o
-  `SaleModal` (`saleContextFromResult`/`FromSubitem`); Produzir roteia pra `/producao?produto=&subitem=` (default
-  **1 placa**, dono ajusta lá) e há **"Ver no catálogo"** (→ `/catalogo?produto=`, card abre expandido + scroll;
-  `ProductCatalog` ganhou prop `initialOpenId`; a página foi pra `<Suspense>` pelo `useSearchParams`). `StockPage`
-  computa o `PricingResult` completo (`pricingByProduct`) e fia o `SaleFlow`. **Correções junto:** botão não
-  estica (especificidade `.fg-details .btn.fg-sell-btn` vs `flex:1` do `.btn.primary`); e **bug do origem** (o
-  `SaleModal` abria com `goods=[]` e congelava "encomenda" — `useEffect` reavalia quando os acabados chegam;
-  `touchedOrigem` preserva escolha manual). Afetava o catálogo. **+ clareza da tiragem** (2026-08-11): a
-  Produção mostra ao vivo sob "Quantas placas" quantas peças a tiragem rende (mesa de N), e a aba Produtos
-  explicita que Produzir rende N por impressão (dica por card + intro) — o "peças por impressão" é decisão
-  do produto, não se muda a Produção.
+- **Última mudança:** **✅ Taxa de maquininha real: matriz bandeira × parcela** (2026-08-11) — as taxas
+  reais do dono variam por **bandeira** (Visa/Master mais baratas que Amex/Elo) E por **parcela** (crédito
+  sobe a cada parcela), então o modelo de taxa única por método virou uma **matriz**. `PaymentFeeSettings`
+  agora é `{ pix, dinheiro, outro, card: { visamaster, amexelo } }`, cada bandeira com `debito` + `credito[]`
+  (à vista/2x/3x — dono parcela **até 3x**, `MAX_INSTALLMENTS=3`). `feeRateForMethod` → **`resolveFeeRate(fees,
+  method, tier, installments)`**. No `SaleModal`: ao escolher débito/crédito aparece **Bandeira**; no crédito,
+  **Parcelas** — a taxa resolvida entra no lucro/repasse e é **congelada** no recibo (`cardBrandTier`/
+  `installments` novos no `SaleInput`, lidos no `salesRepository`, propagados pelo `Recibo`/`EditReciboSeed`).
+  Editor "Ajustar taxas" reescrito pra matriz. **Defaults já semeados com os valores reais** (ago/2026) —
+  o doc `config/taxas` antigo (flat `debito`/`credito`) é ignorado sem migração (Diretriz 7).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.

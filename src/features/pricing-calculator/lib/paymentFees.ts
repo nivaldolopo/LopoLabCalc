@@ -1,5 +1,10 @@
 import { round2 } from "@/lib/number";
-import type { Discount, PaymentFeeSettings, PaymentMethod } from "../types";
+import type {
+  CardBrandTier,
+  Discount,
+  PaymentFeeSettings,
+  PaymentMethod,
+} from "../types";
 
 // Fração da taxa (0..0,95) a partir do percentual configurado. Clamp em 95%
 // para nunca explodir o gross-up (dividir por algo perto de zero).
@@ -9,13 +14,35 @@ export function feeFraction(feeRatePct: number): number {
   return Math.min(0.95, pct / 100);
 }
 
-// Percentual da taxa de um método (0 se não configurado ou inválido).
-export function feeRateForMethod(
+function posOrZero(value: unknown): number {
+  const pct = Number(value);
+  return Number.isFinite(pct) && pct > 0 ? pct : 0;
+}
+
+// Percentual da taxa RESOLVIDA de uma combinação forma × bandeira × parcela (0 se
+// não configurado ou inválido). Débito depende só da bandeira; crédito também da
+// parcela (`installments`: 1 = à vista, clampado ao vetor da bandeira). Pix/dinheiro/
+// outro são planos e ignoram bandeira/parcela.
+export function resolveFeeRate(
   fees: PaymentFeeSettings | null | undefined,
   method: PaymentMethod,
+  tier: CardBrandTier,
+  installments = 1,
 ): number {
-  const pct = Number(fees?.[method]);
-  return Number.isFinite(pct) && pct > 0 ? pct : 0;
+  if (!fees) return 0;
+  if (method === "debito") return posOrZero(fees.card?.[tier]?.debito);
+  if (method === "credito") {
+    const rates = fees.card?.[tier]?.credito ?? [];
+    if (rates.length === 0) return 0;
+    const n = Math.min(
+      Math.max(1, Math.round(Number(installments) || 1)),
+      rates.length,
+    );
+    return posOrZero(rates[n - 1]);
+  }
+  if (method === "pix") return posOrZero(fees.pix);
+  if (method === "dinheiro") return posOrZero(fees.dinheiro);
+  return posOrZero(fees.outro);
 }
 
 // Preço inflado para REPASSAR a taxa ao cliente: para você receber `base`
