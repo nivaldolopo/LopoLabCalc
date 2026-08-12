@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { AuthGate } from "@/features/pricing-calculator/components/AuthGate";
+import { BackToTop } from "@/features/pricing-calculator/components/BackToTop";
 import "./globals.css";
 
 const inter = Inter({
@@ -34,7 +35,10 @@ export default function RootLayout({
         className={`${inter.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable}`}
         suppressHydrationWarning
       >
-        <AuthGate>{children}</AuthGate>
+        <AuthGate>
+          {children}
+          <BackToTop />
+        </AuthGate>
       </body>
     </html>
   );
