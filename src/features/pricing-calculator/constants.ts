@@ -85,9 +85,12 @@ export const DEFAULT_FIXED_COSTS: FixedCostSettings = {
 // placeholders (o usuário informa por produto). Os defaults abaixo foram auditados:
 // • filamentPricePerKg 110 — PLA no Brasil (jul/2026) custa R$80–130/kg; premium
 //   (Voolt/Slim/3DFila) ~R$105–128. R$110 é o centro do mercado. ✓
-// • energyTariff 0,80 R$/kWh — média nacional residencial ~R$0,68 (faixa R$0,41 a
-//   >R$1,40 por região). R$0,80 é levemente conservador (conta com ICMS/PIS-COFINS +
-//   bandeira chega lá). Ideal: o usuário põe o valor da PRÓPRIA conta de luz.
+// • energyTariff 0,80 R$/kWh — revisado (TD-012, ago/2026): a média nacional
+//   residencial projetada pela ANEEL para o fim de 2026 é ~R$0,849/kWh (faixa
+//   larga por região), então R$0,80 está um pouco ABAIXO dela — não acima, como
+//   dizia o comentário antigo (~R$0,68). O valor FICA: energia é ~1,9% do custo e
+//   subir para R$0,95 move o cenário base em ~R$0,13. Ideal segue o mesmo: o
+//   usuário põe o valor da PRÓPRIA conta de luz (com ICMS/PIS-COFINS + bandeira).
 // • markup 3 (3×) e laborRate 30 R$/h são DECISÕES de negócio, não "fatos" — 2–4× é
 //   a faixa típica de markup em impressão 3D; ambos editáveis.
 export const DEFAULT_PRODUCT_INPUT: ProductInput = {

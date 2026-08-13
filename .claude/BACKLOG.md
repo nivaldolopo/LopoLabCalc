@@ -30,12 +30,12 @@
    **Bloqueado por dado externo: a marca ainda não existe.** Fazer o PDF antes da logo obriga a refazer o
    cabeçalho depois. Destrava quando o dono avisar que a identidade visual está pronta.
    (~~**FEAT-09** desconto na venda~~ ✅ **FECHADO 2026-08-10**.)
-8. **Achados da auditoria (2026-08-13)** — resta só o **TD-012** (teste do `chargedWithFee` +
-   comentário da tarifa de energia; pequeno). (~~**UX-09**~~ · ~~**UX-10**~~ · ~~**TD-010**~~ ·
-   ~~**TD-011**~~ ✅ **FEITOS 2026-08-13** · ~~**DEC-02**~~ · ~~**DEC-03**~~ ✅ **DECIDIDAS 2026-08-13**.)
+8. ~~**Achados da auditoria (2026-08-13)**~~ ✅ **FECHADO (2026-08-13)** — ~~**UX-09**~~ · ~~**UX-10**~~ ·
+   ~~**TD-010**~~ · ~~**TD-011**~~ · ~~**TD-012**~~ **FEITOS** · ~~**DEC-02**~~ · ~~**DEC-03**~~
+   **DECIDIDAS**.
 9. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
-   ⚠ Segue sendo o **último** item, e o gargalo do projeto continua sendo **uso real**, não código —
-   mas o backlog codificável **não está mais vazio** (ver 8).
+   ⚠ É o **único** item codificável que sobrou (fora o Tier 2 comercial, bloqueado pela marca) — e o
+   gargalo do projeto voltou a ser **uso real**, não código.
 
 ### Porquês da ordem (decisões de 2026-07-20)
 
@@ -177,7 +177,7 @@
 
 ### Tier 3 — infra de cálculo/leitura (TD-*) e, por último, o Dashboard
 > Ordem interna: **TD-003 → TD-006 → TD-010/011 → TD-012 → Dashboard** (o Dashboard é o último item
-> do backlog). Só o **TD-012** segue aberto aqui.
+> do backlog). Todos os **TD-*** fechados — só o **Dashboard** segue aberto aqui.
 
 - **[Dashboard] (`/painel`)** — receita/custo/lucro do mês, lucro líquido (menos custos fixos),
   utilização das máquinas (comprar outra?), receita por máquina, lucro por material, produto mais
@@ -203,13 +203,12 @@
   `piecesDay` (e o breakdown por máquina) passaram por `× (1 − falha)`; `cyclesMonth` **não** mudou (a
   impressão que falha ocupa a máquina). O clamp da taxa virou `failureFractionOf` compartilhada com o
   `calculatePricing` — o mesmo número que infla o custo deflaciona o volume. Detalhe em `HISTORICO.md`.
-- **[TD-012] Teste do `chargedWithFee` + comentário da tarifa** *(auditoria 2026-08-13)* — `chargedWithFee`
-  (`saleContext.ts`) é a **única função de dinheiro-que-o-cliente-paga sem teste**: a composição
-  `grossUp → roundPrice → round2`. Conferida à mão na auditoria (correta, inclusive a propriedade "arredonda
-  sempre pra cima, nunca come margem"), mas sem rede. De carona: corrigir o **comentário** da `energyTariff`
-  em `constants.ts` — ele cita "média nacional ~R$ 0,68" e a ANEEL projeta **R$ 0,849/kWh** ao fim de 2026.
-  O número R$ 0,80 **fica** (energia é 1,9% do custo; ir a R$ 0,95 muda o preço em R$ 0,13); só a
-  justificativa está desatualizada.
+- ~~**[TD-012] Teste do `chargedWithFee` + comentário da tarifa**~~ ✅ **FEITO (2026-08-13)** — novo
+  `saleContext.test.ts` (10 casos, 326 no total) trava a composição `grossUp → roundPrice → round2`:
+  idempotência sem taxa, os 6 modos de arredondamento sobre o preço inflado, "nunca abaixo do exato",
+  bordas (preço 0/NaN, taxa negativa, clamp de 95%) e monotonicidade. Documenta a borda do `round2`
+  final (corta até R$ 0,005). Comentário da `energyTariff` reescrito (o valor R$ 0,80 **fica**).
+  Detalhe em `HISTORICO.md`.
 - ~~**[TD-003] Capacidade não é por-máquina**~~ ✅ **FEITO (2026-08-04)** — modelo do **gargalo**: máquinas
   distintas rodam em paralelo, quem limita é a mais ocupada (`max` das horas por máquina, não a soma).
   Mantém os dois botões (máquinas dedicadas + horas/dia) — é estimativa branda por decisão do dono.

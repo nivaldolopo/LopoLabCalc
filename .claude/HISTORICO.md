@@ -9,6 +9,27 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ TD-012 — Rede do `chargedWithFee` + comentário da tarifa (2026-08-13)
+
+Último achado da auditoria. **Nenhuma mudança de comportamento** — teste e comentário.
+
+`chargedWithFee` (`saleContext.ts`) era a única função de dinheiro-que-o-cliente-paga sem teste:
+a composição `grossUpForFee → roundPrice → round2`. Novo `saleContext.test.ts` (10 casos, 326
+testes no total) trava as propriedades: idempotência sem taxa, o arredondamento do produto
+reaplicado sobre o preço inflado (os 6 modos), "nunca abaixo do exato / nunca abaixo do base",
+bordas (preço 0/negativo/NaN, taxa negativa/NaN, clamp de 95% ⇒ 20× e não infinito) e
+monotonicidade na taxa.
+
+**A borda que o teste documenta:** o `roundPrice` sempre sobe, mas o `round2` que fecha a conta
+arredonda ao centavo **mais próximo** — pode cortar até R$ 0,005. No modo `exact`, 100 @ 4,5% cobra
+R$ 104,71 (não 104,7120), deixando o líquido R$ 0,002 abaixo dos R$ 100. Irrelevante em R$, mas
+agora está travado em teste em vez de ser folclore.
+
+**Comentário da `energyTariff`** (`constants.ts`): dizia "média nacional ~R$0,68" e chamava R$ 0,80
+de conservador. Com a projeção ANEEL de ~R$ 0,849/kWh pro fim de 2026 a frase inverteu de sentido —
+R$ 0,80 está **abaixo** da média. O valor **fica** (energia é ~1,9% do custo; ir a R$ 0,95 move o
+cenário base ~R$ 0,13); só a justificativa foi reescrita.
+
 ## ✅ TD-010 + TD-011 — A capacidade produtiva (2026-08-13)
 
 Os dois moram em `calculateCapacity.ts` e **não mudam preço nenhum** — só a projeção de volume e o
