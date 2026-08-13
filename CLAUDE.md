@@ -14,12 +14,12 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ TD-012** (2026-08-13) — **sem mudança de comportamento**: novo
-  `saleContext.test.ts` (10 casos → **326 testes**) fecha a última função de dinheiro-que-o-cliente-paga
-  sem rede, o `chargedWithFee` (`grossUp → roundPrice → round2`), incluindo a borda do `round2` final
-  (arredonda ao centavo mais próximo, corta até R$ 0,005 — o "nunca pra baixo" vale pro `roundPrice`).
-  De carona, o comentário da `energyTariff` em `constants.ts` foi reescrito (a ANEEL projeta
-  ~R$ 0,849/kWh; **o valor R$ 0,80 fica**). Lint limpo.
+- **Última mudança:** **✅ FEAT-10 + UX-12** (2026-08-13) — **FEAT-10**: 7º modo de arredondamento,
+  final **4,90 ou 9,90** (passo 5 — o dono ampliou o pedido original "X9,90", o que suaviza o salto).
+  Os dois modos psicológicos viraram a tabela `NINETY_STEP` + um bloco só em `roundPrice.ts`; o
+  `"0.90"` não mudou. ⚠ Piso assumido: preço abaixo de R$ 4,90 sobe pra lá. **UX-12**: o balão de
+  break-even desceu pra depois do "Custo total" (só JSX + `margin-top` no CSS). +3 testes
+  (**329**), lint limpo.
 - **✅ DEC-02 + DEC-03 aplicados (2026-08-13):** o dono já editou as 2 máquinas em `/maquinas` para
   **7.500 h** — não há mais pendência de dado. Com o DEC-03 (markup não incide sobre labor), **o preço
   de todo o catálogo mudou de montagem** (base R$ 35,81 → R$ 27,14 pelo DEC-03; o `lifeHours` empurra a
@@ -31,12 +31,11 @@
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**, e fazer o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
   Onde + as 8 sementes: `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA: cluster da calculadora** (4 itens novos do dono, 2026-08-13, **sem ordem interna** —
-  ele prioriza): **UX-11** (ações — salvar/vender/produzir/orçar — migram pro painel direito; esquerda só
-  input) · **FEAT-10** (arredondamento "final X9,90") · **UX-12** (break-even desce pra depois do custo
-  total) · **FEAT-11** (trocar a cor na hora de produzir/vender — **precisa de decisão de design**, 3
-  opções no backlog). Os 3 primeiros são baratos e da mesma tela; o FEAT-11 mexe em produção/estoque.
-  Depois deles sobram o **Dashboard** (só vale com ~1-2 meses de venda real) e o Tier 2 comercial
+- **▶ PRÓXIMA TAREFA: UX-11** (ações — salvar/vender/produzir/orçar — migram pro painel direito;
+  esquerda só input) — o que sobrou do cluster da calculadora e o mais estruturante dos três; mexe em
+  `ProductForm` + `PricingResultCard` + fiação. Depois dele: **FEAT-11** (trocar a cor ao produzir/
+  vender — **precisa de decisão de design do dono**, 3 opções no backlog; mexe em produção/estoque).
+  Aí sobram só o **Dashboard** (só vale com ~1-2 meses de venda real) e o Tier 2 comercial
   (FEAT-03/branding, bloqueado pela marca).
   ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
   Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side, a adiar pro

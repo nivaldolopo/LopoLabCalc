@@ -33,9 +33,8 @@
 8. ~~**Achados da auditoria (2026-08-13)**~~ ✅ **FECHADO (2026-08-13)** — ~~**UX-09**~~ · ~~**UX-10**~~ ·
    ~~**TD-010**~~ · ~~**TD-011**~~ · ~~**TD-012**~~ **FEITOS** · ~~**DEC-02**~~ · ~~**DEC-03**~~
    **DECIDIDAS**.
-9. **Cluster da calculadora (dono, 2026-08-13)** — **UX-11** (ações no painel direito) · **FEAT-10**
-   (arredondamento final X9,90) · **UX-12** (break-even abaixo do custo total). Os três são da mesma
-   tela (`/`), baratos e independentes entre si. **Sem ordem interna definida** — a priorização é do dono.
+9. **Cluster da calculadora (dono, 2026-08-13)** — ~~**FEAT-10**~~ ✅ · ~~**UX-12**~~ ✅ **FEITOS
+   (2026-08-13)**; sobra o **UX-11** (ações no painel direito), o mais estruturante dos três.
 10. **FEAT-11 — trocar a cor na hora de produzir/vender (dono, 2026-08-13)** — o único do lote que **não**
    é cosmético: mexe em produção/venda/estoque. **Precisa de decisão de design antes de virar tarefa**
    (3 opções listadas no item).
@@ -177,10 +176,9 @@
     capacidade). Ver se as ações ficam **fixas no topo** do card ou se acompanham a rolagem.
   - **Onde:** `ProductForm.tsx` + `PricingResultCard.tsx` + `PricingCalculator.tsx` (fiação) +
     `calculator.css`.
-- **[UX-12] Break-even abaixo do custo total** *(pedido do dono, 2026-08-13)* — mover o balão
-  "🎯 Meta de Break-Even" (`PricingResultCard.tsx:129-150`) pra **depois** do `breakdown-total`
-  (`:154-157`). Racional: a meta é **consequência** do custo, não deve separar o preço das barras de
-  composição. Só reordenar JSX (+ ajuste de margem no CSS) — sem mudança de cálculo.
+- ~~**[UX-12] Break-even abaixo do custo total**~~ ✅ **FEITO (2026-08-13)** — o balão desceu pra
+  depois do `breakdown-total` (e da linha "Total da impressão", pra não partir o bloco de custo em
+  produto multi-peça); `.break-even-box` ganhou `margin-top`. Só JSX + CSS, cálculo intacto.
 
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em
@@ -189,17 +187,11 @@
   (`discountAmountOf`/`apportionDiscount`/`saleItemFinancials`), UI no `SaleModal`, exibição em `/vendas`+CSV.
   Writeup em `HISTORICO.md`. **≠ FEAT-03:** lá o desconto é semente do PDF do orçamento (proposta); aqui é a
   venda real (podem se conversar no futuro).
-- **[FEAT-10] Arredondamento "final X9,90"** *(pedido do dono, 2026-08-13)* — 7ª opção no seletor de
-  arredondamento: preço termina em **9,90** (19,90 · 29,90 · 39,90…). Hoje já existe o modo `"0.90"`
-  (final ,90 dentro do mesmo real); o novo é o mesmo truque com **passo 10 e offset 9,90**.
-  **Onde:** `roundPrice.ts` (tipo `RoundingMode`, `ROUNDING_OPTIONS` e o `if` — ~5 linhas) +
-  `roundPrice.test.ts`. Nada mais muda: o seletor renderiza `ROUNDING_OPTIONS` sozinho e o
-  `chargedWithFee` (TD-012) chama o `roundPrice` genérico.
-  - ⚠ **Mantém a regra "nunca pra baixo"** (o modo arredonda **pra cima**): o cenário base R$ 27,14
-    viraria **R$ 29,90** — salto de +10%, bem maior que o dos outros modos. É esperado, mas convém a
-    dica de que este modo é o mais agressivo.
-  - ⚠ Preço abaixo de R$ 9,90 vira R$ 9,90 (não há degrau menor). Decidir se tudo bem ou se o piso
-    merece aviso.
+- ~~**[FEAT-10] Arredondamento "final 4,90 ou 9,90"**~~ ✅ **FEITO (2026-08-13)** — nasceu como "final
+  X9,90" e o **dono ampliou pra 4,90 OU 9,90** (passo **5**, não 10), o que suaviza o salto: R$ 21 para
+  em R$ 24,90 em vez de R$ 29,90. **Um** modo novo no seletor. Os dois modos psicológicos viraram a
+  tabela `NINETY_STEP` + um bloco só (`"0.90"` inalterado). +3 testes (**329**).
+  ⚠ **Piso assumido:** não há degrau abaixo de R$ 4,90 — preço menor sobe pra lá (travado em teste).
 - **[FEAT-11] Trocar a cor/filamento na hora de produzir ou vender** *(pedido do dono, 2026-08-13 —
   **precisa de decisão de design**)* — o produto salvo carrega a cor escolhida no cadastro, e **a mesma
   peça costuma ser impressa em outra cor**. Hoje só dá pra trocar **editando o produto no catálogo**:

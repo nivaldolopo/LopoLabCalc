@@ -126,6 +126,26 @@ export function PricingResultCard({
         🧾 Registrar venda
       </button>
 
+      <CostBars result={result} />
+
+      <div className="breakdown-total">
+        <span>Custo total{multiPiece ? " (por peça)" : ""}</span>
+        <span className="mono">{formatCurrency(result.totalCost)}</span>
+      </div>
+
+      {multiPiece ? (
+        <div className="per-piece-row">
+          <div className="per-piece-label">
+            Total da impressão ({result.pieces} peças)
+          </div>
+          <div className="result-price sg small">
+            {formatCurrency(batchTotal)}
+          </div>
+        </div>
+      ) : null}
+
+      {/* UX-12: a meta de break-even é CONSEQUÊNCIA do custo — fica depois do
+          total pra não separar o preço das barras de composição. */}
       {breakEvenUnits ? (
         <div className="break-even-box visible">
           <div className="break-even-title">🎯 Meta de Break-Even</div>
@@ -146,24 +166,6 @@ export function PricingResultCard({
               </div>
             )
           ) : null}
-        </div>
-      ) : null}
-
-      <CostBars result={result} />
-
-      <div className="breakdown-total">
-        <span>Custo total{multiPiece ? " (por peça)" : ""}</span>
-        <span className="mono">{formatCurrency(result.totalCost)}</span>
-      </div>
-
-      {multiPiece ? (
-        <div className="per-piece-row">
-          <div className="per-piece-label">
-            Total da impressão ({result.pieces} peças)
-          </div>
-          <div className="result-price sg small">
-            {formatCurrency(batchTotal)}
-          </div>
         </div>
       ) : null}
 

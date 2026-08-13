@@ -9,6 +9,38 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ FEAT-10 + UX-12 — Arredondamento de varejo e a ordem do card (2026-08-13)
+
+Os dois primeiros do cluster da calculadora. Baratos, mesma tela, sem dependência entre si.
+
+### FEAT-10 — final 4,90 **ou** 9,90
+
+O pedido nasceu como "final X9,90" e o **dono ampliou para 4,90 OU 9,90** no mesmo turno — o que
+troca o passo de **10 para 5** e derruba o problema que o backlog levantava: com degraus só de
+9,90 o cenário base R$ 27,14 saltava pra R$ 29,90 (+10%) e um preço de R$ 21 ia pra R$ 29,90
+(+42%); com passo 5 esse R$ 21 para em **R$ 24,90**. É **um único modo** no seletor (não dois) —
+"ou" aqui é o conjunto de finais permitidos, não uma escolha do usuário.
+
+**Implementação:** os dois modos psicológicos viraram a tabela `NINETY_STEP` (`"0.90"` → passo 1,
+`"4.90"` → passo 5) e um bloco só: desce ao múltiplo do passo, soma `passo − 0,10`, e se o valor já
+passou disso pula um degrau. O `"0.90"` mantém o comportamento anterior byte a byte (passo 1 ⇒
+`base + 0,90` / `base + 1,90`). Nada mais mudou: o seletor renderiza `ROUNDING_OPTIONS` sozinho, o
+CSV valida contra a mesma lista e o `chargedWithFee` chama o `roundPrice` genérico — o modo novo já
+entrou na varredura `ALL_MODES` do `saleContext.test.ts` de graça.
+
+**A regra "nunca pra baixo" vale aqui também**, e ela tem uma consequência assumida: **não existe
+degrau abaixo de R$ 4,90**, então qualquer preço menor que isso vira R$ 4,90 (R$ 1,00 → R$ 4,90).
+Está travado em teste em vez de virar surpresa. +3 casos (**329 testes**).
+
+### UX-12 — o break-even desceu
+
+O balão "🎯 Meta de Break-Even" estava **entre o preço e as barras de composição**, separando causa
+de efeito. Passou pra depois do `breakdown-total` — mais precisamente **depois da linha "Total da
+impressão (N peças)"**, pra não partir o bloco de custo ao meio em produto multi-peça. Só ordem de
+JSX; nenhum cálculo mudou. O CSS precisou de um `margin-top: 14px` no `.break-even-box` (o
+`breakdown-total` não tem margem inferior — sem isso o balão encostava na linha); o catálogo não é
+afetado porque `.cd-breakeven` sobrescreve as duas margens e `catalog.css` é importado depois.
+
 ## ✅ TD-012 — Rede do `chargedWithFee` + comentário da tarifa (2026-08-13)
 
 Último achado da auditoria. **Nenhuma mudança de comportamento** — teste e comentário.

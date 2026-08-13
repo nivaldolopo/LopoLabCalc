@@ -312,6 +312,10 @@
   border: 1px solid rgba(255, 107, 53, 0.2);
   border-radius: 12px;
   padding: 14px 16px;
+  /* UX-12: agora vem DEPOIS do "Custo total", que não tem margem inferior —
+     sem este topo o balão encostaria na linha. O catálogo sobrescreve os dois
+     em .cd-breakeven (catalog.css, importado depois). */
+  margin-top: 14px;
   margin-bottom: 16px;
 }
 
