@@ -119,7 +119,9 @@ export function MachinesPage() {
           >
             {formatCurrency(totals.profit)}
           </strong>
-          <span className="sales-total-sub">líquido de taxas</span>
+          <span className="sales-total-sub">
+            líquido de taxas · bruto de custo fixo
+          </span>
         </div>
         <div className="sales-total-card">
           <span>Máquinas pagas</span>
@@ -136,6 +138,20 @@ export function MachinesPage() {
         repartidos pela máquina certa quando o produto usa mais de uma). A{" "}
         <strong>vida útil</strong> vem do registro de produção: toda impressão
         desgasta a máquina, inclusive teste, falha e brinde que nunca viram venda.
+      </p>
+      {/* UX-09: o payback soma `sale.profit` — receita menos COGS real menos
+          taxa. Ele NÃO desconta custo fixo (aluguel etc.) nem as impressões com
+          `outcome: "falha"`, que queimam filamento e horas sem abater nada em
+          lugar nenhum. Ou seja: a barra enche mais rápido do que o caixa. O
+          número honesto só existe quando o Dashboard consolidar fixo + perdas —
+          até lá, este aviso é o guarda-rail contra decidir comprar máquina nova
+          com base numa barra otimista. */}
+      <p className="roi-note roi-warn">
+        ⚠ O payback usa o <strong>lucro bruto das vendas</strong>: já desconta o
+        custo de produzir e a taxa de pagamento, mas <strong>não</strong> desconta
+        o custo fixo (aluguel, etc.) nem as impressões perdidas por falha. O
+        payback real é mais lento do que a barra mostra — trate-a como teto
+        otimista, não como caixa.
       </p>
 
       <div className="roi-list">
@@ -162,6 +178,11 @@ export function MachinesPage() {
                   />
                 </div>
                 <div className={`roi-status ${st.tone}`}>{st.text}</div>
+                {/* UX-09: a ressalva viaja junto do número — quem rola até o
+                    card não vê mais a nota do topo. */}
+                <div className="roi-caveat">
+                  lucro bruto — antes do custo fixo e das perdas por falha
+                </div>
               </div>
 
               <div className="roi-block">

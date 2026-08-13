@@ -14,28 +14,31 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ DEC-02 + DEC-03 decididas e aplicadas** (2026-08-13) — as duas escolhas de
-  negócio que a auditoria levantou. **DEC-02:** `lifeHours` 10.000 h → **7.500 h** (meio da faixa; A1 a
-  R$ 0,83/h). **DEC-03:** o markup **não incide mais sobre a mão de obra** — fórmula de referência
-  `(custo sem labor) × markup + labor + fixo`; a reserva de falha **continua** cobrindo o labor
-  (repasse = `labor × (1+failureK)`), preservando a decisão irmã do Tier 4. Cenário base
-  **R$ 35,81 → R$ 27,14 (−24%)**, margem 66,7% → 54,0%. 304 testes, lint e build limpos.
-  ⚠ **PENDÊNCIA DO DONO (DEC-02):** o `lifeHours` do `constants.ts` só **semeia** o doc `config/machines`
-  — as 2 máquinas já salvas seguem com **10.000 h** até serem editadas à mão em `/maquinas`. O DEC-03 já
-  vale sozinho; o DEC-02 só entra depois dessa edição. **O preço de todo o catálogo caiu** (o custo não
-  mudou; só a montagem do preço). Porquês em [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ UX-09 + UX-10** (2026-08-13) — os dois rótulos honestos da auditoria, **sem
+  mudar nenhum cálculo**. **UX-09 (`/maquinas`):** o payback usa lucro **bruto** de vendas (não desconta
+  custo fixo nem impressão perdida) ⇒ aviso no topo + linha por card + sub do "Lucro acumulado".
+  Paliativo por design — o número honesto só existe no Dashboard. **UX-10 (catálogo + calculadora):**
+  `PricingResult.margin` é **bruta, pré-taxa** (54% onde o crédito 3× Amex/Elo rende 46,8%) ⇒
+  `worstPaymentFee` + `netMarginPct` (puras, `paymentFees.ts`; a 2ª delega ao **mesmo**
+  `saleItemFinancials` da venda) + componente `NetMarginHint` em 3 superfícies. 311 testes, lint e
+  build limpos.
+- ⚠ **PENDÊNCIA DO DONO (DEC-02, 2026-08-13):** o `lifeHours` do `constants.ts` (7.500 h) só **semeia**
+  o doc `config/machines` — as 2 máquinas já salvas seguem com **10.000 h** até serem editadas à mão em
+  `/maquinas`. O DEC-03 (markup não incide sobre labor) já vale sozinho e **o preço de todo o catálogo
+  caiu** (base R$ 35,81 → R$ 27,14; o custo não mudou, só a montagem do preço). Porquês em
+  [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**, e fazer o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
   Onde + as 8 sementes: `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA: o dono escolhe dentro do cluster da auditoria** — 5 itens de código pequenos e bem
-  delimitados (~1-2 sessões no total), **sem ordem interna definida**. Recomendação da auditoria: **UX-09**
-  primeiro (rótulo em `/maquinas`: o payback soma lucro **bruto** de vendas, sem descontar aluguel nem
-  impressão perdida — aparece mais rápido do que é) e **TD-010** em seguida (26 vs 30 dias/mês + semente da
-  capacidade na calculadora; é dívida que o Dashboard herdaria). O **Dashboard** segue o último, e o gargalo
-  do projeto continua sendo **uso real** — mas o backlog codificável não está mais vazio.
+- **▶ PRÓXIMA TAREFA: TD-010 + TD-011** (restam 3 da auditoria; ordem interna é do dono). Os dois moram
+  em `calculateCapacity.ts` e valem juntos: **TD-010** = 26 vs 30 dias/mês (o fixo/h sai ~13% maior) +
+  a calculadora ainda semeia o painel com `DEFAULT_CAPACITY` em vez do rate salvo (o `/catalogo` já
+  deriva ⇒ duas páginas discordam); **TD-011** = a capacidade conta **ciclos**, não peças vendáveis —
+  ignora a própria taxa de falha (uma linha). Sobra o **TD-012** (teste do `chargedWithFee` + comentário
+  da tarifa). O **Dashboard** segue o último, e o gargalo do projeto continua sendo **uso real**.
   ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
   Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side, a adiar pro
   Dashboard. **Roadmap + ordem + porquês:** [`BACKLOG.md`](.claude/BACKLOG.md) · **decisões antigas:**
@@ -44,7 +47,8 @@
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - **`/maquinas` (ROI):** 2 barras — payback (dinheiro, das **vendas**) e vida útil (horas, da
   **produção**). Duas fontes de propósito; o porquê de cada atribuição está comentado em
-  `lib/machineRoi.ts`. ⚠ O payback usa lucro **bruto** de vendas (sem fixo nem perda) — ver UX-09.
+  `lib/machineRoi.ts`. ⚠ O payback usa lucro **bruto** de vendas (sem fixo nem perda) — a tela **já
+  avisa** (UX-09); o conserto de verdade é o Dashboard.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **Decisões encerradas:** variáveis de Preview do Firebase não cadastradas (só Production, Diretriz 1);
@@ -76,26 +80,22 @@ src/
                             #   producao/page.tsx (registro de produção),
                             #   globals.css (só @import) + styles/*.css (CSS por área)
   features/pricing-calculator/
-    components/             # UI: PricingCalculator (raiz), ProductForm,
-                            #     CatalogPage (/catalogo) + ProductCatalog,
-                            #     SaleFlow (fiação do SaleModal — usado pelas 2 páginas),
-                            #     PricingResultCard, CapacityPanel, MachineSelector,
-                            #     MachineManagerModal, FixedCostsPanel, AccessoriesSection,
-                            #     ExtraStagesSection, SubitemsSection (subitens vendáveis),
-                            #     LinksSection, Header,
-                            #     SaleModal (registrar venda), SalesPage (rota /vendas),
+    components/             # UI: PricingCalculator (raiz) + ProductForm + PricingResultCard +
+                            #     CapacityPanel/MachineSelector/MachineManagerModal/FixedCostsPanel/
+                            #     AccessoriesSection/ExtraStagesSection/SubitemsSection/LinksSection,
+                            #     CatalogPage (/catalogo) + ProductCatalog, SalesPage (/vendas),
                             #     QuotePage (/orcamento), MachinesPage (/maquinas),
-                            #     StockPage (/estoque: abas Filamentos/Insumos/Produtos) +
-                            #     StockColorModal/StockRollModal/StockAdjustModal,
-                            #     SuppliesTab (7e) + SupplyModal/SupplyLotModal/
-                            #     SupplyAdjustModal, ProductionPage (/producao — registro de
-                            #     impressão), NumberInput (compartilhado),
-                            #     ProfitSummary (rentabilidade compartilhada),
-                            #     CostDetail (composição do custo: 1 ou 2 colunas —
-                            #       precificado × real; exporta CostBreakdownTable, a tabela
-                            #       inline reusada pelo popover (SaleModal/tile de totais) E pelos
-                            #       dropdowns de detalhe de /vendas · /producao · /estoque — UX-06/07a),
-                            #     AuthGate (login)
+                            #     ProductionPage (/producao), StockPage (/estoque: abas Filamentos/
+                            #       Insumos/Produtos) + StockColorModal/StockRollModal/
+                            #       StockAdjustModal + SuppliesTab (7e) + SupplyModal/
+                            #       SupplyLotModal/SupplyAdjustModal,
+                            #     SaleModal (registrar venda) + SaleFlow (a fiação dele, usada
+                            #       pelas 2 páginas), Header, NavBar, AuthGate (login),
+                            #     compartilhados: NumberInput, ProfitSummary, SearchBox,
+                            #       NetMarginHint (UX-10: margem líquida ao lado da bruta),
+                            #       CostDetail (composição 1 ou 2 colunas — precificado × real;
+                            #       exporta CostBreakdownTable, reusada pelo popover E pelos
+                            #       dropdowns de /vendas · /producao · /estoque — UX-06/07a)
     hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
                             #     useSupplies (coleção insumos — 7e),
                             #     useAuth, useQuoteConfig (negócio), useQuotes (histórico),
@@ -104,63 +104,47 @@ src/
                             #     useFinishedGoods (coleção acabados — FEAT-05)
     lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv,
                             #     fifo (núcleo FIFO compartilhado: ordem + overdraft D4),
-                            #     production também exporta a ÁLGEBRA do custo congelado
-                            #       (FEAT-06: ZERO_FROZEN/frozenOf/sumFrozen/addFrozen/scaleFrozen —
-                            #       o breakdown atravessa 3 escalas: placa, unidade, unidade×qtd),
-                            #     supplies (estoque de insumos 7e: gêmeo do stock em unidades),
-                            #     saleContext (foto congelada da venda — helpers puros do SaleModal),
-                            #     filaments (cores por impressão, FEAT-02), stock (FIFO do estoque:
-                            #     simulate/apply/reverse/adjustRoll — matemática pura, item 3),
-                            #     production (baixa da produção FEAT-04: planProduction/
-                            #     reverseProduction + planSupplies/reverseSupplies (7e)
-                            #     orquestram o FIFO por evento; productionCost = frozenCost
-                            #     material+energia+deprec.+manut.+labor+INSUMOS),
-                            #     finishedGoods (estoque de acabados FEAT-05: camadas FIFO —
-                            #     addProductionLayers/removeEventLayers/consumeFifo/apply+reverse
-                            #     FinishedConsumption/assemblableWholes/goodValue/assemblyBreakdown +
-                            #     goodCostComposition (FEAT-06: valor parado DECOMPOSTO); puro),
-                            #     productionPlan (builder puro produto/subitem→eventos: wholeEventRows/
-                            #     subitemEventRows/planEventRows/buildProductionPayloads — usado pela
-                            #     /producao E pela encomenda do passo 8),
-                            #     saleReconciliation (passo 8: planReciboReconciliation despacha item
-                            #     acabado→consumeFifo vs encomenda→dispara producao; +reverse),
+                            #     stock (FIFO do filamento) + supplies (gêmeo em unidades, 7e) —
+                            #       matemática pura,
+                            #     production (baixa da produção FEAT-04: orquestra o FIFO por evento;
+                            #       productionCost = frozenCost material+energia+deprec.+manut.+
+                            #       labor+INSUMOS; + a ÁLGEBRA do custo congelado do FEAT-06, que
+                            #       atravessa 3 escalas: placa, unidade, unidade×qtd),
+                            #     finishedGoods (estoque de acabados FEAT-05: camadas FIFO, valor
+                            #       parado DECOMPOSTO — puro),
+                            #     productionPlan (builder puro produto/subitem→eventos; usado pela
+                            #       /producao E pela encomenda do passo 8),
+                            #     saleReconciliation (passo 8: item acabado→consumo vs
+                            #       encomenda→dispara producao; +reverse),
+                            #     saleContext (foto congelada da venda), filaments (cores, FEAT-02),
                             #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento:
-                            #     matriz bandeira × parcela via resolveFeeRate + gross-up do
-                            #     repasse e desconto FEAT-09; testado em paymentFees.test.ts)
+                            #       matriz bandeira × parcela, gross-up do repasse, desconto FEAT-09,
+                            #       margem líquida do UX-10; testado em paymentFees.test.ts)
     constants.ts, types.ts
   lib/
     firebase/               # client.ts (init + db), frozenCost.ts (FEAT-06: serialização do
                             #   FrozenCostBreakdown — o mesmo objeto vai p/ 3 coleções),
-                            #   productsRepository.ts (CRUD + subscribe),
-                            #   machinesRepository.ts (doc config/machines, realtime),
-                            #   salesRepository.ts (coleção `vendas`, snapshots congelados;
-                            #     reconcileRecibo = batch atômico vendas+producao+estoque+acabados — passo 8),
-                            #   quoteConfigRepository.ts (doc config/orcamento: dados do negócio),
-                            #   quotesRepository.ts (coleção `orcamentos`: histórico de orçamentos),
-                            #   feesRepository.ts (doc config/taxas: taxa % por forma de pagamento),
-                            #   stockRepository.ts (coleção `estoque`: um doc por COR, rolos dentro),
-                            #   suppliesRepository.ts (coleção `insumos`: um doc por INSUMO,
-                            #     lotes dentro; serializeLots p/ os batches — 7e),
-                            #   productionRepository.ts (coleção `producao`: newProductionId +
-                            #     saveProduction(events[]) — N eventos + baixa dos rolos no mesmo
-                            #     writeBatch — FEAT-04)
-                            #   finishedGoodsRepository.ts (coleção `acabados`: um doc por PRODUTO,
-                            #     id = productId; serializeSkus p/ o batch da produção — FEAT-05)
+                            #   productsRepository (CRUD + subscribe), machinesRepository (doc
+                            #     config/machines), quoteConfigRepository (config/orcamento),
+                            #     quotesRepository (`orcamentos`), feesRepository (config/taxas),
+                            #   salesRepository (`vendas`, snapshots congelados; reconcileRecibo =
+                            #     batch atômico vendas+producao+estoque+acabados — passo 8),
+                            #   stockRepository (`estoque`: um doc por COR, rolos dentro) +
+                            #     suppliesRepository (`insumos`: um doc por INSUMO, lotes — 7e),
+                            #   productionRepository (`producao`: N eventos + baixa dos rolos no
+                            #     mesmo writeBatch — FEAT-04),
+                            #   finishedGoodsRepository (`acabados`: doc por PRODUTO, id = productId)
     formatting/currency.ts  # formatCurrency / formatDecimal
     formatting/date.ts      # ponte timestamp ↔ <input type="date"> (toDateInput, toTimestamp,
                             #   todayInputValue, formatDate) — usada por venda/orçamento/estoque
 ```
 
 **Pontos-chave:**
-- `src/lib/firebase/client.ts` — inicializa o Firebase e exporta `db`. Lê a config das
-  variáveis `NEXT_PUBLIC_FIREBASE_*` (com fallback embutido para os valores reais).
-- `src/lib/firebase/productsRepository.ts` — coleção `products` no Firestore;
-  `subscribeProducts` (realtime via `onSnapshot`), `createProduct`, `saveProduct`, `removeProduct`.
-- `src/lib/firebase/machinesRepository.ts` — documento único `config/machines` (campo `items`);
-  `subscribeMachines` (realtime; retorna `null` se o doc não existe, p/ o hook semear/migrar) e
-  `persistMachines`. O hook `useMachines` semeia do localStorage/`DEFAULT_MACHINES` na 1ª vez e
-  cai pra fallback local em caso de erro. **Máquinas são compartilhadas entre dispositivos** —
-  editar watts recalcula energia/desgaste de todos os produtos (que guardam só `machineId`).
+- `src/lib/firebase/client.ts` — init + `db`; lê `NEXT_PUBLIC_FIREBASE_*` com fallback embutido nos
+  valores reais (hoje as vars da Vercel são ignoradas).
+- **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar
+  watts/`lifeHours` recalcula energia e desgaste de TODOS os produtos, que guardam só o `machineId`.
+  `useMachines` semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
 - Toda a lógica de cálculo vive em `features/pricing-calculator/lib/`.
 
 ## Diretrizes de trabalho

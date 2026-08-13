@@ -107,6 +107,23 @@
   color: var(--muted);
 }
 
+/* UX-09: ressalva do payback (lucro bruto). Deliberadamente discreta — informa
+   sem competir com a barra. */
+.roi-caveat {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted2);
+  font-style: italic;
+}
+
+/* UX-09: a nota longa do topo é um aviso, não texto corrido — o filete a
+   destaca sem virar caixa de erro. */
+.roi-note.roi-warn {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+  margin-top: -12px;
+}
+
 .roi-metrics {
   display: grid;
   /* BUG-04: 4×1fr num card estreito (min 340px) não cabia — "R$ 861,92/mês" em

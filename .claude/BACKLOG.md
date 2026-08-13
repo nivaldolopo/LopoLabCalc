@@ -30,11 +30,11 @@
    **Bloqueado por dado externo: a marca ainda não existe.** Fazer o PDF antes da logo obriga a refazer o
    cabeçalho depois. Destrava quando o dono avisar que a identidade visual está pronta.
    (~~**FEAT-09** desconto na venda~~ ✅ **FECHADO 2026-08-10**.)
-8. **Achados da auditoria (2026-08-13)** — **TD-010** · **TD-011** · **TD-012** · **UX-09** · **UX-10**.
-   Cinco itens de código pequenos e bem delimitados (~1-2 sessões no total). **Ordem interna a definir
-   pelo dono.** Recomendação da auditoria: **UX-09 primeiro** (rótulo barato que evita decisão errada de
-   compra de máquina) e **TD-010** em seguida (é dívida que o Dashboard herdaria).
-   (~~**DEC-02** `lifeHours`~~ · ~~**DEC-03** markup sobre labor~~ ✅ **DECIDIDAS 2026-08-13** — ver abaixo.)
+8. **Achados da auditoria (2026-08-13)** — restam **TD-010** · **TD-011** · **TD-012** (os três de
+   capacidade/teste; ordem interna a definir pelo dono). Recomendação: **TD-010** primeiro (é dívida
+   que o Dashboard herdaria) e **TD-011** de carona — os dois são `calculateCapacity.ts`.
+   (~~**UX-09** rótulo do payback~~ · ~~**UX-10** margem líquida~~ ✅ **FEITOS 2026-08-13** ·
+   ~~**DEC-02** `lifeHours`~~ · ~~**DEC-03** markup sobre labor~~ ✅ **DECIDIDAS 2026-08-13**.)
 9. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
    ⚠ Segue sendo o **último** item, e o gargalo do projeto continua sendo **uso real**, não código —
    mas o backlog codificável **não está mais vazio** (ver 8).
@@ -146,16 +146,17 @@
   `touchedOrigem` preserva escolha manual). **Onde:** `StockPage.tsx` + `SaleModal.tsx` + `CatalogPage.tsx` +
   `ProductCatalog.tsx` + `catalogo/page.tsx` + `stock.css`.
 
-- **[UX-09] Rótulo do payback em `/maquinas`** *(auditoria 2026-08-13)* — o payback soma `sale.profit`,
-  que é receita − COGS real − taxa: **não desconta aluguel nem impressão perdida**. Os eventos
-  `outcome: "falha"` consomem filamento e não abatem nada em lugar nenhum ⇒ **o payback aparece mais
-  rápido do que é**. Uma frase no card ("lucro bruto de vendas — antes de custo fixo e perdas de
-  produção") é o guarda-rail até o [Dashboard] resolver de verdade. **Onde:** `MachinesPage.tsx`.
-- **[UX-10] Margem líquida no catálogo** *(auditoria 2026-08-13)* — `PricingResult.margin` é **bruta,
-  pré-taxa**: mostra 66,7% onde o crédito 3× Amex/Elo rende 59,5% (7 pontos). O `SaleModal` recalcula
-  certo, mas a **decisão de preço acontece no catálogo**, onde só o número otimista aparece. Segunda
-  linha no card ("margem no pior meio de pagamento"), sem mexer em cálculo.
-  **Onde:** `ProductCatalog.tsx` / `ProfitSummary.tsx`.
+- ~~**[UX-09] Rótulo do payback em `/maquinas`**~~ ✅ **FEITO (2026-08-13)** — aviso em 3 pontos: nota
+  no topo (`.roi-note.roi-warn`), linha por card sob a barra de payback (`.roi-caveat`, viaja junto do
+  número) e o sub do "Lucro acumulado" ("líquido de taxas · bruto de custo fixo"). **Paliativo por
+  design** — o número honesto (menos fixo, menos perdas) só existe no [Dashboard], que deve virar a
+  fonte do payback. **Onde:** `MachinesPage.tsx` + `machines.css`.
+- ~~**[UX-10] Margem líquida no catálogo**~~ ✅ **FEITO (2026-08-13)** — `worstPaymentFee` +
+  `netMarginPct` (puras, em `paymentFees.ts`; a segunda delega ao **mesmo** `saleItemFinancials` da
+  venda real) + componente `NetMarginHint` em 3 superfícies: célula "Margem" da tabela (compacta),
+  card expandido do catálogo e card de preço da **calculadora** (onde o markup é decidido). Some
+  quando toda taxa é 0. `CatalogPage`/`PricingCalculator` passaram a chamar `useFees()` — só
+  exibição, nenhuma taxa entra no preço. +7 testes. Writeup em `HISTORICO.md`.
 
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em

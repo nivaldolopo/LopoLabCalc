@@ -15,6 +15,7 @@ import type {
   SavedProduct,
 } from "../types";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
+import { useFees } from "../hooks/useFees";
 import { useMachines } from "../hooks/useMachines";
 import { usePricingForm } from "../hooks/usePricingForm";
 import { useProducts } from "../hooks/useProducts";
@@ -43,6 +44,8 @@ export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
   const { machines, saveMachines } = useMachines();
   const { fixedCostRate, saveFixedCostRate } = useBusinessSettings();
+  // UX-10: exibição da margem líquida no card de preço. Não entra no cálculo.
+  const { fees } = useFees();
   // 7c: cores do Estoque para o dropdown de filamento e o preço vivo (D3). O
   // produto guarda só o `filamentId`; o preço/kg sai da cor no cálculo.
   const { filaments: stock } = useStock();
@@ -333,6 +336,7 @@ export function PricingCalculator() {
         <PricingResultCard
           result={pricingResult}
           fixedCosts={fixedCosts}
+          fees={fees}
           capacitySettings={capacitySettings}
           capacityResult={capacityResult}
           roundingMode={form.product.roundingMode}

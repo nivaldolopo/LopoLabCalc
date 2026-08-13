@@ -202,3 +202,14 @@ button {
   background: var(--border-soft);
 }
 
+/* UX-10: margem líquida (pior meio de pagamento) logo abaixo da margem BRUTA.
+   Compartilhada por 3 superfícies — célula da tabela do catálogo, card expandido
+   e card de preço da calculadora —, por isso mora aqui e não num CSS de área.
+   `display: block` força a linha própria nas duas que não são flex-column. */
+.margin-net-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--muted2);
+  cursor: help;
+}
+

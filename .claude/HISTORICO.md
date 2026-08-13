@@ -9,6 +9,38 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ UX-09 + UX-10 — Os dois rótulos honestos da auditoria (2026-08-13)
+
+Dupla de "o número não está errado, está **incompleto no lugar onde a decisão acontece**".
+Nenhuma mudança de cálculo em nenhum dos dois — só exibição.
+
+**UX-09 (`/maquinas`)** — o payback soma `sale.profit` (receita − COGS real − taxa), que **não**
+desconta custo fixo (aluguel) nem as impressões `outcome: "falha"` (queimam filamento e horas sem
+abater nada em lugar nenhum) ⇒ a barra enche mais rápido que o caixa, e a decisão que ela alimenta
+é "compro outra máquina?". Guarda-rail em 3 pontos: nota de aviso no topo (`.roi-note.roi-warn`,
+filete no accent), uma linha por card sob a barra de payback (`.roi-caveat` — viaja junto do número
+pra quem rolou e não vê mais a nota), e o `sales-total-sub` do "Lucro acumulado" virou "líquido de
+taxas · bruto de custo fixo". **Paliativo por design:** o número honesto só existe quando o
+[Dashboard] consolidar fixo + perdas — e é ele quem deve virar a fonte do payback.
+
+**UX-10 (catálogo + calculadora)** — `PricingResult.margin` é **bruta, pré-taxa**: mostra 54% (base
+pós-DEC-03) onde o crédito 3× Amex/Elo rende 46,8%. O `SaleModal` sempre calculou certo, mas aí a
+venda já está acontecendo; **a decisão de preço acontece antes**. Duas funções puras novas em
+`paymentFees.ts` — `worstPaymentFee(fees)` (varre forma × bandeira × parcela e devolve a maior taxa
++ rótulo legível; `null` quando tudo é isento, aí não há contraponto) e `netMarginPct(preço, custo,
+taxa)` (delega ao **mesmo** `saleItemFinancials` da venda real, pra os dois números não divergirem).
+Componente `NetMarginHint` em 3 superfícies: célula "Margem" da tabela (modo `compact`: "47% líq."),
+card expandido do catálogo e card de preço da calculadora (modo cheio, nomeia o meio de pagamento).
+`title` em todas com a taxa exata. +7 testes (311 no total).
+
+**Por que a matemática é trivial e ainda assim virou função:** sem repasse, margem líquida =
+margem bruta − taxa (em pontos). O valor de `netMarginPct` não é a conta, é a **fonte única** — se o
+repasse ou o desconto mudarem o cálculo da venda, o catálogo acompanha de graça.
+
+**Fiação:** `CatalogPage` e `PricingCalculator` passaram a chamar `useFees()` (só exibição — nenhuma
+taxa entra no preço; o repasse continua escolha da venda). CSS compartilhado `.margin-net-hint` em
+`base.css` porque as 3 superfícies moram em arquivos de área diferentes.
+
 ## ✅ DEC-02 + DEC-03 — As duas decisões da auditoria (2026-08-13)
 
 Vieram da auditoria técnica de 2026-08-13. **Nenhuma era bug** — a matemática do app estava correta;

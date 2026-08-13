@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DEFAULT_FIXED_COSTS } from "../constants";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
+import { useFees } from "../hooks/useFees";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
 import { useStock } from "../hooks/useStock";
@@ -52,6 +53,9 @@ export function CatalogPage() {
   const { machines } = useMachines();
   const { filaments: stock } = useStock();
   const { fixedCostRate } = useBusinessSettings();
+  // UX-10: só para EXIBIR a margem líquida ao lado da bruta — nenhuma taxa entra
+  // no preço aqui (o repasse continua sendo escolha da venda).
+  const { fees } = useFees();
   const productsApi = useProducts();
 
   const [sortMode, setSortMode] = useState<SortMode>("recent");
@@ -185,6 +189,7 @@ export function CatalogPage() {
           fixedCosts={fixedCosts}
           pricingByProduct={pricingByProduct}
           capacitySettings={capacitySettings}
+          fees={fees}
           initialOpenId={focusId}
           sortMode={sortMode}
           onSortModeChange={setSortMode}

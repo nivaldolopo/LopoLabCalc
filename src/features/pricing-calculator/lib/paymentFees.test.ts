@@ -4,10 +4,13 @@ import {
   discountAmountOf,
   feeFraction,
   grossUpForFee,
+  netMarginPct,
   resolveFeeRate,
   saleItemFinancials,
+  worstPaymentFee,
 } from "./paymentFees";
 import { DEFAULT_PAYMENT_FEES } from "../constants";
+import type { PaymentFeeSettings } from "../types";
 
 describe("feeFraction", () => {
   it("converte percentual em fração", () => {
@@ -185,5 +188,85 @@ describe("apportionDiscount", () => {
 
   it("limita o desconto ao bruto total e ignora linhas sem receita", () => {
     expect(apportionDiscount([100, 0], 999)).toEqual([100, 0]);
+  });
+});
+
+// Taxas zeradas por padrão; cada teste liga só a combinação que quer medir.
+function feesWith(partial: Partial<PaymentFeeSettings>): PaymentFeeSettings {
+  return {
+    pix: 0,
+    dinheiro: 0,
+    outro: 0,
+    card: {
+      visamaster: { debito: 0, credito: [0, 0, 0] },
+      amexelo: { debito: 0, credito: [0, 0, 0] },
+    },
+    ...partial,
+  };
+}
+
+describe("worstPaymentFee (UX-10)", () => {
+  it("acha a pior combinação nas taxas padrão: crédito 3x Amex/Elo", () => {
+    const worst = worstPaymentFee(DEFAULT_PAYMENT_FEES);
+    expect(worst?.ratePct).toBeCloseTo(7.19, 6);
+    expect(worst?.label).toBe("crédito 3× Amex / Elo");
+  });
+
+  it("rotula débito e crédito à vista quando são o pior caso", () => {
+    expect(
+      worstPaymentFee(
+        feesWith({
+          card: {
+            visamaster: { debito: 2, credito: [1, 0, 0] },
+            amexelo: { debito: 0, credito: [0, 0, 0] },
+          },
+        }),
+      )?.label,
+    ).toBe("débito Visa / Mastercard");
+    expect(
+      worstPaymentFee(
+        feesWith({
+          card: {
+            visamaster: { debito: 1, credito: [4, 0, 0] },
+            amexelo: { debito: 0, credito: [0, 0, 0] },
+          },
+        }),
+      )?.label,
+    ).toBe("crédito à vista Visa / Mastercard");
+  });
+
+  it("considera pix/dinheiro/outro quando configurados", () => {
+    const worst = worstPaymentFee(
+      feesWith({ pix: 9, card: DEFAULT_PAYMENT_FEES.card }),
+    );
+    expect(worst?.ratePct).toBeCloseTo(9, 6);
+    expect(worst?.label).toBe("Pix");
+  });
+
+  it("devolve null quando tudo é isento (nada a avisar)", () => {
+    expect(worstPaymentFee(feesWith({}))).toBeNull();
+    expect(worstPaymentFee(null)).toBeNull();
+  });
+});
+
+describe("netMarginPct (UX-10)", () => {
+  it("a taxa derruba a margem em exatamente o mesmo tanto de pontos", () => {
+    // Preço 100, custo 46 → 54% bruta. A 7,19% de taxa, sobram 46,81%.
+    expect(netMarginPct(100, 46, 0)).toBeCloseTo(54, 6);
+    expect(netMarginPct(100, 46, 7.19)).toBeCloseTo(54 - 7.19, 6);
+  });
+
+  it("bate com o `saleItemFinancials` da venda real (fonte única)", () => {
+    const viaSale = saleItemFinancials({
+      chargedUnitPrice: 27.14,
+      quantity: 1,
+      unitCost: 12.5,
+      feeRatePct: 6.11,
+    });
+    expect(netMarginPct(27.14, 12.5, 6.11)).toBeCloseTo(viaSale.margin, 9);
+  });
+
+  it("preço zero não explode", () => {
+    expect(netMarginPct(0, 10, 5)).toBe(0);
   });
 });

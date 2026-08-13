@@ -17,6 +17,7 @@ import type {
   CapacitySettings,
   FixedCostSettings,
   Machine,
+  PaymentFeeSettings,
   PricingResult,
   SavedProduct,
   SortMode,
@@ -32,6 +33,7 @@ import {
   parseProductsCsv,
 } from "../lib/productCsv";
 import { CostBars } from "./CostBars";
+import { NetMarginHint } from "./NetMarginHint";
 import { ProfitSummary } from "./ProfitSummary";
 import { SearchBox } from "./SearchBox";
 
@@ -85,6 +87,9 @@ type ProductCatalogProps = {
   fixedCosts: FixedCostSettings;
   pricingByProduct: Map<string, PricingResult>;
   capacitySettings: CapacitySettings;
+  // UX-10: taxas de pagamento só para EXIBIR a margem líquida ao lado da bruta.
+  // Não entram em nenhum cálculo de preço/custo aqui.
+  fees: PaymentFeeSettings;
   // UX-08: produto a abrir já expandido ao entrar (vindo do "Ver no catálogo" do
   // estoque). Ausente = nada aberto.
   initialOpenId?: string | null;
@@ -113,6 +118,7 @@ export function ProductCatalog({
   fixedCosts,
   pricingByProduct,
   capacitySettings,
+  fees,
   initialOpenId,
   sortMode,
   onSortModeChange,
@@ -338,8 +344,12 @@ export function ProductCatalog({
                       <td className="mono" data-label="Custo/peça">
                         {formatCurrency(result.totalCost)}
                       </td>
+                      {/* UX-10: a margem do `PricingResult` é BRUTA (pré-taxa).
+                          Ao lado dela, o piso: o que sobra no pior meio de
+                          pagamento configurado. */}
                       <td className="mono muted" data-label="Margem">
                         {result.margin.toFixed(0)}%
+                        <NetMarginHint result={result} fees={fees} compact />
                       </td>
                       <td data-label="Máquina">
                         <MachineCell result={result} />
@@ -415,6 +425,7 @@ export function ProductCatalog({
                           result={result}
                           fixedCosts={fixedCosts}
                           capacitySettings={capacitySettings}
+                          fees={fees}
                           onRegisterSale={onRegisterSale}
                           onProduce={onProduce}
                           onQuote={onQuote}
@@ -437,6 +448,7 @@ function CatalogDetails({
   result,
   fixedCosts,
   capacitySettings,
+  fees,
   onRegisterSale,
   onProduce,
   onQuote,
@@ -445,6 +457,7 @@ function CatalogDetails({
   result: ReturnType<typeof calculatePricing>;
   fixedCosts: FixedCostSettings;
   capacitySettings: CapacitySettings;
+  fees: PaymentFeeSettings;
   onRegisterSale: (
     product: SavedProduct,
     result: PricingResult,
@@ -540,6 +553,9 @@ function CatalogDetails({
             <span className="cd-ph-margin">
               margem de {result.margin.toFixed(0)}% sobre o preço final
             </span>
+            {/* UX-10: a linha acima é a margem BRUTA (Pix/dinheiro). Esta é o
+                piso — o que sobra na pior taxa configurada. */}
+            <NetMarginHint result={result} fees={fees} />
           </div>
           <div className="result-label cd-comp-label">Composição do custo</div>
           <CostBars result={result} />

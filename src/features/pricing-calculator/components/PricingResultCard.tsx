@@ -5,17 +5,21 @@ import type {
   CapacityResult,
   CapacitySettings,
   FixedCostSettings,
+  PaymentFeeSettings,
   PricingResult,
   RoundingMode,
 } from "../types";
 import { ROUNDING_OPTIONS } from "../lib/roundPrice";
 import { CapacityPanel } from "./CapacityPanel";
 import { CostBars } from "./CostBars";
+import { NetMarginHint } from "./NetMarginHint";
 import { ProfitSummary } from "./ProfitSummary";
 
 type PricingResultCardProps = {
   result: PricingResult;
   fixedCosts: FixedCostSettings;
+  // UX-10: só para exibir a margem líquida ao lado da bruta.
+  fees: PaymentFeeSettings;
   capacitySettings: CapacitySettings;
   capacityResult: CapacityResult | null;
   roundingMode: RoundingMode;
@@ -28,6 +32,7 @@ type PricingResultCardProps = {
 export function PricingResultCard({
   result,
   fixedCosts,
+  fees,
   capacitySettings,
   capacityResult,
   roundingMode,
@@ -70,6 +75,9 @@ export function PricingResultCard({
       ) : null}
       <div className="result-margin">
         margem de {result.margin.toFixed(0)}% sobre o preço final
+        {/* UX-10: a margem acima é BRUTA (só vale em Pix/dinheiro). O piso —
+            pior taxa configurada — fica logo abaixo, onde o markup é decidido. */}
+        <NetMarginHint result={result} fees={fees} />
       </div>
 
       {result.machineMissing ? (

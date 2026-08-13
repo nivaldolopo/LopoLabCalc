@@ -1,4 +1,5 @@
 import { round2 } from "@/lib/number";
+import { CARD_BRAND_TIERS } from "../constants";
 import type {
   CardBrandTier,
   Discount,
@@ -123,4 +124,70 @@ export function saleItemFinancials(params: {
   const profit = totalRevenue - totalCost - feeAmount;
   const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
   return { totalRevenue, totalCost, feeAmount, profit, margin };
+}
+
+export type WorstPaymentFee = {
+  ratePct: number; // a maior taxa configurada (%)
+  label: string; // legível: "crédito 3× Amex / Elo", "débito Visa / Mastercard"…
+};
+
+// UX-10: a PIOR combinação forma × bandeira × parcela entre as taxas configuradas
+// — a que mais come a margem se o cliente escolher. Existe porque
+// `PricingResult.margin` é BRUTA (pré-taxa) e a decisão de preço acontece no
+// catálogo/calculadora, onde só o número otimista aparecia; o `SaleModal` já
+// calculava certo, mas aí a venda já está acontecendo. Devolve `null` quando
+// nenhuma taxa está configurada (tudo isento) — aí não há contraponto a mostrar.
+export function worstPaymentFee(
+  fees: PaymentFeeSettings | null | undefined,
+): WorstPaymentFee | null {
+  if (!fees) return null;
+  // Rate/label separados (não um objeto acumulador) só para não depender de
+  // narrowing de `let` dentro do closure.
+  let rate = 0;
+  let label = "";
+  const consider = (candidate: unknown, name: string) => {
+    const pct = posOrZero(candidate);
+    if (pct > rate) {
+      rate = pct;
+      label = name;
+    }
+  };
+
+  consider(fees.pix, "Pix");
+  consider(fees.dinheiro, "dinheiro");
+  consider(fees.outro, "outro");
+  // Percorre as bandeiras pela constante (não por Object.keys) para o rótulo sair
+  // igual ao do editor de taxas e da venda.
+  for (const tier of CARD_BRAND_TIERS) {
+    const card = fees.card?.[tier.value];
+    if (!card) continue;
+    consider(card.debito, `débito ${tier.label}`);
+    (card.credito ?? []).forEach((installmentRate, index) => {
+      const n = index + 1;
+      consider(
+        installmentRate,
+        `crédito ${n === 1 ? "à vista" : `${n}×`} ${tier.label}`,
+      );
+    });
+  }
+
+  return rate > 0 ? { ratePct: rate, label } : null;
+}
+
+// UX-10: margem LÍQUIDA do preço sugerido sob uma taxa. Passa pelo MESMO
+// `saleItemFinancials` da venda real para os dois números não divergirem.
+// Sem repasse a taxa sai do que você recebe, então a margem cai exatamente
+// `feeRatePct` pontos percentuais — a conta é trivial, o valor aqui é a fonte
+// única.
+export function netMarginPct(
+  suggestedPrice: number,
+  unitCost: number,
+  feeRatePct: number,
+): number {
+  return saleItemFinancials({
+    chargedUnitPrice: suggestedPrice,
+    quantity: 1,
+    unitCost,
+    feeRatePct,
+  }).margin;
 }
