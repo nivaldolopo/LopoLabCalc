@@ -31,10 +31,13 @@
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**, e fazer o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
   Onde + as 8 sementes: `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA: o backlog codificável ACABOU.** Sobrou o **Dashboard** (`/painel`), que só vale
-  com ~1-2 meses de venda real no banco, e o Tier 2 comercial (FEAT-03/branding), bloqueado pela marca.
-  O gargalo do projeto voltou a ser **uso real**, não código — o próximo passo natural é o dono usar a
-  ferramenta (ou anunciar o marco do recadastro, Diretriz 7).
+- **▶ PRÓXIMA TAREFA: cluster da calculadora** (4 itens novos do dono, 2026-08-13, **sem ordem interna** —
+  ele prioriza): **UX-11** (ações — salvar/vender/produzir/orçar — migram pro painel direito; esquerda só
+  input) · **FEAT-10** (arredondamento "final X9,90") · **UX-12** (break-even desce pra depois do custo
+  total) · **FEAT-11** (trocar a cor na hora de produzir/vender — **precisa de decisão de design**, 3
+  opções no backlog). Os 3 primeiros são baratos e da mesma tela; o FEAT-11 mexe em produção/estoque.
+  Depois deles sobram o **Dashboard** (só vale com ~1-2 meses de venda real) e o Tier 2 comercial
+  (FEAT-03/branding, bloqueado pela marca).
   ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
   Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side, a adiar pro
   Dashboard. **Roadmap + ordem + porquês:** [`BACKLOG.md`](.claude/BACKLOG.md) · **decisões antigas:**

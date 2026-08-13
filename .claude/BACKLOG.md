@@ -33,9 +33,15 @@
 8. ~~**Achados da auditoria (2026-08-13)**~~ ✅ **FECHADO (2026-08-13)** — ~~**UX-09**~~ · ~~**UX-10**~~ ·
    ~~**TD-010**~~ · ~~**TD-011**~~ · ~~**TD-012**~~ **FEITOS** · ~~**DEC-02**~~ · ~~**DEC-03**~~
    **DECIDIDAS**.
-9. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
-   ⚠ É o **único** item codificável que sobrou (fora o Tier 2 comercial, bloqueado pela marca) — e o
-   gargalo do projeto voltou a ser **uso real**, não código.
+9. **Cluster da calculadora (dono, 2026-08-13)** — **UX-11** (ações no painel direito) · **FEAT-10**
+   (arredondamento final X9,90) · **UX-12** (break-even abaixo do custo total). Os três são da mesma
+   tela (`/`), baratos e independentes entre si. **Sem ordem interna definida** — a priorização é do dono.
+10. **FEAT-11 — trocar a cor na hora de produzir/vender (dono, 2026-08-13)** — o único do lote que **não**
+   é cosmético: mexe em produção/venda/estoque. **Precisa de decisão de design antes de virar tarefa**
+   (3 opções listadas no item).
+11. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
+   ⚠ Segue sendo o último; fora dele e do Tier 2 comercial (bloqueado pela marca), o backlog codificável
+   é o cluster da calculadora + FEAT-11.
 
 ### Porquês da ordem (decisões de 2026-07-20)
 
@@ -156,6 +162,26 @@
   quando toda taxa é 0. `CatalogPage`/`PricingCalculator` passaram a chamar `useFees()` — só
   exibição, nenhuma taxa entra no preço. +7 testes. Writeup em `HISTORICO.md`.
 
+- **[UX-11] Ações da calculadora no painel da direita** *(pedido do dono, 2026-08-13)* — hoje a coluna
+  esquerda é **input + a ação de salvar no fim do formulário** (`ProductForm.tsx:206-228`: Salvar /
+  Cancelar / Salvar como novo) e a direita tem só **"Registrar venda"**
+  (`PricingResultCard.tsx:121-127`). Quem rola até o fim do form perde o preço de vista, e quem olha o
+  preço não alcança o Salvar. **Alvo:** esquerda = **só inputs**; direita = **todas as ações**
+  (salvar, vender, **produzir**, **orçar**).
+  - ⚠ **Produzir/Orçar dependem de produto SALVO:** as duas semeiam por rota com id
+    (`/producao?produto=&subitem=` e `/orcamento?produto=` — FEAT-08), então na calculadora só fazem
+    sentido com `editingProductId`. Já **Registrar venda** funciona sem salvar (o `saleContextFromResult`
+    aceita `productId` vazio — `PricingCalculator.tsx:297-299`). Decidir: **desabilitar com dica** ("salve
+    primeiro") ou **"salvar e produzir"** num clique.
+  - ⚠ O card da direita já é alto (preço, arredondamento, break-even, barras, custo, rentabilidade,
+    capacidade). Ver se as ações ficam **fixas no topo** do card ou se acompanham a rolagem.
+  - **Onde:** `ProductForm.tsx` + `PricingResultCard.tsx` + `PricingCalculator.tsx` (fiação) +
+    `calculator.css`.
+- **[UX-12] Break-even abaixo do custo total** *(pedido do dono, 2026-08-13)* — mover o balão
+  "🎯 Meta de Break-Even" (`PricingResultCard.tsx:129-150`) pra **depois** do `breakdown-total`
+  (`:154-157`). Racional: a meta é **consequência** do custo, não deve separar o preço das barras de
+  composição. Só reordenar JSX (+ ajuste de margem no CSS) — sem mudança de cálculo.
+
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em
   **R$ ou %**, congelado no snapshot (`discountKind`/`discountInput`/`discountAmount`). Taxa incide sobre o
@@ -163,6 +189,43 @@
   (`discountAmountOf`/`apportionDiscount`/`saleItemFinancials`), UI no `SaleModal`, exibição em `/vendas`+CSV.
   Writeup em `HISTORICO.md`. **≠ FEAT-03:** lá o desconto é semente do PDF do orçamento (proposta); aqui é a
   venda real (podem se conversar no futuro).
+- **[FEAT-10] Arredondamento "final X9,90"** *(pedido do dono, 2026-08-13)* — 7ª opção no seletor de
+  arredondamento: preço termina em **9,90** (19,90 · 29,90 · 39,90…). Hoje já existe o modo `"0.90"`
+  (final ,90 dentro do mesmo real); o novo é o mesmo truque com **passo 10 e offset 9,90**.
+  **Onde:** `roundPrice.ts` (tipo `RoundingMode`, `ROUNDING_OPTIONS` e o `if` — ~5 linhas) +
+  `roundPrice.test.ts`. Nada mais muda: o seletor renderiza `ROUNDING_OPTIONS` sozinho e o
+  `chargedWithFee` (TD-012) chama o `roundPrice` genérico.
+  - ⚠ **Mantém a regra "nunca pra baixo"** (o modo arredonda **pra cima**): o cenário base R$ 27,14
+    viraria **R$ 29,90** — salto de +10%, bem maior que o dos outros modos. É esperado, mas convém a
+    dica de que este modo é o mais agressivo.
+  - ⚠ Preço abaixo de R$ 9,90 vira R$ 9,90 (não há degrau menor). Decidir se tudo bem ou se o piso
+    merece aviso.
+- **[FEAT-11] Trocar a cor/filamento na hora de produzir ou vender** *(pedido do dono, 2026-08-13 —
+  **precisa de decisão de design**)* — o produto salvo carrega a cor escolhida no cadastro, e **a mesma
+  peça costuma ser impressa em outra cor**. Hoje só dá pra trocar **editando o produto no catálogo**:
+  em `/producao`, quando a linha vem de um produto salvo, a cor é **texto fixo** — o `<select>` de cor só
+  aparece no modo **avulso** (`ProductionPage.tsx:681-702`, guarda `isAvulso`).
+  - **O que já existe a favor:** o plano de produção **resolve a cor viva do Estoque por
+    `filamentId`** (`productionPlan.ts:78-101`) e a `/producao` já tem o `<select>` pronto — o caminho
+    curto é **só remover a guarda `isAvulso`** e deixar a troca por linha de filamento. O custo e a baixa
+    FIFO seguem a cor efetivamente escolhida, e o `frozenCost` congela o que foi usado de verdade.
+  - **Opções (o dono escolhe):**
+    - **A) Troca pontual na produção** *(mais barato)* — liberar o `<select>` de cor em `/producao`
+      também pro produto salvo. O produto no catálogo **não muda**; a cor da vez vale só pra aquele
+      evento. Cobre "imprimi este em azul hoje". **Não** cobre venda de acabado (ver ⚠ abaixo).
+    - **B) A + variantes de cor no produto** — o produto ganha uma lista de cores **alternativas**
+      pré-aprovadas, e produção/venda escolhem entre elas num seletor. Mais organizado pro catálogo e
+      pro orçamento; custa modelo novo em `types.ts` + UI no form.
+    - **C) Cor vira dimensão da SKU do acabado** *(mais caro, mais correto)* — hoje a SKU do estoque de
+      acabados é **só produto/subitem** (`finishedGoods.ts:112-118`), então "3 azuis + 2 vermelhos" é
+      apenas "5 unidades". Se o dono quiser **saldo por cor**, a chave da SKU precisa incluir a cor —
+      mexe em `finishedGoods`, na reconciliação da venda e nas telas. Diretriz 7 cobre a quebra de dado.
+  - ⚠ **A venda tem dois caminhos e eles se comportam diferente:** a **encomenda** dispara produção
+    (herda a escolha de A/B naturalmente); o item **acabado** só consome saldo — e, sem a opção C, esse
+    saldo **não sabe de cor**, então não há o que escolher lá. Vale decidir se "vender em outra cor"
+    significa **produzir** ou **escolher no estoque**.
+  - **Onde (conforme a opção):** `ProductionPage.tsx` (A) · `types.ts` + `ProductForm.tsx` +
+    `productionPlan.ts` (B) · `finishedGoods.ts` + `saleReconciliation.ts` + `StockPage`/`SaleModal` (C).
 - **[FEAT-03] Melhorar o PDF do orçamento** *(guarda-chuva)*. Ideias-semente (o dono escolhe o que vira
   tarefa): prazo de entrega, foto/thumbnail do item, formas de pagamento/condições, termos/observações,
   QR code do WhatsApp, detalhar etapas/subitens (usa FEAT-01), desconto/acréscimo, branding real.
