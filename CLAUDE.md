@@ -14,43 +14,33 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ Taxa de maquininha real: matriz bandeira × parcela** (2026-08-11) — as taxas
-  reais do dono variam por **bandeira** (Visa/Master mais baratas que Amex/Elo) E por **parcela** (crédito
-  sobe a cada parcela), então o modelo de taxa única por método virou uma **matriz**. `PaymentFeeSettings`
-  agora é `{ pix, dinheiro, outro, card: { visamaster, amexelo } }`, cada bandeira com `debito` + `credito[]`
-  (à vista/2x/3x — dono parcela **até 3x**, `MAX_INSTALLMENTS=3`). `feeRateForMethod` → **`resolveFeeRate(fees,
-  method, tier, installments)`**. No `SaleModal`: ao escolher débito/crédito aparece **Bandeira**; no crédito,
-  **Parcelas** — a taxa resolvida entra no lucro/repasse e é **congelada** no recibo (`cardBrandTier`/
-  `installments` novos no `SaleInput`, lidos no `salesRepository`, propagados pelo `Recibo`/`EditReciboSeed`).
-  Editor "Ajustar taxas" reescrito pra matriz. **Defaults já semeados com os valores reais** (ago/2026) —
-  o doc `config/taxas` antigo (flat `debito`/`credito`) é ignorado sem migração (Diretriz 7).
+- **Última mudança:** **✅ Auditoria técnica completa** (2026-08-13, só documentação) — revisão sênior do
+  motor de cálculo, dos valores padrão e da comparação com as calculadoras de precificação 3D da web.
+  **Nenhum erro aritmético** nos 17 módulos de `lib/` (302 testes, lint e build limpos); a reserva de
+  falha `÷(1−f)`, o repasse `÷(1−f)`, o fixo sem markup (DEC-01) e o gargalo (TD-003) estão todos certos.
+  Resultado: **7 itens novos no [`BACKLOG.md`](.claude/BACKLOG.md)** — 5 de código (TD-010/011/012,
+  UX-09/10) + 2 decisões do dono (DEC-02 `lifeHours`, DEC-03 markup sobre labor). Zero mudança de código.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **a marca ainda não está pronta** — mexer no PDF
-  agora significaria refazer o cabeçalho quando a logo chegar. Volta à fila quando o dono avisar que a
-  identidade visual existe. **Onde (quando voltar):** `generateQuotePdf.ts` + `QuotePage`/`config/orcamento`;
-  as 8 sementes (prazo, foto, formas de pagamento, termos, QR, subitens, desconto, branding) estão no
-  `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA: em aberto** — com o FEAT-03 adiado, o backlog codificável está **vazio**: só resta o
-  **Dashboard**, que por decisão do dono só vale com ~1-2 meses de venda real (absorve UX-07(b) + perda por
-  falha/taxa observada). Ou seja, o gargalo agora é **uso real**, não código. O dono escolhe: operar/acumular
-  venda, antecipar o marco (Diretriz 7), ou levantar item novo.
+- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
+  existe**, e fazer o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
+  Onde + as 8 sementes: `BACKLOG.md`.
+- **▶ PRÓXIMA TAREFA: o dono escolhe dentro do cluster da auditoria** — 5 itens de código pequenos e bem
+  delimitados (~1-2 sessões no total), **sem ordem interna definida**. Recomendação da auditoria: **UX-09**
+  primeiro (rótulo em `/maquinas`: o payback soma lucro **bruto** de vendas, sem descontar aluguel nem
+  impressão perdida — aparece mais rápido do que é) e **TD-010** em seguida (26 vs 30 dias/mês + semente da
+  capacidade na calculadora; é dívida que o Dashboard herdaria). O **Dashboard** segue o último, e o gargalo
+  do projeto continua sendo **uso real** — mas o backlog codificável não está mais vazio.
   ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
-  Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side (Cloud
-  Functions), a adiar pro Dashboard.
-  **Ordem (dono, 2026-07-31/08-04/08-10):** ~~Tier 4~~ ✅ → ~~TD-003/UX-04~~ ✅ → ~~UX-05 Fase 1~~ ✅ →
-  ~~TD-006 (paginação + busca)~~ ✅ → ~~FEAT-09~~ ✅ → ~~UX-06 + UX-07(a)~~ ✅ → ~~UX-08~~ ✅ →
-  **FEAT-03 / branding** → Dashboard (último; absorve UX-07(b)).
-  **Roadmap + os porquês da ordem:** [`.claude/BACKLOG.md`](.claude/BACKLOG.md).
-  **Decisões antigas:** [`.claude/HISTORICO.md`](.claude/HISTORICO.md).
+  Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side, a adiar pro
+  Dashboard. **Roadmap + ordem + porquês:** [`BACKLOG.md`](.claude/BACKLOG.md) · **decisões antigas:**
+  [`HISTORICO.md`](.claude/HISTORICO.md).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
-- **`/maquinas` (ROI):** cruza `price`/`lifeHours` com o histórico — 2 barras (payback do investimento
-  e vida útil consumida); as horas vêm do **registro de produção** (FEAT-04c). Matemática pura em
-  `lib/machineRoi.ts` (recebe `sales` **e** `production`). A **depreciação recuperada** usa o custo
-  **REAL** (`realCostBreakdown`, Tier 4), repartido entre máquinas na proporção da precificada; venda
-  anterior ao FEAT-06 cai no fallback precificado. (Payback/lucro seguem por horas, não mudaram.)
+- **`/maquinas` (ROI):** 2 barras — payback (dinheiro, das **vendas**) e vida útil (horas, da
+  **produção**). Duas fontes de propósito; o porquê de cada atribuição está comentado em
+  `lib/machineRoi.ts`. ⚠ O payback usa lucro **bruto** de vendas (sem fixo nem perda) — ver UX-09.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **Decisões encerradas:** variáveis de Preview do Firebase não cadastradas (só Production, Diretriz 1);
@@ -130,8 +120,9 @@ src/
                             #     /producao E pela encomenda do passo 8),
                             #     saleReconciliation (passo 8: planReciboReconciliation despacha item
                             #     acabado→consumeFifo vs encomenda→dispara producao; +reverse),
-                            #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento,
-                            #     testado em paymentFees.test.ts via vitest)
+                            #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento:
+                            #     matriz bandeira × parcela via resolveFeeRate + gross-up do
+                            #     repasse e desconto FEAT-09; testado em paymentFees.test.ts)
     constants.ts, types.ts
   lib/
     firebase/               # client.ts (init + db), frozenCost.ts (FEAT-06: serialização do

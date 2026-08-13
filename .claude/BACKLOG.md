@@ -13,7 +13,8 @@
 
 > **Reordenado em 2026-07-20** pelo dono; **FEAT-03 movido para penúltimo em 2026-07-31**;
 > **UX-06 + UX-07(a) escolhidos como próxima em 2026-08-10** (dono), à frente do FEAT-03
-> (ver "Porquês da ordem" abaixo).
+> (ver "Porquês da ordem" abaixo). **Cluster da auditoria acrescentado em 2026-08-13** —
+> entrou no fim da lista **sem ordem interna definida** (a priorização é do dono).
 
 1. ~~**UX / organização**~~ ✅ **FECHADA** — UX-01 · FEAT-07 · UX-02 · FEAT-08.
 2. ~~**7e — Insumos/acessórios no estoque**~~ ✅ **FECHADO (2026-07-20)**.
@@ -29,8 +30,14 @@
    **Bloqueado por dado externo: a marca ainda não existe.** Fazer o PDF antes da logo obriga a refazer o
    cabeçalho depois. Destrava quando o dono avisar que a identidade visual está pronta.
    (~~**FEAT-09** desconto na venda~~ ✅ **FECHADO 2026-08-10**.)
-8. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
-   ⚠ **Com o 7 adiado, o backlog codificável ficou vazio** — o gargalo passou a ser **uso real**, não código.
+8. **Achados da auditoria (2026-08-13)** — **TD-010** · **TD-011** · **TD-012** · **UX-09** · **UX-10**,
+   mais duas decisões do dono (**DEC-02** `lifeHours`, **DEC-03** markup sobre labor). Cinco itens de
+   código pequenos e bem delimitados (~1-2 sessões no total). **Ordem interna a definir pelo dono.**
+   Recomendação da auditoria: **UX-09 primeiro** (rótulo barato que evita decisão errada de compra de
+   máquina) e **TD-010** em seguida (é dívida que o Dashboard herdaria).
+9. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
+   ⚠ Segue sendo o **último** item, e o gargalo do projeto continua sendo **uso real**, não código —
+   mas o backlog codificável **não está mais vazio** (ver 8).
 
 ### Porquês da ordem (decisões de 2026-07-20)
 
@@ -139,6 +146,17 @@
   `touchedOrigem` preserva escolha manual). **Onde:** `StockPage.tsx` + `SaleModal.tsx` + `CatalogPage.tsx` +
   `ProductCatalog.tsx` + `catalogo/page.tsx` + `stock.css`.
 
+- **[UX-09] Rótulo do payback em `/maquinas`** *(auditoria 2026-08-13)* — o payback soma `sale.profit`,
+  que é receita − COGS real − taxa: **não desconta aluguel nem impressão perdida**. Os eventos
+  `outcome: "falha"` consomem filamento e não abatem nada em lugar nenhum ⇒ **o payback aparece mais
+  rápido do que é**. Uma frase no card ("lucro bruto de vendas — antes de custo fixo e perdas de
+  produção") é o guarda-rail até o [Dashboard] resolver de verdade. **Onde:** `MachinesPage.tsx`.
+- **[UX-10] Margem líquida no catálogo** *(auditoria 2026-08-13)* — `PricingResult.margin` é **bruta,
+  pré-taxa**: mostra 66,7% onde o crédito 3× Amex/Elo rende 59,5% (7 pontos). O `SaleModal` recalcula
+  certo, mas a **decisão de preço acontece no catálogo**, onde só o número otimista aparece. Segunda
+  linha no card ("margem no pior meio de pagamento"), sem mexer em cálculo.
+  **Onde:** `ProductCatalog.tsx` / `ProfitSummary.tsx`.
+
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em
   **R$ ou %**, congelado no snapshot (`discountKind`/`discountInput`/`discountAmount`). Taxa incide sobre o
@@ -169,10 +187,32 @@
     perdidos por período e a **taxa de falha OBSERVADA** (falhas ÷ total de impressões) — o número que
     embasa calibrar a taxa arbitrária da precificação. ⚠ **Só relatório** — NÃO realimentar a
     `failureRate` do preço automaticamente (dial manual desacoplado de propósito; ver memória).
+  - **Fecha o UX-09 de vez:** o rótulo do payback é paliativo. O lucro **de verdade** (menos fixo, menos
+    perda de produção) só existe quando este painel consolidar as duas coisas — e é ele quem deve virar a
+    fonte do payback em `/maquinas`, hoje calculado sobre lucro bruto de vendas.
   - **UX-07(b) — produção do acabado (movido pra cá, dono 2026-08-10):** ligar cada acabado aos
     eventos de `producao` que o geraram (as camadas da SKU têm `sourceEventId`). Puxa buscar `producao`
     por `productId` sob demanda (pós-TD-006 a coleção não é mais assinada inteira) = a mesma agregação
     server-side do painel. Sai da aba Produtos do estoque e entra aqui.
+- **[TD-010] Capacidade: os dois restos do UX-02** *(auditoria 2026-08-13)* — `calculateCapacity` fixa
+  `horizon = hoursDay × 30`, enquanto o rateio do fixo usa `daysMonth` (padrão **26**): o mês tem 26 dias
+  de um lado e 30 do outro, e o fixo/h sai ~13% maior (R$ 1,586 contra R$ 1,375 no padrão). E a
+  **calculadora** ainda semeia o painel com `DEFAULT_CAPACITY` (`PricingCalculator.tsx:67`) em vez do rate
+  salvo — o `/catalogo` já deriva (`CatalogPage.tsx:75`), então com `machines: 2` as duas páginas mostram
+  capacidade diferente pro mesmo produto. É a mesma "duas fontes de verdade" que motivou o UX-02, nas duas
+  dimensões que sobraram. **Onde:** `calculateCapacity.ts` + `PricingCalculator.tsx`.
+- **[TD-011] Capacidade ignora a própria taxa de falha** *(auditoria 2026-08-13)* — `piecesMonth` conta
+  **ciclos de impressão**, não peças vendáveis; `grossMonth`/`netMonth` multiplicam pelo bruto. A 3% de
+  falha, 200 peças/mês viram ~194 e R$ 7.161 viram R$ 6.947. Ironia: a falha **infla o preço** pelo lado do
+  custo e **não deflaciona o volume** pelo lado da receita. Correção é uma linha (`× (1 − failureFraction)`).
+  **Onde:** `calculateCapacity.ts`.
+- **[TD-012] Teste do `chargedWithFee` + comentário da tarifa** *(auditoria 2026-08-13)* — `chargedWithFee`
+  (`saleContext.ts`) é a **única função de dinheiro-que-o-cliente-paga sem teste**: a composição
+  `grossUp → roundPrice → round2`. Conferida à mão na auditoria (correta, inclusive a propriedade "arredonda
+  sempre pra cima, nunca come margem"), mas sem rede. De carona: corrigir o **comentário** da `energyTariff`
+  em `constants.ts` — ele cita "média nacional ~R$ 0,68" e a ANEEL projeta **R$ 0,849/kWh** ao fim de 2026.
+  O número R$ 0,80 **fica** (energia é 1,9% do custo; ir a R$ 0,95 muda o preço em R$ 0,13); só a
+  justificativa está desatualizada.
 - ~~**[TD-003] Capacidade não é por-máquina**~~ ✅ **FEITO (2026-08-04)** — modelo do **gargalo**: máquinas
   distintas rodam em paralelo, quem limita é a mais ocupada (`max` das horas por máquina, não a soma).
   Mantém os dois botões (máquinas dedicadas + horas/dia) — é estimativa branda por decisão do dono.
@@ -193,6 +233,26 @@
 - ~~**[DEC-01] Semântica do `contributionMargin`**~~ ✅ **FEITO: opção A (renomear)** (dono, 2026-07-31) —
   `contributionMargin` → `profitPerPiece`; cálculo e ponto de equilíbrio idênticos. Opção B (corrigir o
   break-even) descartada.
+
+### Decisões em aberto (DEC-*) — martelo do dono, não tarefa de código
+> Molde do `DEC-01` e do "labor na reserva de falha" (Tier 4): o trabalho aqui é **decidir**, não
+> implementar. Resolver = registrar a escolha (e, se mudar número, um commit de uma linha em `constants.ts`).
+> Ambas vieram da auditoria de 2026-08-13 e **nenhuma é bug** — a matemática do app está correta.
+
+- **[DEC-02] `lifeHours` = 10.000 h** — **o único parâmetro que move o preço em dois dígitos**: baixar pra
+  5.000 h leva o cenário base de R$ 35,81 → **R$ 40,72 (+13,7%)**. As calculadoras de referência assumem
+  **5.000 h** (faixa 3.000–10.000); o app está no **teto**. O argumento do código está **certo** — bico,
+  placa e filtro saíram pro `maintenancePerHour`, então a vida *estrutural* deve mesmo ser maior que a da
+  referência —, só que 10.000 h é o extremo dele, não o centro. Custo/hora da A1 hoje: R$ 0,53 de
+  depreciação + R$ 0,12 de manutenção = **R$ 0,65/h**, contra R$ 1,06/h da referência (−39%).
+  **Sugestão da auditoria: 7.000–8.000 h** (mantém o raciocínio, sai do teto). **Onde:** `constants.ts`.
+- **[DEC-03] Markup incide sobre a mão de obra** — app: `(material+energia+deprec+manut+labor+falha) × markup`.
+  Fórmula de referência mais comum: `(… sem labor) × markup + labor`. No cenário base isso é
+  **R$ 35,81 contra ~R$ 25,34 (+41%)**, porque labor é **41,9% do custo** (acima do material, 36,9%) e o
+  markup a amplifica. **Nenhuma das duas é errada:** a do app trata mão de obra como custo que merece margem
+  (produto de prateleira); a de referência trata como repasse (serviço sob encomenda). Fica registrado porque
+  **é o botão certo se o preço soar caro contra concorrente** — não o preço do filamento. Irmão do "labor na
+  reserva de falha" (Tier 4, decidido **manter**).
 
 ### 7e — Insumos no estoque
 - ~~**[7e] Insumos no estoque**~~ ✅ **FEITO (2026-07-20)** — coleção `insumos` com FIFO por lote, 3ª
