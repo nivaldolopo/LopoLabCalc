@@ -30,11 +30,11 @@
    **Bloqueado por dado externo: a marca ainda não existe.** Fazer o PDF antes da logo obriga a refazer o
    cabeçalho depois. Destrava quando o dono avisar que a identidade visual está pronta.
    (~~**FEAT-09** desconto na venda~~ ✅ **FECHADO 2026-08-10**.)
-8. **Achados da auditoria (2026-08-13)** — **TD-010** · **TD-011** · **TD-012** · **UX-09** · **UX-10**,
-   mais duas decisões do dono (**DEC-02** `lifeHours`, **DEC-03** markup sobre labor). Cinco itens de
-   código pequenos e bem delimitados (~1-2 sessões no total). **Ordem interna a definir pelo dono.**
-   Recomendação da auditoria: **UX-09 primeiro** (rótulo barato que evita decisão errada de compra de
-   máquina) e **TD-010** em seguida (é dívida que o Dashboard herdaria).
+8. **Achados da auditoria (2026-08-13)** — **TD-010** · **TD-011** · **TD-012** · **UX-09** · **UX-10**.
+   Cinco itens de código pequenos e bem delimitados (~1-2 sessões no total). **Ordem interna a definir
+   pelo dono.** Recomendação da auditoria: **UX-09 primeiro** (rótulo barato que evita decisão errada de
+   compra de máquina) e **TD-010** em seguida (é dívida que o Dashboard herdaria).
+   (~~**DEC-02** `lifeHours`~~ · ~~**DEC-03** markup sobre labor~~ ✅ **DECIDIDAS 2026-08-13** — ver abaixo.)
 9. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
    ⚠ Segue sendo o **último** item, e o gargalo do projeto continua sendo **uso real**, não código —
    mas o backlog codificável **não está mais vazio** (ver 8).
@@ -236,23 +236,16 @@
 
 ### Decisões em aberto (DEC-*) — martelo do dono, não tarefa de código
 > Molde do `DEC-01` e do "labor na reserva de falha" (Tier 4): o trabalho aqui é **decidir**, não
-> implementar. Resolver = registrar a escolha (e, se mudar número, um commit de uma linha em `constants.ts`).
-> Ambas vieram da auditoria de 2026-08-13 e **nenhuma é bug** — a matemática do app está correta.
+> implementar. **Nenhuma em aberto hoje.**
 
-- **[DEC-02] `lifeHours` = 10.000 h** — **o único parâmetro que move o preço em dois dígitos**: baixar pra
-  5.000 h leva o cenário base de R$ 35,81 → **R$ 40,72 (+13,7%)**. As calculadoras de referência assumem
-  **5.000 h** (faixa 3.000–10.000); o app está no **teto**. O argumento do código está **certo** — bico,
-  placa e filtro saíram pro `maintenancePerHour`, então a vida *estrutural* deve mesmo ser maior que a da
-  referência —, só que 10.000 h é o extremo dele, não o centro. Custo/hora da A1 hoje: R$ 0,53 de
-  depreciação + R$ 0,12 de manutenção = **R$ 0,65/h**, contra R$ 1,06/h da referência (−39%).
-  **Sugestão da auditoria: 7.000–8.000 h** (mantém o raciocínio, sai do teto). **Onde:** `constants.ts`.
-- **[DEC-03] Markup incide sobre a mão de obra** — app: `(material+energia+deprec+manut+labor+falha) × markup`.
-  Fórmula de referência mais comum: `(… sem labor) × markup + labor`. No cenário base isso é
-  **R$ 35,81 contra ~R$ 25,34 (+41%)**, porque labor é **41,9% do custo** (acima do material, 36,9%) e o
-  markup a amplifica. **Nenhuma das duas é errada:** a do app trata mão de obra como custo que merece margem
-  (produto de prateleira); a de referência trata como repasse (serviço sob encomenda). Fica registrado porque
-  **é o botão certo se o preço soar caro contra concorrente** — não o preço do filamento. Irmão do "labor na
-  reserva de falha" (Tier 4, decidido **manter**).
+- ~~**[DEC-02] `lifeHours` = 10.000 h**~~ ✅ **DECIDIDO: 7.500 h** (dono, 2026-08-13) — meio da faixa;
+  A1 passa de R$ 0,65/h a R$ 0,83/h e o cenário base sobe R$ 35,81 → R$ 37,45 (+4,6%) isoladamente.
+  ⚠ O constante só **semeia** — as 2 máquinas salvas precisam ser editadas à mão em `/maquinas`.
+  Detalhe em `HISTORICO.md`.
+- ~~**[DEC-03] Markup incide sobre a mão de obra**~~ ✅ **DECIDIDO: NÃO incide mais** (dono, 2026-08-13) —
+  adotada a fórmula de referência `(custo sem labor) × markup + labor + fixo`. A reserva de falha **continua
+  cobrindo o labor** (preserva a decisão irmã do Tier 4), então o repasse é `labor × (1 + failureK)`.
+  Cenário base: R$ 35,81 → **R$ 27,14** com as duas decisões juntas. Detalhe em `HISTORICO.md`.
 
 ### 7e — Insumos no estoque
 - ~~**[7e] Insumos no estoque**~~ ✅ **FEITO (2026-07-20)** — coleção `insumos` com FIFO por lote, 3ª

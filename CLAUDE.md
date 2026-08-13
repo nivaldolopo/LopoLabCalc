@@ -14,12 +14,16 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ Auditoria técnica completa** (2026-08-13, só documentação) — revisão sênior do
-  motor de cálculo, dos valores padrão e da comparação com as calculadoras de precificação 3D da web.
-  **Nenhum erro aritmético** nos 17 módulos de `lib/` (302 testes, lint e build limpos); a reserva de
-  falha `÷(1−f)`, o repasse `÷(1−f)`, o fixo sem markup (DEC-01) e o gargalo (TD-003) estão todos certos.
-  Resultado: **7 itens novos no [`BACKLOG.md`](.claude/BACKLOG.md)** — 5 de código (TD-010/011/012,
-  UX-09/10) + 2 decisões do dono (DEC-02 `lifeHours`, DEC-03 markup sobre labor). Zero mudança de código.
+- **Última mudança:** **✅ DEC-02 + DEC-03 decididas e aplicadas** (2026-08-13) — as duas escolhas de
+  negócio que a auditoria levantou. **DEC-02:** `lifeHours` 10.000 h → **7.500 h** (meio da faixa; A1 a
+  R$ 0,83/h). **DEC-03:** o markup **não incide mais sobre a mão de obra** — fórmula de referência
+  `(custo sem labor) × markup + labor + fixo`; a reserva de falha **continua** cobrindo o labor
+  (repasse = `labor × (1+failureK)`), preservando a decisão irmã do Tier 4. Cenário base
+  **R$ 35,81 → R$ 27,14 (−24%)**, margem 66,7% → 54,0%. 304 testes, lint e build limpos.
+  ⚠ **PENDÊNCIA DO DONO (DEC-02):** o `lifeHours` do `constants.ts` só **semeia** o doc `config/machines`
+  — as 2 máquinas já salvas seguem com **10.000 h** até serem editadas à mão em `/maquinas`. O DEC-03 já
+  vale sozinho; o DEC-02 só entra depois dessa edição. **O preço de todo o catálogo caiu** (o custo não
+  mudou; só a montagem do preço). Porquês em [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.

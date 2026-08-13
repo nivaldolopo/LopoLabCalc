@@ -46,9 +46,15 @@ export function defaultMaintenanceForId(id: string): number {
 //   econômica; consumíveis (bico, placa PEI, filtro) entram à parte em
 //   maintenancePerHour, então NÃO limitam este número. FDM de consumo dura
 //   ~5.000–10.000h antes de revisão maior (profissional >15.000h); peças estruturais
-//   das Bambu vão além (motores >10.000h). A referência que faz este MESMO cálculo
-//   adota 10.000h. Os 5.000h antigos eram conservadores demais (dobravam a conta) →
-//   corrigido p/ 10.000h.
+//   das Bambu vão além (motores >10.000h).
+//   DEC-02 (dono, 2026-08-13): 7.500h, o MEIO da faixa. O raciocínio acima segue
+//   valendo — com os consumíveis cobrados à parte, a vida estrutural deve mesmo ser
+//   maior que as 5.000h das calculadoras de referência —, mas as 10.000h anteriores
+//   eram o EXTREMO dele, não o centro: deixavam a A1 a R$0,65/h (depreciação +
+//   manutenção) contra R$1,06/h da referência, −39%. A 7.500h dá R$0,83/h, e o
+//   cenário base (40g/3h/A1) sobe R$35,81 → R$37,45 (+4,6%) isoladamente.
+//   ⚠ Este valor só SEMEIA o doc `config/machines`. As máquinas já cadastradas
+//   guardam o próprio lifeHours — mudar aqui não mexe nelas (editar em /máquinas).
 //
 // • watts (energia: horas × watts/1000 × tarifa) — MÉDIA durante a impressão de PLA,
 //   NÃO o pico de aquecimento (rótulo do X2D diz 1600W, mas isso é rajada de 3-5 min
@@ -58,8 +64,8 @@ export function defaultMaintenanceForId(id: string): number {
 //   subprecificam). Energia é componente pequeno do custo, então o impacto é de
 //   centavos. Câmara aquecida (ABS/PC) puxaria muito mais — não é o caso (quase só PLA).
 export const DEFAULT_MACHINES: Machine[] = [
-  { id: "a1", name: "A1 Combo", price: 5299, lifeHours: 10000, watts: 95, maintenancePerHour: 0.12 },
-  { id: "x2d", name: "X2D Combo", price: 13999, lifeHours: 10000, watts: 150, maintenancePerHour: 0.2 },
+  { id: "a1", name: "A1 Combo", price: 5299, lifeHours: 7500, watts: 95, maintenancePerHour: 0.12 },
+  { id: "x2d", name: "X2D Combo", price: 13999, lifeHours: 7500, watts: 150, maintenancePerHour: 0.2 },
 ];
 
 export const DEFAULT_FIXED_COSTS: FixedCostSettings = {

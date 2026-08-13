@@ -54,7 +54,7 @@ describe("calculatePricing — componentes de custo", () => {
     const r = calculatePricing(makeProduct(), DEFAULT_MACHINES, NO_FIXED);
     expect(r.materialCost).toBeCloseTo(4.4, 6); // (40/1000)*110
     expect(r.energyCost).toBeCloseTo(0.228, 6); // 3*(95/1000)*0.8
-    expect(r.depreciationCost).toBeCloseTo(1.5897, 4); // (5299/10000)*3
+    expect(r.depreciationCost).toBeCloseTo(2.1196, 4); // (5299/7500)*3 — DEC-02
     expect(r.maintenanceCost).toBeCloseTo(0.36, 6); // 3*0.12
     expect(r.laborCost).toBeCloseTo(5, 6); // (10/60)*30
     expect(r.machine.id).toBe("a1");
@@ -76,16 +76,58 @@ describe("calculatePricing — componentes de custo", () => {
     expect(comFalha.variableCost).toBeGreaterThan(semFalha.variableCost);
   });
 
-  it("preço = custo variável × markup quando não há custo fixo", () => {
+  // DEC-03: preço = (custo variável − mão de obra) × markup + mão de obra.
+  it("preço = (custo variável − labor) × markup + labor quando não há fixo", () => {
     const r = calculatePricing(
       makeProduct({ markup: 3, failureRate: 0, roundingMode: "exact" }),
       DEFAULT_MACHINES,
       NO_FIXED,
     );
     expect(r.fixedCost).toBe(0);
-    expect(r.suggestedPrice).toBeCloseTo(r.variableCost * 3, 6);
-    // markup 3x, sem fixo -> margem = (3-1)/3 = 66,67%
-    expect(r.margin).toBeCloseTo(66.6667, 3);
+    expect(r.suggestedPrice).toBeCloseTo(
+      (r.variableCost - r.laborCost) * 3 + r.laborCost,
+      6,
+    );
+    // A margem NÃO é mais (markup−1)/markup: a mão de obra entra a preço de
+    // custo e dilui. Sem falha: var 12,1076 e preço 26,3228 → 54,00%.
+    expect(r.margin).toBeCloseTo(54.0034, 3);
+  });
+
+  it("DEC-03: a mão de obra entra a preço de custo (markup não a multiplica)", () => {
+    const base = { markup: 3, failureRate: 0, roundingMode: "exact" as const };
+    const barato = calculatePricing(
+      makeProduct({ ...base, laborMinutes: 10, laborRate: 30 }), // R$ 5,00
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    const caro = calculatePricing(
+      makeProduct({ ...base, laborMinutes: 20, laborRate: 30 }), // R$ 10,00
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    // +R$ 5 de mão de obra ⇒ +R$ 5 no preço (não +R$ 15 como na fórmula antiga).
+    expect(caro.suggestedPrice - barato.suggestedPrice).toBeCloseTo(5, 6);
+    // ...mas o custo sobe igual, então a margem cai.
+    expect(caro.margin).toBeLessThan(barato.margin);
+  });
+
+  it("DEC-03: a mão de obra continua coberta pela reserva de falha", () => {
+    // A 20% de falha, o repasse é labor / (1 − 0,2) = labor × 1,25. Então
+    // +R$ 5,00 de mão de obra tem de virar +R$ 6,25 no preço — nem +R$ 5,00
+    // (labor fora da reserva) nem +R$ 15,00 (fórmula antiga, com markup).
+    const base = { markup: 3, failureRate: 20, roundingMode: "exact" as const };
+    const barato = calculatePricing(
+      makeProduct({ ...base, laborMinutes: 10, laborRate: 30 }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    const caro = calculatePricing(
+      makeProduct({ ...base, laborMinutes: 20, laborRate: 30 }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    expect(caro.laborCost - barato.laborCost).toBeCloseTo(5, 6);
+    expect(caro.suggestedPrice - barato.suggestedPrice).toBeCloseTo(6.25, 6);
   });
 
   it("acessórios entram no custo mas ficam fora da reserva de falha", () => {
@@ -277,7 +319,10 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
       NO_FIXED,
     );
     expect(r.subitems).toBeUndefined();
-    expect(r.suggestedPrice).toBeCloseTo(r.variableCost * 3, 6);
+    expect(r.suggestedPrice).toBeCloseTo(
+      (r.variableCost - r.laborCost) * 3 + r.laborCost,
+      6,
+    );
   });
 
   it("Σ preço dos subitens = preço do inteiro; Σ custo = custo total", () => {
@@ -358,8 +403,12 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
     const b = r.subitems!.find((s) => s.id === "B")!;
     expect(a.markup).toBe(3);
     expect(b.markup).toBe(5);
-    // Sem fixo, o preço exato do subitem = custo × markup.
-    expect(b.exactPrice).toBeCloseTo(b.cost * 5, 6);
+    // Sem fixo, o preço exato do subitem = (custo − labor) × markup + labor
+    // (DEC-03; sem falha, o repasse é o próprio labor).
+    expect(b.exactPrice).toBeCloseTo(
+      (b.cost - b.costBreakdown.labor) * 5 + b.costBreakdown.labor,
+      6,
+    );
   });
 
   it("acessório atribuído vai 100% no subitem; não atribuído é rateado", () => {

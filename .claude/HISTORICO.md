@@ -9,6 +9,60 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ DEC-02 + DEC-03 — As duas decisões da auditoria (2026-08-13)
+
+Vieram da auditoria técnica de 2026-08-13. **Nenhuma era bug** — a matemática do app estava correta;
+eram escolhas de negócio parametrizadas em código. O dono martelou as duas no mesmo dia.
+
+### DEC-02 — `lifeHours` 10.000 h → **7.500 h**
+
+O único parâmetro que movia o preço em dois dígitos. O argumento original do código estava **certo**
+(bico, placa PEI e filtro saíram para o `maintenancePerHour`, então a vida *estrutural* deve mesmo ser
+maior que as 5.000 h das calculadoras de referência) — só que 10.000 h era o **extremo** dele, não o
+centro. Deixava a A1 a R$ 0,65/h de depreciação + manutenção contra R$ 1,06/h da referência (−39%).
+
+| `lifeHours` | Custo/h da A1 | Preço do cenário base (40 g / 3 h / A1) |
+|---|---|---|
+| 10.000 (antes) | R$ 0,65/h | R$ 35,81 |
+| **7.500 (escolhido)** | **R$ 0,83/h** | **R$ 37,45** (+4,6%) |
+| 5.000 (referência) | R$ 1,18/h | R$ 40,72 (+13,7%) |
+
+**Onde:** `constants.ts` (`DEFAULT_MACHINES` + o comentário auditado) e `MachineManagerModal.tsx`
+(padrão de máquina nova). ⚠ **Esses valores só SEMEIAM o doc `config/machines`** — as máquinas já
+cadastradas guardam o próprio `lifeHours`, então a mudança **não** as alcança: o dono edita as duas à
+mão em `/maquinas` (2 campos). Não foi escrita migração — Diretriz 7, e a alternativa (código que
+sobrescreve máquina salva) apagaria edição legítima do dono.
+
+### DEC-03 — markup **deixa de incidir** sobre a mão de obra
+
+Mudança de fórmula, escolhida pelo dono contra a recomendação de manter:
+
+- **Antes:** `(material + energia + depreciação + manutenção + labor + falha) × markup + fixo`
+- **Agora:** `(mesma base, SEM labor) × markup + labor + fixo`
+
+**Por quê:** labor é **~42% do custo** do cenário base (mais que o material, 37%) e o markup o
+amplificava — a fórmula antiga tratava hora de trabalho como produto de prateleira. A de referência
+trata como repasse (serviço sob encomenda). Nenhuma das duas é errada; o dono escolheu a segunda.
+Efeito isolado no cenário base: **R$ 35,81 → R$ 25,50 (−29%)**. Combinado com o DEC-02:
+**R$ 27,14** (−24% contra o preço de antes das duas decisões).
+
+**A reserva de falha continua cobrindo o labor.** Isto é deliberado e preserva a decisão irmã do
+Tier 4 ("labor na reserva de falha: **manter**"): uma impressão perdida também perde a hora de
+trabalho. O que sai da base do markup é `labor × (1 + failureK)`, não o labor puro — por isso o
+número dá **R$ 25,50** e não os R$ 25,34 citados na auditoria, que tirava o labor da reserva também.
+A diferença é R$ 0,16; a coerência entre as duas decisões vale mais.
+
+**Onde:** `calculatePricing.ts` nos **dois** caminhos — o produto inteiro (`failureK` +
+`laborPassThrough`) e o rateio por subitem (`computeSubitems`, que passou a receber `failureK`).
+A aditividade **Σ subitens = inteiro** continua valendo: Σ labor dos subitens = labor total e o
+coeficiente da reserva é o mesmo, então o repasse soma exato. O label do slider virou
+"📈 Markup sobre o custo (sem mão de obra)" (`ProductForm.tsx`).
+
+**O que NÃO mudou:** `totalCost`, `variableCost`, `profitPerPiece` e a fórmula da `margin` são os
+mesmos — custo é custo, independente de como o preço é montado. A margem apenas **cai** (66,7% →
+54,0% no cenário base sem falha), porque a mão de obra agora entra a preço de custo e dilui.
+**+2 testes** (o repasse de +R$ 5 de labor vira +R$ 5 no preço, e +R$ 6,25 a 20% de falha).
+
 ## ✅ UX-06 + UX-07(a) — Cluster "linha + dropdown de detalhe" (2026-08-10)
 
 Pedido do dono (2026-08-10): unificar o padrão de "abrir detalhe" do catálogo nas outras listas. Três

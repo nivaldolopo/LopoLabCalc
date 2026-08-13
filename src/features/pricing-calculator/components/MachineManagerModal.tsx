@@ -39,7 +39,7 @@ export function MachineManagerModal({
         id: `m_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
         name: "",
         price: 0,
-        lifeHours: 10000,
+        lifeHours: 7500, // DEC-02 — mesmo padrão do DEFAULT_MACHINES
         watts: 100,
         maintenancePerHour: 0,
       },

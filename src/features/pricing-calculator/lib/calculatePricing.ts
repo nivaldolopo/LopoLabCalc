@@ -317,22 +317,36 @@ export function calculatePricing(
   // custo por peça boa = custo / (1 - taxa). Clamp em 95% para não explodir.
   const failureRatePct = num(product.failureRate ?? DEFAULT_FAILURE_RATE);
   const failureFraction = Math.min(0.95, Math.max(0, failureRatePct / 100));
-  const failureReserve =
-    failureFraction > 0
-      ? printingCost * (failureFraction / (1 - failureFraction))
-      : 0;
+  const failureK =
+    failureFraction > 0 ? failureFraction / (1 - failureFraction) : 0;
+  const failureReserve = printingCost * failureK;
 
   const variableCost = printingCost + failureReserve + accessoriesCost;
   const totalCost = variableCost + fixedCost;
   const roundingMode = product.roundingMode ?? "exact";
 
-  // DEC-01: markup NUNCA incide sobre o custo fixo — o fixo é só repassado
-  // (variableCost × markup + fixedCost). O antigo toggle "aplicar markup sobre
-  // o fixo" foi removido; se algum produto no Firestore ainda tiver o campo
-  // `markupOnFixed`, é lixo inofensivo (ignorado aqui).
+  // DEC-03 (dono, 2026-08-13): a MÃO DE OBRA é REPASSE, não base de margem —
+  // fórmula `(custo sem labor) × markup + labor`, a mais comum nas calculadoras
+  // de referência. Motivo: labor é ~42% do custo do cenário base (mais que o
+  // material) e o markup o amplificava; a fórmula antiga
+  // (`variableCost × markup`) tratava hora de trabalho como produto de
+  // prateleira. Efeito isolado no cenário base: R$35,81 → R$25,50 (−29%).
+  // A fatia da RESERVA DE FALHA que corresponde ao labor sai junto: a decisão
+  // do Tier 4 ("labor na reserva de falha: manter") continua valendo — uma
+  // impressão perdida também perde a hora de trabalho, então o labor segue
+  // coberto pela reserva (× (1 + failureK)); ele só não é multiplicado pelo
+  // markup. É por isso que o número dá R$25,50 e não os R$25,34 da auditoria,
+  // que tirava o labor da reserva também.
+  // DEC-01: markup NUNCA incide sobre o custo fixo — o fixo é só repassado. O
+  // antigo toggle "aplicar markup sobre o fixo" foi removido; se algum produto
+  // no Firestore ainda tiver o campo `markupOnFixed`, é lixo inofensivo.
   // Preço exato (bruto do cálculo) e preço final arredondado para valor de
   // mercado. Todo o resto (margem, lote, catálogo, capacidade) usa o final.
-  let exactPrice = variableCost * product.markup + fixedCost;
+  const laborPassThrough = laborCost * (1 + failureK);
+  let exactPrice =
+    (variableCost - laborPassThrough) * product.markup +
+    laborPassThrough +
+    fixedCost;
   let suggestedPrice = roundPrice(exactPrice, roundingMode);
 
   // FEAT-01: rateio ADITIVO por subitem. Só quando o produto tem subitens
@@ -350,6 +364,7 @@ export function calculatePricing(
         productMarkup: product.markup,
         roundingMode,
         failureReserve,
+        failureK,
         fixedCost,
         accessoriesCost,
       },
@@ -437,6 +452,7 @@ type SubitemInputs = {
   productMarkup: number;
   roundingMode: RoundingMode;
   failureReserve: number; // por unidade
+  failureK: number; // taxa/(1−taxa) — coeficiente da reserva (DEC-03)
   fixedCost: number; // por unidade
   accessoriesCost: number; // total (não dividido por peça — como no inteiro)
 };
@@ -446,7 +462,8 @@ type SubitemInputs = {
 // impressão próprio; passos internos, reserva de falha, custo fixo e acessórios
 // não atribuídos são rateados por esse peso; acessório atribuído vai 100% no seu
 // subitem. Markup por subitem (override) ou o do produto. O fixo NÃO leva markup
-// (DEC-01). Devolve os subitens já precificados e a soma (novo preço do inteiro).
+// (DEC-01) e a mão de obra também não (DEC-03). Devolve os subitens já
+// precificados e a soma (novo preço do inteiro).
 function computeSubitems(
   subitemConfigs: Subitem[],
   stageDetails: StageDetail[],
@@ -458,6 +475,7 @@ function computeSubitems(
     productMarkup,
     roundingMode,
     failureReserve,
+    failureK,
     fixedCost,
     accessoriesCost,
   } = inputs;
@@ -537,7 +555,12 @@ function computeSubitems(
     const varCost =
       material + energy + depreciation + maintenance + labor + failure + accessoriesShare;
     const markup = p.config.markup ?? productMarkup;
-    const exactPrice = varCost * markup + fixed; // fixo sem markup (DEC-01)
+    // DEC-03: labor (+ a fatia da reserva que lhe cabe) é repasse, fora da base
+    // do markup. Σ subitens = inteiro continua valendo: Σ labor = labor total,
+    // e o coeficiente da reserva é o mesmo do produto.
+    const laborPassThrough = labor * (1 + failureK);
+    const exactPrice =
+      (varCost - laborPassThrough) * markup + laborPassThrough + fixed; // fixo sem markup (DEC-01)
     const price = roundPrice(exactPrice, roundingMode);
     const costBreakdown: SaleCostBreakdown = {
       material,

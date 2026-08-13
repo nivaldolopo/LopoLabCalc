@@ -184,7 +184,8 @@ export function ProductForm({
 
       <div className="field-block">
         <label className="section-label markup-header">
-          <span>📈 Markup sobre o custo</span>
+          {/* DEC-03: a mão de obra é repasse — não entra na base do markup. */}
+          <span>📈 Markup sobre o custo (sem mão de obra)</span>
           <span className="markup-value">{product.markup.toFixed(1)}x</span>
         </label>
         <input
