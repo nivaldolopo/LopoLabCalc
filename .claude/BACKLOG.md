@@ -30,11 +30,9 @@
    **Bloqueado por dado externo: a marca ainda não existe.** Fazer o PDF antes da logo obriga a refazer o
    cabeçalho depois. Destrava quando o dono avisar que a identidade visual está pronta.
    (~~**FEAT-09** desconto na venda~~ ✅ **FECHADO 2026-08-10**.)
-8. **Achados da auditoria (2026-08-13)** — restam **TD-010** · **TD-011** · **TD-012** (os três de
-   capacidade/teste; ordem interna a definir pelo dono). Recomendação: **TD-010** primeiro (é dívida
-   que o Dashboard herdaria) e **TD-011** de carona — os dois são `calculateCapacity.ts`.
-   (~~**UX-09** rótulo do payback~~ · ~~**UX-10** margem líquida~~ ✅ **FEITOS 2026-08-13** ·
-   ~~**DEC-02** `lifeHours`~~ · ~~**DEC-03** markup sobre labor~~ ✅ **DECIDIDAS 2026-08-13**.)
+8. **Achados da auditoria (2026-08-13)** — resta só o **TD-012** (teste do `chargedWithFee` +
+   comentário da tarifa de energia; pequeno). (~~**UX-09**~~ · ~~**UX-10**~~ · ~~**TD-010**~~ ·
+   ~~**TD-011**~~ ✅ **FEITOS 2026-08-13** · ~~**DEC-02**~~ · ~~**DEC-03**~~ ✅ **DECIDIDAS 2026-08-13**.)
 9. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
    ⚠ Segue sendo o **último** item, e o gargalo do projeto continua sendo **uso real**, não código —
    mas o backlog codificável **não está mais vazio** (ver 8).
@@ -178,7 +176,8 @@
   - ~~**Follow-up (ROI real)**~~ ✅ **FEITO (2026-07-31, Tier 4)** — ver abaixo.
 
 ### Tier 3 — infra de cálculo/leitura (TD-*) e, por último, o Dashboard
-> Ordem interna: **TD-003 → TD-006 → Dashboard** (o Dashboard é o último item do backlog).
+> Ordem interna: **TD-003 → TD-006 → TD-010/011 → TD-012 → Dashboard** (o Dashboard é o último item
+> do backlog). Só o **TD-012** segue aberto aqui.
 
 - **[Dashboard] (`/painel`)** — receita/custo/lucro do mês, lucro líquido (menos custos fixos),
   utilização das máquinas (comprar outra?), receita por máquina, lucro por material, produto mais
@@ -195,18 +194,15 @@
     eventos de `producao` que o geraram (as camadas da SKU têm `sourceEventId`). Puxa buscar `producao`
     por `productId` sob demanda (pós-TD-006 a coleção não é mais assinada inteira) = a mesma agregação
     server-side do painel. Sai da aba Produtos do estoque e entra aqui.
-- **[TD-010] Capacidade: os dois restos do UX-02** *(auditoria 2026-08-13)* — `calculateCapacity` fixa
-  `horizon = hoursDay × 30`, enquanto o rateio do fixo usa `daysMonth` (padrão **26**): o mês tem 26 dias
-  de um lado e 30 do outro, e o fixo/h sai ~13% maior (R$ 1,586 contra R$ 1,375 no padrão). E a
-  **calculadora** ainda semeia o painel com `DEFAULT_CAPACITY` (`PricingCalculator.tsx:67`) em vez do rate
-  salvo — o `/catalogo` já deriva (`CatalogPage.tsx:75`), então com `machines: 2` as duas páginas mostram
-  capacidade diferente pro mesmo produto. É a mesma "duas fontes de verdade" que motivou o UX-02, nas duas
-  dimensões que sobraram. **Onde:** `calculateCapacity.ts` + `PricingCalculator.tsx`.
-- **[TD-011] Capacidade ignora a própria taxa de falha** *(auditoria 2026-08-13)* — `piecesMonth` conta
-  **ciclos de impressão**, não peças vendáveis; `grossMonth`/`netMonth` multiplicam pelo bruto. A 3% de
-  falha, 200 peças/mês viram ~194 e R$ 7.161 viram R$ 6.947. Ironia: a falha **infla o preço** pelo lado do
-  custo e **não deflaciona o volume** pelo lado da receita. Correção é uma linha (`× (1 − failureFraction)`).
-  **Onde:** `calculateCapacity.ts`.
+- ~~**[TD-010] Capacidade: os dois restos do UX-02**~~ ✅ **FEITO (2026-08-13)** — `CapacitySettings`
+  ganhou `daysMonth` (subconjunto exato do `FixedCostRate`) e o horizonte virou `hoursDay × daysMonth`;
+  a calculadora derivou o painel de `config/negocio` e o literal `DEFAULT_CAPACITY` foi **apagado**. Os
+  campos do painel viraram **simulação local** (decisão do dono: não persistem, com aviso + "voltar ao
+  padrão") + 3º campo "Dias de impressão/mês". Detalhe em `HISTORICO.md`.
+- ~~**[TD-011] Capacidade ignora a própria taxa de falha**~~ ✅ **FEITO (2026-08-13)** — `piecesMonth`/
+  `piecesDay` (e o breakdown por máquina) passaram por `× (1 − falha)`; `cyclesMonth` **não** mudou (a
+  impressão que falha ocupa a máquina). O clamp da taxa virou `failureFractionOf` compartilhada com o
+  `calculatePricing` — o mesmo número que infla o custo deflaciona o volume. Detalhe em `HISTORICO.md`.
 - **[TD-012] Teste do `chargedWithFee` + comentário da tarifa** *(auditoria 2026-08-13)* — `chargedWithFee`
   (`saleContext.ts`) é a **única função de dinheiro-que-o-cliente-paga sem teste**: a composição
   `grossUp → roundPrice → round2`. Conferida à mão na auditoria (correta, inclusive a propriedade "arredonda

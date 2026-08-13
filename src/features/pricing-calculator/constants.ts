@@ -1,5 +1,4 @@
 import type {
-  CapacitySettings,
   CardBrandTier,
   FixedCostSettings,
   Machine,
@@ -77,10 +76,10 @@ export const DEFAULT_FIXED_COSTS: FixedCostSettings = {
   daysMonth: 26,
 };
 
-export const DEFAULT_CAPACITY: CapacitySettings = {
-  hoursDay: 20,
-  machines: 1,
-};
+// TD-010 (2026-08-13): o antigo `DEFAULT_CAPACITY` foi REMOVIDO. Ele era o
+// literal que fazia a calculadora projetar 1 máquina enquanto o /catalogo e o
+// rateio do custo fixo usavam o rate salvo (2) — duas fontes de verdade. Hoje as
+// duas páginas derivam a capacidade de `config/negocio` (useBusinessSettings).
 
 // Valores iniciais de um produto novo. weightG/printHours/laborMinutes são só
 // placeholders (o usuário informa por produto). Os defaults abaixo foram auditados:

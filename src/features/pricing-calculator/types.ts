@@ -158,9 +158,15 @@ export type FixedCostRate = Pick<
   "rent" | "other" | "machines" | "hoursDay" | "daysMonth"
 >;
 
+// TD-010: subconjunto EXATO do `FixedCostRate` (horas/dia, máquinas, dias/mês) —
+// é esse o ponto. O horizonte que projeta a capacidade e o que rateia o custo
+// fixo têm de ser o mesmo mês; antes a capacidade fixava 30 dias enquanto o
+// rateio usava `daysMonth` (26), e o fixo/h saía ~13% maior que a capacidade
+// que o justificava.
 export type CapacitySettings = {
   hoursDay: number;
   machines: number;
+  daysMonth: number;
 };
 
 export type StageCost = {
@@ -281,6 +287,10 @@ export type CapacityResult = {
   // Se o custo fixo entrou no totalCost (toggle ligado). Define se o "líquido"
   // é lucro de verdade ("Lucro") ou apenas contribuição ("Contribuição").
   fixedIncluded: boolean;
+  // TD-011 — taxa de falha (%) JÁ DESCONTADA de `piecesMonth`/`piecesDay` (e do
+  // faturamento derivado). Viaja no resultado para a UI poder dizer que "peças"
+  // são peças BOAS, não ciclos rodados. 0 = produto sem falha configurada.
+  failureRatePct: number;
   // TD-003 — repartição por máquina. Uma entrada por impressora distinta que o
   // produto usa, ordenada da mais ocupada (o gargalo) para a menos. `piecesMonth`
   // é a capacidade mensal SE aquela máquina fosse o único limite; a do gargalo

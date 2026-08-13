@@ -86,6 +86,15 @@ export function normalizeStages(product: ProductInput): PrintStage[] {
   return [];
 }
 
+// Taxa de falha do produto em FRAÇÃO (0-0,95), com o default de quem não tem
+// valor próprio. Teto de 95% para a reserva (custo/(1−taxa)) não explodir.
+// Compartilhada com `calculateCapacity` (TD-011): o mesmo número que infla o
+// custo tem de deflacionar o volume — não são dois clamps parecidos, é um só.
+export function failureFractionOf(failureRatePct: number | undefined | null): number {
+  const pct = num(failureRatePct ?? DEFAULT_FAILURE_RATE);
+  return Math.min(0.95, Math.max(0, pct / 100));
+}
+
 export function calculateFixedCostPerHour(settings: FixedCostSettings): number {
   const totalFixed = num(settings.rent) + num(settings.other);
   const machinesCount = Math.max(1, num(settings.machines) || 1);
@@ -315,8 +324,7 @@ export function calculatePricing(
     materialCost + energyCost + depreciationCost + maintenanceCost + laborCost;
   // Reserva de falha: infla o custo para que as peças boas cubram as perdidas.
   // custo por peça boa = custo / (1 - taxa). Clamp em 95% para não explodir.
-  const failureRatePct = num(product.failureRate ?? DEFAULT_FAILURE_RATE);
-  const failureFraction = Math.min(0.95, Math.max(0, failureRatePct / 100));
+  const failureFraction = failureFractionOf(product.failureRate);
   const failureK =
     failureFraction > 0 ? failureFraction / (1 - failureFraction) : 0;
   const failureReserve = printingCost * failureK;

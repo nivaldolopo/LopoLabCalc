@@ -7,7 +7,12 @@ import { NumberInput } from "./NumberInput";
 type CapacityPanelProps = {
   settings: CapacitySettings;
   result: CapacityResult | null;
+  // TD-010: o painel abre com o padrão do negócio (config/negocio, o mesmo que
+  // rateia o custo fixo). Mexer nos campos vira SIMULAÇÃO local — não persiste e
+  // não muda preço nenhum —, e é isso que `isCustom`/`onReset` sinalizam.
+  isCustom: boolean;
   onChange: (patch: Partial<CapacitySettings>) => void;
+  onReset: () => void;
 };
 
 // Diário pode ser fracionário (job que dura mais de um dia). Mostra até 1 casa
@@ -19,11 +24,14 @@ function formatCount(value: number): string {
 export function CapacityPanel({
   settings,
   result,
+  isCustom,
   onChange,
+  onReset,
 }: CapacityPanelProps) {
   // Mesmo critério do card "Rentabilidade": só é "Lucro" quando o custo fixo
   // entra no totalCost; sem o fixo, o líquido é apenas "Contribuição".
   const term = result?.fixedIncluded ? "Lucro" : "Contribuição";
+  const failurePct = result?.failureRatePct ?? 0;
 
   return (
     <div className="capacity-box">
@@ -41,6 +49,15 @@ export function CapacityPanel({
           />
         </div>
         <div className="ci-item">
+          <label>Dias de impressão/mês</label>
+          <NumberInput
+            max={31}
+            min={1}
+            value={settings.daysMonth}
+            onChange={(daysMonth) => onChange({ daysMonth })}
+          />
+        </div>
+        <div className="ci-item">
           <label>Máquinas dedicadas</label>
           <NumberInput
             min={1}
@@ -49,6 +66,16 @@ export function CapacityPanel({
           />
         </div>
       </div>
+      {isCustom ? (
+        <div className="capacity-sim">
+          <span>
+            Simulando — os valores salvos do negócio (custos fixos) não mudaram.
+          </span>
+          <button type="button" className="capacity-sim-reset" onClick={onReset}>
+            voltar ao padrão
+          </button>
+        </div>
+      ) : null}
       <div className="capacity-grid">
         <div>
           <div className="capacity-col-title">☀️ Diário</div>
@@ -68,7 +95,9 @@ export function CapacityPanel({
           </div>
         </div>
         <div>
-          <div className="capacity-col-title">📅 Mensal (30d)</div>
+          <div className="capacity-col-title">
+            📅 Mensal ({settings.daysMonth}d)
+          </div>
           <div className="capacity-val">
             {result ? `${result.piecesMonth} peças` : "—"}
           </div>
@@ -83,6 +112,13 @@ export function CapacityPanel({
           </div>
         </div>
       </div>
+      {result && failurePct > 0 ? (
+        <div className="capacity-note">
+          Peças = peças <strong>boas</strong>, já descontados{" "}
+          {formatCount(failurePct)}% de falha. As impressões contam os ciclos
+          rodados (a que falha ocupa a máquina do mesmo jeito).
+        </div>
+      ) : null}
       {result && result.machineBreakdown.length > 1 ? (
         <div className="capacity-bottleneck">
           {result.machineBreakdown.map((m) =>

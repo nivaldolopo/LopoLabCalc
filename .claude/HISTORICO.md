@@ -9,6 +9,55 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ TD-010 + TD-011 — A capacidade produtiva (2026-08-13)
+
+Os dois moram em `calculateCapacity.ts` e **não mudam preço nenhum** — só a projeção de volume e o
+faturamento/lucro derivados dela.
+
+### TD-010 — o mês tinha 26 dias de um lado e 30 do outro
+
+`CapacitySettings` ganhou `daysMonth` e virou **subconjunto exato do `FixedCostRate`** — é esse o
+ponto: o horizonte que projeta a capacidade e o que rateia o custo fixo passaram a ser o mesmo mês.
+Antes o `horizon` era `hoursDay × 30` fixo enquanto o rateio usava `daysMonth` (26), e o fixo/h saía
+~13% maior que a capacidade que o justificava.
+
+A **média diária não muda** com isso (numerador e denominador escalam juntos: 200/30 ≈ 173/26); só a
+mensal cai. Há um teste travando exatamente essa propriedade.
+
+A segunda metade era a divergência entre páginas: a calculadora semeava o painel com o literal
+`DEFAULT_CAPACITY` (1 máquina) enquanto o `/catalogo` já derivava do rate salvo (2). O literal foi
+**apagado** do `constants.ts` — as duas páginas derivam de `config/negocio`.
+
+**Decisão do dono (o painel da calculadora):** semear do rate salvo **e permitir simular**. Os campos
+seguem editáveis, mas a edição vira um **override local** (`capacityOverride`, não persiste, não toca
+no preço) com aviso "simulando — voltar ao padrão". Descartadas: travar o painel (perderia o "e se eu
+dedicasse 3 máquinas?") e write-through pro Firestore (mexer em "máquinas dedicadas" pra simular
+mudaria o rateio do fixo e, portanto, o preço de **todo o catálogo** em silêncio). O override existe
+em vez de um `useState(semente)` porque o `fixedCostRate` chega **assíncrono** do Firestore — semear
+no estado inicial congelaria o default.
+
+Ganhou também o 3º campo "Dias de impressão/mês" (sem ele o número mensal fica inexplicável) e o
+rótulo `📅 Mensal (26d)` no lugar do `(30d)` cravado.
+
+### TD-011 — ciclo ≠ peça vendável
+
+`piecesMonth`/`piecesDay` (e o `piecesMonth` de cada máquina no breakdown) passaram por
+`× (1 − falha)`, com `floor`. `cyclesMonth`/`cyclesDay` **não** mudaram: a máquina roda a impressão
+que falha do mesmo jeito — é justamente por isso que sobra menos peça boa no mês.
+
+**Não há dupla contagem** com a reserva de falha do preço: a reserva paga o **material** perdido,
+este fator conta a **máquina ocupada**. Eram os dois lados da mesma moeda, e só um estava
+implementado — a falha inflava o preço e deixava a receita projetada intacta.
+
+O clamp da taxa (percentual → fração, teto de 95%, default `DEFAULT_FAILURE_RATE`) foi extraído pra
+`failureFractionOf`, exportada do `calculatePricing.ts` e usada pelos dois: o mesmo número que infla
+o custo deflaciona o volume, não dois clamps parecidos. O `CapacityResult` carrega `failureRatePct`
+para a UI poder dizer que "peças" são peças **boas** (mesma disciplina de rótulo do UX-09/UX-10).
+
+**Efeito no cenário base** (40g/3h/A1, 20h/dia): a capacidade por máquina cai de 200 para **167**
+peças/mês (−13% dos 26 dias, −3% da falha); na calculadora o painel passa a usar as **2 máquinas**
+do negócio, então o número na tela vai de 200 pra ~334 — e agora bate com o `/catalogo`.
+
 ## ✅ UX-09 + UX-10 — Os dois rótulos honestos da auditoria (2026-08-13)
 
 Dupla de "o número não está errado, está **incompleto no lugar onde a decisão acontece**".

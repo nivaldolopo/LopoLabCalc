@@ -14,14 +14,13 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ UX-09 + UX-10** (2026-08-13) — os dois rótulos honestos da auditoria, **sem
-  mudar nenhum cálculo**. **UX-09 (`/maquinas`):** o payback usa lucro **bruto** de vendas (não desconta
-  custo fixo nem impressão perdida) ⇒ aviso no topo + linha por card + sub do "Lucro acumulado".
-  Paliativo por design — o número honesto só existe no Dashboard. **UX-10 (catálogo + calculadora):**
-  `PricingResult.margin` é **bruta, pré-taxa** (54% onde o crédito 3× Amex/Elo rende 46,8%) ⇒
-  `worstPaymentFee` + `netMarginPct` (puras, `paymentFees.ts`; a 2ª delega ao **mesmo**
-  `saleItemFinancials` da venda) + componente `NetMarginHint` em 3 superfícies. 311 testes, lint e
-  build limpos.
+- **Última mudança:** **✅ TD-010 + TD-011** (2026-08-13) — a capacidade produtiva, **sem mudar nenhum
+  preço**. **TD-010:** `CapacitySettings` ganhou `daysMonth` e o horizonte virou `hoursDay × daysMonth`
+  (o **mesmo mês** que rateia o fixo — era 30 fixo contra 26); a calculadora deixou de semear com o
+  literal `DEFAULT_CAPACITY` (**apagado**) e passou a derivar de `config/negocio` como o `/catalogo` —
+  os campos do painel viraram **simulação local** (não persistem, aviso + "voltar ao padrão").
+  **TD-011:** peças/mês agora são peças **boas** (`× (1 − falha)`, `failureRatePct` no `CapacityResult`
+  + rótulo); ciclos seguem contando a impressão que falhou. 316 testes, lint e build limpos.
 - **✅ DEC-02 + DEC-03 aplicados (2026-08-13):** o dono já editou as 2 máquinas em `/maquinas` para
   **7.500 h** — não há mais pendência de dado. Com o DEC-03 (markup não incide sobre labor), **o preço
   de todo o catálogo mudou de montagem** (base R$ 35,81 → R$ 27,14 pelo DEC-03; o `lifeHours` empurra a
@@ -33,12 +32,11 @@
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**, e fazer o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
   Onde + as 8 sementes: `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA: TD-010 + TD-011** (restam 3 da auditoria; ordem interna é do dono). Os dois moram
-  em `calculateCapacity.ts` e valem juntos: **TD-010** = 26 vs 30 dias/mês (o fixo/h sai ~13% maior) +
-  a calculadora ainda semeia o painel com `DEFAULT_CAPACITY` em vez do rate salvo (o `/catalogo` já
-  deriva ⇒ duas páginas discordam); **TD-011** = a capacidade conta **ciclos**, não peças vendáveis —
-  ignora a própria taxa de falha (uma linha). Sobra o **TD-012** (teste do `chargedWithFee` + comentário
-  da tarifa). O **Dashboard** segue o último, e o gargalo do projeto continua sendo **uso real**.
+- **▶ PRÓXIMA TAREFA: TD-012** (último da auditoria, pequeno) — teste do `chargedWithFee`
+  (`saleContext.ts`, a única função de dinheiro-que-o-cliente-paga sem rede) + corrigir o comentário
+  desatualizado da `energyTariff` em `constants.ts` (cita "~R$ 0,68"; a ANEEL projeta R$ 0,849/kWh — o
+  valor R$ 0,80 **fica**, só a justificativa muda). Depois dele o **Dashboard** é o que sobra, e o
+  gargalo do projeto continua sendo **uso real**, não código.
   ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
   Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side, a adiar pro
   Dashboard. **Roadmap + ordem + porquês:** [`BACKLOG.md`](.claude/BACKLOG.md) · **decisões antigas:**

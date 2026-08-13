@@ -22,10 +22,14 @@ type PricingResultCardProps = {
   fees: PaymentFeeSettings;
   capacitySettings: CapacitySettings;
   capacityResult: CapacityResult | null;
+  // TD-010: true quando o painel está SIMULANDO (o usuário mexeu nos campos) em
+  // vez de usar o padrão do negócio.
+  capacityIsCustom: boolean;
   roundingMode: RoundingMode;
   printHours: number;
   onRoundingModeChange: (mode: RoundingMode) => void;
   onCapacityChange: (patch: Partial<CapacitySettings>) => void;
+  onCapacityReset: () => void;
   onRegisterSale: () => void;
 };
 
@@ -35,10 +39,12 @@ export function PricingResultCard({
   fees,
   capacitySettings,
   capacityResult,
+  capacityIsCustom,
   roundingMode,
   printHours,
   onRoundingModeChange,
   onCapacityChange,
+  onCapacityReset,
   onRegisterSale,
 }: PricingResultCardProps) {
   const totalFixedMonth = fixedCosts.rent + fixedCosts.other;
@@ -166,7 +172,9 @@ export function PricingResultCard({
       <CapacityPanel
         settings={capacitySettings}
         result={capacityResult}
+        isCustom={capacityIsCustom}
         onChange={onCapacityChange}
+        onReset={onCapacityReset}
       />
     </div>
   );

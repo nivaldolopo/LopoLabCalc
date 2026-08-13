@@ -600,8 +600,8 @@ function CatalogDetails({
             <div className="cd-section-head">
               <span className="result-label green">📊 Capacidade produtiva</span>
               <span className="cd-capacity-note">
-                {capacitySettings.hoursDay}h/dia · {capacitySettings.machines}{" "}
-                máq.
+                {capacitySettings.hoursDay}h/dia · {capacitySettings.daysMonth}
+                d/mês · {capacitySettings.machines} máq.
               </span>
             </div>
             {capacityResult ? (

@@ -2,11 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import {
-  DEFAULT_CAPACITY,
-  DEFAULT_FIXED_COSTS,
-  DEFAULT_MACHINES,
-} from "../constants";
+import { DEFAULT_FIXED_COSTS, DEFAULT_MACHINES } from "../constants";
 import type {
   CapacitySettings,
   FixedCostRate,
@@ -67,8 +63,24 @@ export function PricingCalculator() {
     () => ({ ...fixedCostRate, ...fixedToggles }),
     [fixedCostRate, fixedToggles],
   );
-  const [capacitySettings, setCapacitySettings] =
-    useState<CapacitySettings>(DEFAULT_CAPACITY);
+  // TD-010: a capacidade sai da MESMA fonte persistida que rateia o custo fixo
+  // (config/negocio), igual ao /catalogo — antes esta página semeava com um
+  // literal (1 máquina) e as duas telas mostravam capacidade diferente pro mesmo
+  // produto. O override guarda a SIMULAÇÃO local ("e se eu dedicasse 3
+  // máquinas?"): não persiste e não toca no preço. Tem que ser override e não
+  // `useState(semente)` porque o `fixedCostRate` chega ASSÍNCRONO do Firestore —
+  // semear no estado inicial congelaria o default.
+  const [capacityOverride, setCapacityOverride] =
+    useState<CapacitySettings | null>(null);
+  const capacityFromRate = useMemo<CapacitySettings>(
+    () => ({
+      hoursDay: fixedCostRate.hoursDay,
+      machines: fixedCostRate.machines,
+      daysMonth: fixedCostRate.daysMonth,
+    }),
+    [fixedCostRate],
+  );
+  const capacitySettings = capacityOverride ?? capacityFromRate;
   const [machineModalOpen, setMachineModalOpen] = useState(false);
   // Modal de venda: aberto/fechado + a semente (produto que abriu). Semente null
   // = recibo vazio ("Nova venda"), preenchido só pelo seletor do catálogo.
@@ -339,13 +351,15 @@ export function PricingCalculator() {
           fees={fees}
           capacitySettings={capacitySettings}
           capacityResult={capacityResult}
+          capacityIsCustom={capacityOverride !== null}
+          onCapacityReset={() => setCapacityOverride(null)}
           roundingMode={form.product.roundingMode}
           printHours={totalPrintHours}
           onRoundingModeChange={(mode) =>
             form.updateProduct({ roundingMode: mode })
           }
           onCapacityChange={(patch) =>
-            setCapacitySettings((current) => ({ ...current, ...patch }))
+            setCapacityOverride({ ...capacitySettings, ...patch })
           }
           onRegisterSale={openSaleFromForm}
         />

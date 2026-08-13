@@ -75,11 +75,13 @@ export function CatalogPage() {
   // (config/negocio), não de um literal. Antes o catálogo usava DEFAULT_CAPACITY
   // (1 máquina) enquanto o rateio usava o rate salvo (2) — duas fontes de verdade
   // discordando, e o painel subestimava peças/mês. Derivado, sem estado próprio:
-  // mudou nos custos fixos, mudou aqui.
+  // mudou nos custos fixos, mudou aqui. TD-010: o `daysMonth` fecha o trio — o
+  // horizonte da capacidade virou o mesmo mês que rateia o fixo.
   const capacitySettings = useMemo<CapacitySettings>(
     () => ({
       hoursDay: fixedCostRate.hoursDay,
       machines: fixedCostRate.machines,
+      daysMonth: fixedCostRate.daysMonth,
     }),
     [fixedCostRate],
   );
