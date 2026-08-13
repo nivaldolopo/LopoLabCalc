@@ -22,10 +22,10 @@
   `worstPaymentFee` + `netMarginPct` (puras, `paymentFees.ts`; a 2ª delega ao **mesmo**
   `saleItemFinancials` da venda) + componente `NetMarginHint` em 3 superfícies. 311 testes, lint e
   build limpos.
-- ⚠ **PENDÊNCIA DO DONO (DEC-02, 2026-08-13):** o `lifeHours` do `constants.ts` (7.500 h) só **semeia**
-  o doc `config/machines` — as 2 máquinas já salvas seguem com **10.000 h** até serem editadas à mão em
-  `/maquinas`. O DEC-03 (markup não incide sobre labor) já vale sozinho e **o preço de todo o catálogo
-  caiu** (base R$ 35,81 → R$ 27,14; o custo não mudou, só a montagem do preço). Porquês em
+- **✅ DEC-02 + DEC-03 aplicados (2026-08-13):** o dono já editou as 2 máquinas em `/maquinas` para
+  **7.500 h** — não há mais pendência de dado. Com o DEC-03 (markup não incide sobre labor), **o preço
+  de todo o catálogo mudou de montagem** (base R$ 35,81 → R$ 27,14 pelo DEC-03; o `lifeHours` empurra a
+  depreciação de volta pra cima). O custo real não mudou — só a fórmula do preço. Porquês em
   [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
