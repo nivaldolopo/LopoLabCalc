@@ -33,8 +33,8 @@
 8. ~~**Achados da auditoria (2026-08-13)**~~ ✅ **FECHADO (2026-08-13)** — ~~**UX-09**~~ · ~~**UX-10**~~ ·
    ~~**TD-010**~~ · ~~**TD-011**~~ · ~~**TD-012**~~ **FEITOS** · ~~**DEC-02**~~ · ~~**DEC-03**~~
    **DECIDIDAS**.
-9. **Cluster da calculadora (dono, 2026-08-13)** — ~~**FEAT-10**~~ ✅ · ~~**UX-12**~~ ✅ **FEITOS
-   (2026-08-13)**; sobra o **UX-11** (ações no painel direito), o mais estruturante dos três.
+9. ~~**Cluster da calculadora (dono, 2026-08-13)**~~ ✅ **FECHADO (2026-08-13)** — **FEAT-10** ·
+   **UX-12** · **UX-11** feitos.
 10. **FEAT-11 — trocar a cor na hora de produzir/vender (dono, 2026-08-13)** — o único do lote que **não**
    é cosmético: mexe em produção/venda/estoque. **Precisa de decisão de design antes de virar tarefa**
    (3 opções listadas no item).
@@ -161,21 +161,15 @@
   quando toda taxa é 0. `CatalogPage`/`PricingCalculator` passaram a chamar `useFees()` — só
   exibição, nenhuma taxa entra no preço. +7 testes. Writeup em `HISTORICO.md`.
 
-- **[UX-11] Ações da calculadora no painel da direita** *(pedido do dono, 2026-08-13)* — hoje a coluna
-  esquerda é **input + a ação de salvar no fim do formulário** (`ProductForm.tsx:206-228`: Salvar /
-  Cancelar / Salvar como novo) e a direita tem só **"Registrar venda"**
-  (`PricingResultCard.tsx:121-127`). Quem rola até o fim do form perde o preço de vista, e quem olha o
-  preço não alcança o Salvar. **Alvo:** esquerda = **só inputs**; direita = **todas as ações**
-  (salvar, vender, **produzir**, **orçar**).
-  - ⚠ **Produzir/Orçar dependem de produto SALVO:** as duas semeiam por rota com id
-    (`/producao?produto=&subitem=` e `/orcamento?produto=` — FEAT-08), então na calculadora só fazem
-    sentido com `editingProductId`. Já **Registrar venda** funciona sem salvar (o `saleContextFromResult`
-    aceita `productId` vazio — `PricingCalculator.tsx:297-299`). Decidir: **desabilitar com dica** ("salve
-    primeiro") ou **"salvar e produzir"** num clique.
-  - ⚠ O card da direita já é alto (preço, arredondamento, break-even, barras, custo, rentabilidade,
-    capacidade). Ver se as ações ficam **fixas no topo** do card ou se acompanham a rolagem.
-  - **Onde:** `ProductForm.tsx` + `PricingResultCard.tsx` + `PricingCalculator.tsx` (fiação) +
-    `calculator.css`.
+- ~~**[UX-11] Ações da calculadora no painel da direita**~~ ✅ **FEITO (2026-08-13)** — o `.btn-row` e o
+  erro de validação saíram do `ProductForm` e viraram o bloco **`.result-actions`** no **topo** do card
+  (Salvar largura total · Vender/Produzir/Orçar em 3 colunas · Cancelar/Salvar como novo ao editar);
+  esquerda = só input. **Decisão do dono (a mais importante):** as **4** ações exigem produto salvo —
+  vender sem id caía em `missingProduct` e gravava receita **sem** evento de produção, **sem** baixa de
+  filamento/insumo e **sem** horas no ROI. `ensureSavedProductId` valida → salva (update ou create) →
+  age, e **mantém o form editando** o produto (não limpa, ao contrário do botão Salvar). `createProduct`
+  passou a devolver o id do `addDoc`. **Onde:** `ProductForm`/`PricingResultCard`/`PricingCalculator` +
+  `usePricingForm` (expõe `setEditingProductId`) + `productsRepository`/`useProducts` + `sections.css`.
 - ~~**[UX-12] Break-even abaixo do custo total**~~ ✅ **FEITO (2026-08-13)** — o balão desceu pra
   depois do `breakdown-total` (e da linha "Total da impressão", pra não partir o bloco de custo em
   produto multi-peça); `.break-even-box` ganhou `margin-top`. Só JSX + CSS, cálculo intacto.

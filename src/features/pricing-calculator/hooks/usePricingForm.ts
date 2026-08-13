@@ -241,6 +241,10 @@ export function usePricingForm() {
   return {
     product,
     editingProductId,
+    // UX-11: "salvar e vender/produzir/orçar" cria o produto e mantém o
+    // formulário EDITANDO o recém-criado (em vez de limpar como o botão
+    // Salvar), pra quem volta de /producao continuar de onde parou.
+    setEditingProductId,
     updateProduct,
     updateStage,
     addStage,

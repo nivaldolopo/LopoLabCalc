@@ -307,6 +307,44 @@
   border-color: var(--accent);
 }
 
+/* UX-11: bloco de ações do card de preço (salvar/vender/produzir/orçar). Fica
+   no topo do card, logo abaixo do arredondamento — é o topo que o
+   `position: sticky` do `.result-card` prende enquanto se rola o formulário.
+   A borda separa as ações da composição de custo que vem logo abaixo (antes o
+   "Registrar venda" encostava nas barras). */
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.result-actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* Todos dividem a largura por igual: o Salvar sozinho ocupa a linha, os
+   secundários repartem a sua. `min-width: 0` deixa o texto encolher em vez de
+   estourar a linha de 3. */
+.result-actions .btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Os secundários são mais compactos que o Salvar — cabem 3 numa linha só. */
+.result-actions-row .btn {
+  padding: 9px 8px;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.result-actions .form-error {
+  margin-top: 2px;
+}
+
 .break-even-box {
   background: rgba(255, 107, 53, 0.08);
   border: 1px solid rgba(255, 107, 53, 0.2);

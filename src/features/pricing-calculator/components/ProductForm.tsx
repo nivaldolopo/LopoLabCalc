@@ -1,6 +1,5 @@
 "use client";
 
-import { Plus, Save, X } from "lucide-react";
 import { useState } from "react";
 import type {
   Machine,
@@ -24,8 +23,6 @@ type ProductFormProps = {
   machines: Machine[];
   stock: StockFilament[];
   supplies: Supply[];
-  editingProductId: string | null;
-  saved: boolean;
   onChange: (patch: Partial<ProductInput>) => void;
   onManageMachines: () => void;
   onAddStage: () => void;
@@ -44,10 +41,6 @@ type ProductFormProps = {
     stageKey: string,
     include: boolean,
   ) => void;
-  onSave: () => void;
-  onSaveAsNew: () => void;
-  onCancelEdit: () => void;
-  saveError?: string | null;
 };
 
 export function ProductForm({
@@ -55,8 +48,6 @@ export function ProductForm({
   machines,
   stock,
   supplies,
-  editingProductId,
-  saved,
   onChange,
   onManageMachines,
   onAddStage,
@@ -71,12 +62,7 @@ export function ProductForm({
   onRemoveSubitem,
   onUpdateSubitem,
   onToggleStageInSubitem,
-  onSave,
-  onSaveAsNew,
-  onCancelEdit,
-  saveError,
 }: ProductFormProps) {
-  const canSave = product.name.trim().length > 0;
 
   return (
     <div className="card">
@@ -203,31 +189,8 @@ export function ProductForm({
         </div>
       </div>
 
-      <div className="btn-row">
-        <button
-          className={`btn primary ${saved ? "saved" : ""}`}
-          disabled={!canSave}
-          type="button"
-          onClick={onSave}
-        >
-          <Save size={16} />
-          {saved ? "✓ Salvo!" : "Salvar"}
-        </button>
-        {editingProductId ? (
-          <>
-            <button className="btn btn-secondary" type="button" onClick={onCancelEdit}>
-              <X size={16} />
-              Cancelar
-            </button>
-            <button className="btn btn-secondary" type="button" onClick={onSaveAsNew}>
-              <Plus size={16} />
-              Salvar como novo
-            </button>
-          </>
-        ) : null}
-      </div>
-
-      {saveError ? <div className="form-error">{saveError}</div> : null}
+      {/* UX-11: as ações (salvar/vender/produzir/orçar) e o aviso de validação
+          MUDARAM para o card de preço, à direita — esta coluna é só input. */}
     </div>
   );
 }

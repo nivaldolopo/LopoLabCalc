@@ -75,8 +75,12 @@ export function subscribeProducts(
   );
 }
 
-export async function createProduct(payload: ProductPayload): Promise<void> {
-  await addDoc(productsCollection, payload);
+// Devolve o id do documento criado: o UX-11 ("salvar e vender/produzir/orçar"
+// num clique) precisa dele imediatamente para semear a venda ou a rota, sem
+// esperar o produto voltar pela assinatura.
+export async function createProduct(payload: ProductPayload): Promise<string> {
+  const ref = await addDoc(productsCollection, payload);
+  return ref.id;
 }
 
 // Cria vários produtos de uma vez (importação de CSV). Cada lote de até 500 é

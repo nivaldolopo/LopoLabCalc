@@ -31,8 +31,9 @@ export function useProducts() {
     return unsubscribe;
   }, []);
 
-  async function addProduct(payload: ProductPayload) {
-    await createProduct(payload);
+  // Repassa o id do produto criado (UX-11: salvar e já vender/produzir/orçar).
+  async function addProduct(payload: ProductPayload): Promise<string> {
+    return createProduct(payload);
   }
 
   async function updateProduct(productId: string, payload: ProductPayload) {

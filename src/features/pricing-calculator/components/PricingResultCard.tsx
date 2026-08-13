@@ -1,5 +1,6 @@
 "use client";
 
+import { Factory, FileText, Plus, Receipt, Save, X } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import type {
   CapacityResult,
@@ -30,7 +31,19 @@ type PricingResultCardProps = {
   onRoundingModeChange: (mode: RoundingMode) => void;
   onCapacityChange: (patch: Partial<CapacitySettings>) => void;
   onCapacityReset: () => void;
+  // UX-11: TODAS as ações do formulário moram aqui (a coluna esquerda virou só
+  // input). `canSave` = o formulário passa no mínimo pra salvar (tem nome); as
+  // 3 ações de destino salvam antes de agir, então dependem dele também.
+  canSave: boolean;
+  editingProductId: string | null;
+  saved: boolean;
+  saveError?: string | null;
+  onSave: () => void;
+  onSaveAsNew: () => void;
+  onCancelEdit: () => void;
   onRegisterSale: () => void;
+  onProduce: () => void;
+  onQuote: () => void;
 };
 
 export function PricingResultCard({
@@ -45,7 +58,16 @@ export function PricingResultCard({
   onRoundingModeChange,
   onCapacityChange,
   onCapacityReset,
+  canSave,
+  editingProductId,
+  saved,
+  saveError,
+  onSave,
+  onSaveAsNew,
+  onCancelEdit,
   onRegisterSale,
+  onProduce,
+  onQuote,
 }: PricingResultCardProps) {
   const totalFixedMonth = fixedCosts.rent + fixedCosts.other;
   const breakEvenUnits =
@@ -118,13 +140,78 @@ export function PricingResultCard({
         </select>
       </div>
 
-      <button
-        className="btn primary register-sale-btn"
-        type="button"
-        onClick={onRegisterSale}
-      >
-        🧾 Registrar venda
-      </button>
+      {/* UX-11: bloco único de ações, no TOPO do card — é o topo que o
+          `position: sticky` do `.result-card` prende na tela enquanto se rola o
+          formulário à esquerda. Vender/Produzir/Orçar salvam o produto antes de
+          agir (ver `ensureSavedProductId` em PricingCalculator): sem id a venda
+          registraria receita SEM disparar produção nem baixar estoque. */}
+      <div className="result-actions">
+        <button
+          className={`btn primary ${saved ? "saved" : ""}`}
+          disabled={!canSave}
+          type="button"
+          onClick={onSave}
+        >
+          <Save size={16} />
+          {saved ? "✓ Salvo!" : "Salvar"}
+        </button>
+
+        <div className="result-actions-row">
+          <button
+            className="btn btn-secondary"
+            disabled={!canSave}
+            type="button"
+            onClick={onRegisterSale}
+            title="Salva o produto e abre o registro de venda"
+          >
+            <Receipt size={15} />
+            Vender
+          </button>
+          <button
+            className="btn btn-secondary"
+            disabled={!canSave}
+            type="button"
+            onClick={onProduce}
+            title="Salva o produto e abre a produção"
+          >
+            <Factory size={15} />
+            Produzir
+          </button>
+          <button
+            className="btn btn-secondary"
+            disabled={!canSave}
+            type="button"
+            onClick={onQuote}
+            title="Salva o produto e abre o orçamento"
+          >
+            <FileText size={15} />
+            Orçar
+          </button>
+        </div>
+
+        {editingProductId ? (
+          <div className="result-actions-row">
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={onCancelEdit}
+            >
+              <X size={15} />
+              Cancelar
+            </button>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={onSaveAsNew}
+            >
+              <Plus size={15} />
+              Salvar como novo
+            </button>
+          </div>
+        ) : null}
+
+        {saveError ? <div className="form-error">{saveError}</div> : null}
+      </div>
 
       <CostBars result={result} />
 

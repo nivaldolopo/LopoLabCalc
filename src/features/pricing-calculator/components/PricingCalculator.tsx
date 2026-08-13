@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DEFAULT_FIXED_COSTS, DEFAULT_MACHINES } from "../constants";
 import type {
   CapacitySettings,
@@ -52,6 +52,8 @@ export function PricingCalculator() {
   const productsApi = useProducts();
   const form = usePricingForm();
   const searchParams = useSearchParams();
+  // UX-11: "Produzir"/"Orçar" saem daqui pras rotas semeadas por id (FEAT-08).
+  const router = useRouter();
 
   // A TAXA de custo fixo vem persistida (global do negócio, TD-001); o toggle
   // `enabled` é por-produto (espelha o produto em edição). O `fixedCosts`
@@ -292,17 +294,58 @@ export function PricingCalculator() {
     }
   }
 
-  function openSaleFromForm() {
+  // UX-11: as 3 ações de destino (vender/produzir/orçar) precisam de um produto
+  // SALVO. Vender sem id até funcionava, mas a reconciliação não acha o produto
+  // no catálogo (`missingProduct`) e registra a receita SEM disparar produção,
+  // SEM baixa de filamento/insumo e sem horas de máquina no ROI — venda pela
+  // metade. Então elas salvam antes, num clique só. Diferente do botão Salvar,
+  // aqui o formulário NÃO é limpo: fica editando o produto (recém-criado ou
+  // não), pra quem volta de /producao continuar de onde parou.
+  async function ensureSavedProductId(): Promise<string | null> {
+    const error = validateProduct({
+      ...form.product,
+      includeFixed: fixedCosts.enabled,
+    });
+    if (error) {
+      setSaveError(error);
+      return null;
+    }
+    setSaveError(null);
+
+    if (form.editingProductId) {
+      await productsApi.updateProduct(form.editingProductId, buildPayload(false));
+      return form.editingProductId;
+    }
+    const newId = await productsApi.addProduct(buildPayload(true));
+    form.setEditingProductId(newId);
+    return newId;
+  }
+
+  async function openSaleFromForm() {
+    const productId = await ensureSavedProductId();
+    if (!productId) return;
     setSaleSeed(
       saleContextFromResult(
         form.product.name || form.product.mainStageName || "",
-        form.editingProductId ?? "",
+        productId,
         pricingResult,
         totalPrintHours,
         form.product.roundingMode,
       ),
     );
     setSaleOpen(true);
+  }
+
+  async function produceFromForm() {
+    const productId = await ensureSavedProductId();
+    if (!productId) return;
+    router.push(`/producao?produto=${productId}`);
+  }
+
+  async function quoteFromForm() {
+    const productId = await ensureSavedProductId();
+    if (!productId) return;
+    router.push(`/orcamento?produto=${productId}`);
   }
 
   return (
@@ -317,8 +360,6 @@ export function PricingCalculator() {
             machines={machines}
             stock={stock}
             supplies={activeSupplies}
-            editingProductId={form.editingProductId}
-            saved={saved}
             onChange={handleProductChange}
             onManageMachines={() => setMachineModalOpen(true)}
             onAddStage={form.addStage}
@@ -333,10 +374,6 @@ export function PricingCalculator() {
             onRemoveSubitem={form.removeSubitem}
             onUpdateSubitem={form.updateSubitem}
             onToggleStageInSubitem={form.toggleStageInSubitem}
-            onSave={saveCurrentProduct}
-            onSaveAsNew={saveAsNewProduct}
-            onCancelEdit={resetFormKeepingFixedCosts}
-            saveError={saveError}
           />
           <FixedCostsPanel
             fixedCosts={fixedCosts}
@@ -361,7 +398,16 @@ export function PricingCalculator() {
           onCapacityChange={(patch) =>
             setCapacityOverride({ ...capacitySettings, ...patch })
           }
+          canSave={form.product.name.trim().length > 0}
+          editingProductId={form.editingProductId}
+          saved={saved}
+          saveError={saveError}
+          onSave={saveCurrentProduct}
+          onSaveAsNew={saveAsNewProduct}
+          onCancelEdit={resetFormKeepingFixedCosts}
           onRegisterSale={openSaleFromForm}
+          onProduce={produceFromForm}
+          onQuote={quoteFromForm}
         />
       </div>
 

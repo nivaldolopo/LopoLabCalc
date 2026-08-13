@@ -75,10 +75,8 @@
   word-break: break-word;
 }
 
-.register-sale-btn {
-  width: 100%;
-  margin-top: 6px;
-}
+/* UX-11: o `.register-sale-btn` (botão solto no card de preço) saiu — as ações
+   da calculadora viraram o bloco `.result-actions` em sections.css. */
 
 .cd-register-sale {
   width: 100%;
