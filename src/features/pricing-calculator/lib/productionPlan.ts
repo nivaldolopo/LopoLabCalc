@@ -1,7 +1,13 @@
 import { num } from "@/lib/number";
 import { DEFAULT_PRODUCT_INPUT } from "../constants";
-import { normalizeStages } from "./calculatePricing";
-import { filamentTotalG, normalizeFilaments } from "./filaments";
+import { MAIN_STAGE_KEY, normalizeStages, stageKeyFor } from "./calculatePricing";
+import {
+  colorKeyOf,
+  filamentTotalG,
+  normalizeFilaments,
+  NO_COLOR,
+  type ColorKey,
+} from "./filaments";
 import {
   addFrozen,
   frozenOf,
@@ -47,6 +53,20 @@ export type FilRow = {
   colorName: string;
   totalG: number;
   pricePerKg: number;
+  // FEAT-11: a ETAPA de origem (`MAIN_STAGE_KEY` ou o id/índice da extra, as
+  // MESMAS chaves do `stageDetails` da precificação). É por ela que a cor
+  // escolhida aqui chega no subitem certo: `Subitem.stageKeys` liga etapa →
+  // parte, e um produto corpo-azul + tampa-vermelha credita cada SKU na sua cor.
+  // Vazio em linha avulsa (não pertence a etapa nenhuma).
+  stageKey: string;
+  // FEAT-11: a cor com que o produto foi PRECIFICADO, congelada quando a linha
+  // nasce. Só serve para a tela avisar o que a troca custou (o cálculo usa
+  // sempre a cor escolhida). Ausente em linha avulsa — não havia cor de origem.
+  origin?: {
+    filamentId: string | null;
+    label: string;
+    pricePerKg: number;
+  };
 };
 
 // Uma linha = UM evento de produção a gravar. Mono-máquina = 1 linha; um produto
@@ -76,27 +96,41 @@ export function nextRowKey(): string {
 
 // FilamentUsage (do produto/etapa) → FilRow, resolvendo nome/preço/material da COR
 // viva do Estoque quando ligada. Sem `filamentId` = avulso (mantém texto/preço).
-export function resolveFilRow(f: FilamentUsage, stock: StockFilament[]): FilRow {
+// `stageKey` é a etapa de onde a cor veio (FEAT-11) — vazio quando não se aplica.
+export function resolveFilRow(
+  f: FilamentUsage,
+  stock: StockFilament[],
+  stageKey = "",
+): FilRow {
   const total = filamentTotalG(f);
   if (f.filamentId) {
     const color = stock.find((c) => c.id === f.filamentId);
     if (color) {
       const live = catalogPricePerKg(color);
+      const pricePerKg = live > 0 ? live : num(f.pricePerKg);
+      const label = filamentLabel(color);
       return {
         filamentId: color.id,
-        label: filamentLabel(color),
+        label,
         colorName: color.colorName,
         totalG: total,
-        pricePerKg: live > 0 ? live : num(f.pricePerKg),
+        pricePerKg,
+        stageKey,
+        origin: { filamentId: color.id, label, pricePerKg },
       };
     }
   }
+  const label = f.colorName || "Avulso";
   return {
     filamentId: null,
-    label: f.colorName || "Avulso",
+    label,
     colorName: f.colorName ?? "",
     totalG: total,
     pricePerKg: num(f.pricePerKg),
+    stageKey,
+    // Cor avulsa do PRODUTO ainda é uma origem (o preço veio do cadastro); só a
+    // linha criada à mão na tela nasce sem.
+    origin: { filamentId: null, label, pricePerKg: num(f.pricePerKg) },
   };
 }
 
@@ -169,14 +203,19 @@ export function wholeEventRows(
 ): EventRow[] {
   const base = product.name || product.mainStageName || "(sem nome)";
   const tariff = productEnergyTariff(product);
+  // FEAT-11: cada etapa entra com a MESMA chave estável que o rateio por subitem
+  // usa (`stageDetails` em `calculatePricing`) — é o fio que leva a cor da linha
+  // até a parte certa quando o inteiro é produzido de uma vez.
   const stages = [
     {
+      key: MAIN_STAGE_KEY,
       machineId: product.machineId,
       printHours: num(product.printHours),
       filaments: normalizeFilaments(product),
       labor: stageLabor(product.laborMinutes, undefined, product.laborRate),
     },
-    ...normalizeStages(product).map((stage) => ({
+    ...normalizeStages(product).map((stage, index) => ({
+      key: stageKeyFor(stage, index),
       machineId: stage.machineId,
       printHours: num(stage.printHours),
       filaments: normalizeFilaments(stage),
@@ -186,7 +225,11 @@ export function wholeEventRows(
 
   const byMachine = new Map<
     string,
-    { printHours: number; filaments: FilamentUsage[]; labor: number }
+    {
+      printHours: number;
+      filaments: { usage: FilamentUsage; stageKey: string }[];
+      labor: number;
+    }
   >();
   for (const stage of stages) {
     const group = byMachine.get(stage.machineId) ?? {
@@ -195,7 +238,9 @@ export function wholeEventRows(
       labor: 0,
     };
     group.printHours += stage.printHours;
-    group.filaments.push(...stage.filaments);
+    group.filaments.push(
+      ...stage.filaments.map((usage) => ({ usage, stageKey: stage.key })),
+    );
     group.labor += stage.labor;
     byMachine.set(stage.machineId, group);
   }
@@ -210,7 +255,9 @@ export function wholeEventRows(
       productId: product.id,
       machineId,
       printHours: group.printHours,
-      filaments: group.filaments.map((f) => resolveFilRow(f, stock)),
+      filaments: group.filaments.map((f) =>
+        resolveFilRow(f.usage, stock, f.stageKey),
+      ),
       laborCost: group.labor,
       energyTariff: tariff,
       // Só a 1ª linha carrega os acessórios (ver `EventRow.supplies`).
@@ -249,6 +296,45 @@ export function subitemEventRows(
       supplies: accessoryRows(product, pieces, subitem.id),
     },
   ];
+}
+
+/**
+ * FEAT-11 — a cor de cada peça CREDITADA, a partir das linhas como estão na tela
+ * (já com as trocas do dono). PURA.
+ *
+ * `whole` é a cor da submissão inteira (produto sem partes, ou subitem avulso
+ * selecionado: aí a lista de linhas já é só a daquela parte).
+ *
+ * `bySubitem` é o recorte que faz o inteiro-com-partes ficar correto: as linhas
+ * de filamento carregam a etapa de origem (`stageKey`) e o subitem declara as
+ * suas etapas (`stageKeys`), então cada parte recebe SÓ as cores que passaram
+ * por ela. É isto que credita corpo=Azul e tampa=Vermelho num evento só, em vez
+ * de carimbar "Azul + Vermelho" nas duas.
+ *
+ * Parte sem nenhuma linha de filamento (etapa só de montagem, ou etapa que o
+ * dono zerou) cai em `NO_COLOR` — não há cor que a descreva.
+ */
+export function submissionColors(
+  rows: EventRow[],
+  subitems: { id: string; stageKeys?: string[] }[] = [],
+): { whole: ColorKey; bySubitem: Map<string, ColorKey> } {
+  const all = rows.flatMap((row) => row.filaments);
+  const usageOf = (fils: FilRow[]): FilamentUsage[] =>
+    fils.map((f) => ({
+      filamentId: f.filamentId,
+      colorName: f.colorName,
+      pricePerKg: f.pricePerKg,
+      totalG: f.totalG,
+    }));
+
+  const bySubitem = new Map<string, ColorKey>();
+  for (const sub of subitems) {
+    const keys = new Set(sub.stageKeys ?? []);
+    const mine = all.filter((f) => keys.has(f.stageKey));
+    bySubitem.set(sub.id, mine.length > 0 ? colorKeyOf(usageOf(mine)) : NO_COLOR);
+  }
+
+  return { whole: colorKeyOf(usageOf(all)), bySubitem };
 }
 
 // Escala uma linha-evento por um fator (placa inteira → P placas na /producao, ou

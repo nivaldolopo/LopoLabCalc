@@ -37,13 +37,15 @@ import {
 } from "../lib/stock";
 import {
   assemblyBreakdown,
-  balanceOf,
   goodCostComposition,
   goodValue,
+  partBalance,
   skuBalance,
+  skusOfPart,
   skuValue,
 } from "../lib/finishedGoods";
 import { calculatePricing } from "../lib/calculatePricing";
+import { NO_COLOR_KEY } from "../lib/filaments";
 import {
   productPrintHours,
   saleContextFromResult,
@@ -658,17 +660,32 @@ export function StockPage() {
     return skuValue(sku) / balance;
   }
 
+  // FEAT-11: o custo médio de uma PEÇA somando as cores. Depois que a cor virou
+  // dimensão da SKU, uma parte pode ter várias (2 azuis a R$ 6 + 1 preta a R$ 7):
+  // o custo da peça é a média ponderada, não o da primeira SKU que aparecer.
+  function partUnitCost(
+    good: FinishedGood,
+    subitemId?: string,
+  ): number | null {
+    const balance = partBalance(good, subitemId);
+    if (balance <= 0) return null;
+    const value = skusOfPart(good, subitemId).reduce(
+      (sum, sku) => sum + skuValue(sku),
+      0,
+    );
+    return value / balance;
+  }
+
   // Custo congelado de UM conjunto = Σ do custo médio de cada parte. Devolve null
   // se qualquer parte não tiver saldo — a soma estaria incompleta e a margem sairia
   // otimista demais (parece barato só porque falta uma peça na conta).
   function wholeUnitCost(
+    good: FinishedGood,
     parts: { subitemId: string }[],
-    skuByKey: Map<string, FinishedGood["skus"][number]>,
   ): number | null {
     let total = 0;
     for (const part of parts) {
-      const sku = skuByKey.get(part.subitemId);
-      const unit = sku ? skuUnitCost(sku) : null;
+      const unit = partUnitCost(good, part.subitemId);
       if (unit === null) return null;
       total += unit;
     }
@@ -770,9 +787,6 @@ export function StockPage() {
     // FEAT-06: o valor parado DECOMPOSTO — só existe para camadas novas; o que
     // veio de produção antiga fica em `comp.unknown` ("não detalhado").
     const comp = goodCostComposition(good);
-    const skuByKey = new Map(
-      good.skus.map((sku) => [sku.subitemId ?? "__whole__", sku]),
-    );
     const price = pricingByProduct.get(good.productId)?.suggestedPrice;
     const negative = good.skus.some((sku) => skuBalance(sku) < 0);
     // "Peças por impressão" (mesa de N): cada Produzir abre a Produção com 1 placa,
@@ -786,7 +800,8 @@ export function StockPage() {
     // Subitens VIVOS do produto (o doc só guarda as SKUs já produzidas).
     const subitems =
       product && product.sellBySubitems ? product.subitems : [];
-    const wholeBalance = balanceOf(good, undefined);
+    // FEAT-11: soma as cores — a prateleira tem 3 peças, sendo 2 azuis e 1 preta.
+    const wholeBalance = partBalance(good, undefined);
 
     // Produto que vende por partes: conjuntos completos + lacuna.
     if (subitems.length > 0) {
@@ -872,12 +887,23 @@ export function StockPage() {
               <div className="section-label">Peças em estoque</div>
               <div className="fg-parts">
                 {bd.parts.map((part) => {
-                  const sku = skuByKey.get(part.subitemId);
-                  const unit = sku ? skuUnitCost(sku) : null;
+                  const unit = partUnitCost(good, part.subitemId);
                   return (
                     <div className="fg-part" key={part.subitemId}>
                       <div className="fg-part-main">
                         <span className="fg-part-name">{part.name}</span>
+                        {/* FEAT-11: de que cores é este saldo. O conjunto monta
+                            com qualquer combinação (corpo azul + tampa vermelha é
+                            um produto legítimo), então a cor é detalhe da PARTE,
+                            não uma trava do conjunto. */}
+                        {part.colors.length > 1 ||
+                        (part.colors[0] && part.colors[0].colorKey !== NO_COLOR_KEY) ? (
+                          <span className="fg-part-colors">
+                            {part.colors
+                              .map((c) => `${c.balance} ${c.colorLabel}`)
+                              .join(" · ")}
+                          </span>
+                        ) : null}
                         {part.leftover > 0 ? (
                           <span className="fg-part-note">
                             +{part.leftover} avulsa
@@ -950,7 +976,7 @@ export function StockPage() {
                   não o valor parado ÷ conjuntos, que diluiria as peças avulsas
                   que sobraram e não formam conjunto. Só quando todas as partes
                   têm saldo (senão a soma estaria incompleta). */}
-              {renderMargin(price, wholeUnitCost(bd.parts, skuByKey))}
+              {renderMargin(price, wholeUnitCost(good, bd.parts))}
               {/* UX-07a: a composição que era popover, agora inline no dropdown. */}
               <CostBreakdownTable
                 real={comp.breakdown}
@@ -965,10 +991,16 @@ export function StockPage() {
     }
 
     // Produto sem subitens (ou fora do catálogo): lista as SKUs com saldo.
+    // FEAT-11: uma linha por SKU = por PEÇA e COR. Num produto de cor única a
+    // lista continua com uma linha só (nada muda na tela); com duas cores, o
+    // saldo aparece separado — que é o ponto do recurso.
     const rows = good.skus
       .map((sku) => ({
-        key: sku.subitemId ?? "__whole__",
+        key: `${sku.subitemId ?? "__whole__"}::${sku.colorKey}`,
+        subitemId: sku.subitemId,
         name: sku.subitemId ? sku.name : good.productName,
+        colorLabel: sku.colorKey === NO_COLOR_KEY ? "" : sku.colorLabel,
+        unitCost: skuUnitCost(sku),
         balance: skuBalance(sku),
       }))
       .filter((row) => row.balance !== 0);
@@ -1054,12 +1086,14 @@ export function StockPage() {
                 <div className="section-label">SKUs em estoque</div>
                 <div className="fg-parts">
                   {rows.map((row) => {
-                    const sku = skuByKey.get(row.key);
-                    const unit = sku ? skuUnitCost(sku) : null;
+                    const unit = row.unitCost;
                     return (
                       <div className="fg-part" key={row.key}>
                         <div className="fg-part-main">
                           <span className="fg-part-name">{row.name}</span>
+                          {row.colorLabel ? (
+                            <span className="fg-part-colors">{row.colorLabel}</span>
+                          ) : null}
                         </div>
                         <span
                           className={`mono fg-part-bal ${
@@ -1086,15 +1120,7 @@ export function StockPage() {
             {/* SKU única: o custo congelado dela é o custo da unidade vendável.
                 Com várias SKUs num produto sem subitens vivos não há "a" unidade
                 — a margem sairia de uma média sem significado. */}
-            {rows.length === 1
-              ? renderMargin(
-                  price,
-                  (() => {
-                    const sku = skuByKey.get(rows[0].key);
-                    return sku ? skuUnitCost(sku) : null;
-                  })(),
-                )
-              : null}
+            {rows.length === 1 ? renderMargin(price, rows[0].unitCost) : null}
             {/* UX-07a: a composição que era popover, agora inline no dropdown. */}
             <CostBreakdownTable
               real={comp.breakdown}

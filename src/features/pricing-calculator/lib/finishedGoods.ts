@@ -1,4 +1,5 @@
 import { num } from "@/lib/number";
+import { NO_COLOR, type ColorKey } from "./filaments";
 import { addFrozen, scaleFrozen, sumFrozen, ZERO_FROZEN } from "./production";
 import type {
   FinishedConsumptionResult,
@@ -24,6 +25,11 @@ import type {
 // vende por partes). `unitCost` é o custo de produção congelado, por unidade.
 export type FinishedEntry = {
   subitemId?: string;
+  // FEAT-11: a cor DESTA peça — por subitem, não por submissão. Produzir o
+  // inteiro de um produto corpo-azul + tampa-vermelha credita duas SKUs de cores
+  // diferentes no mesmo evento. Ausente = `NO_COLOR` (o `submissionEntries`, único
+  // construtor em produção, sempre preenche).
+  color?: ColorKey;
   name: string;
   qty: number;
   unitCost: number;
@@ -55,6 +61,10 @@ export type FinishedEntry = {
  * Cada entrada recebe `unitBreakdown` derivado por UM fator escalar — o mesmo que
  * produz o `unitCost` —, então `sumFrozen(unitBreakdown) === unitCost` sai de
  * graça, em vez de depender de duas contas que precisam concordar.
+ *
+ * FEAT-11: a COR entra por entrada, não pela submissão. No inteiro-com-subitens
+ * cada parte traz a sua (as cores das etapas daquele subitem), porque um produto
+ * pode ser corpo azul + tampa vermelha de projeto. Sem cor informada = `NO_COLOR`.
  */
 export function submissionEntries(
   productName: string,
@@ -62,7 +72,8 @@ export function submissionEntries(
   opts: {
     subitemId?: string;
     subitemName?: string;
-    subitems?: { id: string; name: string; cost: number }[];
+    color?: ColorKey;
+    subitems?: { id: string; name: string; cost: number; color?: ColorKey }[];
     units?: number;
     breakdown?: FrozenCostBreakdown;
   } = {},
@@ -89,7 +100,11 @@ export function submissionEntries(
   if (opts.subitemId) {
     return [
       entry(
-        { subitemId: opts.subitemId, name: opts.subitemName || productName },
+        {
+          subitemId: opts.subitemId,
+          color: opts.color ?? NO_COLOR,
+          name: opts.subitemName || productName,
+        },
         1,
       ),
     ];
@@ -100,26 +115,36 @@ export function submissionEntries(
     const sumCost = subs.reduce((sum, s) => sum + num(s.cost), 0);
     return subs.map((s) =>
       entry(
-        { subitemId: s.id, name: s.name },
+        { subitemId: s.id, color: s.color ?? NO_COLOR, name: s.name },
         sumCost > 0 ? num(s.cost) / sumCost : 1 / subs.length,
       ),
     );
   }
 
-  return [entry({ name: productName }, 1)];
+  return [entry({ color: opts.color ?? NO_COLOR, name: productName }, 1)];
 }
 
-// Chave estável da SKU: o subitem, ou a sentinela do inteiro. Duas entradas da
-// mesma SKU somam no mesmo saldo.
-const WHOLE_KEY = "__whole__";
-function skuKey(subitemId?: string): string {
-  return subitemId ?? WHOLE_KEY;
+// Chave estável da SKU: o subitem (ou a sentinela do inteiro) MAIS a cor
+// (FEAT-11). Duas entradas da mesma SKU somam no mesmo saldo; a mesma peça em
+// outra cor abre saldo próprio.
+// Exportada (FEAT-11) para quem precisa CHAVEAR a peça sem ter subitem: a venda
+// guarda a cor escolhida por parte num mapa, e o produto sem partes entra por
+// esta chave.
+export const WHOLE_PART_KEY = "__whole__";
+const WHOLE_KEY = WHOLE_PART_KEY;
+function skuKey(subitemId: string | undefined, colorKey: string): string {
+  return `${subitemId ?? WHOLE_KEY}::${colorKey || NO_COLOR.key}`;
+}
+
+// A chave de uma SKU já materializada.
+function keyOfSku(sku: FinishedSku): string {
+  return skuKey(sku.subitemId, sku.colorKey);
 }
 
 // Id determinístico da camada: um evento cria no máximo UMA camada por SKU, então
 // evento+SKU identifica sem ambiguidade (e o teste não depende de UUID).
-function layerId(eventId: string, subitemId?: string): string {
-  return `${eventId}__${skuKey(subitemId)}`;
+function layerId(eventId: string, subitemId: string | undefined, colorKey: string): string {
+  return `${eventId}__${skuKey(subitemId, colorKey)}`;
 }
 
 // Camadas em ordem FIFO: produção mais antiga primeiro (empate resolvido pela
@@ -140,20 +165,74 @@ export function skuBalance(sku: FinishedSku): number {
 
 export function findSku(
   good: FinishedGood | null | undefined,
-  subitemId?: string,
+  subitemId: string | undefined,
+  colorKey: string,
 ): FinishedSku | undefined {
   if (!good) return undefined;
-  const key = skuKey(subitemId);
-  return good.skus.find((sku) => skuKey(sku.subitemId) === key);
+  const key = skuKey(subitemId, colorKey);
+  return good.skus.find((sku) => keyOfSku(sku) === key);
 }
 
-// Saldo de uma SKU do doc (0 quando a SKU nunca foi produzida — não há doc/camada).
+// Saldo de UMA cor de uma peça (0 quando nunca foi produzida naquela cor).
 export function balanceOf(
+  good: FinishedGood | null | undefined,
+  subitemId: string | undefined,
+  colorKey: string,
+): number {
+  const sku = findSku(good, subitemId, colorKey);
+  return sku ? skuBalance(sku) : 0;
+}
+
+// Todas as SKUs de UMA peça (o inteiro ou um subitem), uma por cor produzida.
+export function skusOfPart(
+  good: FinishedGood | null | undefined,
+  subitemId?: string,
+): FinishedSku[] {
+  if (!good) return [];
+  const part = subitemId ?? WHOLE_KEY;
+  return good.skus.filter((sku) => (sku.subitemId ?? WHOLE_KEY) === part);
+}
+
+/**
+ * Saldo de uma peça SOMANDO TODAS AS CORES (FEAT-11).
+ *
+ * É este — e não o saldo por cor — que responde "quantas dessas eu tenho na
+ * prateleira": ter 2 azuis e 1 preto são 3 peças. A cor escolhe DE ONDE tirar
+ * (`consumeFifo`), não quantas existem.
+ */
+export function partBalance(
   good: FinishedGood | null | undefined,
   subitemId?: string,
 ): number {
-  const sku = findSku(good, subitemId);
-  return sku ? skuBalance(sku) : 0;
+  return skusOfPart(good, subitemId).reduce((sum, sku) => sum + skuBalance(sku), 0);
+}
+
+// Uma cor disponível de uma peça (linha do seletor da venda / da tela do estoque).
+export type ColorBalance = {
+  colorKey: string;
+  colorLabel: string;
+  balance: number;
+};
+
+/**
+ * As cores em que uma peça existe hoje, da maior para a menor (FEAT-11) — a
+ * fonte do seletor de cor da venda e do detalhe por parte no estoque. Traz só o
+ * que tem saldo ≠ 0: cor zerada não é opção de venda, e saldo NEGATIVO (D4)
+ * continua aparecendo, porque esconder o buraco é justamente o que não se quer.
+ * Empate resolvido pelo rótulo, para a ordem não oscilar entre renders.
+ */
+export function colorsWithBalance(
+  good: FinishedGood | null | undefined,
+  subitemId?: string,
+): ColorBalance[] {
+  return skusOfPart(good, subitemId)
+    .map((sku) => ({
+      colorKey: sku.colorKey,
+      colorLabel: sku.colorLabel,
+      balance: skuBalance(sku),
+    }))
+    .filter((c) => c.balance !== 0)
+    .sort((a, b) => b.balance - a.balance || a.colorLabel.localeCompare(b.colorLabel));
 }
 
 /**
@@ -176,27 +255,34 @@ export function addProductionLayers(
   const skus: FinishedSku[] = good
     ? good.skus.map((sku) => ({ ...sku, layers: [...sku.layers] }))
     : [];
-  const byKey = new Map(skus.map((sku) => [skuKey(sku.subitemId), sku]));
+  const byKey = new Map(skus.map((sku) => [keyOfSku(sku), sku]));
 
   for (const entry of entries) {
     const qty = num(entry.qty);
     if (qty <= 0) continue;
+    const color = entry.color ?? NO_COLOR;
     const layer: FinishedLayer = {
-      id: layerId(eventId, entry.subitemId),
+      id: layerId(eventId, entry.subitemId, color.key),
       at: num(at),
       qty,
       unitCost: num(entry.unitCost),
       ...(entry.unitBreakdown ? { costBreakdown: entry.unitBreakdown } : {}),
       sourceEventId: eventId,
     };
-    const key = skuKey(entry.subitemId);
+    const key = skuKey(entry.subitemId, color.key);
     const existing = byKey.get(key);
     if (existing) {
       existing.layers.push(layer);
       if (entry.name) existing.name = entry.name;
+      // O rótulo acompanha a cor viva: renomear "Azul" para "Azul Bebê" no
+      // Estoque reflete aqui na próxima produção, sem partir o saldo (a chave é
+      // o `filamentId`).
+      if (color.label) existing.colorLabel = color.label;
     } else {
       const sku: FinishedSku = {
         ...(entry.subitemId ? { subitemId: entry.subitemId } : {}),
+        colorKey: color.key,
+        colorLabel: color.label,
         name: entry.name,
         layers: [layer],
       };
@@ -244,10 +330,11 @@ export function removeEventLayers(
 export function consumeFifo(
   good: FinishedGood | null | undefined,
   subitemId: string | undefined,
+  colorKey: string,
   qty: number,
 ): FinishedConsumptionResult {
   const want = num(qty);
-  const sku = findSku(good, subitemId);
+  const sku = findSku(good, subitemId, colorKey);
   if (want <= 0 || !good || !sku) {
     return {
       moves: [],
@@ -321,6 +408,13 @@ export function consumeFifo(
   };
 }
 
+// Uma peça do conjunto a drenar, JÁ com a cor escolhida (FEAT-11). `subitemId`
+// ausente = a SKU do inteiro (produto sem partes).
+export type WholePart = {
+  subitemId?: string;
+  colorKey: string;
+};
+
 /**
  * Consumo do INTEIRO de um produto que vende por PARTES (BUG-05). O acabado desse
  * produto guarda uma SKU por subitem (a produção do inteiro credita as partes; não
@@ -328,22 +422,34 @@ export function consumeFifo(
  * parte — uma montagem. Agrega os `FinishedMove` de todas as partes num resultado
  * só (é o mesmo `FinishedConsumptionResult` da venda de uma peça): custo e
  * composição somam as partes; o `shortfall` é o MAIOR entre as partes (quantos
- * conjuntos passaram da parte mais escassa = qty − inteiros montáveis). Sem
- * subitens cai no consumo do inteiro (SKU `__whole__`).
+ * conjuntos passaram da parte mais escassa = qty − inteiros montáveis).
+ *
+ * FEAT-11: cada parte traz a SUA cor — um conjunto é corpo azul + tampa vermelha
+ * quando é assim que ele é. Uma lista de uma parte sem `subitemId` é o produto sem
+ * subitens (drena a SKU do inteiro); lista vazia não tem o que drenar.
  */
 export function consumeWholeFifo(
   good: FinishedGood | null | undefined,
-  subitemIds: string[],
+  parts: WholePart[],
   qty: number,
 ): FinishedConsumptionResult {
-  if (subitemIds.length === 0) return consumeFifo(good, undefined, qty);
+  if (parts.length === 0) {
+    const want = num(qty);
+    return {
+      moves: [],
+      cost: 0,
+      shortfall: want > 0 ? want : 0,
+      breakdown: ZERO_FROZEN,
+      costUnknown: 0,
+    };
+  }
   const moves: FinishedMove[] = [];
   let cost = 0;
   let breakdown = ZERO_FROZEN;
   let costUnknown = 0;
   let shortfall = 0;
-  for (const subitemId of subitemIds) {
-    const res = consumeFifo(good, subitemId, qty);
+  for (const part of parts) {
+    const res = consumeFifo(good, part.subitemId, part.colorKey, qty);
     moves.push(...res.moves);
     cost += res.cost;
     breakdown = addFrozen(breakdown, res.breakdown);
@@ -419,13 +525,18 @@ export function reverseFinishedConsumption(
  * lista VIVA do produto — não dá para inferir do doc, que só guarda as SKUs já
  * tocadas pela produção (senão uma parte nunca impressa seria ignorada e o inteiro
  * apareceria inflado). Sem subitens (`subitemIds` vazio) → saldo do inteiro.
+ *
+ * ⚠ FEAT-11: a montagem IGNORA a cor de propósito (`partBalance` soma as cores).
+ * Um conjunto é corpo azul + tampa vermelha quando é assim que ele é — exigir a
+ * mesma cor em todas as partes zeraria justamente o produto multicor de projeto.
+ * A cor entra na hora de escolher DE ONDE tirar cada parte (`consumeWholeFifo`).
  */
 export function assemblableWholes(
   good: FinishedGood | null | undefined,
   subitemIds: string[],
 ): number {
-  if (subitemIds.length === 0) return balanceOf(good, undefined);
-  return Math.min(...subitemIds.map((id) => balanceOf(good, id)));
+  if (subitemIds.length === 0) return partBalance(good, undefined);
+  return Math.min(...subitemIds.map((id) => partBalance(good, id)));
 }
 
 // Valor congelado de uma SKU: Σ (qty × custo congelado) das camadas. Pode ser
@@ -490,8 +601,11 @@ export function goodCostComposition(
 export type AssemblyPart = {
   subitemId: string;
   name: string;
-  balance: number;
+  balance: number; // todas as cores somadas
   leftover: number; // saldo além dos conjuntos completos (peças avulsas)
+  // FEAT-11: de que cores é esse saldo ("2 Azul, 1 Preto"). A tela mostra a
+  // decomposição sem precisar re-perguntar ao doc.
+  colors: ColorBalance[];
 };
 
 export type AssemblyBreakdown = {
@@ -517,8 +631,14 @@ export function assemblyBreakdown(
     subitems.map((s) => s.id),
   );
   const parts: AssemblyPart[] = subitems.map((s) => {
-    const balance = balanceOf(good, s.id);
-    return { subitemId: s.id, name: s.name, balance, leftover: balance - wholes };
+    const balance = partBalance(good, s.id);
+    return {
+      subitemId: s.id,
+      name: s.name,
+      balance,
+      leftover: balance - wholes,
+      colors: colorsWithBalance(good, s.id),
+    };
   });
   return { wholes, parts, hasGap: parts.some((p) => p.leftover > 0) };
 }

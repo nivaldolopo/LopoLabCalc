@@ -31,6 +31,7 @@ import {
   planEventRows,
   scaleRow,
   subitemEventRows,
+  submissionColors,
   wholeEventRows,
   type EventRow,
   type FilRow,
@@ -197,6 +198,7 @@ export function ProductionPage() {
           colorName: "",
           totalG: 0,
           pricePerKg: DEFAULT_PRODUCT_INPUT.filamentPricePerKg ?? 110,
+          stageKey: "",
         },
       ],
       laborCost: 0,
@@ -315,6 +317,7 @@ export function ProductionPage() {
                   colorName: "",
                   totalG: 0,
                   pricePerKg: DEFAULT_PRODUCT_INPUT.filamentPricePerKg ?? 110,
+                  stageKey: "",
                 },
               ],
             }
@@ -393,12 +396,28 @@ export function ProductionPage() {
     const pieces = Math.max(1, num(product.piecesCount) || 1);
     const units = pieces * Math.max(1, plates);
 
+    // FEAT-11: as cores COMO ESTÃO na tela (já com as trocas). No inteiro com
+    // partes, cada subitem recebe a cor das SUAS etapas — é o que credita
+    // corpo=Azul e tampa=Vermelho num evento só, em vez de carimbar a mistura
+    // nas duas SKUs. As linhas aqui não estão escaladas por placas, e nem
+    // precisam: escala não muda cor.
+    const colors = submissionColors(
+      rows,
+      !subitemId ? (product.subitems ?? []) : [],
+    );
+
     const entries = submissionEntries(name, summary.frozen, {
       subitemId,
       subitemName: subitems.find((s) => s.id === subitemId)?.name,
+      color: colors.whole,
       subitems:
         !subitemId && subitems.length > 0
-          ? subitems.map((s) => ({ id: s.id, name: s.name, cost: s.cost }))
+          ? subitems.map((s) => ({
+              id: s.id,
+              name: s.name,
+              cost: s.cost,
+              color: colors.bySubitem.get(s.id),
+            }))
           : undefined,
       units,
       breakdown: summary.frozenBreakdown,
@@ -577,6 +596,50 @@ export function ProductionPage() {
   const finishedUnits = selectedPieces * Math.max(1, plates);
   const isProductSelected = Boolean(selectedKey) && selectedKey !== "avulso";
 
+  // FEAT-11 — o que a troca de cor custou, por linha. A baixa FIFO e o custo real
+  // já seguem a cor escolhida; o PREÇO do produto, não (ele veio do cadastro).
+  // Sem este aviso o efeito só apareceria depois, congelado na venda.
+  function swapOf(fil: FilRow): { deltaKg: number; perPiece: number } | null {
+    if (!fil.origin || fil.filamentId === fil.origin.filamentId) return null;
+    const deltaKg = num(fil.pricePerKg) - num(fil.origin.pricePerKg);
+    const submission = ((num(fil.totalG) * Math.max(1, plates)) / 1000) * deltaKg;
+    return { deltaKg, perPiece: submission / Math.max(1, finishedUnits) };
+  }
+
+  // O efeito somado de TODAS as trocas, por peça — e a margem que sobra com ele.
+  const swapImpact = useMemo(() => {
+    const perPiece = rows.reduce(
+      (sum, row) =>
+        sum +
+        row.filaments.reduce((s, fil) => {
+          if (!fil.origin || fil.filamentId === fil.origin.filamentId) return s;
+          const deltaKg = num(fil.pricePerKg) - num(fil.origin.pricePerKg);
+          return s + ((num(fil.totalG) * Math.max(1, plates)) / 1000) * deltaKg;
+        }, 0),
+      0,
+    );
+    return perPiece / Math.max(1, finishedUnits);
+  }, [rows, plates, finishedUnits]);
+
+  // Preço e margem PRECIFICADOS do que está selecionado (produto inteiro ou
+  // subitem), para o aviso dizer de quanto para quanto a margem foi.
+  const selectedPricing = useMemo((): { price: number; margin: number } | null => {
+    if (selectedKey.startsWith("whole:")) {
+      const result = pricingByProduct.get(selectedKey.slice("whole:".length));
+      if (!result || result.suggestedPrice <= 0) return null;
+      return { price: result.suggestedPrice, margin: result.margin };
+    }
+    if (selectedKey.startsWith("sub:")) {
+      const [, productId, subitemId] = selectedKey.split(":");
+      const sub = pricingByProduct
+        .get(productId)
+        ?.subitems?.find((s) => s.id === subitemId);
+      if (!sub || sub.price <= 0) return null;
+      return { price: sub.price, margin: ((sub.price - sub.cost) / sub.price) * 100 };
+    }
+    return null;
+  }, [selectedKey, pricingByProduct]);
+
   const canSave = rows.length > 0 && !saving;
 
   return (
@@ -678,29 +741,34 @@ export function ProductionPage() {
               </div>
 
               <div className="section-label">Filamento</div>
-              {row.filaments.map((fil, index) => (
-                <div className="prod-fil" key={index}>
-                  {isAvulso ? (
-                    <select
-                      className="field-input"
-                      value={fil.filamentId ?? ""}
-                      onChange={(event) =>
-                        setFilColor(row.key, index, event.target.value)
-                      }
-                    >
-                      <option value="">Avulso (livre)</option>
-                      {stock
-                        .filter((c) => !c.archived)
-                        .map((color) => (
-                          <option key={color.id} value={color.id}>
-                            {filamentLabel(color)}
-                          </option>
-                        ))}
-                    </select>
-                  ) : (
-                    <span className="prod-fil-name">{fil.label}</span>
-                  )}
-                  {isAvulso && !fil.filamentId ? (
+              {/* FEAT-11: o seletor de cor vale para QUALQUER linha — a mesma peça
+                  é impressa em outra cor o tempo todo, e antes disso só dava para
+                  trocar editando o produto no catálogo. O produto não muda: a cor
+                  da vez vale para este evento, e custo/baixa/frozenCost seguem a
+                  cor efetivamente escolhida. "Avulso (livre)" segue disponível
+                  (decisão do dono) para filamento que não está no Estoque. */}
+              {row.filaments.map((fil, index) => {
+                const swap = swapOf(fil);
+                return (
+                <div className="prod-fil-wrap" key={index}>
+                <div className="prod-fil">
+                  <select
+                    className="field-input"
+                    value={fil.filamentId ?? ""}
+                    onChange={(event) =>
+                      setFilColor(row.key, index, event.target.value)
+                    }
+                  >
+                    <option value="">Avulso (livre)</option>
+                    {stock
+                      .filter((c) => !c.archived)
+                      .map((color) => (
+                        <option key={color.id} value={color.id}>
+                          {filamentLabel(color)}
+                        </option>
+                      ))}
+                  </select>
+                  {!fil.filamentId ? (
                     <input
                       className="field-input prod-fil-free"
                       type="text"
@@ -724,7 +792,7 @@ export function ProductionPage() {
                     />
                     <span className="prod-unit">g</span>
                   </div>
-                  {isAvulso && !fil.filamentId ? (
+                  {!fil.filamentId ? (
                     <div className="prod-fil-price">
                       <NumberInput
                         className="field-input"
@@ -749,7 +817,31 @@ export function ProductionPage() {
                     </button>
                   ) : null}
                 </div>
-              ))}
+                {swap ? (
+                  <div
+                    className={`prod-fil-swap ${swap.perPiece > 0 ? "up" : swap.perPiece < 0 ? "down" : ""}`}
+                  >
+                    Trocou <strong>{fil.origin!.label}</strong> por{" "}
+                    <strong>{fil.label || fil.colorName || "avulso"}</strong>:{" "}
+                    {formatCurrency(fil.pricePerKg)}/kg vs.{" "}
+                    {formatCurrency(fil.origin!.pricePerKg)}/kg do cadastro
+                    {Math.abs(swap.perPiece) >= 0.005 ? (
+                      <>
+                        {" → "}
+                        <strong>
+                          {swap.perPiece > 0 ? "+" : "−"}
+                          {formatCurrency(Math.abs(swap.perPiece))}
+                        </strong>{" "}
+                        por peça
+                      </>
+                    ) : (
+                      " — mesmo custo"
+                    )}
+                  </div>
+                ) : null}
+                </div>
+                );
+              })}
               {isAvulso ? (
                 <button
                   className="link-button prod-add-fil"
@@ -866,6 +958,35 @@ export function ProductionPage() {
                   hint="· composição ▾"
                 />
               </div>
+              {/* FEAT-11: o efeito somado das trocas de cor na margem. O preço do
+                  produto NÃO muda com a cor (ele vem do cadastro), então uma cor
+                  mais cara sai da margem — e é melhor ver isso agora do que
+                  descobrir depois, congelado na venda. */}
+              {Math.abs(swapImpact) >= 0.005 ? (
+                <div className={`prod-warn ${swapImpact > 0 ? "info" : ""}`}>
+                  Cor trocada:{" "}
+                  <strong>
+                    {swapImpact > 0 ? "+" : "−"}
+                    {formatCurrency(Math.abs(swapImpact))}
+                  </strong>{" "}
+                  por peça no custo real. O preço do produto não muda
+                  {selectedPricing ? (
+                    <>
+                      {" "}
+                      — a margem desta produção fica em{" "}
+                      <strong>
+                        {(
+                          selectedPricing.margin -
+                          (swapImpact / selectedPricing.price) * 100
+                        ).toFixed(1)}
+                        %
+                      </strong>{" "}
+                      (precificada {selectedPricing.margin.toFixed(1)}%)
+                    </>
+                  ) : null}
+                  .
+                </div>
+              ) : null}
               {mode === "historico" ? (
                 <div className="prod-note">
                   Modo histórico: registra horas e gramas, mas <strong>não</strong>{" "}

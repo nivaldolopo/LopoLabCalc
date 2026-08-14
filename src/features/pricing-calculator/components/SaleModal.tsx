@@ -21,8 +21,17 @@ import {
 import { newProductionId } from "@/lib/firebase/productionRepository";
 import type { ReciboWrite } from "@/lib/firebase/salesRepository";
 import { CostDetail } from "./CostDetail";
-import { assemblableWholes, balanceOf } from "../lib/finishedGoods";
-import { freezeFilaments, materialsLabel } from "../lib/filaments";
+import {
+  assemblableWholes,
+  colorsWithBalance,
+  partBalance,
+  WHOLE_PART_KEY,
+} from "../lib/finishedGoods";
+import {
+  freezeFilaments,
+  materialsLabel,
+  NO_COLOR_KEY,
+} from "../lib/filaments";
 import {
   apportionDiscount,
   discountAmountOf,
@@ -76,6 +85,9 @@ export type SaleModalEditItem = {
   // Passo 8: reconciliação da venda salva, para o estorno-e-reaplicação da edição.
   origem?: SaleItemOrigin;
   finishedMoves?: FinishedMove[];
+  // FEAT-11: as cores escolhidas na venda salva — voltam para a linha para a
+  // reedição reaplicar a baixa na MESMA prateleira de onde saiu.
+  finishedColors?: Record<string, string>;
   productionEventIds?: string[];
 };
 
@@ -109,6 +121,12 @@ type CestaItem = {
   discount?: Discount;
   // Passo 8: caminho de reconciliação deste item (default por saldo do acabado).
   origem: SaleItemOrigin;
+  // FEAT-11: cor ESCOLHIDA à mão para cada parte (chave = subitemId ou
+  // `WHOLE_PART_KEY`). Guarda só o que o dono escolheu — o default (cor de maior
+  // saldo) é DERIVADO na hora de usar. Sem isso, o modal teria que reescrever o
+  // estado quando os acabados chegassem do Firestore (o mesmo bug assíncrono que
+  // o `touchedOrigem` conserta para a origem).
+  colors?: Record<string, string>;
 };
 
 // FEAT-09: qual modo de desconto está ativo no recibo (XOR — nunca os dois).
@@ -237,7 +255,83 @@ export function SaleModal({
         return assemblableWholes(good, product.subitems.map((s) => s.id));
       }
     }
-    return balanceOf(good, source.subitemId);
+    // FEAT-11: o saldo da peça soma TODAS as cores — ter 2 azuis e 1 preto são 3
+    // peças na prateleira. A cor decide de onde tirar, não quantas existem.
+    return partBalance(good, source.subitemId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // FEAT-11 — a cor de cada peça na baixa do acabado
+  // ---------------------------------------------------------------------------
+
+  // As PARTES que uma venda de peça pronta drena: os subitens (venda do conjunto)
+  // ou a peça única. Cada uma escolhe a sua cor — um conjunto pode ser corpo azul
+  // + tampa vermelha de projeto.
+  function partsOf(source: SaleModalContext): { key: string; name: string }[] {
+    if (source.subitemId) return [{ key: source.subitemId, name: "" }];
+    const product = products.find((p) => p.id === source.productId);
+    if (product?.sellBySubitems && product.subitems.length > 0) {
+      return product.subitems.map((s) => ({
+        key: s.id,
+        name: s.name || "parte",
+      }));
+    }
+    return [{ key: WHOLE_PART_KEY, name: "" }];
+  }
+
+  // As cores em que aquela parte existe hoje (as opções do seletor).
+  function colorOptionsOf(source: SaleModalContext, partKey: string) {
+    const good = goods.find((g) => g.productId === source.productId);
+    return colorsWithBalance(
+      good,
+      partKey === WHOLE_PART_KEY ? undefined : partKey,
+    );
+  }
+
+  // A cor EFETIVA de uma parte: a escolhida à mão, ou o default = maior saldo.
+  // Derivada (não guardada) para não depender da ordem em que os acabados chegam.
+  function colorOf(item: CestaItem, partKey: string): string {
+    const chosen = item.colors?.[partKey];
+    if (chosen) return chosen;
+    return colorOptionsOf(item.source, partKey)[0]?.colorKey ?? NO_COLOR_KEY;
+  }
+
+  // O mapa completo de cores de um item, como a reconciliação espera.
+  function colorsOf(item: CestaItem): Record<string, string> {
+    const map: Record<string, string> = {};
+    for (const part of partsOf(item.source)) map[part.key] = colorOf(item, part.key);
+    return map;
+  }
+
+  // Rótulo congelado no recibo: "Azul" na peça única, "Corpo: Azul · Tampa:
+  // Vermelho" no conjunto multicor. Vazio quando não há cor a declarar.
+  function colorLabelOf(item: CestaItem): string {
+    const parts = partsOf(item.source)
+      .map((part) => {
+        const key = colorOf(item, part.key);
+        const found = colorOptionsOf(item.source, part.key).find(
+          (c) => c.colorKey === key,
+        );
+        if (!found || found.colorKey === NO_COLOR_KEY) return null;
+        return part.name ? `${part.name}: ${found.colorLabel}` : found.colorLabel;
+      })
+      .filter((label): label is string => Boolean(label));
+    // Conjunto inteiro na mesma cor não precisa repetir o nome de cada parte.
+    const unicas = new Set(
+      parts.map((label) => label.split(": ").pop() ?? label),
+    );
+    if (parts.length > 1 && unicas.size === 1) return [...unicas][0];
+    return parts.join(" · ");
+  }
+
+  function setColor(key: string, partKey: string, colorKey: string) {
+    setItems((current) =>
+      current.map((item) =>
+        item.key === key
+          ? { ...item, colors: { ...(item.colors ?? {}), [partKey]: colorKey } }
+          : item,
+      ),
+    );
   }
   function defaultOrigin(source: SaleModalContext): SaleItemOrigin {
     return balanceForItem(source) > 0 ? "acabado" : "encomenda";
@@ -259,6 +353,9 @@ export function SaleModal({
           ? { discount: entry.discountInput }
           : {}),
         origem: entry.origem ?? defaultOrigin(entry.source),
+        // FEAT-11: a cor salva volta como escolha explícita (não como default),
+        // senão reabrir um recibo poderia mudar a prateleira de onde a peça sai.
+        ...(entry.finishedColors ? { colors: entry.finishedColors } : {}),
       }));
     }
     return seed ? [itemFromContext(seed, defaultOrigin(seed))] : [];
@@ -468,8 +565,12 @@ export function SaleModal({
         productName: item.productName,
         quantity: Math.max(1, Number(item.quantity) || 1),
         origem: item.origem,
+        // FEAT-11: a cor de cada parte (só o caminho `acabado` usa).
+        colors: colorsOf(item),
       })),
-    [items],
+    // `colorsOf` deriva de goods/products — recomputa quando eles chegam.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, goods, products],
   );
 
   // Reconciliação viva: custo REAL por item (D3) + avisos, por caminho. Pura, não
@@ -698,6 +799,17 @@ export function SaleModal({
         origem: item.origem,
         ...(r && r.finishedMoves.length > 0
           ? { finishedMoves: r.finishedMoves }
+          : {}),
+        // FEAT-11: a cor de onde saiu, congelada — só faz sentido na peça pronta
+        // (a encomenda produz na cor do cadastro). O mapa serve à reedição; o
+        // rótulo, ao histórico (a cor pode ser renomeada depois).
+        ...(item.origem === "acabado" && r && r.finishedMoves.length > 0
+          ? {
+              finishedColors: colorsOf(item),
+              ...(colorLabelOf(item)
+                ? { finishedColorLabel: colorLabelOf(item) }
+                : {}),
+            }
           : {}),
         ...(r && r.productionEventIds.length > 0
           ? { productionEventIds: r.productionEventIds }
@@ -1095,6 +1207,38 @@ export function SaleModal({
                     realCogs={unitCost}
                   />
                 </div>
+
+                {/* FEAT-11: de QUAL cor tirar a peça pronta. Aparece só quando a
+                    parte existe em mais de uma cor — com uma cor só (o caso
+                    normal) a linha fica igual à de antes. Conjunto multicor tem
+                    um seletor por parte: corpo e tampa saem de saldos próprios. */}
+                {item.origem === "acabado"
+                  ? partsOf(item.source).map((part) => {
+                      const options = colorOptionsOf(item.source, part.key);
+                      if (options.length < 2) return null;
+                      return (
+                        <div className="cesta-cor" key={part.key}>
+                          <span className="cesta-cor-label">
+                            {part.name ? `Cor — ${part.name}` : "Cor"}
+                          </span>
+                          <select
+                            className="field-input"
+                            value={colorOf(item, part.key)}
+                            onChange={(event) =>
+                              setColor(item.key, part.key, event.target.value)
+                            }
+                            title="De qual cor sair esta peça (só as cores com saldo aparecem)."
+                          >
+                            {options.map((option) => (
+                              <option key={option.colorKey} value={option.colorKey}>
+                                {option.colorLabel} ({Math.round(option.balance)})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })
+                  : null}
 
                 {item.origem === "acabado" && r && r.finishedShortfall > 0 ? (
                   <div className="cesta-warn strong">

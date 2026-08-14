@@ -5,17 +5,20 @@ import {
   assemblableWholes,
   assemblyBreakdown,
   balanceOf,
+  colorsWithBalance,
   consumeFifo,
   consumeWholeFifo,
   findSku,
   goodCostComposition,
   goodValue,
+  partBalance,
   removeEventLayers,
   reverseFinishedConsumption,
   skuBalance,
   skuValue,
   submissionEntries,
 } from "./finishedGoods";
+import { NO_COLOR, NO_COLOR_KEY, NO_COLOR_LABEL } from "./filaments";
 import { addFrozen, scaleFrozen, sumFrozen, ZERO_FROZEN } from "./production";
 import type {
   FinishedGood,
@@ -26,13 +29,33 @@ import type {
 
 const DIA = 24 * 60 * 60 * 1000;
 
-function makeGood(over: Partial<FinishedGood> & { skus: FinishedSku[] }): FinishedGood {
+// FEAT-11: toda SKU tem cor. Os testes anteriores ao FEAT-11 não falam de cor —
+// a semente abaixo põe AZUL em quem não declarar, para eles seguirem lendo sobre
+// o que testam (FIFO, rateio, estorno) sem ruído. Quem testa cor declara.
+const AZUL = { key: "fil_azul", label: "Azul" };
+const VERMELHO = { key: "fil_verm", label: "Vermelho" };
+
+type SkuSeed = Omit<FinishedSku, "colorKey" | "colorLabel"> &
+  Partial<Pick<FinishedSku, "colorKey" | "colorLabel">>;
+
+// Partes de um conjunto, todas na mesma cor (o caso comum).
+const parts = (...subitemIds: string[]) =>
+  subitemIds.map((subitemId) => ({ subitemId, colorKey: AZUL.key }));
+
+function makeGood(
+  over: Omit<Partial<FinishedGood>, "skus"> & { skus: SkuSeed[] },
+): FinishedGood {
   return {
     id: "prod-1",
     productId: "prod-1",
     productName: "Boneco",
     createdAt: 0,
     ...over,
+    skus: over.skus.map((sku) => ({
+      ...sku,
+      colorKey: sku.colorKey ?? AZUL.key,
+      colorLabel: sku.colorLabel ?? AZUL.label,
+    })),
   };
 }
 
@@ -73,7 +96,7 @@ describe("addProductionLayers", () => {
       good,
       "prod-1",
       "Boneco",
-      [{ name: "Boneco", qty: 3, unitCost: 7 }],
+      [{ name: "Boneco", color: AZUL, qty: 3, unitCost: 7 }],
       "e2",
       DIA,
     );
@@ -88,15 +111,15 @@ describe("addProductionLayers", () => {
       "prod-1",
       "Kit",
       [
-        { subitemId: "a", name: "Base", qty: 1, unitCost: 6 },
-        { subitemId: "b", name: "Topo", qty: 1, unitCost: 4 },
+        { subitemId: "a", name: "Base", color: AZUL, qty: 1, unitCost: 6 },
+        { subitemId: "b", name: "Topo", color: AZUL, qty: 1, unitCost: 4 },
       ],
       "e1",
       0,
     );
     expect(payload.skus).toHaveLength(2);
-    expect(balanceOf({ ...payload, id: "prod-1" }, "a")).toBe(1);
-    expect(balanceOf({ ...payload, id: "prod-1" }, "b")).toBe(1);
+    expect(balanceOf({ ...payload, id: "prod-1" }, "a", AZUL.key)).toBe(1);
+    expect(balanceOf({ ...payload, id: "prod-1" }, "b", AZUL.key)).toBe(1);
   });
 
   it("ignora entradas com qty ≤ 0", () => {
@@ -120,15 +143,15 @@ describe("addProductionLayers", () => {
       "prod-1",
       "Kit",
       [
-        { name: "Kit", qty: 1, unitCost: 5 },
-        { subitemId: "a", name: "Base", qty: 1, unitCost: 3 },
+        { name: "Kit", color: AZUL, qty: 1, unitCost: 5 },
+        { subitemId: "a", name: "Base", color: AZUL, qty: 1, unitCost: 3 },
       ],
       "e1",
       0,
     );
     const ids = payload.skus.map((sku) => sku.layers[0].id);
-    expect(ids).toContain("e1____whole__"); // SKU do inteiro
-    expect(ids).toContain("e1__a"); // SKU do subitem
+    expect(ids).toContain(`e1____whole__::${AZUL.key}`); // SKU do inteiro
+    expect(ids).toContain(`e1__a::${AZUL.key}`); // SKU do subitem
   });
 });
 
@@ -160,7 +183,7 @@ describe("removeEventLayers (estorno)", () => {
         },
       ],
     });
-    const grown = addProductionLayers(base, "prod-1", "Boneco", [{ name: "Boneco", qty: 3, unitCost: 7 }], "e2", DIA);
+    const grown = addProductionLayers(base, "prod-1", "Boneco", [{ name: "Boneco", color: AZUL, qty: 3, unitCost: 7 }], "e2", DIA);
     const reverted = removeEventLayers({ ...grown, id: "prod-1" }, "e2");
     expect(skuBalance(reverted.skus[0])).toBe(2);
   });
@@ -180,7 +203,7 @@ describe("consumeFifo (passo 8 — descreve)", () => {
   });
 
   it("consome da camada mais antiga primeiro (FIFO), COGS pelo custo congelado", () => {
-    const res = consumeFifo(good, undefined, 1);
+    const res = consumeFifo(good, undefined, AZUL.key, 1);
     expect(res.moves).toHaveLength(1);
     expect(res.moves[0].layerId).toBe("e1__whole");
     expect(res.cost).toBe(5); // 1 × custo congelado da 1ª camada
@@ -188,14 +211,14 @@ describe("consumeFifo (passo 8 — descreve)", () => {
   });
 
   it("atravessa camadas com custo misto exato", () => {
-    const res = consumeFifo(good, undefined, 3); // 2×5 (e1) + 1×7 (e2)
+    const res = consumeFifo(good, undefined, AZUL.key, 3); // 2×5 (e1) + 1×7 (e2)
     expect(res.moves).toHaveLength(2);
     expect(res.cost).toBe(2 * 5 + 1 * 7);
     expect(res.shortfall).toBe(0);
   });
 
   it("D4: passar do saldo total gera shortfall na camada mais nova, sem truncar", () => {
-    const res = consumeFifo(good, undefined, 7); // saldo 5; faltam 2
+    const res = consumeFifo(good, undefined, AZUL.key, 7); // saldo 5; faltam 2
     expect(res.shortfall).toBe(2);
     // O excedente engrossa o move da camada mais nova (e2), não cria um segundo.
     const e2 = res.moves.filter((m) => m.layerId === "e2__whole");
@@ -204,14 +227,14 @@ describe("consumeFifo (passo 8 — descreve)", () => {
   });
 
   it("SKU inexistente/qtd zero → sem move; shortfall carrega o pedido", () => {
-    expect(consumeFifo(good, "nao-existe", 4)).toEqual({
+    expect(consumeFifo(good, "nao-existe", AZUL.key, 4)).toEqual({
       moves: [],
       cost: 0,
       shortfall: 4,
       breakdown: ZERO_FROZEN,
       costUnknown: 0,
     });
-    expect(consumeFifo(good, undefined, 0).moves).toHaveLength(0);
+    expect(consumeFifo(good, undefined, AZUL.key, 0).moves).toHaveLength(0);
   });
 });
 
@@ -234,14 +257,14 @@ describe("consumeFifo — composição do COGS (FEAT-06)", () => {
   });
 
   it("consumo numa camada só devolve a composição dela", () => {
-    const res = consumeFifo(good, undefined, 2);
+    const res = consumeFifo(good, undefined, AZUL.key, 2);
     expect(res.breakdown.material).toBeCloseTo(6, 6);
     expect(res.breakdown.labor).toBeCloseTo(4, 6);
     expect(sumFrozen(res.breakdown)).toBeCloseTo(res.cost, 6);
   });
 
   it("atravessando camadas, soma ponderada das duas composições", () => {
-    const res = consumeFifo(good, undefined, 3); // 2 de A + 1 de B
+    const res = consumeFifo(good, undefined, AZUL.key, 3); // 2 de A + 1 de B
     expect(res.breakdown.material).toBeCloseTo(3 * 2 + 4, 6);
     expect(res.breakdown.supplies).toBeCloseTo(3, 6);
     expect(res.costUnknown).toBe(0);
@@ -252,7 +275,7 @@ describe("consumeFifo — composição do COGS (FEAT-06)", () => {
   // overdraft engrossa o move da camada mais nova depois dele, e a fatia
   // excedente ficaria de fora dos componentes.
   it("D4: o excedente entra na composição da camada mais nova", () => {
-    const res = consumeFifo(good, undefined, 7); // saldo 5, faltam 2
+    const res = consumeFifo(good, undefined, AZUL.key, 7); // saldo 5, faltam 2
     expect(res.shortfall).toBe(2);
     expect(sumFrozen(res.breakdown)).toBeCloseTo(res.cost, 6);
     // 2 de A + (3+2) de B
@@ -271,7 +294,7 @@ describe("consumeFifo — composição do COGS (FEAT-06)", () => {
         },
       ],
     });
-    const res = consumeFifo(misto, undefined, 3); // 2 velhas + 1 nova
+    const res = consumeFifo(misto, undefined, AZUL.key, 3); // 2 velhas + 1 nova
     expect(res.costUnknown).toBeCloseTo(10, 6);
     expect(sumFrozen(res.breakdown)).toBeCloseTo(7, 6);
     expect(sumFrozen(res.breakdown) + res.costUnknown).toBeCloseTo(res.cost, 6);
@@ -313,7 +336,7 @@ describe("consumeWholeFifo (venda do conjunto — BUG-05)", () => {
   });
 
   it("um conjunto consome uma de cada parte; custo = soma das partes", () => {
-    const res = consumeWholeFifo(kit, ["a", "b"], 1);
+    const res = consumeWholeFifo(kit, parts("a", "b"), 1);
     expect(res.moves).toHaveLength(2);
     expect(res.moves.map((m) => m.layerId).sort()).toEqual(["e1__a", "e1__b"]);
     expect(res.cost).toBe(6 + 4);
@@ -321,7 +344,7 @@ describe("consumeWholeFifo (venda do conjunto — BUG-05)", () => {
   });
 
   it("D4: além do conjunto montável, a parte mais escassa fura (shortfall = qty − min)", () => {
-    const res = consumeWholeFifo(kit, ["a", "b"], 2); // só 1 montável (topo)
+    const res = consumeWholeFifo(kit, parts("a", "b"), 2); // só 1 montável (topo)
     expect(res.shortfall).toBe(1); // 2 − min(3,1)
     expect(res.cost).toBe(2 * 6 + 2 * 4); // topo vai a negativo, não trunca
     // O excedente engrossa o move da camada do topo, sem criar um segundo.
@@ -330,7 +353,7 @@ describe("consumeWholeFifo (venda do conjunto — BUG-05)", () => {
   });
 
   it("parte nunca produzida conta no shortfall (sem move)", () => {
-    const res = consumeWholeFifo(kit, ["a", "b", "c"], 1);
+    const res = consumeWholeFifo(kit, parts("a", "b", "c"), 1);
     expect(res.shortfall).toBe(1); // 'c' não existe → 1 conjunto incompleto
     expect(res.cost).toBe(6 + 4); // a e b saem; c não tem de onde tirar
   });
@@ -339,7 +362,7 @@ describe("consumeWholeFifo (venda do conjunto — BUG-05)", () => {
     const whole = makeGood({
       skus: [{ name: "Boneco", layers: [{ id: "e1__whole", at: 0, qty: 4, unitCost: 5, sourceEventId: "e1" }] }],
     });
-    const res = consumeWholeFifo(whole, [], 2);
+    const res = consumeWholeFifo(whole, [{ colorKey: AZUL.key }], 2);
     expect(res.moves).toHaveLength(1);
     expect(res.moves[0].layerId).toBe("e1__whole");
     expect(res.cost).toBe(2 * 5);
@@ -350,7 +373,7 @@ describe("submissionEntries (delta da submissão — FEAT-05b)", () => {
   it("inteiro sem subitens → 1 SKU do inteiro com o custo cheio", () => {
     const entries = submissionEntries("Boneco", 30, {});
     expect(entries).toEqual([
-      { name: "Boneco", qty: 1, unitCost: 30 },
+      { name: "Boneco", color: NO_COLOR, qty: 1, unitCost: 30 },
     ]);
   });
 
@@ -360,7 +383,7 @@ describe("submissionEntries (delta da submissão — FEAT-05b)", () => {
       subitemName: "Base",
     });
     expect(entries).toEqual([
-      { subitemId: "a", name: "Base", qty: 1, unitCost: 12 },
+      { subitemId: "a", name: "Base", color: NO_COLOR, qty: 1, unitCost: 12 },
     ]);
   });
 
@@ -372,8 +395,8 @@ describe("submissionEntries (delta da submissão — FEAT-05b)", () => {
       ],
     });
     expect(entries).toHaveLength(2);
-    expect(entries[0]).toEqual({ subitemId: "a", name: "Base", qty: 1, unitCost: 18 }); // 30×6/10
-    expect(entries[1]).toEqual({ subitemId: "b", name: "Topo", qty: 1, unitCost: 12 }); // 30×4/10
+    expect(entries[0]).toEqual({ subitemId: "a", name: "Base", color: NO_COLOR, qty: 1, unitCost: 18 }); // 30×6/10
+    expect(entries[1]).toEqual({ subitemId: "b", name: "Topo", color: NO_COLOR, qty: 1, unitCost: 12 }); // 30×4/10
     const soma = entries.reduce((s, e) => s + e.unitCost, 0);
     expect(soma).toBeCloseTo(30); // o inteiro = Σ partes (aditivo)
   });
@@ -392,7 +415,7 @@ describe("submissionEntries (delta da submissão — FEAT-05b)", () => {
   it("BUG-02: units = piecesCount × placas → N acabados a custo ÷ units (inteiro)", () => {
     // Mesa de 4 peças, placa custou 40 → 4 acabados a 10 cada (valor conservado).
     const entries = submissionEntries("Boneco", 40, { units: 4 });
-    expect(entries).toEqual([{ name: "Boneco", qty: 4, unitCost: 10 }]);
+    expect(entries).toEqual([{ name: "Boneco", color: NO_COLOR, qty: 4, unitCost: 10 }]);
     expect(entries[0].qty * entries[0].unitCost).toBeCloseTo(40);
   });
 
@@ -404,8 +427,8 @@ describe("submissionEntries (delta da submissão — FEAT-05b)", () => {
         { id: "b", name: "Topo", cost: 4 },
       ],
     });
-    expect(entries[0]).toEqual({ subitemId: "a", name: "Base", qty: 4, unitCost: 4.5 }); // 18/4
-    expect(entries[1]).toEqual({ subitemId: "b", name: "Topo", qty: 4, unitCost: 3 }); // 12/4
+    expect(entries[0]).toEqual({ subitemId: "a", name: "Base", color: NO_COLOR, qty: 4, unitCost: 4.5 }); // 18/4
+    expect(entries[1]).toEqual({ subitemId: "b", name: "Topo", color: NO_COLOR, qty: 4, unitCost: 3 }); // 12/4
     // valor total (qty × unitCost) = 30 (aditivo, conservado)
     const val = entries.reduce((s, e) => s + e.qty * e.unitCost, 0);
     expect(val).toBeCloseTo(30);
@@ -418,7 +441,7 @@ describe("submissionEntries (delta da submissão — FEAT-05b)", () => {
       units: 4,
     });
     expect(entries).toEqual([
-      { subitemId: "a", name: "Base", qty: 4, unitCost: 3 },
+      { subitemId: "a", name: "Base", color: NO_COLOR, qty: 4, unitCost: 3 },
     ]);
   });
 
@@ -457,7 +480,7 @@ describe("submissionEntries com breakdown (FEAT-06)", () => {
   it("sem breakdown, a entrada não ganha unitBreakdown", () => {
     const [entry] = submissionEntries("Boneco", 30, { units: 3 });
     expect(entry.unitBreakdown).toBeUndefined();
-    expect(entry).toEqual({ name: "Boneco", qty: 3, unitCost: 10 });
+    expect(entry).toEqual({ name: "Boneco", color: NO_COLOR, qty: 3, unitCost: 10 });
   });
 
   it("inteiro sem subitens: cada componente é dividido por units", () => {
@@ -702,7 +725,7 @@ describe("applyFinishedConsumption / reverseFinishedConsumption (passo 8)", () =
   });
 
   it("aplica a baixa que o consumeFifo descreveu (drena as camadas)", () => {
-    const res = consumeFifo(good, undefined, 3); // 2 de e1 + 1 de e2
+    const res = consumeFifo(good, undefined, AZUL.key, 3); // 2 de e1 + 1 de e2
     const after = applyFinishedConsumption(good, res.moves);
     expect(skuBalance(after.skus[0])).toBe(5 - 3);
     expect(after.skus[0].layers[0].qty).toBe(0); // e1 zerada
@@ -712,7 +735,7 @@ describe("applyFinishedConsumption / reverseFinishedConsumption (passo 8)", () =
   });
 
   it("round-trip: reverter devolve exatamente o que a venda drenou", () => {
-    const res = consumeFifo(good, undefined, 4);
+    const res = consumeFifo(good, undefined, AZUL.key, 4);
     const after = applyFinishedConsumption(good, res.moves);
     const back = reverseFinishedConsumption(after, res.moves);
     expect(skuBalance(back.skus[0])).toBe(5);
@@ -720,7 +743,7 @@ describe("applyFinishedConsumption / reverseFinishedConsumption (passo 8)", () =
   });
 
   it("D4: vender além do saldo deixa a camada mais nova negativa (não trunca)", () => {
-    const res = consumeFifo(good, undefined, 7); // saldo 5, faltam 2
+    const res = consumeFifo(good, undefined, AZUL.key, 7); // saldo 5, faltam 2
     const after = applyFinishedConsumption(good, res.moves);
     expect(skuBalance(after.skus[0])).toBe(-2);
     // e reverter cura o buraco de volta ao saldo original.
@@ -728,7 +751,7 @@ describe("applyFinishedConsumption / reverseFinishedConsumption (passo 8)", () =
   });
 
   it("moves de outro produto passam batido (cada doc aplica só o seu)", () => {
-    const res = consumeFifo(good, undefined, 1);
+    const res = consumeFifo(good, undefined, AZUL.key, 1);
     const alheio = res.moves.map((m) => ({ ...m, productId: "outro" }));
     expect(applyFinishedConsumption(good, alheio)).toBe(good); // sem delta → mesmo obj
   });
@@ -739,10 +762,248 @@ describe("findSku / balanceOf", () => {
     const good = makeGood({
       skus: [{ subitemId: "a", name: "Base", layers: [{ id: "e1__a", at: 0, qty: 2, unitCost: 6, sourceEventId: "e1" }] }],
     });
-    expect(findSku(good, "a")?.name).toBe("Base");
-    expect(findSku(good, "x")).toBeUndefined();
-    expect(balanceOf(good, "a")).toBe(2);
-    expect(balanceOf(good, "x")).toBe(0);
-    expect(balanceOf(null, "a")).toBe(0);
+    expect(findSku(good, "a", AZUL.key)?.name).toBe("Base");
+    expect(findSku(good, "x", AZUL.key)).toBeUndefined();
+    expect(balanceOf(good, "a", AZUL.key)).toBe(2);
+    expect(balanceOf(good, "x", AZUL.key)).toBe(0);
+    expect(balanceOf(null, "a", AZUL.key)).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FEAT-11 — a cor como 2ª dimensão da SKU
+// ---------------------------------------------------------------------------
+
+const camada = (id: string, qty: number, unitCost = 5) => ({
+  id,
+  at: 0,
+  qty,
+  unitCost,
+  sourceEventId: id,
+});
+
+describe("cor na SKU (FEAT-11) — a mesma peça em duas cores são dois saldos", () => {
+  it("produzir em outra cor abre SKU nova, não engorda a existente", () => {
+    const azul = addProductionLayers(
+      null,
+      "prod-1",
+      "Boneco",
+      [{ name: "Boneco", color: AZUL, qty: 2, unitCost: 5 }],
+      "e1",
+      0,
+    );
+    const ambas = addProductionLayers(
+      { ...azul, id: "prod-1" },
+      "prod-1",
+      "Boneco",
+      [{ name: "Boneco", color: VERMELHO, qty: 3, unitCost: 6 }],
+      "e2",
+      DIA,
+    );
+    const good: FinishedGood = { ...ambas, id: "prod-1" };
+    expect(good.skus).toHaveLength(2);
+    expect(balanceOf(good, undefined, AZUL.key)).toBe(2);
+    expect(balanceOf(good, undefined, VERMELHO.key)).toBe(3);
+    // ...e a prateleira inteira continua sendo 5 peças.
+    expect(partBalance(good, undefined)).toBe(5);
+  });
+
+  it("a mesma cor soma na mesma SKU (dois eventos, um saldo)", () => {
+    const um = addProductionLayers(null, "prod-1", "Boneco", [{ name: "Boneco", color: AZUL, qty: 2, unitCost: 5 }], "e1", 0);
+    const dois = addProductionLayers({ ...um, id: "prod-1" }, "prod-1", "Boneco", [{ name: "Boneco", color: AZUL, qty: 3, unitCost: 6 }], "e2", DIA);
+    expect(dois.skus).toHaveLength(1);
+    expect(skuBalance(dois.skus[0])).toBe(5);
+  });
+
+  it("o id da camada carrega a cor (duas cores no mesmo evento não colidem)", () => {
+    const payload = addProductionLayers(
+      null,
+      "prod-1",
+      "Kit",
+      [
+        { subitemId: "a", name: "Corpo", color: AZUL, qty: 1, unitCost: 6 },
+        { subitemId: "b", name: "Tampa", color: VERMELHO, qty: 1, unitCost: 4 },
+      ],
+      "e1",
+      0,
+    );
+    const ids = payload.skus.map((sku) => sku.layers[0].id);
+    expect(new Set(ids).size).toBe(2);
+    expect(ids).toContain(`e1__a::${AZUL.key}`);
+    expect(ids).toContain(`e1__b::${VERMELHO.key}`);
+  });
+
+  it("o rótulo acompanha a cor viva, sem partir o saldo (a chave é o id)", () => {
+    const antes = addProductionLayers(null, "prod-1", "Boneco", [{ name: "Boneco", color: AZUL, qty: 1, unitCost: 5 }], "e1", 0);
+    const depois = addProductionLayers(
+      { ...antes, id: "prod-1" },
+      "prod-1",
+      "Boneco",
+      [{ name: "Boneco", color: { key: AZUL.key, label: "Azul Bebê" }, qty: 1, unitCost: 5 }],
+      "e2",
+      DIA,
+    );
+    expect(depois.skus).toHaveLength(1);
+    expect(depois.skus[0].colorLabel).toBe("Azul Bebê");
+  });
+
+  it("entrada sem cor cai na sentinela (avulso / dado anterior ao FEAT-11)", () => {
+    const payload = addProductionLayers(null, "prod-1", "Boneco", [{ name: "Boneco", qty: 1, unitCost: 5 }], "e1", 0);
+    expect(payload.skus[0].colorKey).toBe(NO_COLOR_KEY);
+    expect(payload.skus[0].colorLabel).toBe(NO_COLOR_LABEL);
+  });
+});
+
+describe("consumeFifo por cor (FEAT-11)", () => {
+  const good = makeGood({
+    skus: [
+      { name: "Boneco", colorKey: AZUL.key, colorLabel: AZUL.label, layers: [camada("az", 3, 5)] },
+      { name: "Boneco", colorKey: VERMELHO.key, colorLabel: VERMELHO.label, layers: [camada("vm", 2, 7)] },
+    ],
+  });
+
+  it("drena SÓ a cor pedida, ao custo congelado daquela cor", () => {
+    const res = consumeFifo(good, undefined, VERMELHO.key, 2);
+    expect(res.moves.map((m) => m.layerId)).toEqual(["vm"]);
+    expect(res.cost).toBe(2 * 7);
+    expect(res.shortfall).toBe(0);
+  });
+
+  it("cor sem saldo não empresta da outra: vira shortfall (D4)", () => {
+    const res = consumeFifo(good, undefined, VERMELHO.key, 5); // só 2 vermelhas
+    expect(res.shortfall).toBe(3);
+    expect(res.moves.every((m) => m.layerId === "vm")).toBe(true);
+    expect(balanceOf(applyFinishedConsumption(good, res.moves), undefined, AZUL.key)).toBe(3);
+  });
+
+  it("cor nunca produzida → nenhum move, o pedido inteiro vira shortfall", () => {
+    expect(consumeFifo(good, undefined, "fil_preto", 2).shortfall).toBe(2);
+  });
+});
+
+describe("colorsWithBalance (FEAT-11)", () => {
+  const good = makeGood({
+    skus: [
+      { name: "Boneco", colorKey: AZUL.key, colorLabel: AZUL.label, layers: [camada("az", 2)] },
+      { name: "Boneco", colorKey: VERMELHO.key, colorLabel: VERMELHO.label, layers: [camada("vm", 5)] },
+      { name: "Boneco", colorKey: "fil_preto", colorLabel: "Preto", layers: [camada("pt", 0)] },
+      { name: "Boneco", colorKey: "fil_verde", colorLabel: "Verde", layers: [camada("vd", -1)] },
+    ],
+  });
+
+  it("do maior saldo para o menor (o 1º é o default do seletor da venda)", () => {
+    expect(colorsWithBalance(good).map((c) => c.colorLabel)).toEqual([
+      "Vermelho",
+      "Azul",
+      "Verde",
+    ]);
+    expect(colorsWithBalance(good)[0].balance).toBe(5);
+  });
+
+  it("cor zerada some da lista; saldo NEGATIVO continua visível (D4)", () => {
+    const labels = colorsWithBalance(good).map((c) => c.colorLabel);
+    expect(labels).not.toContain("Preto");
+    expect(colorsWithBalance(good).find((c) => c.colorLabel === "Verde")?.balance).toBe(-1);
+  });
+
+  it("sem doc, lista vazia", () => {
+    expect(colorsWithBalance(null)).toEqual([]);
+  });
+});
+
+// O caso que motivou a regra: um produto pode ser corpo azul + tampa vermelha DE
+// PROJETO. Exigir a mesma cor nas duas partes zeraria justamente esse produto.
+describe("conjunto multicor (FEAT-11) — a montagem ignora a cor", () => {
+  const kit = makeGood({
+    skus: [
+      { subitemId: "corpo", name: "Corpo", colorKey: AZUL.key, colorLabel: AZUL.label, layers: [camada("c-az", 3, 6)] },
+      { subitemId: "tampa", name: "Tampa", colorKey: VERMELHO.key, colorLabel: VERMELHO.label, layers: [camada("t-vm", 3, 4)] },
+    ],
+  });
+
+  it("3 corpos azuis + 3 tampas vermelhas = 3 conjuntos (não 0)", () => {
+    expect(assemblableWholes(kit, ["corpo", "tampa"])).toBe(3);
+  });
+
+  it("o saldo da parte soma as cores (2 azuis + 1 preto = 3 corpos)", () => {
+    const misto = makeGood({
+      skus: [
+        { subitemId: "corpo", name: "Corpo", colorKey: AZUL.key, colorLabel: AZUL.label, layers: [camada("c-az", 2, 6)] },
+        { subitemId: "corpo", name: "Corpo", colorKey: "fil_preto", colorLabel: "Preto", layers: [camada("c-pt", 1, 6)] },
+        { subitemId: "tampa", name: "Tampa", colorKey: VERMELHO.key, colorLabel: VERMELHO.label, layers: [camada("t-vm", 1, 4)] },
+      ],
+    });
+    expect(partBalance(misto, "corpo")).toBe(3);
+    expect(assemblableWholes(misto, ["corpo", "tampa"])).toBe(1); // a tampa é o gargalo
+  });
+
+  it("vender o conjunto drena cada parte NA SUA cor", () => {
+    const res = consumeWholeFifo(
+      kit,
+      [
+        { subitemId: "corpo", colorKey: AZUL.key },
+        { subitemId: "tampa", colorKey: VERMELHO.key },
+      ],
+      2,
+    );
+    expect(res.moves.map((m) => m.layerId).sort()).toEqual(["c-az", "t-vm"]);
+    expect(res.cost).toBe(2 * 6 + 2 * 4);
+    expect(res.shortfall).toBe(0);
+  });
+
+  it("pedir uma parte numa cor que não existe fura só aquela parte", () => {
+    const res = consumeWholeFifo(
+      kit,
+      [
+        { subitemId: "corpo", colorKey: "fil_preto" }, // nunca produzido em preto
+        { subitemId: "tampa", colorKey: VERMELHO.key },
+      ],
+      1,
+    );
+    expect(res.shortfall).toBe(1);
+    expect(res.cost).toBe(4); // só a tampa saiu
+  });
+
+  it("produto sem partes: uma entrada sem subitemId drena a SKU do inteiro", () => {
+    const whole = makeGood({
+      skus: [{ name: "Boneco", colorKey: AZUL.key, colorLabel: AZUL.label, layers: [camada("w", 4, 5)] }],
+    });
+    const res = consumeWholeFifo(whole, [{ colorKey: AZUL.key }], 2);
+    expect(res.moves[0].layerId).toBe("w");
+    expect(res.cost).toBe(10);
+  });
+
+  it("assemblyBreakdown decompõe cada parte por cor", () => {
+    const bd = assemblyBreakdown(kit, [
+      { id: "corpo", name: "Corpo" },
+      { id: "tampa", name: "Tampa" },
+    ]);
+    expect(bd.wholes).toBe(3);
+    expect(bd.parts.find((p) => p.subitemId === "corpo")?.colors).toEqual([
+      { colorKey: AZUL.key, colorLabel: "Azul", balance: 3 },
+    ]);
+  });
+});
+
+describe("submissionEntries com cor (FEAT-11)", () => {
+  it("cada subitem leva a SUA cor (corpo azul, tampa vermelha no mesmo evento)", () => {
+    const entries = submissionEntries("Kit", 30, {
+      subitems: [
+        { id: "corpo", name: "Corpo", cost: 6, color: AZUL },
+        { id: "tampa", name: "Tampa", cost: 4, color: VERMELHO },
+      ],
+    });
+    expect(entries.map((e) => e.color)).toEqual([AZUL, VERMELHO]);
+  });
+
+  it("inteiro sem subitens e subitem avulso levam a cor informada", () => {
+    expect(submissionEntries("Boneco", 10, { color: VERMELHO })[0].color).toEqual(VERMELHO);
+    expect(
+      submissionEntries("Kit", 10, { subitemId: "a", subitemName: "Base", color: AZUL })[0].color,
+    ).toEqual(AZUL);
+  });
+
+  it("sem cor informada, a entrada nasce sem cor (o crédito cai na sentinela)", () => {
+    expect(submissionEntries("Boneco", 10, {})[0].color).toEqual(NO_COLOR);
   });
 });

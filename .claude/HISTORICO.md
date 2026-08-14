@@ -9,6 +9,79 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ FEAT-11 — Trocar a cor na produção, e a cor como dimensão do acabado (2026-08-13)
+
+O pedido do dono era simples de enunciar: *"a mesma peça é impressa em outra cor o tempo todo, e só
+dá pra trocar editando o produto no catálogo"*. O que ele destravou não foi.
+
+### As 5 decisões do dono
+
+1. **Escopo: A + C** — liberar a troca pontual na `/producao` **e** fazer a cor virar dimensão da SKU
+   do acabado. A opção B (variantes pré-aprovadas no produto) ficou de fora.
+2. **Encomenda não escolhe cor** — a venda sob encomenda produz na cor do cadastro. Coerente com o
+   código: a encomenda **não credita** o acabado (produz e sai pela porta), então nunca toca uma SKU
+   colorida. Trocar cor é na `/producao`.
+3. **O seletor aceita avulso livre** — cores do Estoque **+** filamento fora dele (texto + R$/kg).
+4. **Chave composta** em peça multicor: "Azul + Branco" é saldo próprio, não "a cor dominante".
+5. **Seletor de cor por item na venda de peça pronta**, listando só cores com saldo, default = a de
+   maior saldo.
+
+### A correção que veio no meio (e que mudou o desenho)
+
+O plano inicial avisava que "3 corpos azuis + 2 tampas vermelhas = 0 conjuntos". **Estava errado** —
+e errado de um jeito que teria quebrado o produto multicor **de projeto** (corpo azul + tampa
+vermelha), que é comum. O achado: **subitem é um grupo de etapas** (`Subitem.stageKeys`) e
+`SubitemPrice.filaments` são as cores daquelas etapas — ou seja, **o app já sabe a cor de cada
+parte**. Daí a regra final:
+
+- **A montagem IGNORA a cor** (`assemblableWholes` soma as cores via `partBalance`). Um conjunto é
+  corpo azul + tampa vermelha quando é assim que ele é; exigir cor única zeraria esse produto.
+- **A cor vive na PARTE**, e a venda escolhe por parte (um seletor por peça, só quando aquela peça
+  tem 2+ cores com saldo — no caso normal a tela não muda).
+
+### O fio que liga a cor à parte certa
+
+A `/producao` agrupa as linhas por **máquina**, mas o acabado é creditado por **subitem**. Sem
+ligação entre os dois, produzir o inteiro carimbaria "Azul + Vermelho" nas duas partes. Conserto:
+`FilRow` ganhou `stageKey` (as MESMAS chaves do `stageDetails` — `MAIN_STAGE_KEY` / `stageKeyFor`,
+que virou exportada), e `submissionColors` recorta as cores por `Subitem.stageKeys`. Resultado:
+corpo=Azul, tampa=Vermelho num evento só, **e a troca feita na tela cai na parte certa**.
+
+### O núcleo
+
+- **`colorKeyOf`** (`filaments.ts`, ao lado do `materialsLabel`): cores de uma peça → `{key, label}`.
+  Identidade = `filamentId` (renomear a cor **não** parte o saldo) ou `livre:<slug>` no avulso;
+  gramas 0 não pintam; ordem canônica (azul+branco ≡ branco+azul); repetida colapsa. Sentinela
+  `NO_COLOR` para o que não tem cor.
+- **`skuKey(subitemId, colorKey)`** — a chave da SKU virou 2D. Junto vieram `partBalance` (soma as
+  cores), `skusOfPart`, `colorsWithBalance` (opções do seletor, maior saldo primeiro, esconde zerada
+  e **mostra negativa** — D4) e `WholePart` no `consumeWholeFifo` (cada parte com a sua cor).
+- **Estorno não mudou**: `shiftLayers` casa por `layerId`, que já era único por evento+SKU.
+
+### O aviso ATIVO (pedido do dono)
+
+Trocar a cor muda o custo real (FIFO da cor escolhida), mas **não** muda o preço — ele vem do
+cadastro. Sem aviso, a margem menor só apareceria depois, congelada na venda. Então `FilRow` guarda
+a `origin` (a cor com que o produto foi precificado) e a `/producao` mostra, **por linha**, "trocou
+X por Y: R$ 128/kg vs R$ 110/kg do cadastro → +R$ 0,90 por peça"; e **no resumo**, o efeito somado
+com a margem resultante ("fica em 36%, precificada 42%"). O `origin` é só para o aviso — o cálculo
+usa sempre a cor escolhida.
+
+### Consequências no dado (Diretriz 7 — sem migração)
+
+- SKU sem `colorKey` (tudo que existe hoje) vira o balde **"Sem cor"**, normalizado no `toSku` do
+  repositório — um ponto só, para o núcleo puro não carregar `??` em cada função. O saldo velho
+  **não** se mistura com o das produções novas.
+- **Borda documentada em teste:** cor apagada do Estoque cai no caminho avulso e a SKU passa a ser
+  chaveada pelo NOME (`livre:azul`). Recadastrar a cor não junta os dois saldos — mesmo sintoma que
+  o badge de cor removida (TD-009) já avisa.
+
+**Onde:** `filaments.ts` (+`colorKeyOf`) · `finishedGoods.ts` (chave 2D) · `productionPlan.ts`
+(`stageKey`, `origin`, `submissionColors`) · `calculatePricing.ts` (exporta `stageKeyFor`) ·
+`ProductionPage` (seletor liberado + aviso) · `SaleModal` (cor por parte, congelada) ·
+`saleReconciliation` (`ReconItem.colors`) · `StockPage` (saldo por cor na parte) · `SalesPage`
+("Cor vendida") · repositórios de acabados e vendas. **+40 testes (369).**
+
 ## ✅ FEAT-10 + UX-12 — Arredondamento de varejo e a ordem do card (2026-08-13)
 
 Os dois primeiros do cluster da calculadora. Baratos, mesma tela, sem dependência entre si.

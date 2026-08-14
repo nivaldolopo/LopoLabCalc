@@ -47,6 +47,34 @@
   font-weight: 600;
 }
 
+/* FEAT-11: a linha de cor + o aviso da troca, empilhados. O aviso é uma segunda
+   linha (não cabe no flex da primeira) e só existe quando houve troca. */
+.prod-fil-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prod-fil-swap {
+  font-size: 11.5px;
+  line-height: 1.4;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+  color: var(--muted);
+}
+
+/* Cor mais cara = margem menor: laranja de atenção. Mais barata: só informativo. */
+.prod-fil-swap.up {
+  background: rgba(255, 107, 53, 0.1);
+  color: var(--accent);
+}
+
+.prod-fil-swap.down {
+  background: rgba(74, 155, 106, 0.12);
+  color: #4a9b6a;
+}
+
 .prod-fil-free {
   flex: 1 1 120px;
 }

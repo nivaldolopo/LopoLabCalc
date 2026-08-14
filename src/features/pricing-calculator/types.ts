@@ -468,6 +468,14 @@ export type SaleInput = {
   // devolver exatamente o que saiu (editar/excluir o recibo). Espelha o papel do
   // `stockMoves` do filamento, no acabado.
   finishedMoves?: FinishedMove[];
+  // FEAT-11 — a COR de que cada peça saiu, congelada. `finishedColors` mapeia
+  // parte (subitemId ou `WHOLE_PART_KEY`) → chave de cor: é o que a REEDIÇÃO do
+  // recibo usa para reaplicar a baixa na mesma prateleira. `finishedColorLabel` é
+  // o rótulo pronto para o histórico ("Azul", ou "Corpo: Azul · Tampa: Vermelho"),
+  // congelado como o resto do snapshot — a cor pode ser renomeada depois.
+  // Ausentes na encomenda (produz na cor do cadastro) e em venda pré-FEAT-11.
+  finishedColors?: Record<string, string>;
+  finishedColorLabel?: string;
   // Caminho `encomenda`: o(s) evento(s) de produção criados junto da venda (a
   // baixa de filamento + horas mora neles). O estorno apaga-os e reverte o rolo.
   productionEventIds?: string[];
@@ -798,12 +806,21 @@ export type FinishedLayer = {
   sourceEventId: string;
 };
 
-// Uma SKU do acabado = uma unidade vendável. `subitemId` ausente = o produto
-// INTEIRO (produto sem subitens). Saldo = Σ qty das camadas; pode ficar NEGATIVO
-// quando a venda drenar mais do que há (D4, mesma política do filamento) — só
-// passa a acontecer no passo 8. `name` é o rótulo congelado (subitem ou produto).
+// Uma SKU do acabado = uma unidade vendável, EM UMA COR. `subitemId` ausente = o
+// produto INTEIRO (produto sem subitens). Saldo = Σ qty das camadas; pode ficar
+// NEGATIVO quando a venda drenar mais do que há (D4, mesma política do filamento)
+// — só passa a acontecer no passo 8. `name` é o rótulo congelado (subitem ou
+// produto).
+//
+// FEAT-11: `colorKey` é a 2ª dimensão da chave (`colorKeyOf`, em `filaments.ts`)
+// — o mesmo boneco em azul e em vermelho são dois saldos. Camada gravada antes do
+// FEAT-11 não tem o campo e o repositório a lê como `NO_COLOR_KEY` (Diretriz 7,
+// sem migração): o saldo velho vira o balde "Sem cor" e não se mistura com o novo.
+// `colorLabel` é só exibição ("Azul + Branco"), congelado como o `name`.
 export type FinishedSku = {
   subitemId?: string;
+  colorKey: string;
+  colorLabel: string;
   name: string;
   layers: FinishedLayer[];
 };

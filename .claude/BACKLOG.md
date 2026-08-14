@@ -35,12 +35,11 @@
    **DECIDIDAS**.
 9. ~~**Cluster da calculadora (dono, 2026-08-13)**~~ ✅ **FECHADO (2026-08-13)** — **FEAT-10** ·
    **UX-12** · **UX-11** feitos.
-10. **FEAT-11 — trocar a cor na hora de produzir/vender (dono, 2026-08-13)** — o único do lote que **não**
-   é cosmético: mexe em produção/venda/estoque. **Precisa de decisão de design antes de virar tarefa**
-   (3 opções listadas no item).
+10. ~~**FEAT-11 — trocar a cor na hora de produzir/vender**~~ ✅ **FECHADO (2026-08-13)** — opção
+   **A + C** (dono): troca pontual na `/producao` **e** cor como dimensão da SKU do acabado.
 11. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
-   ⚠ Segue sendo o último; fora dele e do Tier 2 comercial (bloqueado pela marca), o backlog codificável
-   é o cluster da calculadora + FEAT-11.
+   ⚠ **É o que sobra.** Com o FEAT-11 fechado, o backlog codificável acabou: fora o Dashboard (que só
+   vale com venda real acumulada) resta o Tier 2 comercial, **bloqueado pela marca**.
 
 ### Porquês da ordem (decisões de 2026-07-20)
 
@@ -186,32 +185,17 @@
   em R$ 24,90 em vez de R$ 29,90. **Um** modo novo no seletor. Os dois modos psicológicos viraram a
   tabela `NINETY_STEP` + um bloco só (`"0.90"` inalterado). +3 testes (**329**).
   ⚠ **Piso assumido:** não há degrau abaixo de R$ 4,90 — preço menor sobe pra lá (travado em teste).
-- **[FEAT-11] Trocar a cor/filamento na hora de produzir ou vender** *(pedido do dono, 2026-08-13 —
-  **precisa de decisão de design**)* — o produto salvo carrega a cor escolhida no cadastro, e **a mesma
-  peça costuma ser impressa em outra cor**. Hoje só dá pra trocar **editando o produto no catálogo**:
-  em `/producao`, quando a linha vem de um produto salvo, a cor é **texto fixo** — o `<select>` de cor só
-  aparece no modo **avulso** (`ProductionPage.tsx:681-702`, guarda `isAvulso`).
-  - **O que já existe a favor:** o plano de produção **resolve a cor viva do Estoque por
-    `filamentId`** (`productionPlan.ts:78-101`) e a `/producao` já tem o `<select>` pronto — o caminho
-    curto é **só remover a guarda `isAvulso`** e deixar a troca por linha de filamento. O custo e a baixa
-    FIFO seguem a cor efetivamente escolhida, e o `frozenCost` congela o que foi usado de verdade.
-  - **Opções (o dono escolhe):**
-    - **A) Troca pontual na produção** *(mais barato)* — liberar o `<select>` de cor em `/producao`
-      também pro produto salvo. O produto no catálogo **não muda**; a cor da vez vale só pra aquele
-      evento. Cobre "imprimi este em azul hoje". **Não** cobre venda de acabado (ver ⚠ abaixo).
-    - **B) A + variantes de cor no produto** — o produto ganha uma lista de cores **alternativas**
-      pré-aprovadas, e produção/venda escolhem entre elas num seletor. Mais organizado pro catálogo e
-      pro orçamento; custa modelo novo em `types.ts` + UI no form.
-    - **C) Cor vira dimensão da SKU do acabado** *(mais caro, mais correto)* — hoje a SKU do estoque de
-      acabados é **só produto/subitem** (`finishedGoods.ts:112-118`), então "3 azuis + 2 vermelhos" é
-      apenas "5 unidades". Se o dono quiser **saldo por cor**, a chave da SKU precisa incluir a cor —
-      mexe em `finishedGoods`, na reconciliação da venda e nas telas. Diretriz 7 cobre a quebra de dado.
-  - ⚠ **A venda tem dois caminhos e eles se comportam diferente:** a **encomenda** dispara produção
-    (herda a escolha de A/B naturalmente); o item **acabado** só consome saldo — e, sem a opção C, esse
-    saldo **não sabe de cor**, então não há o que escolher lá. Vale decidir se "vender em outra cor"
-    significa **produzir** ou **escolher no estoque**.
-  - **Onde (conforme a opção):** `ProductionPage.tsx` (A) · `types.ts` + `ProductForm.tsx` +
-    `productionPlan.ts` (B) · `finishedGoods.ts` + `saleReconciliation.ts` + `StockPage`/`SaleModal` (C).
+- ~~**[FEAT-11] Trocar a cor/filamento na hora de produzir ou vender**~~ ✅ **FEITO (2026-08-13)** —
+  escopo **A + C** (dono). O `<select>` de cor da `/producao` vale para **qualquer** linha (não só
+  avulso), com "avulso livre" mantido; e a **cor virou dimensão da SKU** do acabado
+  (`skuKey(subitemId, colorKey)`), com `colorKeyOf` (chave **composta** em peça multicor) no
+  `filaments.ts`. **A montagem do conjunto IGNORA a cor** — corpo azul + tampa vermelha é um produto
+  legítimo, e cada parte tem a sua (`FilRow.stageKey` + `Subitem.stageKeys` levam a cor da linha até
+  a parte certa). A venda de peça pronta ganhou **seletor de cor por parte** (só quando há 2+ cores
+  com saldo), congelado no recibo; a **encomenda** segue na cor do cadastro. **Aviso ativo** na
+  `/producao`: quanto a troca custou por peça e a margem resultante. +40 testes (**369**).
+  ⚠ Diretriz 7: o saldo de acabados anterior vira o balde **"Sem cor"** e não se mistura com o novo.
+  Writeup + as 5 decisões em `HISTORICO.md`.
 - **[FEAT-03] Melhorar o PDF do orçamento** *(guarda-chuva)*. Ideias-semente (o dono escolhe o que vira
   tarefa): prazo de entrega, foto/thumbnail do item, formas de pagamento/condições, termos/observações,
   QR code do WhatsApp, detalhar etapas/subitens (usa FEAT-01), desconto/acréscimo, branding real.

@@ -8,6 +8,10 @@ import {
 } from "firebase/firestore";
 import { db } from "./client";
 import { frozenFromDocument, frozenToDocument } from "./frozenCost";
+import {
+  NO_COLOR_KEY,
+  NO_COLOR_LABEL,
+} from "@/features/pricing-calculator/lib/filaments";
 import type {
   FinishedGood,
   FinishedGoodPayload,
@@ -36,9 +40,15 @@ function toLayer(data: DocumentData): FinishedLayer {
   };
 }
 
+// FEAT-11: SKU gravada antes da cor virar dimensão não tem `colorKey` — vira o
+// balde "Sem cor" AQUI, no único ponto de entrada do dado, para o núcleo puro não
+// carregar `??` em cada função. Diretriz 7: sem migração; o saldo velho fica
+// nesse balde e não se mistura com o das produções novas.
 function toSku(data: DocumentData): FinishedSku {
   return {
     ...(data.subitemId ? { subitemId: String(data.subitemId) } : {}),
+    colorKey: data.colorKey ? String(data.colorKey) : NO_COLOR_KEY,
+    colorLabel: data.colorLabel ? String(data.colorLabel) : NO_COLOR_LABEL,
     name: data.name ?? "",
     layers: Array.isArray(data.layers) ? data.layers.map(toLayer) : [],
   };
@@ -74,6 +84,8 @@ function layerToDocument(layer: FinishedLayer): DocumentData {
 function skuToDocument(sku: FinishedSku): DocumentData {
   return {
     ...(sku.subitemId ? { subitemId: sku.subitemId } : {}),
+    colorKey: sku.colorKey || NO_COLOR_KEY,
+    colorLabel: sku.colorLabel || NO_COLOR_LABEL,
     name: sku.name ?? "",
     layers: sku.layers.map(layerToDocument),
   };

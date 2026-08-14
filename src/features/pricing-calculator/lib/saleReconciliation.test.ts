@@ -7,7 +7,7 @@ import {
   type ReconItem,
 } from "./saleReconciliation";
 import { balanceG } from "./stock";
-import { balanceOf } from "./finishedGoods";
+import { balanceOf, WHOLE_PART_KEY } from "./finishedGoods";
 import { sumFrozen } from "./production";
 import { DEFAULT_MACHINES, DEFAULT_PRODUCT_INPUT } from "../constants";
 import type {
@@ -57,13 +57,26 @@ function makeColor(
   };
 }
 
-function makeGood(skus: FinishedSku[]): FinishedGood {
+// FEAT-11: toda SKU tem cor. Os testes anteriores ao recurso nao falam de cor —
+// a semente poe AZUL em quem nao declarar, e os itens da cesta pedem essa mesma
+// cor (`acabadoItem`). Quem testa cor declara.
+const AZUL = { key: "fil_azul", label: "Azul" };
+const VERMELHO = { key: "fil_verm", label: "Vermelho" };
+
+type SkuSeed = Omit<FinishedSku, "colorKey" | "colorLabel"> &
+  Partial<Pick<FinishedSku, "colorKey" | "colorLabel">>;
+
+function makeGood(skus: SkuSeed[]): FinishedGood {
   return {
     id: "p1",
     productId: "p1",
     productName: "Boneco",
     createdAt: 0,
-    skus,
+    skus: skus.map((sku) => ({
+      ...sku,
+      colorKey: sku.colorKey ?? AZUL.key,
+      colorLabel: sku.colorLabel ?? AZUL.label,
+    })),
   };
 }
 
@@ -84,12 +97,16 @@ function ctx(over: Partial<ReconContext>): ReconContext {
   };
 }
 
+// FEAT-11: a venda de peça pronta diz de QUE cor tirar, por parte. O default do
+// helper é "tudo azul" — a cor que o `makeGood` semeia —, para os testes de FIFO
+// /estorno seguirem falando do que testam. `colors` no `over` sobrescreve.
 const acabadoItem = (over: Partial<ReconItem> = {}): ReconItem => ({
   key: "k1",
   productId: "p1",
   productName: "Boneco",
   quantity: 1,
   origem: "acabado",
+  colors: { [WHOLE_PART_KEY]: AZUL.key, a: AZUL.key, b: AZUL.key },
   ...over,
 });
 
@@ -128,7 +145,7 @@ describe("planReciboReconciliation — peça pronta (acabado)", () => {
     expect(recon.colorUpdates).toEqual([]);
     // O acabado decrementa: 5 − 3 = 2.
     expect(recon.finishedUpdates).toHaveLength(1);
-    expect(balanceOf({ ...recon.finishedUpdates[0], id: "p1" }, undefined)).toBe(2);
+    expect(balanceOf({ ...recon.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(2);
   });
 
   it("D4: vender além do saldo → shortfall e saldo negativo, sem bloquear", () => {
@@ -137,7 +154,7 @@ describe("planReciboReconciliation — peça pronta (acabado)", () => {
       ctx({ goods: [good] }),
     );
     expect(recon.items[0].finishedShortfall).toBe(2);
-    expect(balanceOf({ ...recon.finishedUpdates[0], id: "p1" }, undefined)).toBe(-2);
+    expect(balanceOf({ ...recon.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(-2);
   });
 
   it("dois itens da mesma SKU drenam em sequência do saldo já mexido", () => {
@@ -151,7 +168,7 @@ describe("planReciboReconciliation — peça pronta (acabado)", () => {
     // 4 no total, saldo 5 → sobra 1; nenhum shortfall.
     expect(recon.items[0].finishedShortfall).toBe(0);
     expect(recon.items[1].finishedShortfall).toBe(0);
-    expect(balanceOf({ ...recon.finishedUpdates[0], id: "p1" }, undefined)).toBe(1);
+    expect(balanceOf({ ...recon.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(1);
   });
 
   it("acabado nunca produzido: sem doc, shortfall carrega o pedido (sem write)", () => {
@@ -188,8 +205,8 @@ describe("planReciboReconciliation — inteiro de produto com subitens (BUG-05)"
     expect(item.finishedShortfall).toBe(0);
     // As partes decrementam: a 3→2, b 2→1.
     const after = { ...recon.finishedUpdates[0], id: "p1" };
-    expect(balanceOf(after, "a")).toBe(2);
-    expect(balanceOf(after, "b")).toBe(1);
+    expect(balanceOf(after, "a", AZUL.key)).toBe(2);
+    expect(balanceOf(after, "b", AZUL.key)).toBe(1);
   });
 
   it("D4: vender além dos conjuntos montáveis fura a parte mais escassa", () => {
@@ -199,8 +216,8 @@ describe("planReciboReconciliation — inteiro de produto com subitens (BUG-05)"
     );
     expect(recon.items[0].finishedShortfall).toBe(1); // 3 − min(3,2)
     const after = { ...recon.finishedUpdates[0], id: "p1" };
-    expect(balanceOf(after, "a")).toBe(0);
-    expect(balanceOf(after, "b")).toBe(-1); // topo vai a negativo, não trava
+    expect(balanceOf(after, "a", AZUL.key)).toBe(0);
+    expect(balanceOf(after, "b", AZUL.key)).toBe(-1); // topo vai a negativo, não trava
   });
 });
 
@@ -449,7 +466,7 @@ describe("recibo misto + estorno (round-trip)", () => {
     // Estado pós-venda: acabado 4−2=2; cor 1000−100=900.
     const goodAfter: FinishedGood = { ...recon.finishedUpdates[0], id: "p1" };
     const colorAfter = recon.colorUpdates[0];
-    expect(balanceOf(goodAfter, undefined)).toBe(2);
+    expect(balanceOf(goodAfter, undefined, AZUL.key)).toBe(2);
     expect(balanceG(colorAfter)).toBe(900);
 
     // Estorno lê os moves gravados (acabado) + os stockMoves dos eventos (encomenda).
@@ -464,7 +481,7 @@ describe("recibo misto + estorno (round-trip)", () => {
       [colorAfter],
     );
 
-    expect(balanceOf({ ...back.finishedUpdates[0], id: "p1" }, undefined)).toBe(4);
+    expect(balanceOf({ ...back.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(4);
     expect(balanceG(back.colorUpdates[0])).toBe(1000);
   });
 });
@@ -480,7 +497,7 @@ describe("reconcileReciboWrite — estornar-e-reaplicar (edição)", () => {
       ctx({ goods: [good] }),
     );
     expect(plan.productionDeleteIds).toEqual([]);
-    expect(balanceOf({ ...plan.finishedUpdates[0], id: "p1" }, undefined)).toBe(3);
+    expect(balanceOf({ ...plan.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(3);
   });
 
   it("editar acabado 3 → 2 devolve exatamente 1 ao estoque", () => {
@@ -504,7 +521,7 @@ describe("reconcileReciboWrite — estornar-e-reaplicar (edição)", () => {
       ctx({ goods: [currentGood] }),
     );
     // Reverte +3 (saldo 5), reaplica −2 → saldo 3 (era 2, devolveu 1 líquido).
-    expect(balanceOf({ ...plan.finishedUpdates[0], id: "p1" }, undefined)).toBe(3);
+    expect(balanceOf({ ...plan.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(3);
   });
 
   it("editar encomenda estorna o evento antigo (delete + filamento de volta) e cria o novo", () => {
@@ -528,5 +545,108 @@ describe("reconcileReciboWrite — estornar-e-reaplicar (edição)", () => {
     expect(plan.productionCreates).toHaveLength(1);
     // Reverte +100 (volta a 1000), reaplica −100 → 900 (o novo evento).
     expect(balanceG(plan.colorUpdates[0])).toBe(900);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FEAT-11 — a venda de peça pronta escolhe DE QUAL COR tirar
+// ---------------------------------------------------------------------------
+
+describe("planReciboReconciliation — cor na baixa do acabado (FEAT-11)", () => {
+  const duasCores = makeGood([
+    {
+      name: "Boneco",
+      colorKey: AZUL.key,
+      colorLabel: AZUL.label,
+      layers: [{ id: "az", at: 0, qty: 2, unitCost: 5, sourceEventId: "e1" }],
+    },
+    {
+      name: "Boneco",
+      colorKey: VERMELHO.key,
+      colorLabel: VERMELHO.label,
+      layers: [{ id: "vm", at: 10, qty: 3, unitCost: 9, sourceEventId: "e2" }],
+    },
+  ]);
+
+  it("drena a cor ESCOLHIDA, com o custo congelado daquela cor", () => {
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 2, colors: { [WHOLE_PART_KEY]: VERMELHO.key } })],
+      ctx({ goods: [duasCores] }),
+    );
+    expect(recon.items[0].finishedMoves.map((m) => m.layerId)).toEqual(["vm"]);
+    expect(recon.items[0].cogsTotal).toBe(2 * 9); // custo do vermelho, não do azul
+    const after = { ...recon.finishedUpdates[0], id: "p1" };
+    expect(balanceOf(after, undefined, VERMELHO.key)).toBe(1);
+    expect(balanceOf(after, undefined, AZUL.key)).toBe(2); // intacto
+  });
+
+  it("uma cor NÃO empresta da outra: falta vira shortfall (D4)", () => {
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 4, colors: { [WHOLE_PART_KEY]: AZUL.key } })], // só 2 azuis
+      ctx({ goods: [duasCores] }),
+    );
+    expect(recon.items[0].finishedShortfall).toBe(2);
+    expect(
+      balanceOf({ ...recon.finishedUpdates[0], id: "p1" }, undefined, VERMELHO.key),
+    ).toBe(3);
+  });
+
+  // O produto multicor DE PROJETO: corpo azul + tampa vermelha. Cada parte sai da
+  // sua prateleira — exigir uma cor só no conjunto zeraria este produto.
+  it("conjunto multicor drena cada parte na sua cor", () => {
+    const kit = makeGood([
+      {
+        subitemId: "a",
+        name: "Corpo",
+        colorKey: AZUL.key,
+        colorLabel: AZUL.label,
+        layers: [{ id: "c-az", at: 0, qty: 3, unitCost: 6, sourceEventId: "e1" }],
+      },
+      {
+        subitemId: "b",
+        name: "Tampa",
+        colorKey: VERMELHO.key,
+        colorLabel: VERMELHO.label,
+        layers: [{ id: "t-vm", at: 0, qty: 3, unitCost: 4, sourceEventId: "e1" }],
+      },
+    ]);
+    const kitProduct = makeProduct({
+      sellBySubitems: true,
+      subitems: [
+        { id: "a", name: "Corpo", stageKeys: [] },
+        { id: "b", name: "Tampa", stageKeys: [] },
+      ],
+    });
+    const recon = planReciboReconciliation(
+      [
+        acabadoItem({
+          quantity: 2,
+          colors: { a: AZUL.key, b: VERMELHO.key },
+        }),
+      ],
+      ctx({ goods: [kit], products: [kitProduct] }),
+    );
+    expect(recon.items[0].finishedShortfall).toBe(0);
+    expect(recon.items[0].cogsTotal).toBe(2 * 6 + 2 * 4);
+    const after = { ...recon.finishedUpdates[0], id: "p1" };
+    expect(balanceOf(after, "a", AZUL.key)).toBe(1);
+    expect(balanceOf(after, "b", VERMELHO.key)).toBe(1);
+  });
+
+  it("venda sem cor declarada cai no balde 'sem cor' (dado pré-FEAT-11)", () => {
+    const antigo = makeGood([
+      {
+        name: "Boneco",
+        colorKey: "__nocolor__",
+        colorLabel: "Sem cor",
+        layers: [{ id: "velha", at: 0, qty: 4, unitCost: 5, sourceEventId: "e0" }],
+      },
+    ]);
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 1, colors: undefined })],
+      ctx({ goods: [antigo] }),
+    );
+    expect(recon.items[0].finishedMoves.map((m) => m.layerId)).toEqual(["velha"]);
+    expect(recon.items[0].finishedShortfall).toBe(0);
   });
 });

@@ -1,4 +1,5 @@
 import { num } from "@/lib/number";
+import { normalizeText } from "@/lib/text";
 import type { FilamentUsage, StockFilament } from "../types";
 
 // Helpers de filamento por cor (FEAT-02). O modelo unifica mono e multicolor:
@@ -176,4 +177,70 @@ export function materialsLabel(filaments: FilamentUsage[]): string {
     }
   }
   return seen.join(" · ");
+}
+
+// ---------------------------------------------------------------------------
+// FEAT-11 — a IDENTIDADE DE COR de uma peça impressa.
+//
+// A cor virou dimensão da SKU do acabado (decisão do dono): o mesmo produto
+// impresso em azul e em vermelho são dois saldos, não um. Este é o único lugar
+// que decide "que cor é esta peça" — `finishedGoods` só carrega a chave pronta.
+//
+// A chave é COMPOSTA (decisão do dono): uma peça que troca de filamento no meio
+// da impressão é uma variante própria ("Azul + Branco" ≠ "Azul"), não a cor
+// dominante. Peça multicolor é um produto diferente na prateleira.
+//
+// ⚠ Isto é a cor de UMA peça, não de uma submissão inteira: um produto com
+// partes (corpo azul + tampa vermelha) resolve a chave POR SUBITEM, a partir das
+// cores das etapas daquela parte. Quem faz esse recorte é o chamador.
+
+// Sentinela do que não tem cor identificável: avulso sem nome, submissão sem
+// filamento e — Diretriz 7, sem migração — toda camada gravada antes do FEAT-11.
+export const NO_COLOR_KEY = "__nocolor__";
+export const NO_COLOR_LABEL = "Sem cor";
+
+export type ColorKey = {
+  key: string; // estável, comparável, persistido na SKU
+  label: string; // exibição ("Azul + Branco")
+};
+
+export const NO_COLOR: ColorKey = { key: NO_COLOR_KEY, label: NO_COLOR_LABEL };
+
+// Identidade de UMA cor. Ligada ao Estoque = o `filamentId` (o nome pode ser
+// editado depois sem partir o saldo); avulsa = o nome normalizado, com o prefixo
+// `livre:` para nunca colidir com um id do Firestore. Sem gramas não conta: uma
+// linha zerada não pinta a peça. O slug tira `+` e espaços, que são os
+// separadores da chave composta.
+function colorIdentity(f: FilamentUsage): ColorKey | null {
+  if (filamentTotalG(f) <= 0) return null;
+  const name = (f.colorName ?? "").trim();
+  if (f.filamentId) return { key: f.filamentId, label: name || "Cor do estoque" };
+  if (!name) return null;
+  return { key: `livre:${normalizeText(name).replace(/[^a-z0-9]+/g, "-")}`, label: name };
+}
+
+/**
+ * Cores de uma peça → a chave/rótulo da variante. PURA.
+ *
+ * Ordem canônica (rótulo normalizado, desempate pela chave): "azul depois
+ * branco" e "branco depois azul" são a MESMA prateleira, então a ordem em que as
+ * etapas foram cadastradas não pode gerar duas SKUs. Cores repetidas colapsam
+ * (duas etapas no mesmo azul = "Azul", não "Azul + Azul").
+ */
+export function colorKeyOf(filaments: FilamentUsage[]): ColorKey {
+  const byKey = new Map<string, ColorKey>();
+  for (const f of filaments) {
+    const identity = colorIdentity(f);
+    if (identity && !byKey.has(identity.key)) byKey.set(identity.key, identity);
+  }
+  const ordered = Array.from(byKey.values()).sort(
+    (a, b) =>
+      normalizeText(a.label).localeCompare(normalizeText(b.label)) ||
+      a.key.localeCompare(b.key),
+  );
+  if (ordered.length === 0) return NO_COLOR;
+  return {
+    key: ordered.map((c) => c.key).join("+"),
+    label: ordered.map((c) => c.label).join(" + "),
+  };
 }

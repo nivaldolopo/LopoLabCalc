@@ -5,8 +5,10 @@ import {
   buildProductionPayloads,
   planEventRows,
   scaleRow,
+  submissionColors,
   wholeEventRows,
 } from "./productionPlan";
+import { NO_COLOR } from "./filaments";
 import { sumFrozen } from "./production";
 import type { SavedProduct, Supply } from "../types";
 
@@ -236,5 +238,116 @@ describe("FEAT-06 — frozenBreakdown no plano", () => {
     });
     expect(payload.frozenBreakdown).toBeDefined();
     expect(sumFrozen(payload.frozenBreakdown!)).toBeCloseTo(payload.frozenCost, 6);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FEAT-11 — a cor que cada PEÇA leva para o estoque de acabados
+// ---------------------------------------------------------------------------
+// O ponto delicado: a /producao agrupa as linhas por MÁQUINA, mas o acabado é
+// creditado por SUBITEM. Sem a etapa de origem em cada linha de filamento, um
+// produto corpo-azul + tampa-vermelha carimbaria "Azul + Vermelho" nas duas
+// partes — que é justamente o produto multicor de projeto que se quer suportar.
+
+describe("submissionColors (FEAT-11)", () => {
+  const AZUL = { filamentId: "fil_azul", colorName: "Azul", pricePerKg: 100, totalG: 40 };
+  const VERMELHO = { filamentId: "fil_verm", colorName: "Vermelho", pricePerKg: 100, totalG: 10 };
+
+  // Corpo (etapa principal) em azul; tampa (etapa extra) em vermelho.
+  const kit = makeProduct({
+    machineId: DEFAULT_MACHINES[0].id,
+    printHours: 2,
+    filaments: [AZUL],
+    sellBySubitems: true,
+    subitems: [
+      { id: "corpo", name: "Corpo", stageKeys: ["main"] },
+      { id: "tampa", name: "Tampa", stageKeys: ["s1"] },
+    ],
+    stages: [
+      {
+        id: "s1",
+        name: "Tampa",
+        machineId: DEFAULT_MACHINES[0].id,
+        printHours: 1,
+        laborMinutes: 0,
+        filaments: [VERMELHO],
+      },
+    ],
+  });
+
+  it("cada parte recebe a cor das SUAS etapas, não a mistura da submissão", () => {
+    const rows = wholeEventRows(kit, DEFAULT_MACHINES, []);
+    const colors = submissionColors(rows, kit.subitems);
+    expect(colors.bySubitem.get("corpo")?.label).toBe("Azul");
+    expect(colors.bySubitem.get("tampa")?.label).toBe("Vermelho");
+    // A submissão inteira, essa sim, é bicolor.
+    expect(colors.whole.label).toBe("Azul + Vermelho");
+  });
+
+  it("as duas etapas rodam na MESMA máquina (uma linha só) e ainda assim separam", () => {
+    const rows = wholeEventRows(kit, DEFAULT_MACHINES, []);
+    expect(rows).toHaveLength(1); // mono-máquina: um evento com as 2 cores
+    expect(rows[0].filaments.map((f) => f.stageKey)).toEqual(["main", "s1"]);
+  });
+
+  it("trocar a cor de uma linha reflete na parte certa", () => {
+    const rows = wholeEventRows(kit, DEFAULT_MACHINES, []);
+    // O dono troca a tampa para preto na tela (a linha guarda a etapa "s1").
+    const trocado = rows.map((row) => ({
+      ...row,
+      filaments: row.filaments.map((fil) =>
+        fil.stageKey === "s1"
+          ? { ...fil, filamentId: "fil_preto", colorName: "Preto" }
+          : fil,
+      ),
+    }));
+    const colors = submissionColors(trocado, kit.subitems);
+    expect(colors.bySubitem.get("corpo")?.label).toBe("Azul");
+    expect(colors.bySubitem.get("tampa")?.label).toBe("Preto");
+  });
+
+  it("parte sem filamento nenhum (só montagem) fica sem cor", () => {
+    const rows = wholeEventRows(kit, DEFAULT_MACHINES, []);
+    const colors = submissionColors(rows, [
+      ...kit.subitems,
+      { id: "montagem", name: "Montagem", stageKeys: [] },
+    ]);
+    expect(colors.bySubitem.get("montagem")).toEqual(NO_COLOR);
+  });
+
+  it("produto de cor única: a peça inteira leva aquela cor", () => {
+    const simples = makeProduct({ filaments: [AZUL] });
+    const estoque = [
+      {
+        id: "fil_azul",
+        material: "PLA",
+        brand: "Bambu",
+        colorName: "Azul",
+        minG: 0,
+        archived: false,
+        rolls: [],
+        adjustments: [],
+        createdAt: 0,
+      },
+    ];
+    const colors = submissionColors(
+      wholeEventRows(simples, DEFAULT_MACHINES, estoque),
+      [],
+    );
+    expect(colors.whole).toEqual({ key: "fil_azul", label: "Azul" });
+    expect(colors.bySubitem.size).toBe(0);
+  });
+
+  // Documenta a borda: cor apagada do Estoque cai no caminho AVULSO (é o que o
+  // `resolveFilRow` já fazia — sem a cor não há preço vivo nem de onde dar baixa),
+  // e a SKU passa a ser chaveada pelo NOME. Recadastrar a cor não junta o saldo
+  // das duas — é o mesmo sintoma que o badge de cor removida (TD-009) já avisa.
+  it("cor que não está mais no Estoque vira chave por nome (avulso)", () => {
+    const simples = makeProduct({ filaments: [AZUL] });
+    const colors = submissionColors(
+      wholeEventRows(simples, DEFAULT_MACHINES, []),
+      [],
+    );
+    expect(colors.whole).toEqual({ key: "livre:azul", label: "Azul" });
   });
 });

@@ -445,6 +445,9 @@ export function SalesPage() {
         // Passo 8: carrega o rastro da reconciliação salva para o estorno da edição.
         ...(sale.origem ? { origem: sale.origem } : {}),
         ...(sale.finishedMoves ? { finishedMoves: sale.finishedMoves } : {}),
+        // FEAT-11: as cores escolhidas voltam para a linha — reeditar o recibo
+        // reaplica a baixa na MESMA prateleira de onde a peça saiu.
+        ...(sale.finishedColors ? { finishedColors: sale.finishedColors } : {}),
         ...(sale.productionEventIds
           ? { productionEventIds: sale.productionEventIds }
           : {}),
@@ -723,6 +726,17 @@ export function SalesPage() {
                                     <span className="db-label">Qtd</span>{" "}
                                     {sale.quantity}×
                                   </span>
+                                  {/* FEAT-11: de que cor a peça pronta saiu,
+                                      congelado na venda (a cor pode ser
+                                      renomeada ou arquivada depois). */}
+                                  {sale.finishedColorLabel ? (
+                                    <span>
+                                      <span className="db-label">
+                                        Cor vendida
+                                      </span>{" "}
+                                      {sale.finishedColorLabel}
+                                    </span>
+                                  ) : null}
                                   {sale.discountAmount &&
                                   sale.discountAmount > 0 ? (
                                     <span>

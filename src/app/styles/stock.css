@@ -430,6 +430,14 @@
   color: var(--accent);
 }
 
+/* FEAT-11: de que cores é o saldo desta peça ("2 Azul · 1 Preto"). Discreto: o
+   número que importa é o total da peça — a cor é o detalhe de dentro. */
+.fg-part-colors {
+  font-size: 11px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .fg-part-bal {
   color: var(--muted);
   font-size: 12px;

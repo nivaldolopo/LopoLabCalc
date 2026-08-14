@@ -14,28 +14,26 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ UX-11** (2026-08-13) — as ações saíram do fim do formulário e viraram o
-  bloco `.result-actions` no **topo do card de preço** (Salvar · Vender/Produzir/Orçar ·
-  Cancelar/Salvar como novo + o erro de validação); a coluna esquerda é **só input**. As 3 ações de
-  destino **salvam o produto antes de agir** (um clique) e o form **fica editando** o recém-criado —
-  vender sem id registrava receita **sem** produção, baixa de estoque ou horas no ROI
-  (`missingProduct`). `createProduct` passou a devolver o id. Build + 329 testes + lint limpos.
-- **✅ DEC-02 + DEC-03 aplicados (2026-08-13):** o dono já editou as 2 máquinas em `/maquinas` para
-  **7.500 h** — não há mais pendência de dado. Com o DEC-03 (markup não incide sobre labor), **o preço
-  de todo o catálogo mudou de montagem** (base R$ 35,81 → R$ 27,14 pelo DEC-03; o `lifeHours` empurra a
-  depreciação de volta pra cima). O custo real não mudou — só a fórmula do preço. Porquês em
-  [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ FEAT-11** (2026-08-13) — troca de cor liberada na `/producao` (qualquer
+  linha, avulso livre mantido, com **aviso ativo** do que a troca custou por peça + margem) **e a cor
+  virou dimensão da SKU do acabado** (`subitem × cor`, escopo A+C do dono). **A montagem do conjunto
+  ignora a cor** — corpo azul + tampa vermelha é produto legítimo, e cada parte tem a sua. Venda de
+  peça pronta ganhou **seletor de cor por parte**; encomenda segue na cor do cadastro. Build + **369
+  testes** + lint limpos. ⚠ **Diretriz 7 (sem migração):** o saldo de acabados de hoje vira o balde
+  **"Sem cor"** e não se mistura com o das produções novas.
+- **✅ DEC-02 + DEC-03 aplicados (2026-08-13):** `lifeHours` 7.500 h já editado nas 2 máquinas e o
+  markup não incide mais sobre labor — **o preço de todo o catálogo mudou de montagem** (base
+  R$ 35,81 → R$ 27,14). O custo real não mudou, só a fórmula do preço. Porquês em `HISTORICO.md`.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**, e fazer o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
   Onde + as 8 sementes: `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA: FEAT-11** (trocar a cor/filamento na hora de produzir ou vender) — **precisa
-  de decisão de design do dono ANTES de virar tarefa**: 3 opções no backlog (A pontual na produção,
-  barata · B variantes no produto · C cor na SKU do acabado). **Cluster da calculadora fechado**
-  (FEAT-10 · UX-12 · UX-11). Depois dela sobram só o **Dashboard** (só vale com ~1-2 meses de venda
-  real) e o Tier 2 comercial (FEAT-03/branding, bloqueado pela marca).
+- **▶ PRÓXIMA TAREFA: o backlog codificável ACABOU.** Sobram só (a) o **Dashboard** (`/painel`) —
+  que só vale com ~1-2 meses de venda real acumulada, e (b) o **Tier 2 comercial** (FEAT-03 +
+  branding), **bloqueado pela marca**. Ou seja: a próxima tarefa depende de uma decisão do dono
+  (esperar dado real, destravar a marca, ou trazer algo novo), não de escolher item da lista.
   ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
   Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side, a adiar pro
   Dashboard. **Roadmap + ordem + porquês:** [`BACKLOG.md`](.claude/BACKLOG.md) · **decisões antigas:**
@@ -108,12 +106,14 @@ src/
                             #       labor+INSUMOS; + a ÁLGEBRA do custo congelado do FEAT-06, que
                             #       atravessa 3 escalas: placa, unidade, unidade×qtd),
                             #     finishedGoods (estoque de acabados FEAT-05: camadas FIFO, valor
-                            #       parado DECOMPOSTO — puro),
+                            #       parado DECOMPOSTO — puro; SKU = subitem × COR no FEAT-11),
                             #     productionPlan (builder puro produto/subitem→eventos; usado pela
-                            #       /producao E pela encomenda do passo 8),
+                            #       /producao E pela encomenda do passo 8; submissionColors = a cor
+                            #       de cada PARTE, via stageKey → Subitem.stageKeys — FEAT-11),
                             #     saleReconciliation (passo 8: item acabado→consumo vs
                             #       encomenda→dispara producao; +reverse),
-                            #     saleContext (foto congelada da venda), filaments (cores, FEAT-02),
+                            #     saleContext (foto congelada da venda), filaments (cores, FEAT-02;
+                            #       colorKeyOf = identidade de cor da peça, FEAT-11),
                             #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento:
                             #       matriz bandeira × parcela, gross-up do repasse, desconto FEAT-09,
                             #       margem líquida do UX-10; testado em paymentFees.test.ts)

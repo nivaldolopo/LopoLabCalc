@@ -28,7 +28,10 @@ import type { FilamentUsage } from "../types";
 // etapa principal é a sentinela "main"; extras usam o próprio id (persistido a
 // partir da FEAT-01), com fallback por posição para dado antigo sem id.
 export const MAIN_STAGE_KEY = "main";
-function stageKeyFor(stage: PrintStage, index: number): string {
+// Exportada para o FEAT-11: a /producao precisa marcar cada linha de filamento
+// com a MESMA chave de etapa que o rateio por subitem usa, senão a cor escolhida
+// na tela não acha a parte a que pertence.
+export function stageKeyFor(stage: PrintStage, index: number): string {
   return stage.id ?? `stage_${index}`;
 }
 

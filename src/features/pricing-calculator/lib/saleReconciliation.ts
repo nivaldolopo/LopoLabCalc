@@ -1,10 +1,12 @@
 import { num } from "@/lib/number";
 import { calculatePricing } from "./calculatePricing";
+import { NO_COLOR_KEY } from "./filaments";
 import {
   applyFinishedConsumption,
   consumeFifo,
   consumeWholeFifo,
   reverseFinishedConsumption,
+  WHOLE_PART_KEY,
 } from "./finishedGoods";
 import { reverseProduction, reverseSupplies, scaleFrozen } from "./production";
 import {
@@ -51,6 +53,15 @@ export type ReconItem = {
   productName: string;
   quantity: number;
   origem: SaleItemOrigin;
+  // FEAT-11 — a COR escolhida para tirar cada peça da prateleira, por parte:
+  // `subitemId` (produto que vende por partes) ou `WHOLE_PART_KEY`. Um mapa, e
+  // não uma cor só, porque o conjunto pode ser corpo azul + tampa vermelha.
+  //
+  // Só o caminho `acabado` usa: a ENCOMENDA produz na hora, com as cores do
+  // cadastro do produto (decisão do dono — trocar cor é na /producao). Parte sem
+  // entrada aqui cai em `NO_COLOR_KEY` — o balde do que foi produzido antes do
+  // FEAT-11 —, que é exatamente onde o saldo antigo está.
+  colors?: Record<string, string>;
 };
 
 export type ReconItemResult = {
@@ -219,13 +230,25 @@ function applyForward(
       // BUG-05: o acabado de um produto que vende por partes guarda uma SKU por
       // subitem (não uma do inteiro). Vender o CONJUNTO drena uma de cada parte.
       const product = productsById.get(item.productId);
+      // FEAT-11: cada parte sai da SUA cor (o mapa vem da venda). Sem escolha
+      // registrada, cai no balde sem cor — onde mora o saldo pré-FEAT-11.
+      const colorOf = (partKey: string) =>
+        item.colors?.[partKey] ?? NO_COLOR_KEY;
       const wholeParts =
         !item.subitemId && product?.sellBySubitems && product.subitems.length > 0
-          ? product.subitems.map((s) => s.id)
+          ? product.subitems.map((s) => ({
+              subitemId: s.id,
+              colorKey: colorOf(s.id),
+            }))
           : null;
       const res = wholeParts
         ? consumeWholeFifo(good, wholeParts, qty)
-        : consumeFifo(good, item.subitemId, qty);
+        : consumeFifo(
+            good,
+            item.subitemId,
+            colorOf(item.subitemId ?? WHOLE_PART_KEY),
+            qty,
+          );
       if (good && res.moves.length > 0) {
         state.goodsById.set(
           item.productId,
