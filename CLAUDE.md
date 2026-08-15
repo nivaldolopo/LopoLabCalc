@@ -34,10 +34,13 @@
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**, e fazer o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
   Onde + as 8 sementes: `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA: o backlog codificável ACABOU.** Sobram só (a) o **Dashboard** (`/painel`) —
-  que só vale com ~1-2 meses de venda real acumulada, e (b) o **Tier 2 comercial** (FEAT-03 +
-  branding), **bloqueado pela marca**. Ou seja: a próxima tarefa depende de uma decisão do dono
-  (esperar dado real, destravar a marca, ou trazer algo novo), não de escolher item da lista.
+- **▶ PRÓXIMA TAREFA: cluster UI/UX (UX-13 → UX-19 + TD-013)** — nasceu da **auditoria de UI/UX de
+  2026-08-15**, feita com o site rodando (1280×900 e 375×838) e com medições no DOM; escopo já
+  **decidido pelo dono**, **nada implementado**. Comece pelo **UX-13**: o `.result-card` tem 1286px
+  contra 910px de viewport, então o `sticky` nunca prende e **o preço some quando se mexe no markup**
+  (no celular o card é `static`, 569px abaixo do slider). Ordem proposta e o resto dos itens:
+  [`BACKLOG.md`](.claude/BACKLOG.md). Depois disso sobram só o **Dashboard** (precisa de venda real
+  acumulada) e o **Tier 2 comercial**, bloqueado pela marca.
   ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
   Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side, a adiar pro
   Dashboard. **Roadmap + ordem + porquês:** [`BACKLOG.md`](.claude/BACKLOG.md) · **decisões antigas:**

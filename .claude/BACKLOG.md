@@ -37,9 +37,14 @@
    **UX-12** · **UX-11** feitos.
 10. ~~**FEAT-11 — trocar a cor na hora de produzir/vender**~~ ✅ **FECHADO (2026-08-13)** — opção
    **A + C** (dono): troca pontual na `/producao` **e** cor como dimensão da SKU do acabado.
-11. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
-   ⚠ **É o que sobra.** Com o FEAT-11 fechado, o backlog codificável acabou: fora o Dashboard (que só
-   vale com venda real acumulada) resta o Tier 2 comercial, **bloqueado pela marca**.
+11. **▶ Cluster UI/UX (auditoria de 2026-08-15)** — **UX-13 → UX-19 + TD-013**. Nasceu de uma auditoria
+   com o site rodando (desktop 1280 + celular 375), com medições; as decisões de escopo **já foram
+   tomadas pelo dono** no mesmo dia. **Ordem proposta** (a priorização final é do dono):
+   **UX-13 → UX-14 → UX-15 → UX-16 → UX-17 → UX-18 → UX-19 → TD-013**.
+   Os 4 primeiros são os que o usuário sente; os 4 últimos são uniformidade/sistema visual.
+12. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
+   ⚠ **Continua sendo o último.** Fora o cluster UI/UX (item 11, codificável hoje), o que resta é o
+   Dashboard (só vale com venda real acumulada) e o Tier 2 comercial, **bloqueado pela marca**.
 
 ### Porquês da ordem (decisões de 2026-07-20)
 
@@ -172,6 +177,109 @@
 - ~~**[UX-12] Break-even abaixo do custo total**~~ ✅ **FEITO (2026-08-13)** — o balão desceu pra
   depois do `breakdown-total` (e da linha "Total da impressão", pra não partir o bloco de custo em
   produto multi-peça); `.break-even-box` ganhou `margin-top`. Só JSX + CSS, cálculo intacto.
+
+### Cluster UI/UX — auditoria de 2026-08-15 (UX-13 → UX-19 + TD-013)
+
+> **Origem:** auditoria de UI/UX pedida pelo dono, feita com o site **rodando** (`pnpm dev`, login real),
+> em **1280×900** e **375×838**, com medições no DOM — não é impressão de leitura de código. As decisões
+> de escopo abaixo (marcadas **Decidido**) são do **dono, 2026-08-15**, no mesmo chat da auditoria.
+> **Nada foi alterado no site** — o cluster inteiro está aberto.
+
+- **[UX-13] O preço some justo quando se mexe no markup** — *o mais grave do lote.*
+  **Medido:** `.result-card` é `position: sticky; top: 20px`, mas mede **1286px** de altura contra uma
+  viewport de **910px**. Um `sticky` mais alto que a tela **nunca prende no topo** — rola junto até o
+  próprio fim. Com o slider de markup à vista, o `R$ 27,14` estava **403px acima** da borda superior.
+  No celular é pior: `responsive.css:26` força `position: static`, a página vai a **3314px** e o preço
+  (offset 2080px) fica **569px abaixo** do slider (1511px). Ou seja: a interação central de uma
+  calculadora de preço — mexer no dial e ver o número — **não funciona em nenhum dos dois tamanhos**.
+  **Decidido (dono):**
+  - **Desktop — colapso, sem código novo de layout:** pôr em `<details>` ("ver informações avançadas")
+    **tudo que vem depois do "Custo total"**: break-even, rentabilidade e capacidade produtiva.
+    **Medido:** do topo do card até o fim do `.breakdown-total` são **493px**; o que vem depois são
+    **794px = 62% do card**. Com o colapso o card cai pra ~493px, cabe folgado na viewport e **o
+    `sticky` que já existe passa a funcionar sozinho**.
+  - **Celular — barra fina fixa:** o colapso não basta (o card é `static` e mora **depois** do
+    formulário inteiro). Faixa de ~56px no **rodapé** (onde o polegar está) com preço/peça · margem ·
+    markup. ⚠ **Requisito explícito do dono: a barra NÃO pode cobrir nada** — reservar o espaço
+    (`padding-bottom` no `.wrap`) e conferir a convivência com o `.back-to-top`, que já ocupa o canto
+    inferior direito (`base.css:120`, `bottom: 14px` no mobile).
+  - **Junto (mesmo tema "colapsar o que não está em uso"):** o painel **"Custos fixos mensais do
+    quiosque" desativado** mantém 6 campos + linha de resumo renderizados em cinza (~120px mortos no
+    fim do formulário). Desativado deve colapsar.
+  **Onde:** `PricingResultCard.tsx` · `FixedCostsPanel.tsx` · `forms.css` (`.result-card`) · `responsive.css`.
+
+- **[UX-14] No celular, metade da tela é cabeçalho**
+  **Medido em 375×838, na calculadora:** o primeiro campo ("Nome do produto") começa em **421px** —
+  **50,2% da tela**. A `.navbar` sozinha tem **227px**: os 7 destinos quebram em 4 linhas de 2 (com
+  "Produção" sozinha na quarta) e "Claro"/"Sair" caem numa quinta.
+  **Decidido (dono): menu lateral.** Abaixo do breakpoint mobile a nav vira **painel lateral**; fechado,
+  o topo mostra **o nome da página + o botão de abrir** (ícone), no canto superior direito. Tema e Sair
+  entram no painel. Estimativa: `.navbar` de **227px → ~44px** (recupera ~180px).
+  **Junto:** os 7 destinos são `<Link>` **sem reset de `text-decoration`** — estão todos sublinhados, e
+  no celular isso vira um bloco de texto sublinhado ocupando ~27% da tela.
+  **Onde:** `NavBar.tsx` (68 linhas) · `header.css` (`.navbar*`) · `responsive.css`.
+  ⚠ Alternativa **descartada** pelo dono: barra fixa no rodapé com os 4 mais usados + "•••".
+
+- **[UX-15] Alvos de ação minúsculos no catálogo + `window.confirm` genérico**
+  **Medido:** cada uma das **95 linhas** do catálogo termina em 5 botões de ícone **sem rótulo**, de
+  **24×24px**, colados. Ordem: Vender · Produzir · Orçar · Carregar no formulário · **Excluir** — o
+  destrutivo é vizinho imediato do mais clicado. A linha tem **61px** de altura: cabe 32px com folga.
+  ⚠ **Verificado — o susto é menor do que parece:** `removeProduct` é um `deleteDoc` simples, **sem
+  cascata** (`productsRepository.ts:128`). Vendas guardam `productName` + custo congelado
+  (`salesRepository.ts:93`) e os acabados guardam o próprio `productName` (`StockPage.tsx:816`) → o
+  **histórico e os números de dinheiro sobrevivem**. Perde-se só a **receita** do produto (peso, horas,
+  cores, subitens, acessórios), sem desfazer nem lixeira.
+  **A fazer:** alvos de **32px**, **afastar o Excluir** dos outros quatro, e trocar o
+  *"Deseja realmente excluir este produto?"* por um que **nomeie o produto e diga o que NÃO é afetado**.
+  Estender o modal próprio aos outros **6** `window.confirm` (`ProductCatalog` ×2, `ProductionPage`,
+  `QuotePage`, `SalesPage`, `StockPage`, `SuppliesTab`, `LogoutButton`) — fecha o resto do **TD-004**,
+  que já trocou o `window.alert` por aviso inline mas deixou o `confirm` pra trás.
+  **Onde:** `ProductCatalog.tsx:406` · `catalog.css` (`.icon-button`) + os 6 pontos acima.
+
+- **[UX-16] Rótulo não foca o campo (44 `<label>`, **1** com `htmlFor`)**
+  **Medido:** 44 `<label>` nos componentes, **1** com `htmlFor`; 77 `<input>/<select>`, **0** com `id`.
+  O navegador não sabe que um é o nome do outro → clicar em "Mão de obra (min)" não faz nada, e o alvo
+  de clique é só a caixinha. Num formulário de ~20 campos numéricos é atrito em toda sessão.
+  **Correção:** aninhar o input **dentro** do `<label>` (dispensa `id`) ou `useId()`.
+  ⚠ **Visualmente muda ZERO** — é ganho puro (alvo de clique triplica + leitor de tela passa a anunciar
+  o campo). Mecânico, risco baixíssimo. **Decidido (dono): fazer.**
+  **Onde:** `ProductForm.tsx` e os demais componentes de formulário.
+
+- **[UX-17] Sistema visual: escala uniforme (sem perder densidade) + tokens**
+  **Medido:** das ~220 declarações de `font-size`, **155 estão entre 10 e 13px** (65× `12px`, 50× `11px`,
+  40× `13px`) — e existem **23 tamanhos distintos**, incluindo `11.5px`, `12.5px` e `9.5px`. Idem
+  `border-radius`: **15 valores** (2, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 999px…). O `base.css` tem 19
+  variáveis, **todas de cor** — não há `--space-*`, `--radius-*`, `--text-*`.
+  ⚠ **Decidido (dono): manter DENSO, mas UNIFORME.** Ou seja **não** é para aumentar o corpo do texto
+  (a proposta original de subir pra 13–14px foi **recusada** — o dono prefere ver mais linhas por tela).
+  O trabalho é **normalizar**: colapsar os 23 tamanhos numa escala curta (ex.: 11/12/13/14 + os títulos),
+  matar os órfãos (`11.5`/`12.5`/`9.5`), e fazer o mesmo com raio e espaçamento via tokens.
+  **Junto:** o app tem **dois paradigmas de aba** — chips arredondados na `NavBar` e abas sublinhadas na
+  `/estoque` (Filamentos/Insumos/Produtos). Unificar.
+  **Onde:** `base.css` (tokens) + conversão gradual dos 17 arquivos de `styles/`.
+
+- **[UX-18] Dois sistemas de ícone competindo** — *tem uma decisão dentro.*
+  `lucide-react` nos botões (Save, Receipt, Factory, X…) **e** emoji nos rótulos e na nav
+  (🧮 📚 🧾 📄 🖨️ 📦 🏭 · 🏷️ ⚡ 🔢 🎲 📈 🎯), em **9 componentes**. Emoji **não herda `currentColor`**
+  (não responde ao tema), renderiza diferente em cada SO e desalinha ao lado de um ícone lucide — nas
+  capturas da auditoria saíram como glifos chapados sem cor, exatamente o sintoma.
+  ⚠ **Precisa do martelo do dono** (é identidade, não código): lucide em tudo que é controle e emoji só
+  como decoração deliberada, **ou** assumir o emoji como parte da cara do app. Sugestão da auditoria: a
+  primeira. **Overlap com [branding/logo real]** — se a marca destravar, decidir junto.
+
+- **[UX-19] Números sem gradação + ênfase no lugar errado**
+  O catálogo mostra margens de **49% a 72%** todas em cinza; a `/vendas` mostra lucros de **61% a 100%**
+  todos no mesmo verde. Num app cuja função é dizer se o preço está bom, **a cor não está trabalhando**.
+  Pintar por faixa é quase uma linha de CSS e faz a tela responder sozinha.
+  **Junto:** em `/vendas`, **"Sem cliente" aparece em negrito em toda venda** — um campo vazio ocupando a
+  posição de maior ênfase da linha. Deve ser mudo (`--muted2`) ou sumir.
+  ⚠ Definir as faixas com o dono (o que é margem ruim/ok/boa) antes de codar.
+  **Onde:** `ProductCatalog.tsx` + `catalog.css` · `SalesPage.tsx` + `cesta-recibo.css`.
+
+- **[TD-013] `table { min-width: 600px }` é seletor global morando no CSS do catálogo**
+  `catalog.css:72` estiliza o **elemento** `table`, não uma classe → vaza para toda tabela do app.
+  **Já mordeu uma vez:** `cesta-recibo.css:330` existe só para anular isso, com comentário admitindo que
+  "era ELE" o culpado. Escopar para `.catalog-card table` e remover o antídoto.
 
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em
