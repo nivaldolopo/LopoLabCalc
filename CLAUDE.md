@@ -14,43 +14,37 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ FEAT-11** (2026-08-13) — troca de cor liberada na `/producao` (qualquer
-  linha, avulso livre mantido, com **aviso ativo** do que a troca custou por peça + margem) **e a cor
-  virou dimensão da SKU do acabado** (`subitem × cor`, escopo A+C do dono). **A montagem do conjunto
-  ignora a cor** — corpo azul + tampa vermelha é produto legítimo, e cada parte tem a sua. Venda de
-  peça pronta ganhou **seletor de cor por parte**; encomenda segue na cor do cadastro. **376 testes**.
-  ⚠ **Diretriz 7 (sem migração):** o saldo de acabados de hoje vira o balde **"Sem cor"** e não se
-  mistura com o das produções novas.
-- **✅ FEAT-11 verificado em teste manual (2026-08-15) — 2 correções:** (a) a venda estourava no
-  Firestore (`finishedColors` era mapa e a sentinela `__whole__` é nome de campo reservado → virou
-  **lista** `{part, colorKey}`); (b) a aba Produtos mostrava a **contagem de cores** no lugar do saldo
-  em produto sem subitens. Ambas no ar. Porquês em `HISTORICO.md`.
-- **✅ DEC-02 + DEC-03 aplicados (2026-08-13):** `lifeHours` 7.500 h já editado nas 2 máquinas e o
-  markup não incide mais sobre labor — **o preço de todo o catálogo mudou de montagem** (base
-  R$ 35,81 → R$ 27,14). O custo real não mudou, só a fórmula do preço. Porquês em `HISTORICO.md`.
+- **Última mudança:** **reordenação do cluster UI/UX no backlog** (2026-08-15) — só documentação,
+  nenhum código tocado. Ver "Próxima tarefa" abaixo.
+- **✅ FEAT-11 no ar e verificado em teste manual** (2026-08-13/15) — a cor virou **dimensão da SKU do
+  acabado** e a troca é livre na `/producao`; a montagem do conjunto **ignora a cor**. **376 testes.**
+  ⚠ **Diretriz 7:** o saldo de acabados anterior virou o balde **"Sem cor"**. Detalhe: `HISTORICO.md`.
+- **✅ DEC-02 + DEC-03 aplicados (2026-08-13):** `lifeHours` 7.500 h nas 2 máquinas + markup não incide
+  mais sobre labor → **o preço do catálogo inteiro mudou de montagem** (base R$ 35,81 → R$ 27,14; o
+  custo real não mudou, só a fórmula). Porquês em `HISTORICO.md`.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
-  existe**, e fazer o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-  Onde + as 8 sementes: `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA: cluster UI/UX (UX-13 → UX-19 + TD-013)** — nasceu da **auditoria de UI/UX de
-  2026-08-15**, feita com o site rodando (1280×900 e 375×838) e com medições no DOM; escopo já
-  **decidido pelo dono**, **nada implementado**. Comece pelo **UX-13**: o `.result-card` tem 1286px
-  contra 910px de viewport, então o `sticky` nunca prende e **o preço some quando se mexe no markup**
-  (no celular o card é `static`, 569px abaixo do slider). Ordem proposta e o resto dos itens:
-  [`BACKLOG.md`](.claude/BACKLOG.md). Depois disso sobram só o **Dashboard** (precisa de venda real
-  acumulada) e o **Tier 2 comercial**, bloqueado pela marca.
-  ⚠ **Ressalva TD-006:** paginar/filtrar resolveu a **lista**, não a **análise** — ROI (`/maquinas`) e o
-  Dashboard **agregam o histórico inteiro**; eliminar de vez exige agregação server-side, a adiar pro
-  Dashboard. **Roadmap + ordem + porquês:** [`BACKLOG.md`](.claude/BACKLOG.md) · **decisões antigas:**
-  [`HISTORICO.md`](.claude/HISTORICO.md).
+  existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
+- **▶ PRÓXIMA TAREFA: cluster UI/UX** — nasceu da **auditoria de UI/UX de 2026-08-15** (site rodando,
+  1280×900 e 375×838, medições no DOM); escopo **decidido pelo dono**, **nada implementado**.
+  **Ordem de execução (reordenada em 2026-08-15, 7 passos):** ① **TD-013 + UX-17a** (escopar o
+  `table` global + só *declarar* os tokens no `base.css` — pré-condição barata do resto) → ②
+  **UX-13a** desktop → ③ **UX-13b + UX-14** (chrome mobile juntos) → ④ **UX-15** → ⑤ **UX-16** →
+  ⑥ **UX-19** → ⑦ **UX-17b** (converter os 16 CSS; por último de propósito).
+  O **UX-13** é o mais grave: `.result-card` tem 1286px contra 910px de viewport, o `sticky` nunca
+  prende e **o preço some quando se mexe no markup** (no celular o card é `static`, 569px abaixo do
+  slider). ⚠ **2 decisões do dono em aberto — perguntar junto com o passo ①:** **DEC-04** (faixas de
+  margem, destrava o ⑥) e **DEC-05** (lucide × emoji; era o UX-18, saiu da fila pra não travá-la).
+  Porquês da ordem: [`BACKLOG.md`](.claude/BACKLOG.md). Depois disso sobram só o **Dashboard**
+  (precisa de venda real acumulada) e o **Tier 2 comercial**, bloqueado pela marca.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
-- **`/maquinas` (ROI):** 2 barras — payback (dinheiro, das **vendas**) e vida útil (horas, da
-  **produção**). Duas fontes de propósito; o porquê de cada atribuição está comentado em
-  `lib/machineRoi.ts`. ⚠ O payback usa lucro **bruto** de vendas (sem fixo nem perda) — a tela **já
-  avisa** (UX-09); o conserto de verdade é o Dashboard.
+- ⚠ **Duas ressalvas que o Dashboard resolve** (as duas já avisadas na tela / no código): o payback do
+  `/maquinas` usa lucro **bruto** de vendas, sem fixo nem perda (UX-09); e paginar resolveu a **lista**,
+  não a **análise** — ROI e Dashboard **agregam o histórico inteiro** (TD-006, exige agregação
+  server-side). Porquês das atribuições do ROI: comentados em `lib/machineRoi.ts`.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **Decisões encerradas:** variáveis de Preview do Firebase não cadastradas (só Production, Diretriz 1);

@@ -15,6 +15,8 @@
 > **UX-06 + UX-07(a) escolhidos como próxima em 2026-08-10** (dono), à frente do FEAT-03
 > (ver "Porquês da ordem" abaixo). **Cluster da auditoria acrescentado em 2026-08-13** —
 > entrou no fim da lista **sem ordem interna definida** (a priorização é do dono).
+> **Ordem interna do cluster UI/UX definida em 2026-08-15** (dono) — ver "Porquês da ordem do
+> cluster" abaixo.
 
 1. ~~**UX / organização**~~ ✅ **FECHADA** — UX-01 · FEAT-07 · UX-02 · FEAT-08.
 2. ~~**7e — Insumos/acessórios no estoque**~~ ✅ **FECHADO (2026-07-20)**.
@@ -39,9 +41,15 @@
    **A + C** (dono): troca pontual na `/producao` **e** cor como dimensão da SKU do acabado.
 11. **▶ Cluster UI/UX (auditoria de 2026-08-15)** — **UX-13 → UX-19 + TD-013**. Nasceu de uma auditoria
    com o site rodando (desktop 1280 + celular 375), com medições; as decisões de escopo **já foram
-   tomadas pelo dono** no mesmo dia. **Ordem proposta** (a priorização final é do dono):
-   **UX-13 → UX-14 → UX-15 → UX-16 → UX-17 → UX-18 → UX-19 → TD-013**.
-   Os 4 primeiros são os que o usuário sente; os 4 últimos são uniformidade/sistema visual.
+   tomadas pelo dono** no mesmo dia. **Ordem de execução (2026-08-15)** — 7 passos:
+   **① TD-013 + UX-17a (tokens) → ② UX-13a (desktop) → ③ UX-13b + UX-14 (chrome mobile juntos) →
+   ④ UX-15 → ⑤ UX-16 → ⑥ UX-19 → ⑦ UX-17b (conversão dos 16 CSS)**.
+   ⚠ **O UX-18 saiu da fila de código** → virou **[DEC-05]** (é decisão do dono + overlap com a marca;
+   se ficasse na fila travaria tudo depois dele por tempo indeterminado).
+   ⚠ **O passo ⑥ depende da [DEC-04]** (faixas de margem) — perguntar ao dono **junto com a DEC-05**,
+   em paralelo com o passo ①, pra não virar bloqueio.
+   **UX-16 é o item de folga:** mecânico, zero mudança visual, não colide com nada — pode subir pra
+   qualquer posição se as decisões demorarem.
 12. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
    ⚠ **Continua sendo o último.** Fora o cluster UI/UX (item 11, codificável hoje), o que resta é o
    Dashboard (só vale com venda real acumulada) e o Tier 2 comercial, **bloqueado pela marca**.
@@ -74,6 +82,36 @@
   nada do fluxo de custo/estoque; o dono preferiu fechar a infra de cálculo (Tier 4 + TD-003/TD-006)
   antes de investir no acabamento do orçamento. Segue **antes** do Dashboard (que é sempre o último —
   só vale com venda real acumulada).
+
+### Porquês da ordem do cluster UI/UX (2026-08-15)
+
+> A ordem por número (13→19) era só a ordem em que a auditoria achou os problemas. Estes são os
+> porquês da ordem de **execução** — todos verificados no código, não impressão de leitura.
+
+- **① TD-013 e os tokens vêm ANTES, não depois.** Os dois são pré-condição do resto:
+  - **TD-013** é um seletor de **elemento** (`table`) global morando no CSS de uma página
+    (`catalog.css:72`) e **já obrigou um antídoto** (`cesta-recibo.css:330`). Normalizar o visual com
+    ele mentindo por baixo é caçar fantasma em 16 arquivos. Correção de 2 linhas.
+  - **UX-17a** (só declarar `--space-*`/`--radius-*`/`--text-*` no `base.css`) é barato, mexe em **1**
+    arquivo e **não quebra nada** porque ninguém consome os tokens ainda. Feito antes, os passos
+    ②–⑥ **já nascem usando token** e a conversão do ⑦ encolhe.
+- **② UX-17b (conversão) fica por ÚLTIMO, e é por isso que o UX-17 foi partido.** Medido: **5.055
+  linhas de CSS em 16 arquivos e 219 declarações de `font-size`**. Os passos ②–⑥ escrevem CSS novo
+  (colapso do card, navbar→painel lateral, botões de 32px, cor por faixa). Converter antes = reescrever
+  duas vezes; converter tudo depois **sem** os tokens existirem = escrever com valores velhos e refazer.
+  Partir em `17a` (tokens) + `17b` (conversão) resolve os dois lados. **Metade do CSS da navbar vai ser
+  jogada fora pelo UX-14** — não faz sentido normalizá-la antes disso.
+- **③ UX-13b e UX-14 são a MESMA tarefa e devem ir juntos.** Os dois disputam o chrome do celular: o
+  UX-13b põe barra fixa no rodapé com requisito explícito de **não cobrir nada** (`padding-bottom` no
+  `.wrap` + convivência com o `.back-to-top`), e o UX-14 reconstrói o topo. Separados, a conta de
+  espaço vertical e o `.back-to-top` são reavaliados duas vezes.
+- **④ Mas o UX-13a (desktop) vai sozinho ANTES.** É só o `<details>` — isolado, não toca mobile e
+  resolve o item **mais grave** do lote (o preço sumindo ao mexer no markup) já no passo ②.
+- **⑤ UX-18 e UX-19 não eram tarefas de código.** O UX-18 diz no próprio texto que "precisa do martelo
+  do dono" e tem overlap com o branding, que está **⏸ por tempo indeterminado** — na posição 6 da fila
+  antiga ele **travaria** o UX-19 e o UX-17 atrás de uma decisão que pode não vir tão cedo. Virou
+  **[DEC-05]**. O UX-19 precisa das faixas de margem (**[DEC-04]**): o código continua na fila, só a
+  pergunta saiu na frente.
 
 > Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
@@ -178,14 +216,17 @@
   depois do `breakdown-total` (e da linha "Total da impressão", pra não partir o bloco de custo em
   produto multi-peça); `.break-even-box` ganhou `margin-top`. Só JSX + CSS, cálculo intacto.
 
-### Cluster UI/UX — auditoria de 2026-08-15 (UX-13 → UX-19 + TD-013)
+### Cluster UI/UX — auditoria de 2026-08-15 (UX-13→17 + UX-19 + TD-013; o UX-18 virou DEC-05)
 
 > **Origem:** auditoria de UI/UX pedida pelo dono, feita com o site **rodando** (`pnpm dev`, login real),
 > em **1280×900** e **375×838**, com medições no DOM — não é impressão de leitura de código. As decisões
 > de escopo abaixo (marcadas **Decidido**) são do **dono, 2026-08-15**, no mesmo chat da auditoria.
 > **Nada foi alterado no site** — o cluster inteiro está aberto.
+> **Os blocos seguem em ordem de ID** (fácil de achar pelo número); a **ordem de execução** é o
+> `①②③…` marcado em cada um — ver "Ordem de prioridade" item 11 e os porquês acima.
 
 - **[UX-13] O preço some justo quando se mexe no markup** — *o mais grave do lote.*
+  **▸ Passo ② = UX-13a (desktop, sozinho) · Passo ③ = UX-13b (celular, junto do UX-14).**
   **Medido:** `.result-card` é `position: sticky; top: 20px`, mas mede **1286px** de altura contra uma
   viewport de **910px**. Um `sticky` mais alto que a tela **nunca prende no topo** — rola junto até o
   próprio fim. Com o slider de markup à vista, o `R$ 27,14` estava **403px acima** da borda superior.
@@ -193,12 +234,15 @@
   (offset 2080px) fica **569px abaixo** do slider (1511px). Ou seja: a interação central de uma
   calculadora de preço — mexer no dial e ver o número — **não funciona em nenhum dos dois tamanhos**.
   **Decidido (dono):**
-  - **Desktop — colapso, sem código novo de layout:** pôr em `<details>` ("ver informações avançadas")
+  - **[UX-13a] Desktop — colapso, sem código novo de layout:** pôr em `<details>` ("ver informações avançadas")
     **tudo que vem depois do "Custo total"**: break-even, rentabilidade e capacidade produtiva.
     **Medido:** do topo do card até o fim do `.breakdown-total` são **493px**; o que vem depois são
     **794px = 62% do card**. Com o colapso o card cai pra ~493px, cabe folgado na viewport e **o
     `sticky` que já existe passa a funcionar sozinho**.
-  - **Celular — barra fina fixa:** o colapso não basta (o card é `static` e mora **depois** do
+    ⚠ **Ressalva de implementação:** os 493px valem com o `<details>` **fechado**. Aberto, o card
+    volta a passar da viewport e o `sticky` volta a falhar — precisa **nascer fechado**, e vale
+    conferir se o preço segue visível mesmo com ele aberto.
+  - **[UX-13b] Celular — barra fina fixa:** o colapso não basta (o card é `static` e mora **depois** do
     formulário inteiro). Faixa de ~56px no **rodapé** (onde o polegar está) com preço/peça · margem ·
     markup. ⚠ **Requisito explícito do dono: a barra NÃO pode cobrir nada** — reservar o espaço
     (`padding-bottom` no `.wrap`) e conferir a convivência com o `.back-to-top`, que já ocupa o canto
@@ -209,6 +253,8 @@
   **Onde:** `PricingResultCard.tsx` · `FixedCostsPanel.tsx` · `forms.css` (`.result-card`) · `responsive.css`.
 
 - **[UX-14] No celular, metade da tela é cabeçalho**
+  **▸ Passo ③ — fazer JUNTO do UX-13b** (os dois mexem no chrome do celular: um no topo, outro no
+  rodapé, e ambos na conta de espaço vertical do `.wrap` + `.back-to-top`).
   **Medido em 375×838, na calculadora:** o primeiro campo ("Nome do produto") começa em **421px** —
   **50,2% da tela**. A `.navbar` sozinha tem **227px**: os 7 destinos quebram em 4 linhas de 2 (com
   "Produção" sozinha na quarta) e "Claro"/"Sair" caem numa quinta.
@@ -221,6 +267,7 @@
   ⚠ Alternativa **descartada** pelo dono: barra fixa no rodapé com os 4 mais usados + "•••".
 
 - **[UX-15] Alvos de ação minúsculos no catálogo + `window.confirm` genérico**
+  **▸ Passo ④.**
   **Medido:** cada uma das **95 linhas** do catálogo termina em 5 botões de ícone **sem rótulo**, de
   **24×24px**, colados. Ordem: Vender · Produzir · Orçar · Carregar no formulário · **Excluir** — o
   destrutivo é vizinho imediato do mais clicado. A linha tem **61px** de altura: cabe 32px com folga.
@@ -231,12 +278,21 @@
   cores, subitens, acessórios), sem desfazer nem lixeira.
   **A fazer:** alvos de **32px**, **afastar o Excluir** dos outros quatro, e trocar o
   *"Deseja realmente excluir este produto?"* por um que **nomeie o produto e diga o que NÃO é afetado**.
-  Estender o modal próprio aos outros **6** `window.confirm` (`ProductCatalog` ×2, `ProductionPage`,
-  `QuotePage`, `SalesPage`, `StockPage`, `SuppliesTab`, `LogoutButton`) — fecha o resto do **TD-004**,
-  que já trocou o `window.alert` por aviso inline mas deixou o `confirm` pra trás.
-  **Onde:** `ProductCatalog.tsx:406` · `catalog.css` (`.icon-button`) + os 6 pontos acima.
+  Estender o modal próprio aos outros **7** `window.confirm` (**contados no código, 2026-08-15: são 8
+  no total**, em 7 arquivos) — `ProductCatalog.tsx:214` (import CSV), `LogoutButton`, `ProductionPage`,
+  `QuotePage`, `SalesPage`, `StockPage`, `SuppliesTab`.
+  ⚠ **Correção de rastreamento (2026-08-15): isto NÃO "fecha o resto do TD-004".** O TD-004 está
+  **fechado** (`HISTORICO.md`) e a decisão registrada nele foi **manter nativos** os `confirm`
+  destrutivos (excluir, sair) *por escolha* — o `window.alert` é que virou aviso inline. Ou seja, o
+  UX-15 **reverte** uma decisão antiga, não completa uma pendência. Vale o dono saber que está
+  mudando de ideia (é legítimo: o TD-004 decidiu sobre *feedback de escrita*, e o problema aqui é
+  **alvo de 24px com o Excluir colado no mais clicado** — contexto que não estava na mesa lá).
+  **Onde:** `ProductCatalog.tsx:411` (o `confirm` do excluir) · `catalog.css` (`.icon-button`) +
+  os 7 pontos acima.
 
 - **[UX-16] Rótulo não foca o campo (44 `<label>`, **1** com `htmlFor`)**
+  **▸ Passo ⑤ — e é o ITEM DE FOLGA do cluster:** mecânico, zero mudança visual, não colide com
+  nenhum outro item. Pode subir pra qualquer posição se as decisões (DEC-04/05) demorarem.
   **Medido:** 44 `<label>` nos componentes, **1** com `htmlFor`; 77 `<input>/<select>`, **0** com `id`.
   O navegador não sabe que um é o nome do outro → clicar em "Mão de obra (min)" não faz nada, e o alvo
   de clique é só a caixinha. Num formulário de ~20 campos numéricos é atrito em toda sessão.
@@ -246,6 +302,14 @@
   **Onde:** `ProductForm.tsx` e os demais componentes de formulário.
 
 - **[UX-17] Sistema visual: escala uniforme (sem perder densidade) + tokens**
+  **▸ PARTIDO EM DOIS (2026-08-15), e é a mudança de ordem mais importante do cluster:**
+  - **[UX-17a] — passo ①: só DECLARAR os tokens** (`--space-*`, `--radius-*`, `--text-*`) no
+    `base.css`. Mexe em **1** arquivo e **não quebra nada** porque ninguém consome ainda. Feito
+    primeiro, os passos ②–⑥ **já nascem usando token**.
+  - **[UX-17b] — passo ⑦ (último): CONVERTER** os 16 arquivos de `styles/`. **Medido no código
+    (2026-08-15): 5.055 linhas de CSS em 16 arquivos, 219 declarações de `font-size`.** Vai por
+    último porque os passos ②–⑥ escrevem CSS novo — converter antes é reescrever duas vezes, e
+    **metade do CSS da navbar vai ser jogada fora pelo UX-14** de qualquer jeito.
   **Medido:** das ~220 declarações de `font-size`, **155 estão entre 10 e 13px** (65× `12px`, 50× `11px`,
   40× `13px`) — e existem **23 tamanhos distintos**, incluindo `11.5px`, `12.5px` e `9.5px`. Idem
   `border-radius`: **15 valores** (2, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 999px…). O `base.css` tem 19
@@ -256,27 +320,26 @@
   matar os órfãos (`11.5`/`12.5`/`9.5`), e fazer o mesmo com raio e espaçamento via tokens.
   **Junto:** o app tem **dois paradigmas de aba** — chips arredondados na `NavBar` e abas sublinhadas na
   `/estoque` (Filamentos/Insumos/Produtos). Unificar.
-  **Onde:** `base.css` (tokens) + conversão gradual dos 17 arquivos de `styles/`.
+  **Onde:** `base.css` (tokens) + conversão gradual dos **16** arquivos de `styles/`.
 
-- **[UX-18] Dois sistemas de ícone competindo** — *tem uma decisão dentro.*
-  `lucide-react` nos botões (Save, Receipt, Factory, X…) **e** emoji nos rótulos e na nav
-  (🧮 📚 🧾 📄 🖨️ 📦 🏭 · 🏷️ ⚡ 🔢 🎲 📈 🎯), em **9 componentes**. Emoji **não herda `currentColor`**
-  (não responde ao tema), renderiza diferente em cada SO e desalinha ao lado de um ícone lucide — nas
-  capturas da auditoria saíram como glifos chapados sem cor, exatamente o sintoma.
-  ⚠ **Precisa do martelo do dono** (é identidade, não código): lucide em tudo que é controle e emoji só
-  como decoração deliberada, **ou** assumir o emoji como parte da cara do app. Sugestão da auditoria: a
-  primeira. **Overlap com [branding/logo real]** — se a marca destravar, decidir junto.
+> **[UX-18] saiu daqui em 2026-08-15** → virou **[DEC-05]**, na seção "Decisões em aberto (DEC-*)".
+> Motivo: o próprio item dizia "precisa do martelo do dono" e tem overlap com o branding (⏸ sem data);
+> deixá-lo na fila de código travaria por tempo indeterminado tudo que viesse depois dele.
 
 - **[UX-19] Números sem gradação + ênfase no lugar errado**
+  **▸ Passo ⑥ — depende da [DEC-04]** (faixas de margem). Perguntar cedo, não na hora de codar.
   O catálogo mostra margens de **49% a 72%** todas em cinza; a `/vendas` mostra lucros de **61% a 100%**
   todos no mesmo verde. Num app cuja função é dizer se o preço está bom, **a cor não está trabalhando**.
   Pintar por faixa é quase uma linha de CSS e faz a tela responder sozinha.
   **Junto:** em `/vendas`, **"Sem cliente" aparece em negrito em toda venda** — um campo vazio ocupando a
   posição de maior ênfase da linha. Deve ser mudo (`--muted2`) ou sumir.
-  ⚠ Definir as faixas com o dono (o que é margem ruim/ok/boa) antes de codar.
+  ⚠ As faixas (o que é margem ruim/ok/boa) são a **[DEC-04]** — decisão do dono, não código.
   **Onde:** `ProductCatalog.tsx` + `catalog.css` · `SalesPage.tsx` + `cesta-recibo.css`.
 
 - **[TD-013] `table { min-width: 600px }` é seletor global morando no CSS do catálogo**
+  **▸ Passo ① — SUBIU pro começo do cluster (era o último).** Motivo: é um seletor global mentindo por
+  baixo de todas as tabelas; normalizar o visual (UX-17b) com ele no lugar é caçar fantasma em 16
+  arquivos. E é correção de 2 linhas — não há razão pra segurar.
   `catalog.css:72` estiliza o **elemento** `table`, não uma classe → vaza para toda tabela do app.
   **Já mordeu uma vez:** `cesta-recibo.css:330` existe só para anular isso, com comentário admitindo que
   "era ELE" o culpado. Escopar para `.catalog-card table` e remover o antídoto.
@@ -318,7 +381,12 @@
 
 ### Tier 3 — infra de cálculo/leitura (TD-*) e, por último, o Dashboard
 > Ordem interna: **TD-003 → TD-006 → TD-010/011 → TD-012 → Dashboard** (o Dashboard é o último item
-> do backlog). Todos os **TD-*** fechados — só o **Dashboard** segue aberto aqui.
+> do backlog). **TD-001 a TD-012 fechados**; nesta seção só o **Dashboard** segue aberto.
+> ⚠ **Correção 2026-08-15:** a linha antiga dizia "todos os TD-* fechados" — **falso desde 2026-08-15**,
+> quando a auditoria abriu o **[TD-013]**, que mora na seção do cluster UI/UX (é o passo ① dele).
+> **Sobre o [TD-004]:** está fechado (`HISTORICO.md`), **não** parcialmente aberto — mas a decisão
+> registrada nele ("os `window.confirm` destrutivos seguem nativos por escolha") é **revertida pelo
+> [UX-15]**. Quem for pegar o UX-15 deve saber que está mudando uma decisão, não completando uma.
 
 - **[Dashboard] (`/painel`)** — receita/custo/lucro do mês, lucro líquido (menos custos fixos),
   utilização das máquinas (comprar outra?), receita por máquina, lucro por material, produto mais
@@ -373,7 +441,26 @@
 
 ### Decisões em aberto (DEC-*) — martelo do dono, não tarefa de código
 > Molde do `DEC-01` e do "labor na reserva de falha" (Tier 4): o trabalho aqui é **decidir**, não
-> implementar. **Nenhuma em aberto hoje.**
+> implementar. **2 em aberto (2026-08-15)** — as duas saíram do cluster UI/UX e devem ser perguntadas
+> **em paralelo com o passo ①**, pra não virarem bloqueio lá na frente.
+
+- **▶ [DEC-04] Faixas de margem — o que é ruim / ok / bom?** *(destrava o passo ⑥ = **UX-19**)*
+  Hoje o catálogo pinta margens de **49% a 72%** todas do mesmo cinza e a `/vendas` pinta lucros de
+  **61% a 100%** todos do mesmo verde — num app cuja função é dizer se o preço está bom, a cor não
+  está trabalhando. Pintar por faixa é quase uma linha de CSS, **mas os cortes são do dono**: só ele
+  sabe abaixo de que margem uma peça não vale a pena. Precisa de 2 números (o corte ruim→ok e o
+  ok→bom) e vale checar se a régua é a mesma nas duas telas (catálogo = margem **precificada**;
+  `/vendas` = lucro **realizado**, já líquido de taxa).
+
+- **▶ [DEC-05] Dois sistemas de ícone competindo** *(era o **[UX-18]**; saiu da fila de código em
+  2026-08-15 porque é identidade, não tarefa — e travaria a fila atrás da marca)*
+  `lucide-react` nos botões (Save, Receipt, Factory, X…) **e** emoji nos rótulos e na nav
+  (🧮 📚 🧾 📄 🖨️ 📦 🏭 · 🏷️ ⚡ 🔢 🎲 📈 🎯), em **9 componentes**. Emoji **não herda `currentColor`**
+  (não responde ao tema), renderiza diferente em cada SO e desalinha ao lado de um ícone lucide — nas
+  capturas da auditoria saíram como glifos chapados sem cor, exatamente o sintoma.
+  ⚠ **O martelo:** lucide em tudo que é controle e emoji só como decoração deliberada, **ou** assumir
+  o emoji como parte da cara do app. Sugestão da auditoria: a primeira. **Overlap com
+  [branding/logo real]** — se a marca destravar, decidir junto. Virando tarefa, volta como código.
 
 - ~~**[DEC-02] `lifeHours` = 10.000 h**~~ ✅ **DECIDIDO: 7.500 h** (dono, 2026-08-13) — meio da faixa;
   A1 passa de R$ 0,65/h a R$ 0,83/h e o cenário base sobe R$ 35,81 → R$ 37,45 (+4,6%) isoladamente.
