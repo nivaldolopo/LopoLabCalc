@@ -23,6 +23,8 @@ import type { ReciboWrite } from "@/lib/firebase/salesRepository";
 import { CostDetail } from "./CostDetail";
 import {
   assemblableWholes,
+  colorEntriesOf,
+  colorRecordOf,
   colorsWithBalance,
   partBalance,
   WHOLE_PART_KEY,
@@ -53,6 +55,7 @@ import type {
   CardBrandTier,
   Discount,
   DiscountKind,
+  FinishedColorEntry,
   FinishedGood,
   FinishedMove,
   FixedCostSettings,
@@ -87,7 +90,7 @@ export type SaleModalEditItem = {
   finishedMoves?: FinishedMove[];
   // FEAT-11: as cores escolhidas na venda salva — voltam para a linha para a
   // reedição reaplicar a baixa na MESMA prateleira de onde saiu.
-  finishedColors?: Record<string, string>;
+  finishedColors?: FinishedColorEntry[];
   productionEventIds?: string[];
 };
 
@@ -355,7 +358,9 @@ export function SaleModal({
         origem: entry.origem ?? defaultOrigin(entry.source),
         // FEAT-11: a cor salva volta como escolha explícita (não como default),
         // senão reabrir um recibo poderia mudar a prateleira de onde a peça sai.
-        ...(entry.finishedColors ? { colors: entry.finishedColors } : {}),
+        ...(entry.finishedColors
+          ? { colors: colorRecordOf(entry.finishedColors) }
+          : {}),
       }));
     }
     return seed ? [itemFromContext(seed, defaultOrigin(seed))] : [];
@@ -805,7 +810,9 @@ export function SaleModal({
         // rótulo, ao histórico (a cor pode ser renomeada depois).
         ...(item.origem === "acabado" && r && r.finishedMoves.length > 0
           ? {
-              finishedColors: colorsOf(item),
+              // LISTA, não mapa: a parte viraria nome de campo e o Firestore
+              // recusa `__whole__` (ver `FinishedColorEntry`).
+              finishedColors: colorEntriesOf(colorsOf(item)),
               ...(colorLabelOf(item)
                 ? { finishedColorLabel: colorLabelOf(item) }
                 : {}),

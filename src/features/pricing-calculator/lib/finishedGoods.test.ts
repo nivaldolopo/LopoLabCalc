@@ -5,6 +5,8 @@ import {
   assemblableWholes,
   assemblyBreakdown,
   balanceOf,
+  colorEntriesOf,
+  colorRecordOf,
   colorsWithBalance,
   consumeFifo,
   consumeWholeFifo,
@@ -17,6 +19,7 @@ import {
   skuBalance,
   skuValue,
   submissionEntries,
+  WHOLE_PART_KEY,
 } from "./finishedGoods";
 import { NO_COLOR, NO_COLOR_KEY, NO_COLOR_LABEL } from "./filaments";
 import { addFrozen, scaleFrozen, sumFrozen, ZERO_FROZEN } from "./production";
@@ -1005,5 +1008,36 @@ describe("submissionEntries com cor (FEAT-11)", () => {
 
   it("sem cor informada, a entrada nasce sem cor (o crédito cai na sentinela)", () => {
     expect(submissionEntries("Boneco", 10, {})[0].color).toEqual(NO_COLOR);
+  });
+});
+
+// Regressão do bug pego em teste manual: o Firestore recusa NOME DE CAMPO que
+// começa e termina com "__", e a sentinela do inteiro tem exatamente esse
+// formato. Como mapa `parte → cor`, a parte virava campo e a venda estourava
+// ("WriteBatch.set() called with invalid data"); como lista, a sentinela é um
+// VALOR e o problema deixa de existir — inclusive para id de subitem esquisito.
+describe("colorEntriesOf / colorRecordOf (FEAT-11 — formato persistido)", () => {
+  const reservado = (name: string) => name.startsWith("__") && name.endsWith("__");
+
+  it("a sentinela do inteiro é um VALOR na lista, nunca um nome de campo", () => {
+    const entries = colorEntriesOf({ [WHOLE_PART_KEY]: "fil_azul" });
+    expect(entries).toEqual([{ part: WHOLE_PART_KEY, colorKey: "fil_azul" }]);
+    // Os únicos nomes de campo que chegam ao doc são estes dois, ambos seguros.
+    for (const entry of entries) {
+      for (const campo of Object.keys(entry)) expect(reservado(campo)).toBe(false);
+    }
+    // E a sentinela, que era o problema, é dado — não estrutura.
+    expect(reservado(WHOLE_PART_KEY)).toBe(true);
+  });
+
+  it("round-trip: gravar e reler devolve o mesmo mapa", () => {
+    const original = { [WHOLE_PART_KEY]: "fil_azul", corpo: "fil_verm" };
+    expect(colorRecordOf(colorEntriesOf(original))).toEqual(original);
+  });
+
+  it("tolera ausência e lixo (venda pré-FEAT-11, entrada sem parte)", () => {
+    expect(colorEntriesOf(undefined)).toEqual([]);
+    expect(colorRecordOf(undefined)).toEqual({});
+    expect(colorRecordOf([{ part: "", colorKey: "x" }])).toEqual({});
   });
 });

@@ -162,15 +162,18 @@ function toSale(id: string, data: DocumentData): Sale {
     ...(Array.isArray(data.finishedMoves) && data.finishedMoves.length > 0
       ? { finishedMoves: data.finishedMoves.map(toFinishedMove) }
       : {}),
-    // FEAT-11: a cor congelada de onde a peça saiu. O mapa é o que a REEDIÇÃO
+    // FEAT-11: a cor congelada de onde a peça saiu. A LISTA é o que a REEDIÇÃO
     // usa para reaplicar a baixa na mesma prateleira; o rótulo é exibição.
-    ...(data.finishedColors && typeof data.finishedColors === "object"
+    // Lista e não mapa porque a parte viraria nome de campo, e o Firestore
+    // recusa `__whole__` (ver `FinishedColorEntry`).
+    ...(Array.isArray(data.finishedColors) && data.finishedColors.length > 0
       ? {
-          finishedColors: Object.fromEntries(
-            Object.entries(data.finishedColors as Record<string, unknown>).map(
-              ([part, color]) => [part, String(color)],
-            ),
-          ),
+          finishedColors: data.finishedColors
+            .filter((entry: DocumentData) => entry?.part)
+            .map((entry: DocumentData) => ({
+              part: String(entry.part),
+              colorKey: String(entry.colorKey ?? ""),
+            })),
         }
       : {}),
     ...(data.finishedColorLabel

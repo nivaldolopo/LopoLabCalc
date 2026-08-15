@@ -468,13 +468,15 @@ export type SaleInput = {
   // devolver exatamente o que saiu (editar/excluir o recibo). Espelha o papel do
   // `stockMoves` do filamento, no acabado.
   finishedMoves?: FinishedMove[];
-  // FEAT-11 — a COR de que cada peça saiu, congelada. `finishedColors` mapeia
+  // FEAT-11 — a COR de que cada peça saiu, congelada. `finishedColors` é a LISTA
   // parte (subitemId ou `WHOLE_PART_KEY`) → chave de cor: é o que a REEDIÇÃO do
-  // recibo usa para reaplicar a baixa na mesma prateleira. `finishedColorLabel` é
-  // o rótulo pronto para o histórico ("Azul", ou "Corpo: Azul · Tampa: Vermelho"),
-  // congelado como o resto do snapshot — a cor pode ser renomeada depois.
-  // Ausentes na encomenda (produz na cor do cadastro) e em venda pré-FEAT-11.
-  finishedColors?: Record<string, string>;
+  // recibo usa para reaplicar a baixa na mesma prateleira. Lista, e não mapa,
+  // porque a parte viraria nome de campo — ver `FinishedColorEntry`.
+  // `finishedColorLabel` é o rótulo pronto para o histórico ("Azul", ou "Corpo:
+  // Azul · Tampa: Vermelho"), congelado como o resto do snapshot — a cor pode ser
+  // renomeada depois. Ausentes na encomenda (produz na cor do cadastro) e em
+  // venda pré-FEAT-11.
+  finishedColors?: FinishedColorEntry[];
   finishedColorLabel?: string;
   // Caminho `encomenda`: o(s) evento(s) de produção criados junto da venda (a
   // baixa de filamento + horas mora neles). O estorno apaga-os e reverte o rolo.
@@ -848,6 +850,22 @@ export type FinishedMove = {
   unitCost: number; // custo congelado da camada consumida
   cost: number; // qty × unitCost (COGS desta fatia)
 };
+
+/**
+ * FEAT-11 — a cor escolhida para UMA parte na venda de peça pronta, no formato
+ * que vai para o Firestore.
+ *
+ * ⚠ Por que uma LISTA e não um mapa `parte → cor`: num mapa, a parte vira NOME
+ * DE CAMPO do documento — e o Firestore recusa campo que começa e termina com
+ * `__`, exatamente o formato da sentinela do inteiro (`WriteBatch.set() called
+ * with invalid data`, pego em teste manual). Como lista, a sentinela é um VALOR,
+ * que não tem restrição nenhuma; de quebra, id de subitem esquisito (com ponto,
+ * barra…) também deixa de ser um problema em potencial.
+ *
+ * Em memória o formato segue sendo um `Record` (mais prático para consultar por
+ * parte) — a conversão acontece só na fronteira da gravação.
+ */
+export type FinishedColorEntry = { part: string; colorKey: string };
 
 // Resultado de consumir uma SKU (passo 8). `cost` é o COGS total (Σ camadas ×
 // custo congelado); `shortfall` = unidades além do saldo (D4 — o negativo do

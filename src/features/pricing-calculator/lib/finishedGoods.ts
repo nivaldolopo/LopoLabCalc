@@ -2,6 +2,7 @@ import { num } from "@/lib/number";
 import { NO_COLOR, type ColorKey } from "./filaments";
 import { addFrozen, scaleFrozen, sumFrozen, ZERO_FROZEN } from "./production";
 import type {
+  FinishedColorEntry,
   FinishedConsumptionResult,
   FinishedGood,
   FinishedGoodPayload,
@@ -124,16 +125,39 @@ export function submissionEntries(
   return [entry({ color: opts.color ?? NO_COLOR, name: productName }, 1)];
 }
 
+// A sentinela da peça sem subitem. Exportada (FEAT-11) para quem precisa chavear
+// a peça sem ter subitem: a venda guarda a cor escolhida por parte, e o produto
+// sem partes entra por esta chave.
+export const WHOLE_PART_KEY = "__whole__";
+const WHOLE_KEY = WHOLE_PART_KEY;
+
 // Chave estável da SKU: o subitem (ou a sentinela do inteiro) MAIS a cor
 // (FEAT-11). Duas entradas da mesma SKU somam no mesmo saldo; a mesma peça em
 // outra cor abre saldo próprio.
-// Exportada (FEAT-11) para quem precisa CHAVEAR a peça sem ter subitem: a venda
-// guarda a cor escolhida por parte num mapa, e o produto sem partes entra por
-// esta chave.
-export const WHOLE_PART_KEY = "__whole__";
-const WHOLE_KEY = WHOLE_PART_KEY;
 function skuKey(subitemId: string | undefined, colorKey: string): string {
   return `${subitemId ?? WHOLE_KEY}::${colorKey || NO_COLOR.key}`;
+}
+
+// FEAT-11 — as duas pontes entre o `Record` de memória (prático para consultar
+// por parte) e a LISTA que o Firestore aceita. O porquê da lista está no
+// `FinishedColorEntry`, em `types.ts`.
+export function colorEntriesOf(
+  colors: Record<string, string> | undefined,
+): FinishedColorEntry[] {
+  return Object.entries(colors ?? {}).map(([part, colorKey]) => ({
+    part,
+    colorKey,
+  }));
+}
+
+export function colorRecordOf(
+  entries: FinishedColorEntry[] | undefined,
+): Record<string, string> {
+  const record: Record<string, string> = {};
+  for (const entry of entries ?? []) {
+    if (entry?.part) record[entry.part] = entry.colorKey;
+  }
+  return record;
 }
 
 // A chave de uma SKU já materializada.
