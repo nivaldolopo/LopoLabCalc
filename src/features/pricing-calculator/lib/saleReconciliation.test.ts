@@ -7,7 +7,16 @@ import {
   type ReconItem,
 } from "./saleReconciliation";
 import { balanceG } from "./stock";
-import { balanceOf, WHOLE_PART_KEY } from "./finishedGoods";
+import {
+  addProductionLayers,
+  balanceOf,
+  colorsWithBalance,
+  goodValue,
+  partBalance,
+  reverseFinishedConsumption,
+  submissionEntries,
+  WHOLE_PART_KEY,
+} from "./finishedGoods";
 import { sumFrozen } from "./production";
 import { DEFAULT_MACHINES, DEFAULT_PRODUCT_INPUT } from "../constants";
 import type {
@@ -648,5 +657,82 @@ describe("planReciboReconciliation — cor na baixa do acabado (FEAT-11)", () =>
     );
     expect(recon.items[0].finishedMoves.map((m) => m.layerId)).toEqual(["velha"]);
     expect(recon.items[0].finishedShortfall).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FEAT-11 — o ciclo completo, atravessando produção → acabado → venda
+// ---------------------------------------------------------------------------
+// Os testes acima cobrem cada peça isolada. Este monta o caminho inteiro com as
+// funções REAIS (só o Firestore fica de fora): é o que responde "produzir em
+// duas cores e vender uma delas funciona de ponta a ponta?".
+
+describe("FEAT-11 — ciclo produzir 2 cores → vender 1 (integração)", () => {
+  // 2 peças azuis (placa de R$ 30) + 3 vermelhas (placa de R$ 45).
+  const azuis = addProductionLayers(
+    null,
+    "p1",
+    "Boneco",
+    submissionEntries("Boneco", 30, { units: 2, color: AZUL }),
+    "ev-azul",
+    0,
+  );
+  const good: FinishedGood = {
+    ...addProductionLayers(
+      { ...azuis, id: "p1" },
+      "p1",
+      "Boneco",
+      submissionEntries("Boneco", 45, { units: 3, color: VERMELHO }),
+      "ev-verm",
+      10,
+    ),
+    id: "p1",
+  };
+
+  it("a produção abre uma SKU por cor, com o custo de cada tiragem", () => {
+    expect(good.skus).toHaveLength(2);
+    expect(balanceOf(good, undefined, AZUL.key)).toBe(2);
+    expect(balanceOf(good, undefined, VERMELHO.key)).toBe(3);
+    expect(partBalance(good, undefined)).toBe(5); // a prateleira toda
+    // R$ 15/un no azul (30÷2) e R$ 15/un no vermelho (45÷3) — mesmo custo, cores
+    // diferentes: o que distingue as SKUs é a cor, não o preço.
+    expect(goodValue(good)).toBeCloseTo(30 + 45, 6);
+  });
+
+  it("o seletor da venda oferece as duas, maior saldo primeiro", () => {
+    expect(colorsWithBalance(good)).toEqual([
+      { colorKey: VERMELHO.key, colorLabel: "Vermelho", balance: 3 },
+      { colorKey: AZUL.key, colorLabel: "Azul", balance: 2 },
+    ]);
+  });
+
+  it("vender 2 vermelhas drena só o vermelho, com o COGS congelado daquela tiragem", () => {
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 2, colors: { [WHOLE_PART_KEY]: VERMELHO.key } })],
+      ctx({ goods: [good], products: [makeProduct()] }),
+    );
+    const item = recon.items[0];
+    expect(item.cogsUnit).toBeCloseTo(15, 6);
+    expect(item.cogsTotal).toBeCloseTo(30, 6);
+    expect(item.finishedShortfall).toBe(0);
+
+    const depois = { ...recon.finishedUpdates[0], id: "p1" };
+    expect(balanceOf(depois, undefined, VERMELHO.key)).toBe(1);
+    expect(balanceOf(depois, undefined, AZUL.key)).toBe(2); // intacto
+    expect(partBalance(depois, undefined)).toBe(3);
+  });
+
+  it("estornar a venda devolve à MESMA cor de onde saiu", () => {
+    const plan = planReciboReconciliation(
+      [acabadoItem({ quantity: 2, colors: { [WHOLE_PART_KEY]: VERMELHO.key } })],
+      ctx({ goods: [good], products: [makeProduct()] }),
+    );
+    const vendido = { ...plan.finishedUpdates[0], id: "p1" };
+    const devolvido = reverseFinishedConsumption(
+      vendido,
+      plan.items[0].finishedMoves,
+    );
+    expect(balanceOf(devolvido, undefined, VERMELHO.key)).toBe(3);
+    expect(balanceOf(devolvido, undefined, AZUL.key)).toBe(2);
   });
 });

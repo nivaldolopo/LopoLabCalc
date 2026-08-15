@@ -1004,7 +1004,14 @@ export function StockPage() {
         balance: skuBalance(sku),
       }))
       .filter((row) => row.balance !== 0);
-    const headline = rows.length === 1 ? rows[0].balance : wholeBalance;
+    // FEAT-11: o número da linha é quantas PEÇAS existem — somando as cores. Antes
+    // do recurso um produto sem partes tinha uma SKU só e isso era o saldo dela;
+    // com a cor na chave, contar SKUs mostraria "2" para quem tem 5 peças em duas
+    // cores. A decomposição por cor fica na lista do dropdown.
+    const headline = rows.reduce((sum, row) => sum + row.balance, 0);
+    // Só é "a mesma peça em N cores" quando nenhuma linha é de subitem (produto
+    // que saiu do catálogo pode ter SKUs de partes penduradas aqui).
+    const soCores = rows.length > 1 && rows.every((row) => !row.subitemId);
 
     return (
       <div className={`stock-card fg-card ${isOpen ? "open" : ""}`} key={good.id}>
@@ -1025,10 +1032,14 @@ export function StockPage() {
           </div>
           <div className="stock-balance">
             <strong className={`sg ${headline < 0 ? "sale-neg" : ""}`}>
-              {rows.length === 1 ? rows[0].balance : rows.length}
+              {headline}
             </strong>
             <span className="sales-total-sub">
-              {rows.length === 1 ? "em estoque" : "SKUs"}
+              {soCores
+                ? `em ${rows.length} cores`
+                : rows.length > 1
+                  ? `em ${rows.length} SKUs`
+                  : "em estoque"}
             </span>
           </div>
         </div>
@@ -1083,7 +1094,9 @@ export function StockPage() {
 
             {rows.length > 1 ? (
               <>
-                <div className="section-label">SKUs em estoque</div>
+                <div className="section-label">
+                  {soCores ? "Peças por cor" : "SKUs em estoque"}
+                </div>
                 <div className="fg-parts">
                   {rows.map((row) => {
                     const unit = row.unitCost;
@@ -1118,9 +1131,17 @@ export function StockPage() {
             ) : null}
             {renderCostBars(comp.breakdown, comp.total)}
             {/* SKU única: o custo congelado dela é o custo da unidade vendável.
-                Com várias SKUs num produto sem subitens vivos não há "a" unidade
-                — a margem sairia de uma média sem significado. */}
-            {rows.length === 1 ? renderMargin(price, rows[0].unitCost) : null}
+                FEAT-11: a MESMA peça em várias cores também tem "a" unidade — o
+                custo médio ponderado entre as cores é a resposta certa para "se eu
+                vender uma hoje, quanto sobra?" (o azul e o vermelho custam
+                diferente, mas é a mesma peça pelo mesmo preço). O que continua
+                sem média possível é misturar SKUs de PARTES diferentes, num
+                produto que saiu do catálogo. */}
+            {rows.length === 1
+              ? renderMargin(price, rows[0].unitCost)
+              : soCores
+                ? renderMargin(price, partUnitCost(good, undefined))
+                : null}
             {/* UX-07a: a composição que era popover, agora inline no dropdown. */}
             <CostBreakdownTable
               real={comp.breakdown}
