@@ -14,8 +14,9 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **reordenação do cluster UI/UX no backlog** (2026-08-15) — só documentação,
-  nenhum código tocado. Ver "Próxima tarefa" abaixo.
+- **Última mudança:** **Diretriz 4 reescrita** (2026-08-15) — agora eu **abro o site sozinho** quando a
+  verificação visual valer a pena, pausando pro dono logar no Google. Só documentação, nada de código.
+  Antes disso: reordenação do cluster UI/UX no backlog. Ver "Próxima tarefa" abaixo.
 - **✅ FEAT-11 no ar e verificado em teste manual** (2026-08-13/15) — a cor virou **dimensão da SKU do
   acabado** e a troca é livre na `/producao`; a montagem do conjunto **ignora a cor**. **376 testes.**
   ⚠ **Diretriz 7:** o saldo de acabados anterior virou o balde **"Sem cor"**. Detalhe: `HISTORICO.md`.
@@ -176,12 +177,17 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 > no fluxo normal — isso criaria um deploy duplicado. Use o CLI só em casos pontuais
 > (ex.: deployar estado local sem commit). Para acompanhar: `vercel ls` ou o painel da Vercel.
 
-### 4. Verificação visual só quando realmente necessária
-- **Não** subir servidor de dev nem abrir o navegador para "confirmar" toda alteração —
-  isso gasta tempo/tokens à toa. O **usuário testa visualmente** e confirma o funcionamento.
-- Para validar que o código está são, prefira o barato: `pnpm lint` (e `pnpm build` quando
-  fizer sentido). Reserve a verificação no navegador para casos em que ela é de fato útil —
-  ex.: lógica visual/interativa complexa que o lint/build não cobre, ou quando o usuário pedir.
+### 4. Verificação visual: pode abrir o site — o login é um handshake comigo
+- **Não** abra o navegador pra "confirmar" toda alteração — isso gasta tempo/tokens à toa. Pro
+  código são, prefira o barato: `pnpm lint`, `pnpm test` (e `pnpm build` quando fizer sentido).
+- **Mas quando a verificação visual for de fato útil, ABRA você mesmo** — não fique esperando eu
+  validar. Casos típicos: layout/responsivo, medir no DOM, lógica interativa que lint/build não
+  cobre, ou quando eu pedir. Use o **navegador embutido** (`preview_start` + `read_page`/
+  `computer`/`javascript_tool`); pra rodar local, `.claude/launch.json` (nunca `pnpm dev` no Bash).
+- **Login Google (AuthGate):** eu **nunca** te passo senha e você **nunca** digita credencial. Se a
+  sessão ainda estiver logada, **siga direto**. Se cair na tela de login, **pausa e me avisa** ("logue
+  aí que eu continuo"); eu logo na aba e te devolvo — aí você retoma de onde parou.
+- Terminada a verificação, **me mostre a prova** (screenshot/medição/console), não só o "funcionou".
 
 ### 5. Manter o "Status atual" atualizado
 - Ao concluir uma mudança relevante (feature, correção, decisão de arquitetura/infra),
