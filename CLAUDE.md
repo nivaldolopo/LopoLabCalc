@@ -18,9 +18,13 @@
   linha, avulso livre mantido, com **aviso ativo** do que a troca custou por peça + margem) **e a cor
   virou dimensão da SKU do acabado** (`subitem × cor`, escopo A+C do dono). **A montagem do conjunto
   ignora a cor** — corpo azul + tampa vermelha é produto legítimo, e cada parte tem a sua. Venda de
-  peça pronta ganhou **seletor de cor por parte**; encomenda segue na cor do cadastro. Build + **369
-  testes** + lint limpos. ⚠ **Diretriz 7 (sem migração):** o saldo de acabados de hoje vira o balde
-  **"Sem cor"** e não se mistura com o das produções novas.
+  peça pronta ganhou **seletor de cor por parte**; encomenda segue na cor do cadastro. **376 testes**.
+  ⚠ **Diretriz 7 (sem migração):** o saldo de acabados de hoje vira o balde **"Sem cor"** e não se
+  mistura com o das produções novas.
+- **✅ FEAT-11 verificado em teste manual (2026-08-15) — 2 correções:** (a) a venda estourava no
+  Firestore (`finishedColors` era mapa e a sentinela `__whole__` é nome de campo reservado → virou
+  **lista** `{part, colorKey}`); (b) a aba Produtos mostrava a **contagem de cores** no lugar do saldo
+  em produto sem subitens. Ambas no ar. Porquês em `HISTORICO.md`.
 - **✅ DEC-02 + DEC-03 aplicados (2026-08-13):** `lifeHours` 7.500 h já editado nas 2 máquinas e o
   markup não incide mais sobre labor — **o preço de todo o catálogo mudou de montagem** (base
   R$ 35,81 → R$ 27,14). O custo real não mudou, só a fórmula do preço. Porquês em `HISTORICO.md`.

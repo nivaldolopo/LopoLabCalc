@@ -76,11 +76,31 @@ usa sempre a cor escolhida.
   chaveada pelo NOME (`livre:azul`). Recadastrar a cor não junta os dois saldos — mesmo sintoma que
   o badge de cor removida (TD-009) já avisa.
 
+### O que o teste manual pegou (2026-08-15)
+
+Dois dias depois, revisão + teste do dono acharam **dois** problemas — os dois de classes que
+lint/build/teste unitário não pegam sozinhos:
+
+1. **A venda estourava no Firestore.** `finishedColors` era um mapa `parte → cor`, e mapa vira **nome
+   de campo** no documento; a sentinela do produto sem partes é `__whole__`, exatamente o formato
+   reservado que o Firestore recusa (*"Document fields cannot begin and end with `__`"*). O batch é
+   atômico, então nada foi gravado pela metade. **Conserto:** o campo persistido virou **lista** de
+   `{part, colorKey}` — a sentinela passa a ser um VALOR, e os únicos nomes de campo são `part` e
+   `colorKey`. Trocar a sentinela resolveria o caso, não a classe: id de subitem esquisito reabriria
+   o furo. Em memória segue `Record`; converte só na fronteira da gravação.
+   ⚠ Venda de **subitem** (não do inteiro) chegava a salvar antes do conserto — `subitemId` é nome de
+   campo válido. Essas ficam sem a cor congelada ao reeditar (cai no default). Diretriz 7: não migrar.
+2. **A aba Produtos mostrava contagem de CORES no lugar do saldo.** Num produto sem subitens, a linha
+   exibia `rows.length` com o rótulo "SKUs" — antes do FEAT-11 esse produto tinha sempre UMA SKU, então
+   o ramo quase nunca disparava; com a cor na chave ele virou o caso normal, e quem tinha 5 peças em 2
+   cores lia "2". Voltou a ser o total de peças ("em N cores"), e a margem do dropdown — que também
+   sumia com 2+ cores — voltou pelo custo médio ponderado entre elas.
+
 **Onde:** `filaments.ts` (+`colorKeyOf`) · `finishedGoods.ts` (chave 2D) · `productionPlan.ts`
 (`stageKey`, `origin`, `submissionColors`) · `calculatePricing.ts` (exporta `stageKeyFor`) ·
 `ProductionPage` (seletor liberado + aviso) · `SaleModal` (cor por parte, congelada) ·
 `saleReconciliation` (`ReconItem.colors`) · `StockPage` (saldo por cor na parte) · `SalesPage`
-("Cor vendida") · repositórios de acabados e vendas. **+40 testes (369).**
+("Cor vendida") · repositórios de acabados e vendas. **+47 testes (376).**
 
 ## ✅ FEAT-10 + UX-12 — Arredondamento de varejo e a ordem do card (2026-08-13)
 
