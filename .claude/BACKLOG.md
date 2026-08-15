@@ -314,6 +314,18 @@
     (2026-08-15): 5.055 linhas de CSS em 16 arquivos, 219 declarações de `font-size`.** Vai por
     último porque os passos ②–⑥ escrevem CSS novo — converter antes é reescrever duas vezes, e
     **metade do CSS da navbar vai ser jogada fora pelo UX-14** de qualquer jeito.
+    ⚠ **AVISO que saiu da execução do passo ① (2026-08-15) — ler antes de pegar este item:**
+    **regra global de ELEMENTO cria dependência invisível.** No TD-013, escopar o `td` global do
+    `catalog.css` apagou junto o `border-top` que — sem ninguém saber — era o que separava o 1º item
+    do cabeçalho do recibo em `/vendas`, e que num recibo de UM item era a **única** borda da linha.
+    Nada no CSS do recibo dizia isso; só apareceu **medindo o site rodando** (a altura da página caiu
+    3975 → 3952px). O antídoto do `.cost-detail-table` já era a **segunda** vítima do mesmo seletor.
+    **Como agir no ⑦:** (a) tratar todo seletor de elemento nu (`table`, `td`, `th`, `a`, `input`…)
+    como suspeito de estar segurando algo em outra página; (b) a prova de "não mudou nada" é
+    **medir antes × depois no DOM**, não ler o diff — o método que funcionou foi injetar as regras
+    antigas na página ao vivo (`<style>` temporário) e comparar geometria no mesmo instante;
+    (c) quando uma regra global se revelar necessária, **repor no dono legítimo** (foi o que se fez em
+    `.recibo-items td`), não restaurar o global.
   **Medido:** das ~220 declarações de `font-size`, **155 estão entre 10 e 13px** (65× `12px`, 50× `11px`,
   40× `13px`) — e existem **23 tamanhos distintos**, incluindo `11.5px`, `12.5px` e `9.5px`. Idem
   `border-radius`: **15 valores** (2, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 999px…). O `base.css` tem 19
