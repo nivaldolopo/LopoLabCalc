@@ -327,9 +327,9 @@
    blinda. `table-layout: fixed` garante que a tabela nunca passe da largura. */
 .cost-detail-body .cost-detail-table {
   width: 100%;
-  /* Anula o `table { min-width: 600px }` global (catalog.css) — era ELE que
-     forçava a tabela interna a 600px e estourava o container (scroll lateral). */
-  min-width: 0;
+  /* O `min-width: 0` que existia aqui era antídoto do `table { min-width: 600px }`
+     global do catalog.css — o global foi escopado/apagado no TD-013 (2026-08-15),
+     então o antídoto saiu junto. */
   table-layout: fixed;
   border-collapse: collapse;
 }
@@ -522,6 +522,12 @@
 
 .recibo-items td {
   padding: 10px 12px;
+  /* O `border-top` vinha, sem querer, do `td` global do catalog.css — escopado no
+     TD-013 (2026-08-15). Ele é o que separa o 1º item do cabeçalho do recibo, e
+     num recibo de UM item só é a única borda da linha (o `border-bottom` cai no
+     `tr:last-child` logo abaixo). Reposto aqui, no dono legítimo da regra; com
+     `border-collapse` ele colapsa com o `border-bottom` do vizinho de cima. */
+  border-top: 1px solid var(--border-soft);
   border-bottom: 1px solid var(--border-soft);
   vertical-align: middle;
   white-space: nowrap;

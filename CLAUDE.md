@@ -14,9 +14,11 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **Diretriz 4 reescrita** (2026-08-15) — agora eu **abro o site sozinho** quando a
-  verificação visual valer a pena, pausando pro dono logar no Google. Só documentação, nada de código.
-  Antes disso: reordenação do cluster UI/UX no backlog. Ver "Próxima tarefa" abaixo.
+- **Última mudança:** **✅ passo ① do cluster UI/UX (2026-08-15)** — **TD-013** (os seletores de elemento
+  `table`/`th`/`td` do `catalog.css` viraram `.catalog-card *`; o `min-width: 600px` foi **apagado**, era
+  morto no catálogo e vivo em todo mundo) + **UX-17a** (tokens `--space-*`/`--radius-*`/`--text-*`
+  declarados no `base.css`, **sem** consumidor ainda ⇒ zero mudança visual). Verificado no site rodando:
+  geometria idêntica à anterior, e no celular o recibo deixou de ser forçado a 600px. 376 testes.
 - **✅ FEAT-11 no ar e verificado em teste manual** (2026-08-13/15) — a cor virou **dimensão da SKU do
   acabado** e a troca é livre na `/producao`; a montagem do conjunto **ignora a cor**. **376 testes.**
   ⚠ **Diretriz 7:** o saldo de acabados anterior virou o balde **"Sem cor"**. Detalhe: `HISTORICO.md`.
@@ -28,18 +30,18 @@
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ PRÓXIMA TAREFA: cluster UI/UX** — nasceu da **auditoria de UI/UX de 2026-08-15** (site rodando,
-  1280×900 e 375×838, medições no DOM); escopo **decidido pelo dono**, **nada implementado**.
-  **Ordem de execução (reordenada em 2026-08-15, 7 passos):** ① **TD-013 + UX-17a** (escopar o
-  `table` global + só *declarar* os tokens no `base.css` — pré-condição barata do resto) → ②
-  **UX-13a** desktop → ③ **UX-13b + UX-14** (chrome mobile juntos) → ④ **UX-15** → ⑤ **UX-16** →
-  ⑥ **UX-19** → ⑦ **UX-17b** (converter os 16 CSS; por último de propósito).
-  O **UX-13** é o mais grave: `.result-card` tem 1286px contra 910px de viewport, o `sticky` nunca
-  prende e **o preço some quando se mexe no markup** (no celular o card é `static`, 569px abaixo do
-  slider). ⚠ **2 decisões do dono em aberto — perguntar junto com o passo ①:** **DEC-04** (faixas de
-  margem, destrava o ⑥) e **DEC-05** (lucide × emoji; era o UX-18, saiu da fila pra não travá-la).
-  Porquês da ordem: [`BACKLOG.md`](.claude/BACKLOG.md). Depois disso sobram só o **Dashboard**
-  (precisa de venda real acumulada) e o **Tier 2 comercial**, bloqueado pela marca.
+- **▶ PRÓXIMA TAREFA: passo ② do cluster UI/UX = UX-13a (desktop).** Pôr em `<details>` ("ver
+  informações avançadas") **tudo depois do "Custo total"** (break-even, rentabilidade, capacidade) —
+  o card cai de 1286px pra ~493px e o `sticky` que já existe volta a funcionar sozinho. ⚠ Tem que
+  **nascer fechado**, e conferir se o preço segue visível com ele aberto. É o item **mais grave** do
+  lote: hoje **o preço some justo quando se mexe no markup**, nos dois tamanhos de tela.
+  **Fila restante (6 passos):** ② UX-13a → ③ UX-13b + UX-14 (chrome mobile juntos) → ④ UX-15 →
+  ⑤ UX-16 (folga: mecânico, pode subir) → ⑥ UX-19 → ⑦ UX-17b (converter os 16 CSS; por último de
+  propósito). ✅ **Sem bloqueio:** DEC-04 (faixas `<50` ruim · `50–65` ok · `>65` bom) e DEC-05
+  (lucide nos controles, com ajuste previsto quando a marca chegar) **foram decididas em 2026-08-15**;
+  a DEC-05 volta como tarefa de código, fora da fila. Detalhe/porquês:
+  [`BACKLOG.md`](.claude/BACKLOG.md). Depois do cluster sobram só o **Dashboard** (precisa de venda
+  real acumulada) e o **Tier 2 comercial**, bloqueado pela marca.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (as duas já avisadas na tela / no código): o payback do

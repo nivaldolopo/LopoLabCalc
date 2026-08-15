@@ -42,14 +42,13 @@
 11. **▶ Cluster UI/UX (auditoria de 2026-08-15)** — **UX-13 → UX-19 + TD-013**. Nasceu de uma auditoria
    com o site rodando (desktop 1280 + celular 375), com medições; as decisões de escopo **já foram
    tomadas pelo dono** no mesmo dia. **Ordem de execução (2026-08-15)** — 7 passos:
-   **① TD-013 + UX-17a (tokens) → ② UX-13a (desktop) → ③ UX-13b + UX-14 (chrome mobile juntos) →
-   ④ UX-15 → ⑤ UX-16 → ⑥ UX-19 → ⑦ UX-17b (conversão dos 16 CSS)**.
-   ⚠ **O UX-18 saiu da fila de código** → virou **[DEC-05]** (é decisão do dono + overlap com a marca;
-   se ficasse na fila travaria tudo depois dele por tempo indeterminado).
-   ⚠ **O passo ⑥ depende da [DEC-04]** (faixas de margem) — perguntar ao dono **junto com a DEC-05**,
-   em paralelo com o passo ①, pra não virar bloqueio.
+   ~~① TD-013 + UX-17a (tokens)~~ ✅ **FEITO (2026-08-15)** → **▶ ② UX-13a (desktop)** → ③ UX-13b +
+   UX-14 (chrome mobile juntos) → ④ UX-15 → ⑤ UX-16 → ⑥ UX-19 → ⑦ UX-17b (conversão dos 16 CSS).
+   ✅ **As 2 decisões saíram junto com o passo ①** (dono, 2026-08-15): **[DEC-04]** (faixas de margem,
+   destravou o ⑥) e **[DEC-05]** (lucide nos controles; volta como tarefa de código, fora da fila) —
+   **o cluster não tem mais bloqueio nenhum**, os 6 passos restantes são só código.
    **UX-16 é o item de folga:** mecânico, zero mudança visual, não colide com nada — pode subir pra
-   qualquer posição se as decisões demorarem.
+   qualquer posição.
 12. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
    ⚠ **Continua sendo o último.** Fora o cluster UI/UX (item 11, codificável hoje), o que resta é o
    Dashboard (só vale com venda real acumulada) e o Tier 2 comercial, **bloqueado pela marca**.
@@ -303,9 +302,14 @@
 
 - **[UX-17] Sistema visual: escala uniforme (sem perder densidade) + tokens**
   **▸ PARTIDO EM DOIS (2026-08-15), e é a mudança de ordem mais importante do cluster:**
-  - **[UX-17a] — passo ①: só DECLARAR os tokens** (`--space-*`, `--radius-*`, `--text-*`) no
-    `base.css`. Mexe em **1** arquivo e **não quebra nada** porque ninguém consome ainda. Feito
-    primeiro, os passos ②–⑥ **já nascem usando token**.
+  - ~~**[UX-17a] — passo ①: só DECLARAR os tokens**~~ ✅ **FEITO (2026-08-15)** — bloco `:root` próprio
+    no `base.css` (separado das cores, que mudam com o tema): **12** `--space-*` (nomeados pelo valor em
+    px, pra conversão mecânica), **8** `--radius-*` (+`pill`/`circle`) e **9** de tipografia
+    (`--text-2xs`…`--text-xl` + 3 `--display-*`). Escala **extraída do inventário real**, não inventada —
+    os dominantes (font 11/12/13, espaço 8/10/12, raio 8/10/12) foram preservados, então converter **não
+    deve mexer no visual**. Os órfãos (9.5/11.5/12.5px, raio 2/5/7/9/14/20…) **não ganharam token de
+    propósito** — a lista deles está no comentário do `base.css` e eles morrem no UX-17b.
+    Zero consumidor ainda ⇒ zero mudança visual neste passo.
   - **[UX-17b] — passo ⑦ (último): CONVERTER** os 16 arquivos de `styles/`. **Medido no código
     (2026-08-15): 5.055 linhas de CSS em 16 arquivos, 219 declarações de `font-size`.** Vai por
     último porque os passos ②–⑥ escrevem CSS novo — converter antes é reescrever duas vezes, e
@@ -336,13 +340,20 @@
   ⚠ As faixas (o que é margem ruim/ok/boa) são a **[DEC-04]** — decisão do dono, não código.
   **Onde:** `ProductCatalog.tsx` + `catalog.css` · `SalesPage.tsx` + `cesta-recibo.css`.
 
-- **[TD-013] `table { min-width: 600px }` é seletor global morando no CSS do catálogo**
-  **▸ Passo ① — SUBIU pro começo do cluster (era o último).** Motivo: é um seletor global mentindo por
-  baixo de todas as tabelas; normalizar o visual (UX-17b) com ele no lugar é caçar fantasma em 16
-  arquivos. E é correção de 2 linhas — não há razão pra segurar.
-  `catalog.css:72` estiliza o **elemento** `table`, não uma classe → vaza para toda tabela do app.
-  **Já mordeu uma vez:** `cesta-recibo.css:330` existe só para anular isso, com comentário admitindo que
-  "era ELE" o culpado. Escopar para `.catalog-card table` e remover o antídoto.
+- ~~**[TD-013] `table { min-width: 600px }` é seletor global morando no CSS do catálogo**~~ ✅ **FEITO
+  (2026-08-15, passo ①)** — os 3 seletores de elemento (`table`/`th`/`td`) viraram `.catalog-card *` e o
+  antídoto do `.cost-detail-table` (`cesta-recibo.css`) saiu junto. **Achado na execução:** o
+  `min-width: 600px` foi **apagado**, não escopado — o próprio catálogo já o anulava mais abaixo
+  (`.catalog-card table { min-width: 0 }`, do bloco "cartões também no desktop"), ou seja era regra
+  **morta no catálogo e viva em todo mundo**. A especificidade subiu 0,0,1 → 0,1,1 e passou a empatar
+  com `.main-row td`/`.details-row td`/`td.col-name`, todos posteriores na cascata → seguem vencendo.
+  ⚠ **Um efeito colateral pego na verificação visual:** o `border-top` do `td` global era o que separava
+  o 1º item do cabeçalho do recibo em `/vendas` — e em recibo de UM item era a **única** borda da linha
+  (o `border-bottom` cai no `tr:last-child`). Foi **reposto explicitamente** em `.recibo-items td`, o
+  dono legítimo da regra. **Medido no site rodando:** com isso a altura da página de `/vendas` voltou a
+  **3975px**, byte a byte igual ao estado anterior, e catálogo (desktop e mobile) mediu **idêntico**.
+  **Ganho real, não só higiene:** no celular o recibo era forçado a **600px** (255px de scroll lateral
+  dentro do card) e agora mede **453px** (108px) — o global estava apertando uma tabela que não era dele.
 
 ### Tier 2 — comerciais
 - ~~**[FEAT-09] Desconto na venda**~~ ✅ **FEITO (2026-08-10)** — por item **XOR** no total do recibo, em
@@ -444,23 +455,21 @@
 > implementar. **2 em aberto (2026-08-15)** — as duas saíram do cluster UI/UX e devem ser perguntadas
 > **em paralelo com o passo ①**, pra não virarem bloqueio lá na frente.
 
-- **▶ [DEC-04] Faixas de margem — o que é ruim / ok / bom?** *(destrava o passo ⑥ = **UX-19**)*
-  Hoje o catálogo pinta margens de **49% a 72%** todas do mesmo cinza e a `/vendas` pinta lucros de
-  **61% a 100%** todos do mesmo verde — num app cuja função é dizer se o preço está bom, a cor não
-  está trabalhando. Pintar por faixa é quase uma linha de CSS, **mas os cortes são do dono**: só ele
-  sabe abaixo de que margem uma peça não vale a pena. Precisa de 2 números (o corte ruim→ok e o
-  ok→bom) e vale checar se a régua é a mesma nas duas telas (catálogo = margem **precificada**;
-  `/vendas` = lucro **realizado**, já líquido de taxa).
+- ~~**[DEC-04] Faixas de margem**~~ ✅ **DECIDIDO (dono, 2026-08-15): `< 50%` ruim · `50–65%` ok ·
+  `> 65%` bom.** Cortes centrados na realidade atual (o catálogo varia de 49% a 72%, então a régua
+  distribui o catálogo inteiro nas 3 faixas em vez de pintar tudo de uma cor só). **Mesma régua nas
+  duas telas** — a opção "régua diferente por tela" foi oferecida e **não** escolhida. ⚠ Quem
+  implementar o **UX-19** (passo ⑥) deve saber que os números medem coisas diferentes: catálogo =
+  margem **precificada**; `/vendas` = lucro **realizado**, já líquido de taxa. **Destravou o passo ⑥.**
 
-- **▶ [DEC-05] Dois sistemas de ícone competindo** *(era o **[UX-18]**; saiu da fila de código em
-  2026-08-15 porque é identidade, não tarefa — e travaria a fila atrás da marca)*
-  `lucide-react` nos botões (Save, Receipt, Factory, X…) **e** emoji nos rótulos e na nav
-  (🧮 📚 🧾 📄 🖨️ 📦 🏭 · 🏷️ ⚡ 🔢 🎲 📈 🎯), em **9 componentes**. Emoji **não herda `currentColor`**
-  (não responde ao tema), renderiza diferente em cada SO e desalinha ao lado de um ícone lucide — nas
-  capturas da auditoria saíram como glifos chapados sem cor, exatamente o sintoma.
-  ⚠ **O martelo:** lucide em tudo que é controle e emoji só como decoração deliberada, **ou** assumir
-  o emoji como parte da cara do app. Sugestão da auditoria: a primeira. **Overlap com
-  [branding/logo real]** — se a marca destravar, decidir junto. Virando tarefa, volta como código.
+- ~~**[DEC-05] Dois sistemas de ícone competindo**~~ ✅ **DECIDIDO (dono, 2026-08-15): lucide em tudo
+  que é CONTROLE**, emoji só como decoração deliberada (era o **[UX-18]**). Motivo do problema: emoji
+  não herda `currentColor` (não responde ao tema), renderiza diferente em cada SO e desalinha ao lado
+  de um lucide — hoje convivem em **9 componentes** (🧮 📚 🧾 📄 🖨️ 📦 🏭 · 🏷️ ⚡ 🔢 🎲 📈 🎯).
+  ⚠ **Ressalva do dono, registrada:** **a marca está chegando** — fazer a troca já, mas contando com
+  **um ajuste depois**, quando a identidade visual existir (overlap com **[branding/logo real]**);
+  não tratar o resultado como final. **Volta como tarefa de código** — sem posição na fila do cluster
+  (o dono decide quando entra; não bloqueia nenhum dos passos ②–⑦).
 
 - ~~**[DEC-02] `lifeHours` = 10.000 h**~~ ✅ **DECIDIDO: 7.500 h** (dono, 2026-08-13) — meio da faixa;
   A1 passa de R$ 0,65/h a R$ 0,83/h e o cenário base sobe R$ 35,81 → R$ 37,45 (+4,6%) isoladamente.

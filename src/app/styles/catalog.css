@@ -65,14 +65,23 @@
   -webkit-overflow-scrolling: touch;
 }
 
-table {
+/* TD-013 — ESCOPADO ao `.catalog-card`. Antes eram seletores de ELEMENTO
+   (`table`/`th`/`td`) morando no CSS do catálogo: valiam para TODA tabela do app
+   (recibo de /vendas, composição de custo) e já tinham obrigado um antídoto em
+   `cesta-recibo.css` (`.cost-detail-table { min-width: 0 }`), removido junto.
+   O `min-width: 600px` foi APAGADO, não escopado: o próprio catálogo já o anulava
+   mais abaixo (`.catalog-card table { min-width: 0 }`, no bloco "cartões também no
+   desktop") — era regra morta aqui e viva em todo mundo.
+   A especificidade sobe de 0,0,1 para 0,1,1 e passa a EMPATAR com os overrides de
+   célula (`.main-row td`, `.details-row td`, `td.col-name`, responsive.css) — todos
+   vêm depois na cascata, então seguem vencendo. */
+.catalog-card table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  min-width: 600px;
 }
 
-th {
+.catalog-card th {
   padding: 12px 16px;
   font-size: 11px;
   font-weight: 600;
@@ -84,7 +93,7 @@ th {
   white-space: nowrap;
 }
 
-td {
+.catalog-card td {
   padding: 12px 16px;
   vertical-align: middle;
   border-top: 1px solid var(--border-soft);
