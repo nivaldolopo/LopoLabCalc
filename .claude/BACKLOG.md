@@ -46,11 +46,13 @@
    As 2 decisões que saíram do cluster: **[DEC-04]** ✅ (faixas de margem, virou o UX-19) e
    **[DEC-05]** (lucide nos controles) — esta **segue aberta como tarefa de código**, sem posição na
    fila; ver "Decisões em aberto".
-12. **▶ [DEC-05] lucide nos controles** — a única tarefa **codificável hoje** (o dono decide quando).
+12. **▶ Codificáveis hoje** — sem bloqueio nenhum; **o dono decide quando cada uma entra**:
+   **[UX-20]** cor do lucro × faixa de margem (decidida 2026-08-16, regra do app inteiro) ·
+   **[DEC-05]** lucide nos controles.
 13. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
-   ⚠ **Continua sendo o último.** Fechado o cluster UI/UX, o que resta é a DEC-05 (código, sem
-   bloqueio), o Dashboard (só vale com venda real acumulada) e o Tier 2 comercial, **bloqueado pela
-   marca**.
+   ⚠ **Continua sendo o último.** Fechado o cluster UI/UX, o que resta é a **UX-20** e a
+   **DEC-05** (código, sem bloqueio), o Dashboard (só vale com venda real acumulada) e o Tier 2
+   comercial, **bloqueado pela marca**.
 
 ### Porquês da ordem (decisões de 2026-07-20)
 
@@ -213,6 +215,51 @@
 - ~~**[UX-12] Break-even abaixo do custo total**~~ ✅ **FEITO (2026-08-13)** — o balão desceu pra
   depois do `breakdown-total` (e da linha "Total da impressão", pra não partir o bloco de custo em
   produto multi-peça); `.break-even-box` ganhou `margin-top`. Só JSX + CSS, cálculo intacto.
+
+- **▶ [UX-20] A cor do lucro compete com a faixa de margem** *(pedido do dono, 2026-08-16; saiu
+  da auditoria de UI/UX do mesmo dia)*
+  Em "Lucro **R$ 25,46 (76%)**" há **dois** sinais de cor sobrepostos: o valor recebe
+  `.sale-pos`/`.sale-neg` (lucro × prejuízo) e a % recebe a faixa da **DEC-04** (ruim/ok/boa).
+  **Medido: são o MESMO tom** — `.sale-pos` é `color: var(--green)` (`auth-sale.css:90`) e
+  `--margin-good` é `var(--green)` (`base.css:108`). Enquanto a margem é boa, o verde dobra sem
+  graduar nada (todo lucro positivo é verde); quando ela cai, a linha manda recados opostos —
+  R$ **verde** ao lado de % **âmbar/vermelha** (existe nos dados reais: `R$ 20,11 (61%)`).
+  **✅ Decidido (dono, 2026-08-16): valor em R$ na cor normal, cor SÓ na margem — e como REGRA
+  DO APP INTEIRO**, não só na `/vendas` (o dono ampliou o escopo no mesmo dia).
+  ⚠ **Reverte uma decisão do [UX-19]**, registrada em **DOIS** comentários no código
+  (`SalesPage.tsx:681` e `StockPage.tsx:714`): *"o R$ segue verde/vermelho … e só a % recebe a
+  faixa da DEC-04 — assim os DOIS sinais sobrevivem"*. Quem pegar está **mudando** uma decisão,
+  não completando uma — mesmo molde do **[UX-15] vs [TD-004]**. Os dois comentários têm de ser
+  reescritos junto, senão o código passa a mentir.
+  ⚠ **A cor do lucro NÃO sai de um lugar só — são TRÊS implementações diferentes** do mesmo
+  conceito, e a busca por `.sale-pos` **não acha a terceira**:
+  1. `.sale-pos` / `.sale-neg` na classe (a maioria dos pontos) — verde `var(--green)` /
+     vermelho `#e05252`;
+  2. `.fg-margin-val` (`stock.css:568`) — o verde vem da **própria classe** (`color:
+     var(--green)`), sem `.sale-pos`; o JSX só acrescenta `.sale-neg` no negativo;
+  3. e nesse mesmo `.fg-margin-val.sale-neg` (`stock.css:575`) o prejuízo é **`var(--accent)`
+     (laranja)**, não o vermelho `#e05252` que o resto do app usa — **duas cores para o mesmo
+     significado**. Unificar isso faz parte da tarefa.
+  ⚠ **Borda obrigatória (senão some sinal):** hoje o vermelho do PREJUÍZO mora no R$. Tirando a
+  cor de lá, o prejuízo passa a depender da % vermelha (margem negativa cai em "ruim") + do sinal
+  de menos. Isso **falha com receita 0**: a margem não é finita, `marginTier` devolve `null` e o
+  prejuízo ficaria **sem cor nenhuma**. → **manter `.sale-neg` só para valor negativo**; o que
+  sai é só o `.sale-pos`.
+  ⚠ **Sub-decisão em aberto:** em alguns pontos o valor **não tem % ao lado** (linha do item em
+  `/vendas`, `ProfitSummary`, cards do `/maquinas`). Sem a cor e sem a %, o número fica sem
+  nenhuma leitura de qualidade. Escolher: (a) exibir a % nesses pontos também, (b) aceitar o
+  valor neutro ali, ou (c) manter a cor só onde não há % companheira. **(a) é o mais coerente
+  com a regra; (c) é o mais barato.**
+  **Onde — APLICA (lucro/sobra pareado com margem):** `SalesPage.tsx` (`:555` card KPI, `:687`
+  cabeçalho do recibo, `:764` linha do item) · `StockPage.tsx:712` (`fg-margin-val`) ·
+  `SaleModal.tsx` (`:1345` lucro do item, `:1484` total) · `MachinesPage.tsx` (`:118` lucro
+  acumulado, `:221` card de ROI) · `ProfitSummary.tsx:18`.
+  **NÃO aplica (mesma classe, outro significado — o ± é o sentido inteiro, não "bom × ruim"):**
+  `StockPage.tsx:599` e `SuppliesTab.tsx:438` (`stock-entry-delta` = entrada × saída de material)
+  · `SaleModal.tsx:1330` (preço acima × abaixo do sugerido). **Não trocar em massa** — três
+  desses ficariam errados.
+  **Casa bem com o cluster de COR** (tokenizar `--danger`/`--warn`/`--success` + contrastes): é a
+  mesma passada por `.sale-pos`/`.sale-neg`. Mas **não depende dele** — pode sair sozinha.
 
 ### Cluster UI/UX — auditoria de 2026-08-15 (UX-13→17 + UX-19 + TD-013; o UX-18 virou DEC-05)
 

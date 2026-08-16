@@ -31,12 +31,22 @@
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ PRÓXIMA TAREFA sugerida: DEC-05 — lucide em tudo que é CONTROLE**, emoji só como decoração (hoje
-  os dois convivem em **9 componentes**; emoji não herda `currentColor` nem responde ao tema). É a
-  única coisa **codificável hoje** — o Dashboard só vale com venda real acumulada e o Tier 2 está
-  travado na marca. Já decidida (dono, 2026-08-15), sem posição na fila: **ele diz quando entra**, e
-  com a ressalva dele de que **a marca está chegando** (contar com um ajuste depois). Detalhe no
-  [`BACKLOG.md`](.claude/BACKLOG.md).
+- **▶ DUAS tarefas codificáveis hoje** (nenhuma bloqueada; o dono diz quando cada uma entra) —
+  detalhe das duas no [`BACKLOG.md`](.claude/BACKLOG.md):
+  - **[UX-20] cor do lucro × faixa de margem** (decidida 2026-08-16). Hoje o valor em R$ e a %
+    saem no **mesmo verde** (`.sale-pos` e `--margin-good` são ambos `var(--green)`) e, quando a
+    margem cai, a linha manda recados opostos. Regra nova: **valor neutro, cor só na margem** —
+    **no app inteiro**. ⚠ **reverte** decisão do UX-19 registrada em 2 comentários do código, e
+    há 3 implementações diferentes da mesma cor (a do `stock.css` nem usa `.sale-pos`).
+  - **[DEC-05] lucide em tudo que é CONTROLE**, emoji só como decoração (convivem em **9
+    componentes**; emoji não herda `currentColor` nem responde ao tema). Decidida (dono,
+    2026-08-15), com a ressalva de que **a marca está chegando** (contar com um ajuste depois).
+- ⚠ **Auditoria de UI/UX + cálculo (2026-08-16): 33 achados, só o UX-20 entrou no backlog.** Os
+  outros 32 seguem **sem triagem** — os mais graves medidos: recibo **cortado 69–126px** no
+  celular (`overflow: hidden`, não rola), botão primário com **contraste 2,84:1**, colunas de
+  dinheiro **alinhadas à esquerda**, barras de custo escaladas pelo **maior item e não pelo
+  total**, e a capacidade **dobrando** produto multi-máquina (`× machines` sobre o gargalo).
+  Perguntar ao dono se quer que virem itens.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do `/maquinas`
