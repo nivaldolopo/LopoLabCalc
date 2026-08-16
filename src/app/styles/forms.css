@@ -307,6 +307,30 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 13px;
 }
 
+/* UX-15 — o aviso de página (`FeedbackNote`): ícone + texto + fechar. Classe
+   PRÓPRIA em cima do `.form-ok`/`.form-error` de propósito: as dezenas de
+   avisos de string simples (modais, validação de campo) continuam do jeito que
+   estavam — só quem passa pelo componente vira flex. */
+.feedback-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.feedback-note .fb-msg {
+  flex: 1;
+  min-width: 0;
+}
+
+/* O ✕ herda a cor do aviso (o `.icon-button` global é transparente e sem
+   cor própria) e não pode crescer junto com o texto. */
+.feedback-note .fb-close {
+  flex: 0 0 auto;
+  width: var(--space-24);
+  height: var(--space-24);
+  color: inherit;
+}
+
 .btn,
 .icon-label-button,
 .link-button,
@@ -341,6 +365,20 @@ input[type="range"]::-webkit-slider-thumb {
 
 .btn.primary.saved {
   background: var(--green);
+}
+
+/* UX-15 — o botão que apaga/estorna. Morava no `stock.css` (regra global no
+   CSS de UMA página, o defeito do TD-013) e sem nenhum consumidor; veio pro
+   dono legítimo do `.btn` e ganhou corpo, porque agora é a ação afirmativa do
+   ConfirmDialog e precisa se distinguir do Cancelar à sua esquerda. */
+.btn.danger {
+  background: rgba(196, 131, 107, 0.14);
+  border: 1.5px solid rgba(196, 131, 107, 0.5);
+  color: #c4836b;
+}
+
+.btn.danger:hover {
+  background: rgba(196, 131, 107, 0.24);
 }
 
 /* TD-006: botão "carregar mais" das listas paginadas (/vendas, /producao). */

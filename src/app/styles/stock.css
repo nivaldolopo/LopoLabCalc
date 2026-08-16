@@ -140,10 +140,10 @@
   font-weight: 600;
 }
 
-.btn.danger {
-  color: #c4836b;
-}
-
+/* UX-15: o `.btn.danger` que morava aqui foi pro `forms.css` (dono do `.btn`).
+   ⚠ O `.btn:disabled` abaixo tem o MESMO defeito de escopo — regra global no
+   CSS de uma página —, mas tem consumidores em todo o app; a mudança fica
+   anotada no BACKLOG para o UX-17b, junto da varredura dos 16 arquivos. */
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;

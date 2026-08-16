@@ -9,6 +9,51 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Cluster UI/UX passo ④ — UX-15: alvos de ação + como o app confirma e avisa (2026-08-16)
+
+**Alvo de 32px no catálogo.** As 95 linhas terminavam em 5 ícones de 24px colados, com o **Excluir**
+vizinho imediato do mais clicado. Agora: `td.col-actions .icon-button` = **32px**, o divisor mudou de
+lugar (era entre *orçar* e *editar*; virou o separador **antes do Excluir**) e ganhou margem de 6px de
+cada lado. A faixa "Ações" do grid foi de **146 → 196px**. **Medido a 1280×900:** botões 32×32, folga
+*Carregar → Excluir* **4 → 21px**, e a coluna Nome caiu de 276 → 259px **sem truncar nada a mais** —
+os mesmos **3 de 95** nomes truncam antes e depois, e a página mede os mesmos 7128px (comparação feita
+injetando a geometria antiga na página ao vivo, não lendo o diff). A 375×838 os 5 alvos medem 32px numa
+linha só, com 29px de folga antes do Excluir.
+
+**`ConfirmDialog` + `useConfirm`.** Os **8** `window.confirm` de 7 arquivos viraram modal próprio,
+reusando a casca do `modal.css` (nada de segundo sistema de diálogo). O hook devolve
+`ask(): Promise<boolean>` **de propósito**: o formato do `window.confirm` preservado deixou os 8
+handlers inteiros (`if (!(await ask({...}))) return;`) — estado por call-site partiria cada um em dois.
+Fecha no Escape, no fundo e no Cancelar; **o foco nasce no Cancelar** e o destrutivo é o **segundo**
+botão. O texto passou a nomear o alvo e a dizer **o que NÃO é afetado** (venda e acabado guardam nome +
+custo congelados ⇒ o histórico sobrevive a excluir um produto).
+
+⚠ **Isto REVERTE a decisão do [TD-004]** de manter nativos os `confirm` destrutivos. Legítimo e
+consciente (o dono decidiu na sessão): o TD-004 decidiu sobre *feedback de escrita*, e o problema aqui
+era **alvo de 24px com o Excluir colado no mais clicado** — contexto que não estava na mesa lá.
+
+**Os avisos viraram um só componente** (`FeedbackNote` + `useFeedback`). Levantado no código: já **não
+existia nenhum `window.alert`** (o TD-004 os matou) — o defeito estava nos substitutos. O estado
+`{kind,msg}` + o `<div>` estavam copiados em **5** telas, `guardOnline`/`errorMessage` em **4** (3
+cópias idênticas + uma inline na QuotePage, agora em `src/lib/errors.ts`), o ✓ era **emoji dentro da
+string** (virou ícone lucide, resíduo da DEC-05) e nada sumia nem fechava. Agora **sucesso some sozinho
+em 5s, erro persiste com ✕** (decisão do dono).
+
+**O buraco real que isso fechou:** a `/vendas` **não tinha aviso nenhum** — `handleDelete` estornava
+acabado + filamento e chamava `reconcileRecibo` **sem `try/catch`, sem `guardOnline` e sem mensagem**.
+Falha de estorno era silenciosa: a linha só não sumia. **Verificado no site rodando** (com
+`navigator.onLine` forçado a false): antes, nada; agora o aviso nomeia a venda e o motivo, persiste
+além de 6s e fecha no ✕ — e nada foi gravado, porque o guarda dispara antes do primeiro `await`.
+
+**Faxina junto (TD-013):** `.btn.danger` morava no `stock.css` — regra global no CSS de uma página, e
+**sem consumidor nenhum**; foi pro `forms.css` (dono do `.btn`) e ganhou corpo, porque virou a ação
+afirmativa do diálogo. O `.btn:disabled` ao lado tem o mesmo defeito mas **tem** consumidores → anotado
+no BACKLOG para o UX-17b.
+
+**Onde:** `ConfirmDialog.tsx` · `FeedbackNote.tsx` · `src/lib/errors.ts` (novos) · `ProductCatalog` ·
+`SalesPage` · `StockPage` · `SuppliesTab` · `ProductionPage` · `QuotePage` · `LogoutButton` ·
+`catalog.css` · `modal.css` · `forms.css` · `stock.css`. 376 testes (a matemática não foi tocada).
+
 ## ✅ Cluster UI/UX passo ③ — UX-13b + UX-14: o chrome do celular (2026-08-15)
 
 Os dois itens foram juntos porque disputavam o mesmo espaço vertical (um o topo, outro o rodapé) e a
@@ -896,6 +941,9 @@ diferente que só reaproveitou a sigla.)
   soma todas as horas de etapa e multiplica por `machines` genérico — impreciso quando etapas
   rodam em impressoras diferentes ou disputam a mesma. Impacto baixo hoje (maioria mono-máquina).
   **Prioridade média — atacar quando o Dashboard/utilização (item 4) entrar (é a base do "gargalo").**
+- ⚠ **[TD-004] — a parte dos `confirm` foi REVERTIDA pelo [UX-15] (2026-08-16):** os destrutivos
+  deixaram de ser nativos e passaram pelo `ConfirmDialog`. O resto do item (avisos inline no lugar do
+  `alert`) continua valendo — e o UX-15 unificou esses avisos num componente só.
 - ✅ **[TD-004] Escritas sem feedback (Salvando/Salvo/Erro) — FEITO.** `SaleModal`, `QuotePage`,
   import CSV (`ProductCatalog`) e `MachineManagerModal` trocaram o `window.alert` de resultado/validação
   por avisos inline (`.form-error`/`.form-ok`). `QuotePage.handleGenerate` deixou de gravar

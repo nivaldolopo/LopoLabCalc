@@ -60,3 +60,40 @@
   margin-top: 20px;
 }
 
+/* UX-15 — confirmação própria (ConfirmDialog). Reusa a casca do `.modal-box`;
+   só encolhe, porque aqui não há formulário, só uma pergunta e o que ela
+   implica. */
+.confirm-box {
+  max-width: 440px;
+}
+
+.confirm-body {
+  font-size: var(--text-md);
+  color: var(--muted);
+  line-height: 1.5;
+  margin-top: var(--space-8);
+}
+
+.confirm-body p {
+  margin: 0 0 var(--space-8);
+}
+
+.confirm-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* O que NÃO é afetado: o alívio vem em destaque, não em letra miúda — é o que
+   evita a hesitação de quem ia excluir um produto achando que perde as vendas
+   já registradas. */
+.confirm-body .confirm-safe {
+  color: var(--ink);
+}
+
+/* Nos dois botões o `.btn.primary` global (nascido no formulário) traz
+   `flex: 1`; aqui a linha tem só duas ações e elas dividem o espaço — o
+   destrutivo não deve ser o botão maior. */
+.confirm-box .modal-actions .btn {
+  flex: 1;
+  justify-content: center;
+}
+

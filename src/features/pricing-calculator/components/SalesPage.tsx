@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Fragment, useMemo, useState } from "react";
 import { Edit3, Plus, Trash2 } from "lucide-react";
+import { errorMessage, guardOnline } from "@/lib/errors";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import {
   DEFAULT_FIXED_COSTS,
@@ -29,7 +30,9 @@ import {
 import { fetchProductionEventsByIds } from "@/lib/firebase/productionRepository";
 import { toTimestamp } from "@/lib/formatting/date";
 import { matchesQuery } from "@/lib/text";
+import { useConfirm } from "./ConfirmDialog";
 import { CostBreakdownTable } from "./CostDetail";
+import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { NavBar } from "./NavBar";
 import { SaleModal, type EditReciboSeed } from "./SaleModal";
@@ -213,6 +216,10 @@ export function SalesPage() {
   const [sortMode, setSortMode] = useState<SalesSortMode>("recent");
   // UX-06: qual item do recibo está com o detalhe aberto (linha + dropdown).
   const [openSaleId, setOpenSaleId] = useState<string | null>(null);
+  // UX-15: esta página não tinha aviso de escrita nenhum — a exclusão (que
+  // estorna acabado + filamento) falhava em silêncio.
+  const { note, ok, fail, clear } = useFeedback();
+  const { ask, dialog } = useConfirm();
 
   // Taxa de custo fixo real do negócio (TD-001) para reprecificar os itens de
   // catálogo ao editar um recibo. O toggle `enabled` vem do produto.
@@ -379,32 +386,67 @@ export function SalesPage() {
   }
 
   async function handleDelete(sale: Sale) {
-    const ok = window.confirm(
-      `Excluir "${sale.productName}" (${formatDate(sale.saleDate)})? Isso não pode ser desfeito.`,
-    );
-    if (!ok) return;
-    // Passo 8: excluir uma venda estorna o que ela consumiu — acabado (finishedMoves)
-    // e/ou filamento das encomendas — e apaga os eventos de produção, tudo atômico.
-    // TD-006: os eventos vêm por id do banco (não da janela paginada) — um evento
-    // já apagado à mão vem ausente e não estorna em dobro, como antes.
-    const events = await fetchProductionEventsByIds(sale.productionEventIds ?? []);
-    const { colorUpdates, supplyUpdates, finishedUpdates } =
-      reverseReciboReconciliation(
-        sale.finishedMoves ?? [],
-        events.flatMap((event) => event.stockMoves),
-        goods,
-        stock,
-        supplies,
-      );
-    await reconcileRecibo({
-      saleUpserts: [],
-      saleRemovedIds: [sale.id],
-      productionCreates: [],
-      productionDeleteIds: events.map((event) => event.id),
-      colorUpdates,
-      supplyUpdates,
-      finishedUpdates,
+    const hasReversal =
+      (sale.finishedMoves?.length ?? 0) > 0 ||
+      (sale.productionEventIds?.length ?? 0) > 0;
+    const confirmed = await ask({
+      title: `Excluir “${sale.productName}” (${formatDate(sale.saleDate)})?`,
+      body: (
+        <>
+          <p>A receita sai do histórico e dos totais do período.</p>
+          {hasReversal ? (
+            <p className="confirm-safe">
+              O que a venda consumiu <strong>volta</strong>: a peça acabada
+              retorna ao estoque e, se foi encomenda, o filamento e os insumos
+              são estornados junto com os eventos de produção dela.
+            </p>
+          ) : null}
+          <p>Isso não pode ser desfeito.</p>
+        </>
+      ),
+      confirmLabel: "Excluir venda",
+      danger: true,
     });
+    if (!confirmed) return;
+
+    // UX-15: até aqui este caminho era o único da app que gravava sem aviso
+    // nenhum — falha de estorno passava em silêncio e a linha só não sumia.
+    try {
+      guardOnline();
+      // Passo 8: excluir uma venda estorna o que ela consumiu — acabado (finishedMoves)
+      // e/ou filamento das encomendas — e apaga os eventos de produção, tudo atômico.
+      // TD-006: os eventos vêm por id do banco (não da janela paginada) — um evento
+      // já apagado à mão vem ausente e não estorna em dobro, como antes.
+      const events = await fetchProductionEventsByIds(
+        sale.productionEventIds ?? [],
+      );
+      const { colorUpdates, supplyUpdates, finishedUpdates } =
+        reverseReciboReconciliation(
+          sale.finishedMoves ?? [],
+          events.flatMap((event) => event.stockMoves),
+          goods,
+          stock,
+          supplies,
+        );
+      await reconcileRecibo({
+        saleUpserts: [],
+        saleRemovedIds: [sale.id],
+        productionCreates: [],
+        productionDeleteIds: events.map((event) => event.id),
+        colorUpdates,
+        supplyUpdates,
+        finishedUpdates,
+      });
+      ok(
+        hasReversal
+          ? `“${sale.productName}” excluída e o estoque estornado.`
+          : `“${sale.productName}” excluída do histórico.`,
+      );
+    } catch (err) {
+      fail(
+        `Não foi possível excluir “${sale.productName}”: ${errorMessage(err)}`,
+      );
+    }
   }
 
   async function openEdit(recibo: Recibo) {
@@ -487,6 +529,8 @@ export function SalesPage() {
       </NavBar>
 
       {error ? <div className="app-error">{error}</div> : null}
+
+      <FeedbackNote note={note} onClose={clear} />
 
       <div className="sales-totals">
         <div className="sales-total-card">
@@ -853,6 +897,8 @@ export function SalesPage() {
           onConfirm={reconcileRecibo}
         />
       ) : null}
+
+      {dialog}
     </main>
   );
 }

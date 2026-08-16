@@ -14,33 +14,30 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ passo ③ do cluster UI/UX = UX-13b + UX-14 (2026-08-15)** — no celular a
-  `.navbar` virou **painel lateral** (gaveta pela direita) e a calculadora ganhou **barra fina fixa no
-  rodapé** (preço/peça · margem · markup ao vivo; toque rola até o card). Fechada, a nav **não ocupa
-  linha nenhuma**: sobra só o ☰, absoluto no canto do `.header`, ao lado do título/`Sincronizado` (a
-  1ª versão repetia o nome da página numa linha própria — redundante com o `<h1>`).
-  **Medido antes × depois (375×838):** navbar **227 → 0px**, 1º campo **421 → 118px**
-  (48,7% → **14,1%** da tela), `.wrap` reserva **116px** e o `.back-to-top` sobe a altura da barra ⇒
-  **nada coberto** (60px de folga). Desktop **idêntico** (navbar 53px · 1º campo 240px · página 1384px).
-  Junto: `.subtitle` some no celular, os 7 links perderam o sublinhado e o bloco órfão de `.navbar*`
-  saiu do `quote.css` (defeito do TD-013). 376 testes.
+- **Última mudança:** **✅ passo ④ do cluster UI/UX = UX-15 (2026-08-16)** — os 5 ícones de ação do
+  catálogo foram de **24 → 32px** e o **Excluir** ficou **afastado** (o divisor mudou de lugar; faixa
+  "Ações" 146 → 196px). Os **8** `window.confirm` viraram **`ConfirmDialog`/`useConfirm`**
+  (`ask(): Promise<boolean>` — os handlers seguem inteiros; foco no **Cancelar**, Escape, texto que
+  nomeia o alvo e diz **o que NÃO é afetado**). ⚠ **Reverte** a decisão do TD-004, como o dono decidiu.
+  **Junto (pedido do dono): os avisos viraram um só** — `FeedbackNote`/`useFeedback` (**sucesso some em
+  5s, erro fica com ✕**), `guardOnline`/`errorMessage` no novo `src/lib/errors.ts` (eram 4 cópias) e a
+  **`/vendas` ganhou o aviso que nunca teve** (a exclusão que estorna acabado + filamento falhava **em
+  silêncio**). **Medido rodando (1280×900):** alvos 32×32, folga *Carregar → Excluir* **4 → 21px**,
+  coluna Nome 276 → 259px **sem truncar nada a mais** e página igual (7128px). 376 testes.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ PRÓXIMA TAREFA: passo ④ do cluster UI/UX = UX-15 (alvos de ação do catálogo).** As 95 linhas
-  terminam em 5 botões de ícone de **24×24px** colados, com o **Excluir** vizinho do mais clicado (a
-  linha tem 61px: cabe 32px). A fazer: alvos de **32px**, **afastar o Excluir** e trocar o `confirm`
-  genérico por um modal que **nomeie o produto e diga o que NÃO é afetado** (venda e acabado guardam
-  nome + custo congelado ⇒ o histórico sobrevive), estendendo aos **8** `confirm` em 7 arquivos.
-  ⚠ **Reverte** uma decisão do TD-004 (destrutivo segue nativo *por escolha*) — legítimo, mas o dono
-  deve saber que está mudando de ideia. **Fila restante (4 passos):** ④ UX-15 →
-  ⑤ UX-16 (folga: mecânico, pode subir) → ⑥ UX-19 → ⑦ UX-17b (converter os 16 CSS; por último de
-  propósito). ✅ **Sem bloqueio** — DEC-04 e DEC-05 decididas em 2026-08-15 (a DEC-05, lucide nos
-  controles, volta como tarefa de código fora da fila). Detalhe/porquês:
-  [`BACKLOG.md`](.claude/BACKLOG.md). Depois do cluster sobram só o **Dashboard** (precisa de venda
-  real acumulada) e o **Tier 2 comercial**, bloqueado pela marca.
+- **▶ PRÓXIMA TAREFA: passo ⑤ do cluster UI/UX = UX-16 (rótulo não foca o campo).** Medido: **44
+  `<label>` e só 1 com `htmlFor`; 77 `<input>/<select>` e 0 com `id`** — clicar em "Mão de obra (min)"
+  não faz nada e o alvo de clique é só a caixinha. Correção mecânica: aninhar o input **dentro** do
+  `<label>` (dispensa `id`) ou `useId()`. **Muda ZERO visualmente**, risco baixíssimo — é o item de
+  folga do cluster. **Fila restante (3 passos):** ⑤ UX-16 → ⑥ UX-19 (cor por faixa de margem; régua da
+  DEC-04: <50% ruim · 50–65% ok · >65% bom) → ⑦ UX-17b (converter os 16 CSS; por último de propósito).
+  ✅ **Sem bloqueio** — a DEC-05 (lucide nos controles) volta como tarefa de código fora da fila.
+  Detalhe/porquês: [`BACKLOG.md`](.claude/BACKLOG.md). Depois do cluster sobram só o **Dashboard**
+  (precisa de venda real acumulada) e o **Tier 2 comercial**, bloqueado pela marca.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do `/maquinas`
@@ -91,6 +88,8 @@ src/
                             #     NavBar (no celular vira painel lateral — UX-14),
                             #     MobilePriceBar (barra fixa da calculadora no celular — UX-13b),
                             #     compartilhados: NumberInput, ProfitSummary, SearchBox,
+                            #       ConfirmDialog (+useConfirm: ask(): Promise<boolean> — UX-15),
+                            #       FeedbackNote (+useFeedback: aviso de escrita; ok some em 5s),
                             #       NetMarginHint (UX-10: margem líquida ao lado da bruta),
                             #       CostDetail (composição 1 ou 2 colunas — precificado × real;
                             #       exporta CostBreakdownTable, reusada pelo popover E pelos
@@ -135,6 +134,7 @@ src/
                             #   productionRepository (`producao`: N eventos + baixa dos rolos no
                             #     mesmo writeBatch — FEAT-04),
                             #   finishedGoodsRepository (`acabados`: doc por PRODUTO, id = productId)
+    errors.ts               # guardOnline (offline trava a escrita) + errorMessage — UX-15
     formatting/currency.ts  # formatCurrency / formatDecimal
     formatting/date.ts      # ponte timestamp ↔ <input type="date"> (toDateInput, toTimestamp,
                             #   todayInputValue, formatDate) — usada por venda/orçamento/estoque

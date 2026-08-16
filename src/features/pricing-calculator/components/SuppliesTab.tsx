@@ -11,6 +11,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { errorMessage, guardOnline } from "@/lib/errors";
 import { formatCurrency } from "@/lib/formatting/currency";
 import { formatDate } from "@/lib/formatting/date";
 import { num } from "@/lib/number";
@@ -33,6 +34,8 @@ import type {
   SupplyLot,
   SupplyPayload,
 } from "../types";
+import { useConfirm } from "./ConfirmDialog";
+import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { SearchBox } from "./SearchBox";
 import { SupplyAdjustModal } from "./SupplyAdjustModal";
 import { SupplyLotModal } from "./SupplyLotModal";
@@ -55,18 +58,6 @@ function toPayload(supply: Supply): SupplyPayload {
   return supply;
 }
 
-function guardOnline() {
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    throw new Error(
-      "Sem conexão com a internet. Reconecte e tente de novo — nada foi salvo ainda.",
-    );
-  }
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "Não foi possível salvar.";
-}
-
 export function SuppliesTab({
   products,
   production,
@@ -82,10 +73,8 @@ export function SuppliesTab({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // UX-05: busca por nome do insumo. Client-side (insumos têm teto natural).
   const [query, setQuery] = useState("");
-  const [feedback, setFeedback] = useState<{
-    kind: "ok" | "error";
-    msg: string;
-  } | null>(null);
+  const { note, ok, fail, clear } = useFeedback();
+  const { ask, dialog } = useConfirm();
 
   // Os modais buscam o insumo pelo id na lista viva (não guardam cópia): uma
   // cópia presa no estado mostraria o saldo velho no ajuste seguinte.
@@ -181,34 +170,49 @@ export function SuppliesTab({
         ...toPayload(supply),
         archived: !supply.archived,
       });
-      setFeedback({
-        kind: "ok",
-        msg: supply.archived
-          ? `✓ "${supply.name}" voltou para os insumos ativos.`
-          : `✓ "${supply.name}" foi arquivado.`,
-      });
+      ok(
+        supply.archived
+          ? `“${supply.name}” voltou para os insumos ativos.`
+          : `“${supply.name}” foi arquivado.`,
+      );
     } catch (err) {
-      setFeedback({ kind: "error", msg: errorMessage(err) });
+      fail(errorMessage(err));
     }
   }
 
   async function remove(supply: Supply) {
     const lots = supply.lots.length;
-    const ok = window.confirm(
-      `Excluir "${supply.name}" de vez?\n\n` +
-        (lots > 0
-          ? `Você perde o histórico de compra de ${lots} lote(s) deste insumo.\n\n`
-          : "") +
-        "Isso não pode ser desfeito.",
-    );
-    if (!ok) return;
+    const confirmed = await ask({
+      title: `Excluir “${supply.name}” de vez?`,
+      body: (
+        <>
+          {lots > 0 ? (
+            <p>
+              Você perde o histórico de compra de{" "}
+              <strong>
+                {lots} lote{lots > 1 ? "s" : ""}
+              </strong>{" "}
+              deste insumo.
+            </p>
+          ) : null}
+          <p className="confirm-safe">
+            As produções que já consumiram este insumo não mudam — o custo delas
+            está congelado.
+          </p>
+          <p>Isso não pode ser desfeito.</p>
+        </>
+      ),
+      confirmLabel: "Excluir insumo",
+      danger: true,
+    });
+    if (!confirmed) return;
 
     try {
       guardOnline();
       await deleteSupply(supply.id);
-      setFeedback({ kind: "ok", msg: `✓ "${supply.name}" excluído.` });
+      ok(`“${supply.name}” excluído.`);
     } catch (err) {
-      setFeedback({ kind: "error", msg: errorMessage(err) });
+      fail(errorMessage(err));
     }
   }
 
@@ -492,11 +496,7 @@ export function SuppliesTab({
         </button>
       </div>
 
-      {feedback ? (
-        <div className={feedback.kind === "ok" ? "form-ok" : "form-error"}>
-          {feedback.msg}
-        </div>
-      ) : null}
+      <FeedbackNote note={note} onClose={clear} />
 
       {supplies.length === 0 ? (
         <div className="sales-empty">
@@ -558,6 +558,8 @@ export function SuppliesTab({
           onSave={(input) => saveAdjust(adjustFor, input)}
         />
       ) : null}
+
+      {dialog}
     </>
   );
 }

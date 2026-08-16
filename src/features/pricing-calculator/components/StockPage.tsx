@@ -19,6 +19,7 @@ import {
   ShoppingCart,
   Trash2,
 } from "lucide-react";
+import { errorMessage, guardOnline } from "@/lib/errors";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import { formatDate } from "@/lib/formatting/date";
 import { num } from "@/lib/number";
@@ -74,7 +75,9 @@ import type {
   StockFilament,
   StockFilamentPayload,
 } from "../types";
+import { useConfirm } from "./ConfirmDialog";
 import { CostBreakdownTable, CostDetail } from "./CostDetail";
+import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { NavBar } from "./NavBar";
 import { SaleFlow } from "./SaleFlow";
 import { SearchBox } from "./SearchBox";
@@ -124,21 +127,6 @@ function toPayload(color: StockFilament): StockFilamentPayload {
   return color;
 }
 
-// Offline o Firestore enfileira a escrita e a Promise fica pendente para sempre
-// (nem resolve, nem rejeita) — o botão travaria em "Salvando...". Bloqueia com
-// aviso, como em SaleModal/QuotePage (TD-004).
-function guardOnline() {
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    throw new Error(
-      "Sem conexão com a internet. Reconecte e tente de novo — nada foi salvo ainda.",
-    );
-  }
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "Não foi possível salvar.";
-}
-
 export function StockPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -179,10 +167,8 @@ export function StockPage() {
   // produto semeado (peça pronta). null = fechado.
   const [saleSeed, setSaleSeed] = useState<SaleModalContext | null>(null);
   const [saleOpen, setSaleOpen] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    kind: "ok" | "error";
-    msg: string;
-  } | null>(null);
+  const { note, ok, fail, clear } = useFeedback();
+  const { ask, dialog } = useConfirm();
 
   // Os modais buscam a cor pelo id na lista viva (não guardam uma cópia): o
   // onSnapshot devolve o doc novo depois de cada gravação e uma cópia presa no
@@ -340,34 +326,49 @@ export function StockPage() {
         ...toPayload(color),
         archived: !color.archived,
       });
-      setFeedback({
-        kind: "ok",
-        msg: color.archived
-          ? `✓ "${filamentLabel(color)}" voltou para as cores ativas.`
-          : `✓ "${filamentLabel(color)}" foi arquivada.`,
-      });
+      ok(
+        color.archived
+          ? `“${filamentLabel(color)}” voltou para as cores ativas.`
+          : `“${filamentLabel(color)}” foi arquivada.`,
+      );
     } catch (err) {
-      setFeedback({ kind: "error", msg: errorMessage(err) });
+      fail(errorMessage(err));
     }
   }
 
   async function remove(color: StockFilament) {
     const rolls = color.rolls.length;
-    const ok = window.confirm(
-      `Excluir "${filamentLabel(color)}" de vez?\n\n` +
-        (rolls > 0
-          ? `Você perde o histórico de compra de ${rolls} rolo(s) desta cor.\n\n`
-          : "") +
-        "Isso não pode ser desfeito.",
-    );
-    if (!ok) return;
+    const confirmed = await ask({
+      title: `Excluir “${filamentLabel(color)}” de vez?`,
+      body: (
+        <>
+          {rolls > 0 ? (
+            <p>
+              Você perde o histórico de compra de{" "}
+              <strong>
+                {rolls} rolo{rolls > 1 ? "s" : ""}
+              </strong>{" "}
+              desta cor.
+            </p>
+          ) : null}
+          <p className="confirm-safe">
+            As produções e vendas que já usaram esta cor não mudam — o custo
+            delas está congelado.
+          </p>
+          <p>Isso não pode ser desfeito.</p>
+        </>
+      ),
+      confirmLabel: "Excluir cor",
+      danger: true,
+    });
+    if (!confirmed) return;
 
     try {
       guardOnline();
       await deleteFilament(color.id);
-      setFeedback({ kind: "ok", msg: `✓ "${filamentLabel(color)}" excluída.` });
+      ok(`“${filamentLabel(color)}” excluída.`);
     } catch (err) {
-      setFeedback({ kind: "error", msg: errorMessage(err) });
+      fail(errorMessage(err));
     }
   }
 
@@ -1246,11 +1247,7 @@ export function StockPage() {
         </button>
       </div>
 
-      {feedback ? (
-        <div className={feedback.kind === "ok" ? "form-ok" : "form-error"}>
-          {feedback.msg}
-        </div>
-      ) : null}
+      <FeedbackNote note={note} onClose={clear} />
 
       {filaments.length === 0 ? (
         <div className="sales-empty">
@@ -1421,6 +1418,8 @@ export function StockPage() {
           onClose={() => setSaleOpen(false)}
         />
       ) : null}
+
+      {dialog}
     </main>
   );
 }

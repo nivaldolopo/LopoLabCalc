@@ -23,6 +23,7 @@ import type {
   SortMode,
   StockFilament,
 } from "../types";
+import { errorMessage } from "@/lib/errors";
 import { matchesQuery } from "@/lib/text";
 import { calculatePricing } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
@@ -32,7 +33,9 @@ import {
   exportProductsCsv,
   parseProductsCsv,
 } from "../lib/productCsv";
+import { useConfirm } from "./ConfirmDialog";
 import { CostBars } from "./CostBars";
+import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { NetMarginHint } from "./NetMarginHint";
 import { ProfitSummary } from "./ProfitSummary";
 import { SearchBox } from "./SearchBox";
@@ -147,10 +150,11 @@ export function ProductCatalog({
   // cliente (produtos têm teto natural — não paginam na TD-006).
   const [query, setQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  // Resultado da importação de CSV, inline no lugar do window.alert (TD-004).
-  const [importMsg, setImportMsg] = useState<
-    { kind: "error" | "ok"; msg: string } | null
-  >(null);
+  // Resultado da importação de CSV, inline no lugar do window.alert (TD-004);
+  // desde o UX-15 vem do aviso compartilhado (sucesso some sozinho).
+  const { note, ok, fail, clear } = useFeedback();
+  // UX-15: excluir e importar deixaram de usar o `window.confirm` nativo.
+  const { ask, dialog } = useConfirm();
 
   // Lê a precificação já memoizada no pai; fallback defensivo se algum produto
   // ainda não estiver no map.
@@ -193,6 +197,41 @@ export function ProductCatalog({
 
   if (products.length === 0) return null;
 
+  // UX-15 — a confirmação que motivou o item. `removeProduct` é um `deleteDoc`
+  // SEM cascata: venda e acabado guardam nome + custo congelados, então o
+  // histórico e os números de dinheiro sobrevivem. O que some é a receita — e é
+  // exatamente isso que o texto precisa dizer, produto pelo nome.
+  async function confirmDelete(product: SavedProduct) {
+    const confirmed = await ask({
+      title: `Excluir “${product.name}”?`,
+      body: (
+        <>
+          <p>
+            Some a receita do produto: peso, horas, cores, subitens, acessórios
+            e etapas. Não há lixeira nem desfazer.
+          </p>
+          <p className="confirm-safe">
+            Não afeta as vendas já registradas, o estoque de acabados nem o
+            histórico de produção — cada um guarda o nome e o custo congelados
+            na época.
+          </p>
+        </>
+      ),
+      confirmLabel: "Excluir produto",
+      danger: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      await onDeleteProduct(product.id);
+      ok(`“${product.name}” excluído do catálogo.`);
+    } catch (error) {
+      fail(
+        `Não foi possível excluir “${product.name}”: ${errorMessage(error)}`,
+      );
+    }
+  }
+
   function exportCsv() {
     const csv = exportProductsCsv(products, machines, fixedCosts, stock);
     downloadCsv("catalogo-precos-3d.csv", csv);
@@ -201,31 +240,31 @@ export function ProductCatalog({
   function importCsv(file: File) {
     const reader = new FileReader();
     reader.onload = async (event) => {
-      setImportMsg(null);
+      clear();
       try {
         const content = String(event.target?.result ?? "");
         const importedProducts = parseProductsCsv(content, machines);
         if (importedProducts.length === 0) {
-          setImportMsg({ kind: "error", msg: "Nenhum produto válido encontrado no CSV." });
+          fail("Nenhum produto válido encontrado no CSV.");
           return;
         }
 
-        if (
-          window.confirm(
-            `Encontrados ${importedProducts.length} produtos. Deseja importá-los agora?`,
-          )
-        ) {
-          await onImportProducts(importedProducts);
-          setImportMsg({
-            kind: "ok",
-            msg: `✓ ${importedProducts.length} produtos importados com sucesso.`,
-          });
-        }
-      } catch (error) {
-        setImportMsg({
-          kind: "error",
-          msg: error instanceof Error ? error.message : "CSV inválido.",
+        const confirmed = await ask({
+          title: `Importar ${importedProducts.length} produtos do CSV?`,
+          body: (
+            <p>
+              Eles entram como produtos <strong>novos</strong> no catálogo — o
+              que já está salvo continua onde está.
+            </p>
+          ),
+          confirmLabel: "Importar",
         });
+        if (!confirmed) return;
+
+        await onImportProducts(importedProducts);
+        ok(`${importedProducts.length} produtos importados com sucesso.`);
+      } catch (error) {
+        fail(error instanceof Error ? error.message : "CSV inválido.");
       }
     };
     reader.readAsText(file, "UTF-8");
@@ -285,11 +324,7 @@ export function ProductCatalog({
           />
         </div>
       </div>
-      {importMsg ? (
-        <div className={importMsg.kind === "ok" ? "form-ok" : "form-error"}>
-          {importMsg.msg}
-        </div>
-      ) : null}
+      <FeedbackNote note={note} onClose={clear} />
       <div className="catalog-card">
         <div className="table-scroll">
           <table>
@@ -391,7 +426,6 @@ export function ProductCatalog({
                         >
                           <FileText size={15} />
                         </button>
-                        <span className="icon-button-divider" />
                         <button
                           className="icon-button edit"
                           type="button"
@@ -403,14 +437,16 @@ export function ProductCatalog({
                         >
                           <Edit3 size={15} />
                         </button>
+                        {/* UX-15: o divisor mudou de lugar (era entre orçar e
+                            editar). O que precisa de distância é o DESTRUTIVO,
+                            que estava colado no botão mais clicado da linha. */}
+                        <span className="icon-button-divider" />
                         <button
                           className="icon-button danger"
                           type="button"
                           onClick={async (event) => {
                             event.stopPropagation();
-                            if (window.confirm("Deseja realmente excluir este produto?")) {
-                              await onDeleteProduct(product.id);
-                            }
+                            await confirmDelete(product);
                           }}
                           title="Excluir"
                         >
@@ -439,6 +475,7 @@ export function ProductCatalog({
           </table>
         </div>
       </div>
+      {dialog}
     </div>
   );
 }

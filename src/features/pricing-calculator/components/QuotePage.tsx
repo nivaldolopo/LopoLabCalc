@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Download, FileText, Plus, Trash2 } from "lucide-react";
+import { errorMessage } from "@/lib/errors";
 import { formatCurrency } from "@/lib/formatting/currency";
 import { formatDate, todayInputValue, toTimestamp } from "@/lib/formatting/date";
 import {
@@ -20,6 +21,8 @@ import { useQuotes } from "../hooks/useQuotes";
 import { useTheme } from "../hooks/useTheme";
 import { reserveQuoteNumber } from "@/lib/firebase/quotesRepository";
 import type { QuoteBusiness, QuoteRecord, QuoteRecordPayload } from "../types";
+import { useConfirm } from "./ConfirmDialog";
+import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { NavBar } from "./NavBar";
 import { NumberInput } from "./NumberInput";
 
@@ -76,9 +79,8 @@ export function QuotePage() {
   const [saving, setSaving] = useState(false);
   // Feedback inline de escrita (validação/erro/sucesso), no lugar do alert e da
   // gravação fire-and-forget silenciosa (TD-004).
-  const [feedback, setFeedback] = useState<
-    { kind: "error" | "ok"; msg: string } | null
-  >(null);
+  const { note, ok, fail, clear } = useFeedback();
+  const { ask, dialog } = useConfirm();
   const businessSeeded = useRef(false);
   const numberEdited = useRef(false);
 
@@ -213,25 +215,24 @@ export function QuotePage() {
 
   async function handleGenerate() {
     if (items.length === 0) {
-      setFeedback({ kind: "error", msg: "Adicione ao menos um item ao orçamento." });
+      fail("Adicione ao menos um item ao orçamento.");
       return;
     }
     for (const item of items) {
       if (!item.description.trim()) {
-        setFeedback({ kind: "error", msg: "Dê uma descrição a todos os itens." });
+        fail("Dê uma descrição a todos os itens.");
         return;
       }
     }
-    setFeedback(null);
+    clear();
 
     // O número é reservado no servidor (transação) ANTES do PDF, então precisa de
     // conexão. Offline: a transação ficaria pendente para sempre — bloqueia com
     // aviso antes de gerar qualquer coisa (o número precisa ser autoritativo).
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setFeedback({
-        kind: "error",
-        msg: "Sem conexão para gerar o orçamento (o número precisa ser reservado no servidor). Tente quando reconectar.",
-      });
+      fail(
+        "Sem conexão para gerar o orçamento (o número precisa ser reservado no servidor). Tente quando reconectar.",
+      );
       return;
     }
 
@@ -257,10 +258,9 @@ export function QuotePage() {
         numberEdited.current ? quoteNumber : undefined,
       );
     } catch (err) {
-      setFeedback({
-        kind: "error",
-        msg: `Não foi possível reservar o número do orçamento: ${(err as Error).message}. Tente de novo.`,
-      });
+      fail(
+        `Não foi possível reservar o número do orçamento: ${errorMessage(err)}. Tente de novo.`,
+      );
       setSaving(false);
       return;
     }
@@ -295,15 +295,11 @@ export function QuotePage() {
       await Promise.all([addQuote(payload), saveBusiness(business)]);
       // Volta a numeração a seguir o histórico (o novo registro puxa o próximo nº).
       numberEdited.current = false;
-      setFeedback({
-        kind: "ok",
-        msg: `✓ Orçamento nº ${numberStr} salvo no histórico.`,
-      });
+      ok(`Orçamento nº ${numberStr} salvo no histórico.`);
     } catch (err) {
-      setFeedback({
-        kind: "error",
-        msg: `O PDF foi gerado (nº ${numberStr}), mas falhou ao salvar no histórico: ${(err as Error).message}. Tente gerar de novo.`,
-      });
+      fail(
+        `O PDF foi gerado (nº ${numberStr}), mas falhou ao salvar no histórico: ${errorMessage(err)}. Tente gerar de novo.`,
+      );
     } finally {
       setSaving(false);
     }
@@ -322,17 +318,33 @@ export function QuotePage() {
   }
 
   async function handleDeleteQuote(quote: QuoteRecord) {
-    const ok = window.confirm(
-      `Excluir o orçamento nº ${quote.number}${quote.customer ? ` (${quote.customer})` : ""}? Isso não pode ser desfeito.`,
-    );
-    if (!ok) return;
+    const confirmed = await ask({
+      title: `Excluir o orçamento nº ${quote.number}${
+        quote.customer ? ` (${quote.customer})` : ""
+      }?`,
+      body: (
+        <>
+          <p>
+            Sai do histórico daqui — o PDF que você já enviou ao cliente
+            continua com ele.
+          </p>
+          <p className="confirm-safe">
+            A numeração não recua: o próximo orçamento segue do maior número já
+            emitido.
+          </p>
+        </>
+      ),
+      confirmLabel: "Excluir orçamento",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await deleteQuote(quote.id);
+      ok(`Orçamento nº ${quote.number} excluído do histórico.`);
     } catch (err) {
-      setFeedback({
-        kind: "error",
-        msg: `Erro ao excluir o orçamento nº ${quote.number}: ${(err as Error).message}.`,
-      });
+      fail(
+        `Erro ao excluir o orçamento nº ${quote.number}: ${errorMessage(err)}.`,
+      );
     }
   }
 
@@ -580,11 +592,7 @@ export function QuotePage() {
             <FileText size={16} /> {saving ? "Gerando..." : "Gerar PDF"}
           </button>
         </div>
-        {feedback ? (
-          <div className={feedback.kind === "ok" ? "form-ok" : "form-error"}>
-            {feedback.msg}
-          </div>
-        ) : null}
+        <FeedbackNote note={note} onClose={clear} />
       </div>
 
       {orderedQuotes.length > 0 ? (
@@ -677,6 +685,8 @@ export function QuotePage() {
           </div>
         </div>
       ) : null}
+
+      {dialog}
     </main>
   );
 }

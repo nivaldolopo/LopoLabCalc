@@ -44,7 +44,8 @@
    tomadas pelo dono** no mesmo dia. **Ordem de execução (2026-08-15)** — 7 passos:
    ~~① TD-013 + UX-17a (tokens)~~ ✅ **FEITO (2026-08-15)** → ~~② UX-13a (desktop)~~ ✅ **FEITO
    (2026-08-15)** → ~~③ UX-13b + UX-14 (chrome mobile juntos)~~ ✅ **FEITO (2026-08-15)** →
-   **▶ ④ UX-15** → ⑤ UX-16 → ⑥ UX-19 → ⑦ UX-17b (conversão dos 16 CSS).
+   ~~④ UX-15 (alvos + confirmação + avisos)~~ ✅ **FEITO (2026-08-16)** → **▶ ⑤ UX-16** → ⑥ UX-19 →
+   ⑦ UX-17b (conversão dos 16 CSS).
    ✅ **As 2 decisões saíram junto com o passo ①** (dono, 2026-08-15): **[DEC-04]** (faixas de margem,
    destravou o ⑥) e **[DEC-05]** (lucide nos controles; volta como tarefa de código, fora da fila) —
    **o cluster não tem mais bloqueio nenhum**, os 6 passos restantes são só código.
@@ -282,32 +283,18 @@
   **Onde:** `NavBar.tsx` · `header.css` · `forms.css` · `responsive.css` · `quote.css`.
   ⚠ Alternativa **descartada** pelo dono: barra fixa no rodapé com os 4 mais usados + "•••".
 
-- **[UX-15] Alvos de ação minúsculos no catálogo + `window.confirm` genérico**
-  **▸ ▶ PRÓXIMA — passo ④.**
-  **Medido:** cada uma das **95 linhas** do catálogo termina em 5 botões de ícone **sem rótulo**, de
-  **24×24px**, colados. Ordem: Vender · Produzir · Orçar · Carregar no formulário · **Excluir** — o
-  destrutivo é vizinho imediato do mais clicado. A linha tem **61px** de altura: cabe 32px com folga.
-  ⚠ **Verificado — o susto é menor do que parece:** `removeProduct` é um `deleteDoc` simples, **sem
-  cascata** (`productsRepository.ts:128`). Vendas guardam `productName` + custo congelado
-  (`salesRepository.ts:93`) e os acabados guardam o próprio `productName` (`StockPage.tsx:816`) → o
-  **histórico e os números de dinheiro sobrevivem**. Perde-se só a **receita** do produto (peso, horas,
-  cores, subitens, acessórios), sem desfazer nem lixeira.
-  **A fazer:** alvos de **32px**, **afastar o Excluir** dos outros quatro, e trocar o
-  *"Deseja realmente excluir este produto?"* por um que **nomeie o produto e diga o que NÃO é afetado**.
-  Estender o modal próprio aos outros **7** `window.confirm` (**contados no código, 2026-08-15: são 8
-  no total**, em 7 arquivos) — `ProductCatalog.tsx:214` (import CSV), `LogoutButton`, `ProductionPage`,
-  `QuotePage`, `SalesPage`, `StockPage`, `SuppliesTab`.
-  ⚠ **Correção de rastreamento (2026-08-15): isto NÃO "fecha o resto do TD-004".** O TD-004 está
-  **fechado** (`HISTORICO.md`) e a decisão registrada nele foi **manter nativos** os `confirm`
-  destrutivos (excluir, sair) *por escolha* — o `window.alert` é que virou aviso inline. Ou seja, o
-  UX-15 **reverte** uma decisão antiga, não completa uma pendência. Vale o dono saber que está
-  mudando de ideia (é legítimo: o TD-004 decidiu sobre *feedback de escrita*, e o problema aqui é
-  **alvo de 24px com o Excluir colado no mais clicado** — contexto que não estava na mesa lá).
-  **Onde:** `ProductCatalog.tsx:411` (o `confirm` do excluir) · `catalog.css` (`.icon-button`) +
-  os 7 pontos acima.
+- ~~**[UX-15] Alvos de ação minúsculos no catálogo + `window.confirm` genérico**~~ ✅ **FEITO
+  (2026-08-16, passo ④)** — alvos de **32px** e o **Excluir afastado** (divisor mudou de lugar; faixa
+  "Ações" 146 → 196px). Os **8** `window.confirm` viraram `ConfirmDialog` + `useConfirm`
+  (`ask(): Promise<boolean>`, foco no Cancelar, Escape), com texto que **nomeia o alvo e diz o que NÃO
+  é afetado**. ⚠ **Reverteu** a decisão do TD-004 (confirm destrutivo nativo) — registrado lá.
+  **Junto, a pedido do dono:** os avisos inline viraram **um** componente (`FeedbackNote`/`useFeedback`;
+  sucesso some em 5s, erro fica com ✕), `guardOnline`/`errorMessage` foram pro `src/lib/errors.ts`
+  (eram 4 cópias) e a **`/vendas` ganhou o aviso que nunca teve** — a exclusão que estorna acabado +
+  filamento gravava sem `try/catch` e falhava em silêncio. Writeup e as medições: `HISTORICO.md`.
 
 - **[UX-16] Rótulo não foca o campo (44 `<label>`, **1** com `htmlFor`)**
-  **▸ Passo ⑤ — e é o ITEM DE FOLGA do cluster:** mecânico, zero mudança visual, não colide com
+  **▸ ▶ PRÓXIMA — passo ⑤ — e é o ITEM DE FOLGA do cluster:** mecânico, zero mudança visual, não colide com
   nenhum outro item. Pode subir pra qualquer posição se as decisões (DEC-04/05) demorarem.
   **Medido:** 44 `<label>` nos componentes, **1** com `htmlFor`; 77 `<input>/<select>`, **0** com `id`.
   O navegador não sabe que um é o nome do outro → clicar em "Mão de obra (min)" não faz nada, e o alvo
@@ -343,6 +330,9 @@
     antigas na página ao vivo (`<style>` temporário) e comparar geometria no mesmo instante;
     (c) quando uma regra global se revelar necessária, **repor no dono legítimo** (foi o que se fez em
     `.recibo-items td`), não restaurar o global.
+    ➕ **Achado no UX-15 (2026-08-16), já mapeado:** `.btn:disabled` mora no **`stock.css`** — mesmo
+    defeito de escopo do `.btn.danger` (que já saiu de lá), mas este **tem consumidores em todo o
+    app**, então a mudança fica para cá. Mover para o `forms.css`, dono do `.btn`.
   **Medido:** das ~220 declarações de `font-size`, **155 estão entre 10 e 13px** (65× `12px`, 50× `11px`,
   40× `13px`) — e existem **23 tamanhos distintos**, incluindo `11.5px`, `12.5px` e `9.5px`. Idem
   `border-radius`: **15 valores** (2, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 999px…). O `base.css` tem 19

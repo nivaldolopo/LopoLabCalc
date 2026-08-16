@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Factory, Plus, Trash2 } from "lucide-react";
+import { errorMessage, guardOnline } from "@/lib/errors";
 import { formatCurrency } from "@/lib/formatting/currency";
 import {
   formatDate,
@@ -52,7 +53,9 @@ import type {
   ProductionMode,
   ProductionOutcome,
 } from "../types";
+import { useConfirm } from "./ConfirmDialog";
 import { CostBreakdownTable, CostDetail } from "./CostDetail";
+import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { NavBar } from "./NavBar";
 import { NumberInput } from "./NumberInput";
@@ -78,18 +81,6 @@ const outcomeLabel = (value: ProductionOutcome) =>
 
 function grams(value: number): string {
   return `${Math.round(num(value))} g`;
-}
-
-function guardOnline() {
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    throw new Error(
-      "Sem conexão com a internet. Reconecte e tente de novo — nada foi salvo ainda.",
-    );
-  }
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "Não foi possível salvar.";
 }
 
 export function ProductionPage() {
@@ -146,10 +137,8 @@ export function ProductionPage() {
   const [dateStr, setDateStr] = useState(todayInputValue());
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    kind: "ok" | "error";
-    msg: string;
-  } | null>(null);
+  const { note, ok, fail, clear } = useFeedback();
+  const { ask, dialog } = useConfirm();
 
   // Precificação viva por produto — de onde saem os subitens e o consumo default.
   const pricingByProduct = useMemo(() => {
@@ -210,7 +199,7 @@ export function ProductionPage() {
 
   function selectOption(key: string) {
     setSelectedKey(key);
-    setFeedback(null);
+    clear();
     setPlates(1);
     if (key === "avulso") {
       setRows([avulsoRow()]);
@@ -459,19 +448,18 @@ export function ProductionPage() {
 
   async function save() {
     if (rows.length === 0) {
-      setFeedback({ kind: "error", msg: "Escolha o que foi impresso." });
+      fail("Escolha o que foi impresso.");
       return;
     }
     for (const row of rows) {
       if (!row.productName.trim()) {
-        setFeedback({ kind: "error", msg: "Dê um nome à impressão." });
+        fail("Dê um nome à impressão.");
         return;
       }
       if (num(row.printHours) <= 0) {
-        setFeedback({
-          kind: "error",
-          msg: `Informe o tempo de impressão de "${row.productName || "impressão"}".`,
-        });
+        fail(
+          `Informe o tempo de impressão de “${row.productName || "impressão"}”.`,
+        );
         return;
       }
     }
@@ -479,12 +467,12 @@ export function ProductionPage() {
     try {
       guardOnline();
     } catch (err) {
-      setFeedback({ kind: "error", msg: errorMessage(err) });
+      fail(errorMessage(err));
       return;
     }
 
     setSaving(true);
-    setFeedback(null);
+    clear();
     const now = Date.now();
     const at = toTimestamp(dateStr);
     const planned = planEvents(newProductionId);
@@ -506,33 +494,43 @@ export function ProductionPage() {
         finished,
         planned.supplyUpdates,
       );
-      setFeedback({
-        kind: "ok",
-        msg:
-          entries.length > 1
-            ? `✓ ${entries.length} produções registradas.`
-            : "✓ Produção registrada.",
-      });
+      ok(
+        entries.length > 1
+          ? `${entries.length} produções registradas.`
+          : "Produção registrada.",
+      );
       setSelectedKey("");
       setRows([]);
       setPlates(1);
       setNotes("");
     } catch (err) {
-      setFeedback({ kind: "error", msg: errorMessage(err) });
+      fail(errorMessage(err));
     } finally {
       setSaving(false);
     }
   }
 
   async function remove(event: ProductionEvent) {
-    const ok = window.confirm(
-      `Excluir a produção "${event.productName || "impressão"}"?\n\n` +
-        (event.stockMoves.length > 0
-          ? "O filamento deduzido volta pro estoque.\n\n"
-          : "") +
-        "Isso não pode ser desfeito.",
-    );
-    if (!ok) return;
+    const confirmed = await ask({
+      title: `Excluir a produção “${event.productName || "impressão"}”?`,
+      body: (
+        <>
+          {event.stockMoves.length > 0 ? (
+            <p className="confirm-safe">
+              O filamento e os insumos deduzidos <strong>voltam</strong> pro
+              estoque, e as peças acabadas que esta produção creditou saem.
+            </p>
+          ) : null}
+          <p>
+            As horas dela também somem do ROI da máquina. Isso não pode ser
+            desfeito.
+          </p>
+        </>
+      ),
+      confirmLabel: "Excluir produção",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       guardOnline();
       const colorUpdates = reverseProduction(event.stockMoves, stock);
@@ -543,9 +541,9 @@ export function ProductionPage() {
         finishedForRemove(event),
         supplyUpdates,
       );
-      setFeedback({ kind: "ok", msg: "✓ Produção excluída e estoque estornado." });
+      ok("Produção excluída e estoque estornado.");
     } catch (err) {
-      setFeedback({ kind: "error", msg: errorMessage(err) });
+      fail(errorMessage(err));
     }
   }
 
@@ -1043,11 +1041,7 @@ export function ProductionPage() {
           </>
         ) : null}
 
-        {feedback ? (
-          <div className={feedback.kind === "ok" ? "form-ok" : "form-error"}>
-            {feedback.msg}
-          </div>
-        ) : null}
+        <FeedbackNote note={note} onClose={clear} />
 
         <div className="modal-actions">
           <button
@@ -1223,6 +1217,8 @@ export function ProductionPage() {
         ) : null}
         </>
       )}
+
+      {dialog}
     </main>
   );
 }
