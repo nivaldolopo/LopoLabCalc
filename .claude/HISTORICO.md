@@ -9,6 +9,57 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Cluster UI/UX passo ③ — UX-13b + UX-14: o chrome do celular (2026-08-15)
+
+Os dois itens foram juntos porque disputavam o mesmo espaço vertical (um o topo, outro o rodapé) e a
+conta do `.back-to-top` teria de ser refeita duas vezes se fossem separados.
+
+**UX-14 — a navbar virou gaveta.** Abaixo de 760px a **mesma** `.navbar-bar` sai do fluxo e vira painel
+de 280px que entra pela direita; no lugar dela fica a `.navbar-mobile-head` (nome da página + ☰). Sem
+markup duplicado — é CSS sobre o nó que já existia. Três detalhes que não são cosméticos:
+- fechada, a gaveta é `visibility: hidden` (e não só `translateX(100%)`), senão os 7 links continuariam
+  **focáveis fora da tela** na ordem de tabulação;
+- fecha no ✕, no fundo escuro, no **Escape** e no `onClick` de cada `<Link>`. O caminho óbvio seria um
+  `useEffect` no `pathname`, mas `setState` dentro de effect é **erro de lint** neste repo
+  (`react-hooks/set-state-in-effect`). Efeito colateral aceito: com a gaveta aberta, o **botão voltar**
+  do navegador não a fecha (o toque no fundo resolve);
+- o backdrop tem `z-index: 80` — acima do `.back-to-top` (50) e da `.price-bar` (40), abaixo do overlay
+  de modal (100). Com isso ele cobre e bloqueia os dois **sem regra extra**.
+
+**UX-13b — a barra fixa.** `MobilePriceBar.tsx`, 56px no rodapé, com preço/peça · margem · markup ao
+vivo; um toque rola até o `.result-card`. O requisito do dono ("não pode cobrir nada") virou **três
+regras amarradas ao mesmo token `--price-bar-h`**: a barra, o `padding-bottom` do `.wrap.has-price-bar`
+(60 → 116px) e o `.back-to-top`, que sobe a altura da barra via `body:has(.price-bar)` — regra posta no
+**dono legítimo** do botão (base.css), não como antídoto no CSS de outra área. Se algum dia faltar
+`:has()`, perde-se só o deslocamento.
+
+**A faxina que veio no caminho.** O bloco mobile da navbar morava no **`quote.css`** — CSS de outra
+área no arquivo da página de orçamento, o mesmo defeito do TD-013. Como o `quote.css` é o 12º `@import`
+e o `header.css` o 2º, ele **venceria** o CSS novo na cascata: foi apagado, não sobrescrito.
+
+**Medido no site rodando, antes × depois na mesma sessão** (o "antes" veio de `git stash`, para as duas
+medições saírem do mesmo navegador e do mesmo produto):
+
+| | antes | depois |
+|---|---|---|
+| `.navbar` (375×838) | 227px | **46px** |
+| 1º campo do formulário | 421px (48,7% da tela) | **172px (19,9%)** |
+| `.wrap` padding-bottom | 60px | **116px** (60 + 56) |
+| desktop 1280×900 (navbar · 1º campo · página) | 53 · 240 · 1384 | **53 · 240 · 1384** |
+
+Com a página rolada até o fim sobram **60px** entre o último card e o topo da barra, e o `.back-to-top`
+para 2px acima dela. Junto saíram o sublinhado dos 7 `<Link>` (`text-decoration: none` na **classe**,
+nunca num seletor `a` nu) e o `.subtitle` no celular (~60px de texto decorativo; decisão do dono).
+
+## Infra — domínio e DNS (detalhe que saiu do `CLAUDE.md`)
+
+`lopolab.com.br` é registrado no **registro.br**, mas a gestão de DNS foi **migrada para o Cloudflare**
+(nameservers do registro.br apontando pra lá; o motivo foi o e-mail no domínio). Por isso **nada** de
+DNS se mexe no registro.br — CNAME, MX e o resto vivem no painel do Cloudflare.
+`calculadora.lopolab.com.br` está no ar: CNAME → `e5d09afaf3e58d32.vercel-dns-017.com`, **"DNS only" /
+nuvem cinza** (nunca proxied), SSL Let's Encrypt emitido pela Vercel, domínio nos Authorized domains do
+Firebase. O contexto de domínio/e-mail vive em outro projeto de chat do dono ("abertura da loja").
+
 ## ✅ FEAT-11 — Trocar a cor na produção, e a cor como dimensão do acabado (2026-08-13)
 
 O pedido do dono era simples de enunciar: *"a mesma peça é impressa em outra cor o tempo todo, e só

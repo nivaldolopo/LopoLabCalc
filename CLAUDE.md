@@ -14,37 +14,36 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ passo ② do cluster UI/UX = UX-13a (2026-08-15)** — tudo depois do "Custo total"
-  (break-even, rentabilidade, capacidade) foi pra um `<details>` que **nasce fechado**, e o painel de
-  custos fixos **desativado** deixou de renderizar o corpo. **Medido no site rodando (1280×900, produto
-  real):** card 1392px → **624px** fechado, e com o slider de markup no centro da tela o preço passou de
-  **−509px** (fora de vista) pra **+63px** — o `sticky` que já existia voltou a funcionar sozinho. O
-  banner de custo fixo desativado caiu de 319 → 85px. 376 testes. ⚠ Aberto, o card volta a 1392px e o
-  preço sai de vista (−509px): é o custo aceito de abrir, não regressão.
+- **Última mudança:** **✅ passo ③ do cluster UI/UX = UX-13b + UX-14 (2026-08-15)** — no celular a
+  `.navbar` virou **painel lateral** (gaveta pela direita; fechada = nome da página + ☰) e a calculadora
+  ganhou **barra fina fixa no rodapé** (preço/peça · margem · markup ao vivo; toque rola até o card).
+  **Medido antes × depois na mesma sessão (375×838):** navbar **227 → 46px**, 1º campo **421 → 172px**
+  (48,7% → **19,9%** da tela), `.wrap` reserva **116px** e o `.back-to-top` sobe a altura da barra ⇒
+  **nada coberto** (60px de folga). Desktop **idêntico** (navbar 53px · 1º campo 240px · página 1384px).
+  Junto: `.subtitle` some no celular, os 7 links perderam o sublinhado e o bloco órfão de `.navbar*`
+  saiu do `quote.css` (defeito do TD-013). 376 testes.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ PRÓXIMA TAREFA: passo ③ do cluster UI/UX = UX-13b + UX-14 JUNTOS (chrome do celular).** Os dois
-  disputam o mesmo espaço vertical: **UX-13b** = barra fina fixa (~56px) no **rodapé** com preço/peça ·
-  margem · markup (⚠ requisito do dono: **não pode cobrir nada** — `padding-bottom` no `.wrap` + conviver
-  com o `.back-to-top`); **UX-14** = a `.navbar` de **227px** vira **painel lateral** (fechado: nome da
-  página + botão de abrir), recuperando ~180px dos **50,2% de tela** que hoje são cabeçalho. No celular o
-  colapso do passo ② não basta: o card é `static` e mora **depois** do formulário inteiro.
-  **Fila restante (5 passos):** ③ UX-13b + UX-14 → ④ UX-15 →
+- **▶ PRÓXIMA TAREFA: passo ④ do cluster UI/UX = UX-15 (alvos de ação do catálogo).** As 95 linhas
+  terminam em 5 botões de ícone de **24×24px** colados, com o **Excluir** vizinho do mais clicado (a
+  linha tem 61px: cabe 32px). A fazer: alvos de **32px**, **afastar o Excluir** e trocar o `confirm`
+  genérico por um modal que **nomeie o produto e diga o que NÃO é afetado** (venda e acabado guardam
+  nome + custo congelado ⇒ o histórico sobrevive), estendendo aos **8** `confirm` em 7 arquivos.
+  ⚠ **Reverte** uma decisão do TD-004 (destrutivo segue nativo *por escolha*) — legítimo, mas o dono
+  deve saber que está mudando de ideia. **Fila restante (4 passos):** ④ UX-15 →
   ⑤ UX-16 (folga: mecânico, pode subir) → ⑥ UX-19 → ⑦ UX-17b (converter os 16 CSS; por último de
-  propósito). ✅ **Sem bloqueio:** DEC-04 (faixas `<50` ruim · `50–65` ok · `>65` bom) e DEC-05
-  (lucide nos controles, com ajuste previsto quando a marca chegar) **foram decididas em 2026-08-15**;
-  a DEC-05 volta como tarefa de código, fora da fila. Detalhe/porquês:
+  propósito). ✅ **Sem bloqueio** — DEC-04 e DEC-05 decididas em 2026-08-15 (a DEC-05, lucide nos
+  controles, volta como tarefa de código fora da fila). Detalhe/porquês:
   [`BACKLOG.md`](.claude/BACKLOG.md). Depois do cluster sobram só o **Dashboard** (precisa de venda
   real acumulada) e o **Tier 2 comercial**, bloqueado pela marca.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
-- ⚠ **Duas ressalvas que o Dashboard resolve** (as duas já avisadas na tela / no código): o payback do
-  `/maquinas` usa lucro **bruto** de vendas, sem fixo nem perda (UX-09); e paginar resolveu a **lista**,
-  não a **análise** — ROI e Dashboard **agregam o histórico inteiro** (TD-006, exige agregação
-  server-side). Porquês das atribuições do ROI: comentados em `lib/machineRoi.ts`.
+- ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do `/maquinas`
+  usa lucro **bruto** de vendas, sem fixo nem perda (UX-09); e paginar resolveu a **lista**, não a
+  **análise** — ROI e Dashboard agregam o histórico inteiro (TD-006). ROI: ver `lib/machineRoi.ts`.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **Decisões encerradas:** variáveis de Preview do Firebase não cadastradas (só Production, Diretriz 1);
@@ -86,7 +85,9 @@ src/
                             #       StockAdjustModal + SuppliesTab (7e) + SupplyModal/
                             #       SupplyLotModal/SupplyAdjustModal,
                             #     SaleModal (registrar venda) + SaleFlow (a fiação dele, usada
-                            #       pelas 2 páginas), Header, NavBar, AuthGate (login),
+                            #       pelas 2 páginas), Header, AuthGate (login),
+                            #     NavBar (no celular vira painel lateral — UX-14),
+                            #     MobilePriceBar (barra fixa da calculadora no celular — UX-13b),
                             #     compartilhados: NumberInput, ProfitSummary, SearchBox,
                             #       NetMarginHint (UX-10: margem líquida ao lado da bruta),
                             #       CostDetail (composição 1 ou 2 colunas — precificado × real;
@@ -268,19 +269,13 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 - **Integração Git nativa:** **conectada** — push na `main` faz deploy de produção
   automático. Não use `vercel --prod` no fluxo normal (geraria deploy duplicado).
   Para desconectar: `vercel git disconnect`.
-- **Framework:** fixado em `vercel.json` (`"framework": "nextjs"`) — necessário porque o
-  projeto herdou uma config estática antiga (versão HTML única) que quebrava o build com
-  *"No Output Directory named public"*.
-- **Variáveis do Firebase** (`NEXT_PUBLIC_FIREBASE_*`): cadastradas na Vercel em **Production**
-  — mas **ignoradas** hoje (a config do Firebase é FIXA no `client.ts`; ver Status). Podem ser
-  excluídas.
-- **Domínio `lopolab.com.br`:** registrado no **registro.br**, mas a **gestão de DNS foi migrada
-  para o Cloudflare** (nameservers do registro.br apontando pro Cloudflare; motivo: e-mail no
-  domínio). **NÃO gerenciar DNS pelo registro.br** — todos os registros (CNAME do `calculadora`,
-  MX/e-mail, etc.) vão no painel do **Cloudflare**. **`calculadora.lopolab.com.br` já está NO AR**
-  (CNAME → `e5d09afaf3e58d32.vercel-dns-017.com`, **"DNS only" / nuvem cinza**, nunca proxied; SSL
-  Let's Encrypt emitido pela Vercel; domínio nos Authorized domains do Firebase). O contexto do
-  domínio/e-mail vive em outro projeto de chat do dono ("abertura da loja"), fora deste repo.
+- **Framework:** fixado em `vercel.json` (`"framework": "nextjs"`) — o projeto herdou uma config
+  estática antiga que quebrava o build (*"No Output Directory named public"*).
+- **Variáveis do Firebase** (`NEXT_PUBLIC_FIREBASE_*`): cadastradas na Vercel em **Production**, mas
+  **ignoradas** hoje (a config é FIXA no `client.ts`). Podem ser excluídas.
+- **Domínio `lopolab.com.br`:** DNS é **só no Cloudflare** — **NÃO** gerenciar pelo registro.br (onde
+  ele é registrado). O CNAME do `calculadora` fica **"DNS only" / nuvem cinza**, nunca proxied. Já está
+  no ar com SSL. Detalhe (valores, motivo da migração): [`HISTORICO.md`](.claude/HISTORICO.md).
 
 ### Ambiente Windows (evita retrabalho de PATH)
 - **Node:** `C:\Program Files\nodejs` (v24). **pnpm** e **vercel** instalados globalmente.

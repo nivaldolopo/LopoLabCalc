@@ -290,29 +290,11 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
-  /* No celular a barra de navegação vira uma grade de 2 colunas: as abas ficam
-     do mesmo tamanho preenchendo a largura, e tema/sair descem para uma linha
-     própria (também largura total). Segue "abas fixas, ações abaixo". */
-  .navbar-tabs {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    width: 100%;
-    gap: 8px;
-  }
-
-  .navbar-tabs .icon-label-button {
-    justify-content: center;
-  }
-
-  .navbar-utils {
-    margin-left: 0;
-    width: 100%;
-  }
-
-  .navbar-utils > *,
-  .navbar-page-actions > * {
-    flex: 1;
-  }
+  /* O bloco mobile da .navbar morava aqui — CSS de outra área no arquivo da
+     página de orçamento, o mesmo defeito de escopo do TD-013. Foi para o dono
+     legítimo (header.css) em 2026-08-15 com o UX-14, que troca a grade de 2
+     colunas por painel lateral. `.navbar-page-actions > * { flex: 1 }` era a
+     única regra ainda necessária e foi junto. */
 
   .recibo-head-totals {
     width: 100%;

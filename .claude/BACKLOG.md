@@ -43,8 +43,8 @@
    com o site rodando (desktop 1280 + celular 375), com medições; as decisões de escopo **já foram
    tomadas pelo dono** no mesmo dia. **Ordem de execução (2026-08-15)** — 7 passos:
    ~~① TD-013 + UX-17a (tokens)~~ ✅ **FEITO (2026-08-15)** → ~~② UX-13a (desktop)~~ ✅ **FEITO
-   (2026-08-15)** → **▶ ③ UX-13b + UX-14 (chrome mobile juntos)** → ④ UX-15 → ⑤ UX-16 → ⑥ UX-19 →
-   ⑦ UX-17b (conversão dos 16 CSS).
+   (2026-08-15)** → ~~③ UX-13b + UX-14 (chrome mobile juntos)~~ ✅ **FEITO (2026-08-15)** →
+   **▶ ④ UX-15** → ⑤ UX-16 → ⑥ UX-19 → ⑦ UX-17b (conversão dos 16 CSS).
    ✅ **As 2 decisões saíram junto com o passo ①** (dono, 2026-08-15): **[DEC-04]** (faixas de margem,
    destravou o ⑥) e **[DEC-05]** (lucide nos controles; volta como tarefa de código, fora da fila) —
    **o cluster não tem mais bloqueio nenhum**, os 6 passos restantes são só código.
@@ -225,8 +225,8 @@
 > **Os blocos seguem em ordem de ID** (fácil de achar pelo número); a **ordem de execução** é o
 > `①②③…` marcado em cada um — ver "Ordem de prioridade" item 11 e os porquês acima.
 
-- **[UX-13] O preço some justo quando se mexe no markup** — *o mais grave do lote.*
-  **▸ ~~Passo ② = UX-13a (desktop, sozinho)~~ ✅ FEITO · ▶ Passo ③ = UX-13b (celular, junto do UX-14).**
+- ~~**[UX-13] O preço some justo quando se mexe no markup**~~ ✅ **FECHADO (2026-08-15)** — *era o mais
+  grave do lote.* **▸ ~~Passo ② = UX-13a (desktop)~~ ✅ · ~~Passo ③ = UX-13b (celular, com o UX-14)~~ ✅.**
   **Medido:** `.result-card` é `position: sticky; top: 20px`, mas mede **1286px** de altura contra uma
   viewport de **910px**. Um `sticky` mais alto que a tela **nunca prende no topo** — rola junto até o
   próprio fim. Com o slider de markup à vista, o `R$ 27,14` estava **403px acima** da borda superior.
@@ -252,32 +252,38 @@
     **Onde:** `PricingResultCard.tsx` · `FixedCostsPanel.tsx` · `sections.css` (`.result-advanced` novo,
     já escrito em token do UX-17a; `.fc-body.disabled` apagado). O `sticky` do `.result-card` **não foi
     tocado** — o ponto do item era que ele já estava certo.
-  - **[UX-13b] Celular — barra fina fixa:** o colapso não basta (o card é `static` e mora **depois** do
-    formulário inteiro). Faixa de ~56px no **rodapé** (onde o polegar está) com preço/peça · margem ·
-    markup. ⚠ **Requisito explícito do dono: a barra NÃO pode cobrir nada** — reservar o espaço
-    (`padding-bottom` no `.wrap`) e conferir a convivência com o `.back-to-top`, que já ocupa o canto
-    inferior direito (`base.css:120`, `bottom: 14px` no mobile).
-  - **Junto (mesmo tema "colapsar o que não está em uso"):** o painel **"Custos fixos mensais do
-    quiosque" desativado** mantém 6 campos + linha de resumo renderizados em cinza (~120px mortos no
-    fim do formulário). Desativado deve colapsar.
-  **Onde:** `PricingResultCard.tsx` · `FixedCostsPanel.tsx` · `forms.css` (`.result-card`) · `responsive.css`.
+  - ~~**[UX-13b] Celular — barra fina fixa**~~ ✅ **FEITO (2026-08-15, passo ③)** — componente novo
+    `MobilePriceBar.tsx`: faixa de **56px** fixa no rodapé com preço/peça · margem · markup ao vivo, e
+    **um toque rola até o `.result-card`** (decisão do dono nesta sessão). Só a calculadora a tem
+    (`<main class="wrap has-price-bar">`) e só abaixo de 760px. **O requisito de "não cobrir nada" é
+    garantido por três regras amarradas ao MESMO token `--price-bar-h` (base.css):** a própria barra, o
+    `padding-bottom` do `.wrap.has-price-bar` (60 → **116px**) e o `.back-to-top`, que sobe a altura da
+    barra via `body:has(.price-bar)` — regra posta no **dono legítimo** do botão, não como antídoto em
+    outro arquivo (lição do TD-013). **Medido com a página rolada até o fim: 60px de folga** entre o
+    último card e o topo da barra; sem `:has()` o navegador só perde o deslocamento (degrada, não quebra).
+  - ~~**Junto — painel de custos fixos desativado colapsa**~~ ✅ **FEITO no passo ②** (com o UX-13a).
+  **Onde:** `PricingResultCard.tsx` · `FixedCostsPanel.tsx` · `MobilePriceBar.tsx` · `PricingCalculator.tsx`
+  · `sections.css` · `base.css`.
 
-- **[UX-14] No celular, metade da tela é cabeçalho**
-  **▸ Passo ③ — fazer JUNTO do UX-13b** (os dois mexem no chrome do celular: um no topo, outro no
-  rodapé, e ambos na conta de espaço vertical do `.wrap` + `.back-to-top`).
-  **Medido em 375×838, na calculadora:** o primeiro campo ("Nome do produto") começa em **421px** —
-  **50,2% da tela**. A `.navbar` sozinha tem **227px**: os 7 destinos quebram em 4 linhas de 2 (com
-  "Produção" sozinha na quarta) e "Claro"/"Sair" caem numa quinta.
-  **Decidido (dono): menu lateral.** Abaixo do breakpoint mobile a nav vira **painel lateral**; fechado,
-  o topo mostra **o nome da página + o botão de abrir** (ícone), no canto superior direito. Tema e Sair
-  entram no painel. Estimativa: `.navbar` de **227px → ~44px** (recupera ~180px).
-  **Junto:** os 7 destinos são `<Link>` **sem reset de `text-decoration`** — estão todos sublinhados, e
-  no celular isso vira um bloco de texto sublinhado ocupando ~27% da tela.
-  **Onde:** `NavBar.tsx` (68 linhas) · `header.css` (`.navbar*`) · `responsive.css`.
+- ~~**[UX-14] No celular, metade da tela é cabeçalho**~~ ✅ **FEITO (2026-08-15, passo ③, junto do
+  UX-13b)** — abaixo de 760px a `.navbar-bar` **sai do fluxo e vira gaveta** (280px, entra pela direita,
+  fundo escurecido) e no lugar dela fica a `.navbar-mobile-head`: **nome da página + ☰**. Fecha no ✕, no
+  fundo, no **Escape** e ao navegar (o `onClick` do `<Link>`, e não um efeito no `pathname` — setState
+  dentro de effect é erro de lint aqui). Fechada, a gaveta é `visibility: hidden`, então os 7 links
+  **saem da ordem de tabulação** em vez de ficarem focáveis fora da tela; aberta, o fundo não rola.
+  **Medido antes × depois (mesma sessão, 375×838):** `.navbar` **227 → 46px** e o 1º campo **421 →
+  172px** = **48,7% → 19,9%** da tela. Desktop **idêntico** (navbar 53px, 1º campo 240px, página 1384px).
+  **Junto (feito):** os 7 `<Link>` perderam o sublinhado (`text-decoration: none` na classe
+  `.icon-label-button`, nunca num seletor `a` nu — TD-013); e o **`.subtitle` some no celular**
+  (decisão do dono nesta sessão: ~60px de texto decorativo no topo; marca, h1 e status ficam).
+  **Faxina obrigatória junto:** o bloco mobile da navbar morava no **`quote.css`** (CSS da página de
+  orçamento) — mesmo defeito de escopo do TD-013 e, por ordem de `@import` (12º vs 2º), venceria o novo.
+  Foi **apagado** e o que sobrevivia (`.navbar-page-actions > * { flex: 1 }`) foi pro `header.css`.
+  **Onde:** `NavBar.tsx` · `header.css` · `forms.css` · `responsive.css` · `quote.css`.
   ⚠ Alternativa **descartada** pelo dono: barra fixa no rodapé com os 4 mais usados + "•••".
 
 - **[UX-15] Alvos de ação minúsculos no catálogo + `window.confirm` genérico**
-  **▸ Passo ④.**
+  **▸ ▶ PRÓXIMA — passo ④.**
   **Medido:** cada uma das **95 linhas** do catálogo termina em 5 botões de ícone **sem rótulo**, de
   **24×24px**, colados. Ordem: Vender · Produzir · Orçar · Carregar no formulário · **Excluir** — o
   destrutivo é vizinho imediato do mais clicado. A linha tem **61px** de altura: cabe 32px com folga.

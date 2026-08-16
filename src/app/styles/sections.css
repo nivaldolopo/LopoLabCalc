@@ -665,3 +665,63 @@
   cursor: not-allowed;
 }
 
+/* --- UX-13b: barra fina fixa do CELULAR (MobilePriceBar.tsx) ---------------
+   Mora aqui porque este arquivo é o dono do `.result-*` (o mesmo lugar do
+   `.result-advanced` do UX-13a). Fora da media ela é `display: none` — no
+   desktop o passo ② já resolveu com o colapso do card, e o `sticky` do
+   `.result-card` não precisa de ajuda nenhuma.
+   Altura vem de `--price-bar-h` (base.css) porque outras duas regras dependem
+   do MESMO número e não podem divergir: a reserva do `.wrap.has-price-bar` e o
+   deslocamento do `.back-to-top`. */
+.price-bar {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .price-bar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* abaixo do .back-to-top (50) e do overlay de modal (100): o modal de venda
+       e o botão de topo continuam por cima dela. */
+    z-index: 40;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-12);
+    height: var(--price-bar-h);
+    padding: 0 var(--space-14);
+    border: 0;
+    border-top: 1px solid var(--border);
+    background: var(--card-bg);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+  }
+
+  .price-bar-price {
+    font-size: var(--display-sm);
+    font-weight: 700;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .price-bar-unit {
+    margin-left: var(--space-2);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .price-bar-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    font-size: var(--text-sm);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+}
+

@@ -13,9 +13,11 @@
     font-size: 18px;
   }
 
+  /* UX-14 (decisão do dono, 2026-08-15): no celular o parágrafo explicativo
+     sai — são ~60px de texto decorativo no topo de uma tela em que o 1º campo
+     começava aos 421px. Marca, h1 e status de nuvem continuam. */
   .subtitle {
-    font-size: 13px;
-    margin-bottom: 14px;
+    display: none;
   }
 
   .grid {

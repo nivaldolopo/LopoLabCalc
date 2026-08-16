@@ -115,6 +115,155 @@ h1 span {
   margin-top: 10px;
 }
 
+/* UX-14 — as três peças que só existem no CELULAR (a gaveta). No desktop a
+   .navbar-bar é a barra de sempre e estas não renderizam nada. */
+.navbar-mobile-head,
+.navbar-backdrop,
+.navbar-close {
+  display: none;
+}
+
+/* --- UX-14: no celular a barra vira PAINEL LATERAL -------------------------
+   Medido em 375×838 antes desta mudança: a .navbar ocupava 227px (os 7
+   destinos quebravam em 4 linhas de 2 e "Claro"/"Sair" caíam numa quinta) e o
+   1º campo do formulário só começava aos 421px = 50,2% da tela. Fechada, a nav
+   passa a ser uma linha de ~44px — nome da página à esquerda, botão de abrir à
+   direita — e os destinos moram numa gaveta que entra pela direita.
+   As regras mobile da navbar moravam no quote.css (CSS da página de orçamento)
+   até 2026-08-15; vieram para o dono legítimo junto com esta reescrita, mesma
+   higiene do TD-013. Como o header.css é o 2º @import e o quote.css o 12º, o
+   bloco de lá venceria este na cascata — por isso ele foi APAGADO, não movido
+   por cima. */
+@media (max-width: 760px) {
+  .navbar {
+    margin: var(--space-8) 0 var(--space-12);
+  }
+
+  .navbar-mobile-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+    /* 40px do botão + 2+2 de padding = os ~44px da linha fechada. */
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-12);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    background: var(--card-bg);
+  }
+
+  .navbar-current {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-lg);
+    font-weight: 600;
+  }
+
+  .navbar-toggle,
+  .navbar-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1.5px solid var(--field-border);
+    border-radius: var(--radius-md);
+    background: var(--field-bg);
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .navbar-close {
+    align-self: flex-end;
+  }
+
+  .navbar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    /* acima do .back-to-top (50) e da .price-bar (40), abaixo do modal (100) —
+       com isso a gaveta cobre e bloqueia os dois sem regra extra. */
+    z-index: 80;
+    background: rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .navbar.is-open .navbar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* A própria barra vira a gaveta — mesmo nó, sem markup duplicado. Fechada
+     ela é `visibility: hidden` (não só deslocada) para os 7 links saírem da
+     ordem de tabulação em vez de ficarem focáveis fora da tela. */
+  .navbar-bar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 90;
+    width: min(280px, 82vw);
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: var(--space-8);
+    padding: var(--space-16);
+    border: 0;
+    border-left: 1px solid var(--border);
+    border-radius: 0;
+    overflow-y: auto;
+    visibility: hidden;
+    transform: translateX(100%);
+    transition:
+      transform 0.2s ease,
+      visibility 0.2s ease;
+  }
+
+  .navbar.is-open .navbar-bar {
+    visibility: visible;
+    transform: translateX(0);
+  }
+
+  .navbar-tabs,
+  .navbar-utils {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    width: 100%;
+    gap: var(--space-8);
+  }
+
+  .navbar-bar .icon-label-button {
+    justify-content: flex-start;
+    padding: var(--space-12);
+  }
+
+  /* Tema e Sair no PÉ do painel, separados dos destinos. */
+  .navbar-utils {
+    margin-left: 0;
+    margin-top: auto;
+    padding-top: var(--space-12);
+    border-top: 1px solid var(--border-soft);
+  }
+
+  /* Ações da página (ex.: "Nova venda" em /vendas) ficam FORA da gaveta e
+     ocupam a largura toda. Regra que veio do quote.css. */
+  .navbar-page-actions > * {
+    flex: 1;
+  }
+}
+
+@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+  .navbar-bar {
+    transition: visibility 0.2s ease;
+  }
+}
+
 .cloud-status {
   color: var(--muted);
   display: inline-flex;

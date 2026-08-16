@@ -28,6 +28,7 @@ import { validateProduct } from "../lib/validateProduct";
 import { FixedCostsPanel } from "./FixedCostsPanel";
 import { Header } from "./Header";
 import { MachineManagerModal } from "./MachineManagerModal";
+import { MobilePriceBar } from "./MobilePriceBar";
 import { PricingResultCard } from "./PricingResultCard";
 import { ProductForm } from "./ProductForm";
 import { SaleFlow } from "./SaleFlow";
@@ -349,7 +350,10 @@ export function PricingCalculator() {
   }
 
   return (
-    <main className="wrap">
+    // UX-13b: `has-price-bar` reserva o espaço da barra fixa do celular no
+    // padding-bottom. Só a calculadora tem barra — por isso a classe, e não uma
+    // regra no `.wrap` global.
+    <main className="wrap has-price-bar">
       <Header theme={theme} status={productsApi.status} onToggleTheme={toggleTheme} />
       {productsApi.error ? <div className="app-error">{productsApi.error}</div> : null}
 
@@ -430,6 +434,10 @@ export function PricingCalculator() {
           onClose={() => setSaleOpen(false)}
         />
       ) : null}
+
+      {/* UX-13b: só aparece no celular (CSS). Último filho do .wrap de
+          propósito — é `position: fixed`, então não entra na conta do fluxo. */}
+      <MobilePriceBar result={pricingResult} markup={form.product.markup} />
     </main>
   );
 }

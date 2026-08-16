@@ -432,6 +432,10 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+  /* UX-14: os 7 destinos da NavBar são <Link> e vinham SUBLINHADOS — no
+     celular isso virava um bloco de texto sublinhado. Reset na classe, nunca
+     num seletor de elemento `a` (a lição do TD-013). */
+  text-decoration: none;
 }
 
 /* Rota ativa na barra de navegação unificada (NavBar). */

@@ -58,6 +58,13 @@
   --display-sm: 20px;
   --display-md: 26px;
   --display-lg: 38px;
+
+  /* UX-13b — altura da barra fina fixa do celular. NÃO é escala: mora aqui
+     porque três regras dependem do mesmo número e não podem divergir — a
+     própria `.price-bar` (sections.css), a reserva de espaço do
+     `.wrap.has-price-bar` e o deslocamento do `.back-to-top` (ambas logo
+     abaixo neste arquivo). */
+  --price-bar-h: 56px;
 }
 
 :root {
@@ -137,6 +144,16 @@ button {
   max-width: 1100px;
   margin: 0 auto;
   padding: 28px 20px 60px;
+}
+
+/* UX-13b — requisito explícito do dono: a barra fixa NÃO pode cobrir nada. A
+   página que a tem (só a calculadora) reserva a altura dela no rodapé. A
+   especificidade (0,2,0) vence o `.wrap` do responsive.css mesmo ele vindo
+   depois na cascata. */
+@media (max-width: 760px) {
+  .wrap.has-price-bar {
+    padding-bottom: calc(60px + var(--price-bar-h));
+  }
 }
 
 /* Campo de busca compartilhado das listas (UX-05) — catálogo + abas do estoque.
@@ -237,6 +254,18 @@ button {
     bottom: 14px;
     width: 42px;
     height: 42px;
+  }
+}
+
+/* UX-13b: na página que tem a barra fixa de preço (só a calculadora, só no
+   celular) o botão sobe a altura dela — senão os dois disputariam o canto
+   inferior direito. A regra fica no dono legítimo do `.back-to-top` em vez de
+   virar antídoto no CSS da outra área (a lição do TD-013), e o `:has()` evita
+   ter que marcar o <body> por JS. Navegador sem `:has()` só perde o
+   deslocamento — degrada, não quebra. */
+@media (max-width: 760px) {
+  body:has(.price-bar) .back-to-top {
+    bottom: calc(14px + var(--price-bar-h));
   }
 }
 
