@@ -14,28 +14,25 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ passo ① do cluster UI/UX (2026-08-15)** — **TD-013** (os seletores de elemento
-  `table`/`th`/`td` do `catalog.css` viraram `.catalog-card *`; o `min-width: 600px` foi **apagado**, era
-  morto no catálogo e vivo em todo mundo) + **UX-17a** (tokens `--space-*`/`--radius-*`/`--text-*`
-  declarados no `base.css`, **sem** consumidor ainda ⇒ zero mudança visual). Verificado no site rodando:
-  geometria idêntica à anterior, e no celular o recibo deixou de ser forçado a 600px. 376 testes.
-- **✅ FEAT-11 no ar e verificado em teste manual** (2026-08-13/15) — a cor virou **dimensão da SKU do
-  acabado** e a troca é livre na `/producao`; a montagem do conjunto **ignora a cor**. **376 testes.**
-  ⚠ **Diretriz 7:** o saldo de acabados anterior virou o balde **"Sem cor"**. Detalhe: `HISTORICO.md`.
-- **✅ DEC-02 + DEC-03 aplicados (2026-08-13):** `lifeHours` 7.500 h nas 2 máquinas + markup não incide
-  mais sobre labor → **o preço do catálogo inteiro mudou de montagem** (base R$ 35,81 → R$ 27,14; o
-  custo real não mudou, só a fórmula). Porquês em `HISTORICO.md`.
+- **Última mudança:** **✅ passo ② do cluster UI/UX = UX-13a (2026-08-15)** — tudo depois do "Custo total"
+  (break-even, rentabilidade, capacidade) foi pra um `<details>` que **nasce fechado**, e o painel de
+  custos fixos **desativado** deixou de renderizar o corpo. **Medido no site rodando (1280×900, produto
+  real):** card 1392px → **624px** fechado, e com o slider de markup no centro da tela o preço passou de
+  **−509px** (fora de vista) pra **+63px** — o `sticky` que já existia voltou a funcionar sozinho. O
+  banner de custo fixo desativado caiu de 319 → 85px. 376 testes. ⚠ Aberto, o card volta a 1392px e o
+  preço sai de vista (−509px): é o custo aceito de abrir, não regressão.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ PRÓXIMA TAREFA: passo ② do cluster UI/UX = UX-13a (desktop).** Pôr em `<details>` ("ver
-  informações avançadas") **tudo depois do "Custo total"** (break-even, rentabilidade, capacidade) —
-  o card cai de 1286px pra ~493px e o `sticky` que já existe volta a funcionar sozinho. ⚠ Tem que
-  **nascer fechado**, e conferir se o preço segue visível com ele aberto. É o item **mais grave** do
-  lote: hoje **o preço some justo quando se mexe no markup**, nos dois tamanhos de tela.
-  **Fila restante (6 passos):** ② UX-13a → ③ UX-13b + UX-14 (chrome mobile juntos) → ④ UX-15 →
+- **▶ PRÓXIMA TAREFA: passo ③ do cluster UI/UX = UX-13b + UX-14 JUNTOS (chrome do celular).** Os dois
+  disputam o mesmo espaço vertical: **UX-13b** = barra fina fixa (~56px) no **rodapé** com preço/peça ·
+  margem · markup (⚠ requisito do dono: **não pode cobrir nada** — `padding-bottom` no `.wrap` + conviver
+  com o `.back-to-top`); **UX-14** = a `.navbar` de **227px** vira **painel lateral** (fechado: nome da
+  página + botão de abrir), recuperando ~180px dos **50,2% de tela** que hoje são cabeçalho. No celular o
+  colapso do passo ② não basta: o card é `static` e mora **depois** do formulário inteiro.
+  **Fila restante (5 passos):** ③ UX-13b + UX-14 → ④ UX-15 →
   ⑤ UX-16 (folga: mecânico, pode subir) → ⑥ UX-19 → ⑦ UX-17b (converter os 16 CSS; por último de
   propósito). ✅ **Sem bloqueio:** DEC-04 (faixas `<50` ruim · `50–65` ok · `>65` bom) e DEC-05
   (lucide nos controles, com ajuste previsto quando a marca chegar) **foram decididas em 2026-08-15**;

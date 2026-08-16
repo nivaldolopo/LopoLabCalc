@@ -120,13 +120,11 @@
   gap: 10px;
 }
 
-.fc-body {
-  transition: opacity 0.2s;
-}
-
-.fc-body.disabled {
-  opacity: 0.4;
-  pointer-events: none;
+/* UX-13a: desativado, o `.fc-body` não é mais renderizado (antes ficava cinza e
+   `pointer-events: none` — ~120px inertes). Sem corpo, a margem do título é
+   folga sobrando. */
+.fixed-costs-banner.collapsed .fc-title {
+  margin-bottom: 0;
 }
 
 .fc-grid {
@@ -343,6 +341,50 @@
 
 .result-actions .form-error {
   margin-top: 2px;
+}
+
+/* UX-13a: colapsa tudo que vem depois do "Custo total" (break-even,
+   rentabilidade, capacidade) — medido, 794px = 62% da altura do card. Fechado,
+   o `.result-card` cabe na viewport e o `position: sticky` que ele já tem
+   (forms.css) volta a prender o preço no topo enquanto se mexe no markup.
+   Escrito já em token (declarados no UX-17a) — os passos ②–⑥ do cluster nascem
+   convertidos e a conversão do UX-17b encolhe.
+   O espaçamento interno não vem daqui: `.break-even-box` e `.cd-profit-card`
+   têm `margin-top: 14px` e `.capacity-box` 16px, próprios. */
+.result-advanced {
+  border-top: 1px solid var(--border);
+  margin-top: var(--space-14);
+  padding-top: var(--space-4);
+}
+
+.result-advanced > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  cursor: pointer;
+  padding: var(--space-6) 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+  /* marcador nativo fora — o chevron é lucide (DEC-05) */
+  list-style: none;
+}
+
+.result-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.result-advanced > summary:hover {
+  color: var(--ink);
+}
+
+.result-advanced-caret {
+  flex: 0 0 auto;
+  transition: transform 0.15s;
+}
+
+.result-advanced[open] > summary .result-advanced-caret {
+  transform: rotate(90deg);
 }
 
 .break-even-box {

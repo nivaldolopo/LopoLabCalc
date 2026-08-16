@@ -42,8 +42,9 @@
 11. **▶ Cluster UI/UX (auditoria de 2026-08-15)** — **UX-13 → UX-19 + TD-013**. Nasceu de uma auditoria
    com o site rodando (desktop 1280 + celular 375), com medições; as decisões de escopo **já foram
    tomadas pelo dono** no mesmo dia. **Ordem de execução (2026-08-15)** — 7 passos:
-   ~~① TD-013 + UX-17a (tokens)~~ ✅ **FEITO (2026-08-15)** → **▶ ② UX-13a (desktop)** → ③ UX-13b +
-   UX-14 (chrome mobile juntos) → ④ UX-15 → ⑤ UX-16 → ⑥ UX-19 → ⑦ UX-17b (conversão dos 16 CSS).
+   ~~① TD-013 + UX-17a (tokens)~~ ✅ **FEITO (2026-08-15)** → ~~② UX-13a (desktop)~~ ✅ **FEITO
+   (2026-08-15)** → **▶ ③ UX-13b + UX-14 (chrome mobile juntos)** → ④ UX-15 → ⑤ UX-16 → ⑥ UX-19 →
+   ⑦ UX-17b (conversão dos 16 CSS).
    ✅ **As 2 decisões saíram junto com o passo ①** (dono, 2026-08-15): **[DEC-04]** (faixas de margem,
    destravou o ⑥) e **[DEC-05]** (lucide nos controles; volta como tarefa de código, fora da fila) —
    **o cluster não tem mais bloqueio nenhum**, os 6 passos restantes são só código.
@@ -225,7 +226,7 @@
 > `①②③…` marcado em cada um — ver "Ordem de prioridade" item 11 e os porquês acima.
 
 - **[UX-13] O preço some justo quando se mexe no markup** — *o mais grave do lote.*
-  **▸ Passo ② = UX-13a (desktop, sozinho) · Passo ③ = UX-13b (celular, junto do UX-14).**
+  **▸ ~~Passo ② = UX-13a (desktop, sozinho)~~ ✅ FEITO · ▶ Passo ③ = UX-13b (celular, junto do UX-14).**
   **Medido:** `.result-card` é `position: sticky; top: 20px`, mas mede **1286px** de altura contra uma
   viewport de **910px**. Um `sticky` mais alto que a tela **nunca prende no topo** — rola junto até o
   próprio fim. Com o slider de markup à vista, o `R$ 27,14` estava **403px acima** da borda superior.
@@ -233,14 +234,24 @@
   (offset 2080px) fica **569px abaixo** do slider (1511px). Ou seja: a interação central de uma
   calculadora de preço — mexer no dial e ver o número — **não funciona em nenhum dos dois tamanhos**.
   **Decidido (dono):**
-  - **[UX-13a] Desktop — colapso, sem código novo de layout:** pôr em `<details>` ("ver informações avançadas")
-    **tudo que vem depois do "Custo total"**: break-even, rentabilidade e capacidade produtiva.
-    **Medido:** do topo do card até o fim do `.breakdown-total` são **493px**; o que vem depois são
-    **794px = 62% do card**. Com o colapso o card cai pra ~493px, cabe folgado na viewport e **o
-    `sticky` que já existe passa a funcionar sozinho**.
-    ⚠ **Ressalva de implementação:** os 493px valem com o `<details>` **fechado**. Aberto, o card
-    volta a passar da viewport e o `sticky` volta a falhar — precisa **nascer fechado**, e vale
-    conferir se o preço segue visível mesmo com ele aberto.
+  - ~~**[UX-13a] Desktop — colapso, sem código novo de layout**~~ ✅ **FEITO (2026-08-15, passo ②)** —
+    break-even + rentabilidade + capacidade foram pra um `<details className="result-advanced">`
+    ("Ver informações avançadas", chevron lucide) **uncontrolled** (sem prop `open`): nasce fechado e o
+    estado do usuário sobrevive aos re-renders — o card redesenha a cada tecla. O `<details>` é
+    renderizado **sempre**, com o break-even condicional **dentro** (condicionar o próprio `<details>`
+    o remontaria e fecharia sozinho quando o break-even aparecesse/sumisse). **Ficou de fora:** o
+    "Total da impressão (N peças)" (decisão do dono — é preço, não info avançada).
+    **Medido no site rodando (1280×900, produto real):** card **1392px → 624px** fechado (−55%); com o
+    slider de markup no centro da tela o `.result-price` passou de **−509px** (fora de vista) para
+    **+63px**. ⚠ **A ressalva do dono confirmada:** **aberto**, o card volta a 1392px e o preço vai a
+    −509px — custo aceito de abrir, não regressão.
+    **Junto (feito):** o painel de custo fixo **desativado** deixou de renderizar o `.fc-body` (banner
+    **319 → 85px**). Não se perdeu nada: o `.fc-body.disabled` já era `pointer-events: none`, ou seja
+    os campos nunca foram editáveis com o toggle off — ligar o toggle segue sendo o caminho pra editar
+    `machines`/`hoursDay`/`daysMonth`, que são a fonte de onde a capacidade deriva (TD-010).
+    **Onde:** `PricingResultCard.tsx` · `FixedCostsPanel.tsx` · `sections.css` (`.result-advanced` novo,
+    já escrito em token do UX-17a; `.fc-body.disabled` apagado). O `sticky` do `.result-card` **não foi
+    tocado** — o ponto do item era que ele já estava certo.
   - **[UX-13b] Celular — barra fina fixa:** o colapso não basta (o card é `static` e mora **depois** do
     formulário inteiro). Faixa de ~56px no **rodapé** (onde o polegar está) com preço/peça · margem ·
     markup. ⚠ **Requisito explícito do dono: a barra NÃO pode cobrir nada** — reservar o espaço

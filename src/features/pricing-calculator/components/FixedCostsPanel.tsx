@@ -18,7 +18,9 @@ export function FixedCostsPanel({
   onChange,
 }: FixedCostsPanelProps) {
   return (
-    <div className="fixed-costs-banner">
+    <div
+      className={`fixed-costs-banner ${fixedCosts.enabled ? "" : "collapsed"}`}
+    >
       <div className="fc-title">
         <span>🏪 Custos fixos mensais do quiosque</span>
         <button
@@ -41,79 +43,91 @@ export function FixedCostsPanel({
           </span>
         </button>
       </div>
-      <div className={`fc-body ${fixedCosts.enabled ? "" : "disabled"}`}>
-        <div className="fc-grid">
-          <div className="fc-item">
-            <label>Aluguel (R$/mês)</label>
-            <NumberInput
-              min={0}
-              value={fixedCosts.rent}
-              onChange={(rent) => onChange({ rent })}
-            />
+      {/* UX-13a (mesmo tema "colapsar o que não está em uso"): desativado, o
+          corpo SOME em vez de ficar cinza — eram ~120px mortos no fim do
+          formulário. Não se perde nada: o `.fc-body.disabled` já era
+          `pointer-events: none`, ou seja os campos nunca foram editáveis com o
+          toggle desligado, e o `.toggle-desc` acima já explica o estado.
+          ⚠ Estes campos (machines/hoursDay/daysMonth) são a fonte persistida de
+          onde a capacidade deriva (TD-010) — ligar o toggle segue sendo o
+          caminho pra editá-los. */}
+      {fixedCosts.enabled ? (
+        <div className="fc-body">
+          <div className="fc-grid">
+            <div className="fc-item">
+              <label>Aluguel (R$/mês)</label>
+              <NumberInput
+                min={0}
+                value={fixedCosts.rent}
+                onChange={(rent) => onChange({ rent })}
+              />
+            </div>
+            <div className="fc-item">
+              <label>Outros custos fixos (R$/mês)</label>
+              <NumberInput
+                min={0}
+                value={fixedCosts.other}
+                onChange={(other) => onChange({ other })}
+                placeholder="contador, internet..."
+              />
+            </div>
+            <div className="fc-item">
+              <label>Máquinas operando</label>
+              <NumberInput
+                min={0}
+                value={fixedCosts.machines}
+                onChange={(machines) => onChange({ machines })}
+              />
+            </div>
+            <div className="fc-item">
+              <label>Horas de operação/dia</label>
+              <NumberInput
+                min={0}
+                value={fixedCosts.hoursDay}
+                onChange={(hoursDay) => onChange({ hoursDay })}
+              />
+            </div>
+            <div className="fc-item">
+              <label>Dias de operação/mês</label>
+              <NumberInput
+                min={0}
+                value={fixedCosts.daysMonth}
+                onChange={(daysMonth) => onChange({ daysMonth })}
+              />
+            </div>
           </div>
-          <div className="fc-item">
-            <label>Outros custos fixos (R$/mês)</label>
-            <NumberInput
-              min={0}
-              value={fixedCosts.other}
-              onChange={(other) => onChange({ other })}
-              placeholder="contador, internet..."
-            />
+          <div className="fc-result">
+            <div className="fc-result-item">
+              <span className="fclabel">Total fixo/mês</span>
+              <span className="fcvalue">
+                {formatCurrency(summary.totalFixed)}
+              </span>
+            </div>
+            <div className="fc-result-item">
+              <span className="fclabel">Horas totais de produção/mês</span>
+              <span className="fcvalue">{summary.hoursMonth}h</span>
+            </div>
+            <div className="fc-result-item">
+              <span className="fclabel">Custo fixo/hora</span>
+              <span className="fcvalue accent">
+                {formatCurrency(summary.perHour)}/h
+              </span>
+            </div>
+            <div className="fc-result-item">
+              <span className="fclabel">Incluído nesta impressão</span>
+              <span className="fcvalue accent">
+                {formatCurrency(summary.perPrint)}
+              </span>
+            </div>
           </div>
-          <div className="fc-item">
-            <label>Máquinas operando</label>
-            <NumberInput
-              min={0}
-              value={fixedCosts.machines}
-              onChange={(machines) => onChange({ machines })}
-            />
-          </div>
-          <div className="fc-item">
-            <label>Horas de operação/dia</label>
-            <NumberInput
-              min={0}
-              value={fixedCosts.hoursDay}
-              onChange={(hoursDay) => onChange({ hoursDay })}
-            />
-          </div>
-          <div className="fc-item">
-            <label>Dias de operação/mês</label>
-            <NumberInput
-              min={0}
-              value={fixedCosts.daysMonth}
-              onChange={(daysMonth) => onChange({ daysMonth })}
-            />
-          </div>
+          {fixedCostShare > 30 ? (
+            <div className="fc-warning">
+              ⚠️ Custo fixo representa {fixedCostShare.toFixed(0)}% do custo
+              total — considere desativar e monitorar separadamente.
+            </div>
+          ) : null}
         </div>
-        <div className="fc-result">
-          <div className="fc-result-item">
-            <span className="fclabel">Total fixo/mês</span>
-            <span className="fcvalue">{formatCurrency(summary.totalFixed)}</span>
-          </div>
-          <div className="fc-result-item">
-            <span className="fclabel">Horas totais de produção/mês</span>
-            <span className="fcvalue">{summary.hoursMonth}h</span>
-          </div>
-          <div className="fc-result-item">
-            <span className="fclabel">Custo fixo/hora</span>
-            <span className="fcvalue accent">
-              {formatCurrency(summary.perHour)}/h
-            </span>
-          </div>
-          <div className="fc-result-item">
-            <span className="fclabel">Incluído nesta impressão</span>
-            <span className="fcvalue accent">
-              {formatCurrency(summary.perPrint)}
-            </span>
-          </div>
-        </div>
-        {fixedCosts.enabled && fixedCostShare > 30 ? (
-          <div className="fc-warning">
-            ⚠️ Custo fixo representa {fixedCostShare.toFixed(0)}% do custo total —
-            considere desativar e monitorar separadamente.
-          </div>
-        ) : null}
-      </div>
+      ) : null}
     </div>
   );
 }

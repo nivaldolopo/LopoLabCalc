@@ -1,6 +1,14 @@
 "use client";
 
-import { Factory, FileText, Plus, Receipt, Save, X } from "lucide-react";
+import {
+  ChevronRight,
+  Factory,
+  FileText,
+  Plus,
+  Receipt,
+  Save,
+  X,
+} from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import type {
   CapacityResult,
@@ -231,40 +239,58 @@ export function PricingResultCard({
         </div>
       ) : null}
 
-      {/* UX-12: a meta de break-even é CONSEQUÊNCIA do custo — fica depois do
-          total pra não separar o preço das barras de composição. */}
-      {breakEvenUnits ? (
-        <div className="break-even-box visible">
-          <div className="break-even-title">🎯 Meta de Break-Even</div>
-          <div className="break-even-val">
-            Vender <strong>{breakEvenUnits}</strong> peças/mês deste produto
-            cobre o aluguel + custos fixos e inicia o lucro.
+      {/* UX-13a: tudo depois do "Custo total" colapsa. Medido: o card inteiro
+          media 1286px contra uma viewport de 910px, e um `sticky` mais alto que
+          a tela nunca prende no topo — rolava junto e o preço saía de vista
+          justo ao mexer no markup. Fechado, o card cai pra ~493px e o `sticky`
+          do `.result-card` volta a funcionar sozinho, sem layout novo.
+          Dois detalhes que NÃO podem mudar sem quebrar o item:
+          - sem prop `open` (uncontrolled): nasce fechado e o estado do usuário
+            sobrevive aos re-renders — o card redesenha a cada tecla do form;
+          - o <details> é renderizado SEMPRE, com o break-even condicional
+            DENTRO. Condicionar o próprio <details> o remontaria (e fecharia
+            sozinho) quando o break-even aparecesse ou sumisse. */}
+      <details className="result-advanced">
+        <summary>
+          <ChevronRight className="result-advanced-caret" size={14} />
+          Ver informações avançadas
+        </summary>
+
+        {/* UX-12: a meta de break-even é CONSEQUÊNCIA do custo — fica depois do
+            total pra não separar o preço das barras de composição. */}
+        {breakEvenUnits ? (
+          <div className="break-even-box visible">
+            <div className="break-even-title">🎯 Meta de Break-Even</div>
+            <div className="break-even-val">
+              Vender <strong>{breakEvenUnits}</strong> peças/mês deste produto
+              cobre o aluguel + custos fixos e inicia o lucro.
+            </div>
+            {capacityMonth > 0 ? (
+              breakEvenOverCapacity ? (
+                <div className="break-even-context warn">
+                  ⚠️ Acima da capacidade ({capacityMonth} pçs/mês) — reveja preço
+                  ou volume.
+                </div>
+              ) : (
+                <div className="break-even-context">
+                  ≈ {breakEvenPct}% da sua capacidade mensal ({breakEvenUnits} de{" "}
+                  {capacityMonth} peças).
+                </div>
+              )
+            ) : null}
           </div>
-          {capacityMonth > 0 ? (
-            breakEvenOverCapacity ? (
-              <div className="break-even-context warn">
-                ⚠️ Acima da capacidade ({capacityMonth} pçs/mês) — reveja preço
-                ou volume.
-              </div>
-            ) : (
-              <div className="break-even-context">
-                ≈ {breakEvenPct}% da sua capacidade mensal ({breakEvenUnits} de{" "}
-                {capacityMonth} peças).
-              </div>
-            )
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
 
-      <ProfitSummary result={result} printHours={printHours} />
+        <ProfitSummary result={result} printHours={printHours} />
 
-      <CapacityPanel
-        settings={capacitySettings}
-        result={capacityResult}
-        isCustom={capacityIsCustom}
-        onChange={onCapacityChange}
-        onReset={onCapacityReset}
-      />
+        <CapacityPanel
+          settings={capacitySettings}
+          result={capacityResult}
+          isCustom={capacityIsCustom}
+          onChange={onCapacityChange}
+          onReset={onCapacityReset}
+        />
+      </details>
     </div>
   );
 }
