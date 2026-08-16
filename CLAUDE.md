@@ -14,29 +14,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **auditoria de UI/UX + cálculo (2026-08-16)** — levantamento, **zero código
-  alterado** (ver bullet da auditoria abaixo). Antes dela o **✅ CLUSTER UI/UX FECHOU** no passo ⑦
-  (UX-17b: os 16 CSS passaram a consumir os tokens — 875 declarações, fonte 23→9 tamanhos, raio
-  15→8, provado por medição no DOM). Writeups: [`HISTORICO.md`](.claude/HISTORICO.md).
-- ⚠ **Uma escolha do UX-17b ainda em aberto:** no celular campo e botão foram a **16px** (abaixo
-  disso o iOS dá zoom ao focar), alongando `/vendas` (+57px) e `/producao` (+70px). Se preferir o
-  botão em 14px, é **1 linha** no `responsive.css`.
+- **Última mudança:** **o backlog ganhou ORDEM e passou por faxina (2026-08-16)** — **zero código
+  alterado**. Os 21 itens abertos viraram **ondas 0–5** e o `BACKLOG.md` caiu de **671 → 273
+  linhas** (o registro dos itens fechados foi pro `HISTORICO.md`, seção "📒 Arquivo do BACKLOG").
+  Antes disso, a **auditoria** (também sem código) e o **✅ CLUSTER UI/UX FECHADO** no passo ⑦
+  (UX-17b: os 16 CSS consumindo tokens — 875 declarações, fonte 23→9, raio 15→8, medido no DOM).
+  Writeups: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ DECIDIDAS, prontas pra codar** (o dono diz quando entram) — detalhe no
-  [`BACKLOG.md`](.claude/BACKLOG.md): **[UX-20]** cor do lucro (valor neutro, cor só na margem, no
-  app inteiro; ⚠ **reverte** o UX-19 em 2 comentários do código) · **[DEC-05]** lucide nos
-  controles (⚠ **a marca está chegando** — contar com um ajuste depois).
-- **Auditoria de UI/UX + cálculo (2026-08-16): 33 achados → 21 itens, TODOS no backlog** (cluster
-  `UX-20…UX-34` · `TD-014…TD-016` · `BUG-06/07` · `DEC-06`; medições no `HISTORICO.md`). **Só o
-  UX-20 está decidido; os outros 20 são levantamento, sem ordem interna** (priorização é do dono).
-  ⚠ **Os 3 pra olhar primeiro:** **BUG-06** (no celular a `/vendas` corta 69–126px de cada recibo
-  — lucro e excluir **não existem** no telefone) · **DEC-06** (a capacidade **dobra** produto
-  multi-máquina; é **pergunta**, não tarefa) · **TD-014** (tokenizar cor — único com **prazo
-  externo**: feito antes da marca, o rebrand vira troca de paleta).
+- **▶ PRÓXIMA TAREFA — a onda 0 do [`BACKLOG.md`](.claude/BACKLOG.md): duas PERGUNTAS ao dono**,
+  não código. **[DEC-06]** o que `machines` significa na capacidade (hoje todo produto
+  multi-máquina **projeta o dobro**) · a **sub-decisão do [UX-20]** (a/b/c: onde não há % ao lado
+  do R$, exibe a %, aceita o valor neutro, ou mantém a cor?). Respondidas, a **onda 1** (BUG-06 ·
+  BUG-07 · UX-27 · UX-30 · o `text-align` do UX-21) é ~meio dia e já pode sair.
+- **Ordem do backlog decidida (dono, 2026-08-16): ondas 0–5** — os 21 itens abertos vieram da
+  auditoria (33 achados → 21 itens: `UX-20…UX-34` · `TD-014…TD-016` · `BUG-06/07` · `DEC-06`).
+  **O critério foi PRAZO EXTERNO, e ele corta pros dois lados:** **[TD-014]** (tokenizar cor)
+  feito **antes** da marca **economiza** — o rebrand vira troca de paleta → **onda 2**; já o
+  **[DEC-05]** (lucide) feito antes **custa** retrabalho → **fora da fila, vai junto do rebrand**.
+  ⚠ A ordem diz *quando* o bloco entra — o **desenho** de cada item segue sendo sugestão da
+  auditoria, sem martelo. Medições e porquês: `HISTORICO.md` / `BACKLOG.md`.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do `/maquinas`
