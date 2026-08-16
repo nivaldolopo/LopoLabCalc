@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import type { CapacityResult, CapacitySettings } from "../types";
 import { NumberInput } from "./NumberInput";
@@ -28,6 +29,7 @@ export function CapacityPanel({
   onChange,
   onReset,
 }: CapacityPanelProps) {
+  const fieldId = useId();
   // Mesmo critério do card "Rentabilidade": só é "Lucro" quando o custo fixo
   // entra no totalCost; sem o fixo, o líquido é apenas "Contribuição".
   const term = result?.fixedIncluded ? "Lucro" : "Contribuição";
@@ -40,8 +42,9 @@ export function CapacityPanel({
       </div>
       <div className="capacity-inputs">
         <div className="ci-item">
-          <label>Horas de impressão/dia</label>
+          <label htmlFor={`${fieldId}-hours-day`}>Horas de impressão/dia</label>
           <NumberInput
+            id={`${fieldId}-hours-day`}
             max={24}
             min={0}
             value={settings.hoursDay}
@@ -49,8 +52,9 @@ export function CapacityPanel({
           />
         </div>
         <div className="ci-item">
-          <label>Dias de impressão/mês</label>
+          <label htmlFor={`${fieldId}-days-month`}>Dias de impressão/mês</label>
           <NumberInput
+            id={`${fieldId}-days-month`}
             max={31}
             min={1}
             value={settings.daysMonth}
@@ -58,8 +62,9 @@ export function CapacityPanel({
           />
         </div>
         <div className="ci-item">
-          <label>Máquinas dedicadas</label>
+          <label htmlFor={`${fieldId}-machines`}>Máquinas dedicadas</label>
           <NumberInput
+            id={`${fieldId}-machines`}
             min={1}
             value={settings.machines}
             onChange={(machines) => onChange({ machines })}

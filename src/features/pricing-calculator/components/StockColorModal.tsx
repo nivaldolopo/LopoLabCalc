@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { StockFilament } from "../types";
 import { NumberInput } from "./NumberInput";
 
@@ -30,6 +30,7 @@ export function StockColorModal({
   onClose,
   onSave,
 }: StockColorModalProps) {
+  const fieldId = useId();
   const [material, setMaterial] = useState(color?.material ?? "");
   const [brand, setBrand] = useState(color?.brand ?? "");
   const [colorName, setColorName] = useState(color?.colorName ?? "");
@@ -80,10 +81,15 @@ export function StockColorModal({
 
         <div className="stock-form-grid">
           <div className="field-block">
-            <div className="section-label">Material</div>
+            {/* UX-16: os dois ramos são o MESMO campo (texto livre × lista) e só
+                um renderiza por vez — daí o mesmo id nos dois. */}
+            <label className="section-label" htmlFor={`${fieldId}-material`}>
+              Material
+            </label>
             {typingMaterial ? (
               <div className="stock-material-new">
                 <input
+                  id={`${fieldId}-material`}
                   className="field-input"
                   type="text"
                   value={material}
@@ -106,6 +112,7 @@ export function StockColorModal({
               </div>
             ) : (
               <select
+                id={`${fieldId}-material`}
                 className="field-input"
                 value={material}
                 onChange={(event) => {
@@ -129,8 +136,11 @@ export function StockColorModal({
           </div>
 
           <div className="field-block">
-            <div className="section-label">Marca</div>
+            <label className="section-label" htmlFor={`${fieldId}-brand`}>
+              Marca
+            </label>
             <input
+              id={`${fieldId}-brand`}
               className="field-input"
               type="text"
               value={brand}
@@ -140,8 +150,11 @@ export function StockColorModal({
           </div>
 
           <div className="field-block">
-            <div className="section-label">Cor</div>
+            <label className="section-label" htmlFor={`${fieldId}-color-name`}>
+              Cor
+            </label>
             <input
+              id={`${fieldId}-color-name`}
               className="field-input"
               type="text"
               value={colorName}
@@ -151,9 +164,13 @@ export function StockColorModal({
           </div>
 
           <div className="field-block">
-            <div className="section-label">Amostra</div>
+            <label className="section-label" htmlFor={`${fieldId}-hex`}>
+              Amostra
+            </label>
+            {/* UX-16: o `aria-label` saiu — com rótulo de verdade ele VENCERIA o
+                texto visível e o leitor de tela anunciaria outra coisa. */}
             <input
-              aria-label="Amostra da cor"
+              id={`${fieldId}-hex`}
               className="stock-hex-input"
               type="color"
               value={colorHex}
@@ -162,9 +179,11 @@ export function StockColorModal({
           </div>
 
           <div className="field-block">
-            <div className="section-label">Estoque mínimo (g)</div>
+            <label className="section-label" htmlFor={`${fieldId}-min-g`}>
+              Estoque mínimo (g)
+            </label>
             <NumberInput
-              aria-label="Estoque mínimo em gramas"
+              id={`${fieldId}-min-g`}
               className="field-input"
               min={0}
               value={minG}

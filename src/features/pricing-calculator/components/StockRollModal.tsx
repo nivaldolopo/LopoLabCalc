@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { todayInputValue, toTimestamp } from "@/lib/formatting/date";
 import { filamentLabel } from "../lib/stock";
 import type { FilamentRoll, StockFilament } from "../types";
@@ -21,6 +21,7 @@ type StockRollModalProps = {
  * hoje um rolo comprado semana passada põe ele na frente da fila, como deve ser.
  */
 export function StockRollModal({ color, onClose, onSave }: StockRollModalProps) {
+  const fieldId = useId();
   const [initialG, setInitialG] = useState(1000);
   const [pricePerKg, setPricePerKg] = useState(0);
   const [dateStr, setDateStr] = useState(todayInputValue());
@@ -67,10 +68,15 @@ export function StockRollModal({ color, onClose, onSave }: StockRollModalProps) 
         </p>
 
         <div className="stock-form-grid">
+          {/* UX-16: os `aria-label` saíram junto — com um <label> de verdade
+              ligado ao campo, o aria-label VENCE e o leitor de tela passa a
+              anunciar um texto diferente do que está escrito na tela. */}
           <div className="field-block">
-            <div className="section-label">Peso do rolo (g)</div>
+            <label className="section-label" htmlFor={`${fieldId}-weight`}>
+              Peso do rolo (g)
+            </label>
             <NumberInput
-              aria-label="Peso do rolo em gramas"
+              id={`${fieldId}-weight`}
               className="field-input"
               min={0}
               value={initialG}
@@ -79,9 +85,11 @@ export function StockRollModal({ color, onClose, onSave }: StockRollModalProps) 
           </div>
 
           <div className="field-block">
-            <div className="section-label">Preço pago (R$/kg)</div>
+            <label className="section-label" htmlFor={`${fieldId}-price`}>
+              Preço pago (R$/kg)
+            </label>
             <NumberInput
-              aria-label="Preço pago por kg"
+              id={`${fieldId}-price`}
               className="field-input"
               min={0}
               step="0.01"
@@ -91,9 +99,11 @@ export function StockRollModal({ color, onClose, onSave }: StockRollModalProps) 
           </div>
 
           <div className="field-block">
-            <div className="section-label">Data da compra</div>
+            <label className="section-label" htmlFor={`${fieldId}-date`}>
+              Data da compra
+            </label>
             <input
-              aria-label="Data da compra"
+              id={`${fieldId}-date`}
               className="field-input"
               type="date"
               value={dateStr}
@@ -103,8 +113,11 @@ export function StockRollModal({ color, onClose, onSave }: StockRollModalProps) 
           </div>
 
           <div className="field-block stock-field-wide">
-            <div className="section-label">Nota</div>
+            <label className="section-label" htmlFor={`${fieldId}-note`}>
+              Nota
+            </label>
             <input
+              id={`${fieldId}-note`}
               className="field-input"
               type="text"
               value={note}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type {
   Machine,
   PrintStage,
@@ -63,12 +63,17 @@ export function ProductForm({
   onUpdateSubitem,
   onToggleStageInSubitem,
 }: ProductFormProps) {
+  // UX-16: um prefixo por instância; cada campo sufixa o seu (padrão do `useId`).
+  const fieldId = useId();
 
   return (
     <div className="card">
       <div className="field-block">
-        <label className="section-label">Nome do produto</label>
+        <label className="section-label" htmlFor={`${fieldId}-name`}>
+          Nome do produto
+        </label>
         <input
+          id={`${fieldId}-name`}
           className="field-input product-name"
           value={product.name}
           onChange={(event) => onChange({ name: event.target.value })}
@@ -84,11 +89,12 @@ export function ProductForm({
       />
 
       <div className="field-block">
-        <label className="section-label">
+        <label className="section-label" htmlFor={`${fieldId}-main-stage`}>
           🏷️ Nome da etapa principal{" "}
           <span className="label-hint">(opcional)</span>
         </label>
         <input
+          id={`${fieldId}-main-stage`}
           className="field-input"
           value={product.mainStageName}
           onChange={(event) => onChange({ mainStageName: event.target.value })}
@@ -169,12 +175,13 @@ export function ProductForm({
       <LinksSection product={product} onChange={onChange} />
 
       <div className="field-block">
-        <label className="section-label markup-header">
+        <label className="section-label markup-header" htmlFor={`${fieldId}-markup`}>
           {/* DEC-03: a mão de obra é repasse — não entra na base do markup. */}
           <span>📈 Markup sobre o custo (sem mão de obra)</span>
           <span className="markup-value">{product.markup.toFixed(1)}x</span>
         </label>
         <input
+          id={`${fieldId}-markup`}
           max={6}
           min={1.5}
           step={0.1}
@@ -215,6 +222,7 @@ export function PrintTimeField({
   onChange: (value: number) => void;
   label?: string;
 }) {
+  const fieldId = useId();
   const initial = splitPrintTime(value);
   const [hours, setHours] = useState(String(initial.h));
   const [minutes, setMinutes] = useState(String(initial.min));
@@ -263,11 +271,18 @@ export function PrintTimeField({
 
   return (
     <div>
-      <label className="section-label">{label}</label>
+      {/* UX-16: um rótulo, dois campos — o `htmlFor` só pode apontar para um.
+          Aponta para as HORAS (o primeiro) e cada campo mantém o próprio
+          `aria-label`, agora qualificado com o rótulo (era só "horas"/"minutos",
+          solto de qualquer contexto para quem usa leitor de tela). */}
+      <label className="section-label" htmlFor={`${fieldId}-h`}>
+        {label}
+      </label>
       <div className="time-inputs">
         <input
+          id={`${fieldId}-h`}
           className="field-input"
-          aria-label="horas"
+          aria-label={`${label} — horas`}
           min={0}
           step="0.1"
           type="number"
@@ -278,7 +293,7 @@ export function PrintTimeField({
         <span className="time-sep">h</span>
         <input
           className="field-input"
-          aria-label="minutos"
+          aria-label={`${label} — minutos`}
           min={0}
           step="1"
           type="number"
@@ -310,10 +325,14 @@ function NumberField({
   max?: number;
   step?: string;
 }) {
+  const fieldId = useId();
   return (
     <div>
-      <label className="section-label">{label}</label>
+      <label className="section-label" htmlFor={fieldId}>
+        {label}
+      </label>
       <NumberInput
+        id={fieldId}
         className="field-input"
         min={min}
         max={max}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { Machine, PrintStage, StockFilament } from "../types";
 import { FilamentColorsSection } from "./FilamentColorsSection";
@@ -23,10 +24,12 @@ export function ExtraStagesSection({
   onRemoveStage,
   onUpdateStage,
 }: ExtraStagesSectionProps) {
+  const fieldId = useId();
   return (
     <div className="field-block">
       <div className="section-head">
-        <label className="section-label">🔗 Etapas de impressão extras</label>
+        {/* Título da seção, não rótulo de campo — ver UX-16. */}
+        <div className="section-label">🔗 Etapas de impressão extras</div>
         <button className="link-button bordered" type="button" onClick={onAddStage}>
           <Plus size={15} />
           Adicionar etapa
@@ -36,7 +39,9 @@ export function ExtraStagesSection({
         Para peças que exigem várias impressões (ex: uma cor por vez). Cada etapa
         soma no custo final do produto.
       </div>
-      {stages.map((stage, index) => (
+      {stages.map((stage, index) => {
+        const rowId = `${fieldId}-${stage.id ?? index}`;
+        return (
         <div className="stage-card" key={stage.id}>
           <div className="stage-card-head">
             <span className="stage-card-title">Etapa {index + 2}</span>
@@ -50,10 +55,11 @@ export function ExtraStagesSection({
             </button>
           </div>
           <div className="field-block compact">
-            <label className="section-label">
+            <label className="section-label" htmlFor={`${rowId}-name`}>
               🏷️ Nome da etapa <span className="label-hint">(opcional)</span>
             </label>
             <input
+              id={`${rowId}-name`}
               className="field-input"
               type="text"
               value={stage.name ?? ""}
@@ -64,8 +70,16 @@ export function ExtraStagesSection({
             />
           </div>
           <div className="field-block compact">
-            <label className="section-label">Máquina</label>
-            <div className="machine-row">
+            {/* Rotula um grupo de BOTÕES (chips), não um campo — `role="group"`
+                em vez de <label>, mesmo tratamento das caixas do subitem. */}
+            <div className="section-label" id={`${rowId}-machine-label`}>
+              Máquina
+            </div>
+            <div
+              className="machine-row"
+              role="group"
+              aria-labelledby={`${rowId}-machine-label`}
+            >
               {machines.map((machine) => (
                 <button
                   className={`machine-chip ${
@@ -99,8 +113,11 @@ export function ExtraStagesSection({
               }
             />
             <div>
-              <label className="section-label">Mão de obra (min)</label>
+              <label className="section-label" htmlFor={`${rowId}-labor`}>
+                Mão de obra (min)
+              </label>
               <NumberInput
+                id={`${rowId}-labor`}
                 className="field-input"
                 min={0}
                 value={stage.laborMinutes}
@@ -111,7 +128,8 @@ export function ExtraStagesSection({
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

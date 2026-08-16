@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Settings } from "lucide-react";
 import type { Machine } from "../types";
 
@@ -16,16 +17,21 @@ export function MachineSelector({
   onSelect,
   onManage,
 }: MachineSelectorProps) {
+  const labelId = useId();
   return (
     <div className="field-block">
       <div className="section-head">
-        <label className="section-label">Máquina</label>
+        {/* UX-16: rotula um grupo de BOTÕES (chips), não um campo — `role="group"`
+            + `aria-labelledby` no lugar de um <label> que não aponta pra nada. */}
+        <div className="section-label" id={labelId}>
+          Máquina
+        </div>
         <button className="link-button" type="button" onClick={onManage}>
           <Settings size={14} />
           Gerenciar
         </button>
       </div>
-      <div className="machine-row">
+      <div className="machine-row" role="group" aria-labelledby={labelId}>
         {machines.map((machine) => (
           <button
             className={`machine-chip ${

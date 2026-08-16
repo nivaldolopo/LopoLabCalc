@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { formatDate, todayInputValue, toTimestamp } from "@/lib/formatting/date";
 import { num } from "@/lib/number";
 import { lotNumbers } from "../lib/supplies";
@@ -31,6 +31,7 @@ export function SupplyAdjustModal({
   onClose,
   onSave,
 }: SupplyAdjustModalProps) {
+  const fieldId = useId();
   const numbers = lotNumbers(supply);
   // Ordem FIFO na lista: o lote em uso é o primeiro candidato à contagem.
   const lots = [...supply.lots].sort(
@@ -86,8 +87,11 @@ export function SupplyAdjustModal({
 
         <div className="stock-form-grid">
           <div className="field-block stock-field-wide">
-            <div className="section-label">Lote contado</div>
+            <label className="section-label" htmlFor={`${fieldId}-lot`}>
+              Lote contado
+            </label>
             <select
+              id={`${fieldId}-lot`}
               className="field-input"
               value={lotId}
               onChange={(event) => {
@@ -109,9 +113,11 @@ export function SupplyAdjustModal({
           </div>
 
           <div className="field-block">
-            <div className="section-label">Contado ({supply.unit})</div>
+            <label className="section-label" htmlFor={`${fieldId}-counted`}>
+              Contado ({supply.unit})
+            </label>
             <NumberInput
-              aria-label="Quantidade contada"
+              id={`${fieldId}-counted`}
               className="field-input"
               min={0}
               value={counted}
@@ -120,9 +126,11 @@ export function SupplyAdjustModal({
           </div>
 
           <div className="field-block">
-            <div className="section-label">Data da contagem</div>
+            <label className="section-label" htmlFor={`${fieldId}-date`}>
+              Data da contagem
+            </label>
             <input
-              aria-label="Data da contagem"
+              id={`${fieldId}-date`}
               className="field-input"
               type="date"
               value={dateStr}
@@ -131,8 +139,11 @@ export function SupplyAdjustModal({
           </div>
 
           <div className="field-block stock-field-wide">
-            <div className="section-label">Motivo</div>
+            <label className="section-label" htmlFor={`${fieldId}-reason`}>
+              Motivo
+            </label>
             <input
+              id={`${fieldId}-reason`}
               className="field-input"
               type="text"
               value={reason}

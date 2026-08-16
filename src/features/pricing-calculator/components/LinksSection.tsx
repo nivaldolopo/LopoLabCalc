@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ProductInput } from "../types";
 
 type LinksSectionProps = {
@@ -10,6 +10,7 @@ type LinksSectionProps = {
 };
 
 export function LinksSection({ product, onChange }: LinksSectionProps) {
+  const fieldId = useId();
   const [open, setOpen] = useState(false);
   const hasLinks = Boolean(product.linkModel || product.linkCompetitor || product.linkFile);
 
@@ -28,13 +29,14 @@ export function LinksSection({ product, onChange }: LinksSectionProps) {
       </button>
       <div className="collapse-body">
         <div className="field-block compact">
-          <label className="section-label">
+          <label className="section-label" htmlFor={`${fieldId}-model`}>
             Fonte do modelo{" "}
             <span className="label-hint">
               (MakerWorld, Printables, STLFlix...)
             </span>
           </label>
           <input
+            id={`${fieldId}-model`}
             className="field-input"
             type="url"
             value={product.linkModel}
@@ -43,11 +45,12 @@ export function LinksSection({ product, onChange }: LinksSectionProps) {
           />
         </div>
         <div className="field-block compact">
-          <label className="section-label">
+          <label className="section-label" htmlFor={`${fieldId}-competitor`}>
             Referência concorrente{" "}
             <span className="label-hint">(Mercado Livre, Shopee...)</span>
           </label>
           <input
+            id={`${fieldId}-competitor`}
             className="field-input"
             type="url"
             value={product.linkCompetitor}
@@ -58,11 +61,12 @@ export function LinksSection({ product, onChange }: LinksSectionProps) {
           />
         </div>
         <div className="field-block compact last">
-          <label className="section-label">
+          <label className="section-label" htmlFor={`${fieldId}-file`}>
             Arquivo STL / gcode{" "}
             <span className="label-hint">(link do Drive, Dropbox...)</span>
           </label>
           <input
+            id={`${fieldId}-file`}
             className="field-input"
             type="url"
             value={product.linkFile}

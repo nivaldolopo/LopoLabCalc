@@ -14,27 +14,33 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ passo ④ do cluster UI/UX = UX-15 (2026-08-16)** — os 5 ícones de ação do
-  catálogo foram de **24 → 32px** e o **Excluir** ficou **afastado** (o divisor mudou de lugar; faixa
-  "Ações" 146 → 196px). Os **8** `window.confirm` viraram **`ConfirmDialog`/`useConfirm`**
-  (`ask(): Promise<boolean>` — os handlers seguem inteiros; foco no **Cancelar**, Escape, texto que
-  nomeia o alvo e diz **o que NÃO é afetado**). ⚠ **Reverte** a decisão do TD-004, como o dono decidiu.
-  **Junto (pedido do dono): os avisos viraram um só** — `FeedbackNote`/`useFeedback` (**sucesso some em
-  5s, erro fica com ✕**), `guardOnline`/`errorMessage` no novo `src/lib/errors.ts` (eram 4 cópias) e a
-  **`/vendas` ganhou o aviso que nunca teve** (a exclusão que estorna acabado + filamento falhava **em
-  silêncio**). **Medido rodando (1280×900):** alvos 32×32, folga *Carregar → Excluir* **4 → 21px**,
-  coluna Nome 276 → 259px **sem truncar nada a mais** e página igual (7128px). 376 testes.
+- **Última mudança:** **✅ passo ⑤ do cluster UI/UX = UX-16 (2026-08-16)** — rótulo agora **foca o
+  campo**, via `useId()` + `htmlFor`/`id` (**não** aninhando: `.section-label` é `display:flex` e o
+  input viraria filho de flex). **O escopo dobrou na medição** (aprovado pelo dono): além dos 44
+  `<label>`, havia **67 `<div className="section-label">`** — rótulo *falso*, o grosso deles nos
+  **modais e páginas** (venda, orçamento, produção, 6 modais de estoque). Os que rotulam **campo**
+  viraram `<label>`; os de **cabeçalho / valor só-leitura** seguem `div` (label sem controle engana o
+  leitor de tela) e os que rotulam **grupo** (chips de máquina, caixas do subitem) viraram
+  `role="group"` + `aria-labelledby`. Os `aria-label` redundantes saíram (com label real eles
+  **venceriam** o texto visível); os campos em linha de tabela (acessórios, filamento da produção),
+  que não tinham nome nenhum, ganharam `aria-label`. **Medido no site rodando:** controles com rótulo
+  clicável **1 → 19** na calculadora, **0 → 8** na `/orcamento`, **2 → 11** na `/producao`, **0 → 7**
+  no SaleModal, **0 → 5** no StockColorModal — e **zero** campo sem nome acessível em todas.
+  **Zero mudança visual, provado no DOM:** desfazendo a troca de tag ao vivo (método do TD-013),
+  **0 diferenças** de geometria/estilo em 49 rótulos e altura idêntica em toda página (`/` 1458px,
+  `/orcamento` 2127px, `/producao` 3106px, SaleModal 774px). 376 testes.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ PRÓXIMA TAREFA: passo ⑤ do cluster UI/UX = UX-16 (rótulo não foca o campo).** Medido: **44
-  `<label>` e só 1 com `htmlFor`; 77 `<input>/<select>` e 0 com `id`** — clicar em "Mão de obra (min)"
-  não faz nada e o alvo de clique é só a caixinha. Correção mecânica: aninhar o input **dentro** do
-  `<label>` (dispensa `id`) ou `useId()`. **Muda ZERO visualmente**, risco baixíssimo — é o item de
-  folga do cluster. **Fila restante (3 passos):** ⑤ UX-16 → ⑥ UX-19 (cor por faixa de margem; régua da
-  DEC-04: <50% ruim · 50–65% ok · >65% bom) → ⑦ UX-17b (converter os 16 CSS; por último de propósito).
+- **▶ PRÓXIMA TAREFA: passo ⑥ do cluster UI/UX = UX-19 (números sem gradação).** Pintar por faixa de
+  margem — régua da **DEC-04** já decidida: **<50% ruim · 50–65% ok · >65% bom**, a MESMA nas duas
+  telas. ⚠ Os números medem coisas diferentes: catálogo = margem **precificada**; `/vendas` = lucro
+  **realizado** (já líquido de taxa). **Junto:** o "Sem cliente" em negrito em toda venda deve ficar
+  mudo (`--muted2`) ou sumir. **Onde:** `ProductCatalog.tsx`+`catalog.css` · `SalesPage.tsx`+
+  `cesta-recibo.css`. **Fila restante (2 passos):** ⑥ UX-19 → ⑦ UX-17b (converter os 16 CSS; por
+  último de propósito).
   ✅ **Sem bloqueio** — a DEC-05 (lucide nos controles) volta como tarefa de código fora da fila.
   Detalhe/porquês: [`BACKLOG.md`](.claude/BACKLOG.md). Depois do cluster sobram só o **Dashboard**
   (precisa de venda real acumulada) e o **Tier 2 comercial**, bloqueado pela marca.

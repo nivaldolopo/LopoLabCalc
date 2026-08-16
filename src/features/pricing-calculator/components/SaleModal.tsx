@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Boxes, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import {
@@ -186,6 +186,7 @@ function DiscountInput({
     <div className="discount-input">
       <NumberInput
         className="field-input"
+        aria-label="Valor do desconto"
         min={0}
         step={value.mode === "pct" ? "0.1" : "0.01"}
         value={value.value}
@@ -243,6 +244,7 @@ export function SaleModal({
   onClose,
   onConfirm,
 }: SaleModalProps) {
+  const fieldId = useId();
   const isEdit = Boolean(editRecibo);
 
   // Saldo do acabado (a SKU = o subitem) deste item, e o caminho default: peça
@@ -876,10 +878,11 @@ export function SaleModal({
 
         <div className="two-col">
           <div className="field-block compact">
-            <div className="section-label">
+            <label className="section-label" htmlFor={`${fieldId}-customer`}>
               Cliente <span className="label-hint">(opcional)</span>
-            </div>
+            </label>
             <input
+              id={`${fieldId}-customer`}
               className="field-input"
               type="text"
               value={customer}
@@ -888,8 +891,11 @@ export function SaleModal({
             />
           </div>
           <div className="field-block compact">
-            <div className="section-label">Data</div>
+            <label className="section-label" htmlFor={`${fieldId}-date`}>
+              Data
+            </label>
             <input
+              id={`${fieldId}-date`}
               className="field-input"
               type="date"
               value={dateStr}
@@ -900,8 +906,11 @@ export function SaleModal({
 
         <div className="two-col">
           <div className="field-block compact">
-            <div className="section-label">Canal</div>
+            <label className="section-label" htmlFor={`${fieldId}-channel`}>
+              Canal
+            </label>
             <select
+              id={`${fieldId}-channel`}
               className="field-input"
               value={channel}
               onChange={(event) =>
@@ -916,8 +925,11 @@ export function SaleModal({
             </select>
           </div>
           <div className="field-block compact">
-            <div className="section-label">Forma de pagamento</div>
+            <label className="section-label" htmlFor={`${fieldId}-payment`}>
+              Forma de pagamento
+            </label>
             <select
+              id={`${fieldId}-payment`}
               className="field-input"
               value={paymentMethod}
               onChange={(event) =>
@@ -938,8 +950,11 @@ export function SaleModal({
         {isCard ? (
           <div className="two-col">
             <div className="field-block compact">
-              <div className="section-label">Bandeira</div>
+              <label className="section-label" htmlFor={`${fieldId}-brand`}>
+                Bandeira
+              </label>
               <select
+                id={`${fieldId}-brand`}
                 className="field-input"
                 value={cardBrandTier}
                 onChange={(event) =>
@@ -955,8 +970,14 @@ export function SaleModal({
             </div>
             {isCredit ? (
               <div className="field-block compact">
-                <div className="section-label">Parcelas</div>
+                <label
+                  className="section-label"
+                  htmlFor={`${fieldId}-installments`}
+                >
+                  Parcelas
+                </label>
                 <select
+                  id={`${fieldId}-installments`}
                   className="field-input"
                   value={installments}
                   onChange={(event) =>
@@ -1022,8 +1043,9 @@ export function SaleModal({
             <div className="fee-editor-title">Taxas da maquininha (%)</div>
             <div className="fee-editor-grid">
               <div className="fee-editor-item">
-                <label>Pix</label>
+                <label htmlFor={`${fieldId}-fee-pix`}>Pix</label>
                 <input
+                  id={`${fieldId}-fee-pix`}
                   type="number"
                   min={0}
                   step="0.1"
@@ -1032,8 +1054,9 @@ export function SaleModal({
                 />
               </div>
               <div className="fee-editor-item">
-                <label>Dinheiro</label>
+                <label htmlFor={`${fieldId}-fee-dinheiro`}>Dinheiro</label>
                 <input
+                  id={`${fieldId}-fee-dinheiro`}
                   type="number"
                   min={0}
                   step="0.1"
@@ -1042,8 +1065,9 @@ export function SaleModal({
                 />
               </div>
               <div className="fee-editor-item">
-                <label>Outro</label>
+                <label htmlFor={`${fieldId}-fee-outro`}>Outro</label>
                 <input
+                  id={`${fieldId}-fee-outro`}
                   type="number"
                   min={0}
                   step="0.1"
@@ -1057,8 +1081,11 @@ export function SaleModal({
                 <div className="fee-editor-subtitle">{tier.label}</div>
                 <div className="fee-editor-grid">
                   <div className="fee-editor-item">
-                    <label>Débito</label>
+                    <label htmlFor={`${fieldId}-fee-${tier.value}-debito`}>
+                      Débito
+                    </label>
                     <input
+                      id={`${fieldId}-fee-${tier.value}-debito`}
                       type="number"
                       min={0}
                       step="0.1"
@@ -1070,10 +1097,11 @@ export function SaleModal({
                   </div>
                   {fees.card[tier.value].credito.map((rate, index) => (
                     <div className="fee-editor-item" key={index}>
-                      <label>
+                      <label htmlFor={`${fieldId}-fee-${tier.value}-${index}`}>
                         {index === 0 ? "Créd. à vista" : `Créd. ${index + 1}x`}
                       </label>
                       <input
+                        id={`${fieldId}-fee-${tier.value}-${index}`}
                         type="number"
                         min={0}
                         step="0.1"
@@ -1129,6 +1157,7 @@ export function SaleModal({
                   <input
                     className="field-input"
                     type="text"
+                    aria-label="Nome do produto vendido"
                     value={item.productName}
                     onChange={(event) =>
                       updateItem(item.key, { productName: event.target.value })
@@ -1147,8 +1176,14 @@ export function SaleModal({
 
                 <div className="cesta-item-grid">
                   <div className="field-block compact">
-                    <div className="section-label">Qtd</div>
+                    <label
+                      className="section-label"
+                      htmlFor={`${fieldId}-${item.key}-qty`}
+                    >
+                      Qtd
+                    </label>
                     <NumberInput
+                      id={`${fieldId}-${item.key}-qty`}
                       className="field-input"
                       min={1}
                       value={item.quantity}
@@ -1158,8 +1193,14 @@ export function SaleModal({
                     />
                   </div>
                   <div className="field-block compact">
-                    <div className="section-label">Preço unit.</div>
+                    <label
+                      className="section-label"
+                      htmlFor={`${fieldId}-${item.key}-price`}
+                    >
+                      Preço unit.
+                    </label>
                     <NumberInput
+                      id={`${fieldId}-${item.key}-price`}
                       className="field-input"
                       min={0}
                       step="0.01"
@@ -1191,6 +1232,7 @@ export function SaleModal({
                 <div className="cesta-origem">
                   <select
                     className="field-input"
+                    aria-label="Origem desta peça"
                     value={item.origem}
                     onChange={(event) => {
                       // Escolha manual manda — o efeito de default não a reverte.
@@ -1225,10 +1267,16 @@ export function SaleModal({
                       if (options.length < 2) return null;
                       return (
                         <div className="cesta-cor" key={part.key}>
-                          <span className="cesta-cor-label">
+                          {/* <span> → <label>: os dois são inline, o CSS não
+                              muda nada (só font/cor). */}
+                          <label
+                            className="cesta-cor-label"
+                            htmlFor={`${fieldId}-${item.key}-cor-${part.key}`}
+                          >
                             {part.name ? `Cor — ${part.name}` : "Cor"}
-                          </span>
+                          </label>
                           <select
+                            id={`${fieldId}-${item.key}-cor-${part.key}`}
                             className="field-input"
                             value={colorOf(item, part.key)}
                             onChange={(event) =>
@@ -1309,6 +1357,7 @@ export function SaleModal({
             <Boxes size={15} />
             <select
               className="field-input"
+              aria-label="Adicionar do estoque de produtos"
               value={stockPick}
               onChange={(event) => addFromStock(event.target.value)}
             >
@@ -1330,6 +1379,7 @@ export function SaleModal({
             <Plus size={15} />
             <select
               className="field-input"
+              aria-label="Adicionar outro produto do catálogo"
               value={addPick}
               onChange={(event) => addFromCatalog(event.target.value)}
             >
@@ -1345,10 +1395,11 @@ export function SaleModal({
         ) : null}
 
         <div className="field-block compact">
-          <div className="section-label">
+          <label className="section-label" htmlFor={`${fieldId}-notes`}>
             Observações <span className="label-hint">(opcional)</span>
-          </div>
+          </label>
           <textarea
+            id={`${fieldId}-notes`}
             className="field-input"
             rows={2}
             value={notes}

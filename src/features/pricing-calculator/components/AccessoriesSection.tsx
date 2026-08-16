@@ -96,9 +96,14 @@ export function AccessoriesSection({
 
           return (
           <div className="accessory-block" key={accessory.id}>
+            {/* UX-16: linha em formato de tabela — o rótulo é o cabeçalho de
+                COLUNA (.acc-header), que serve as N linhas e por isso não pode
+                ser <label> de nenhuma. Cada campo ganha o próprio `aria-label`;
+                antes os três não tinham nome nenhum. */}
             <div className="accessory-row">
               <input
                 type="text"
+                aria-label="Descrição do acessório"
                 value={accessory.desc}
                 readOnly={Boolean(supply)}
                 title={supply ? "O nome vem do insumo do estoque" : undefined}
@@ -110,12 +115,14 @@ export function AccessoriesSection({
                 placeholder="Ex: Argola"
               />
               <NumberInput
+                aria-label="Quantidade por peça"
                 min={0}
                 step={1}
                 value={accessory.qty}
                 onChange={(qty) => onUpdateAccessory(accessory.id ?? "", { qty })}
               />
               <NumberInput
+                aria-label="Preço unitário (R$)"
                 min={0}
                 step="0.01"
                 value={accessory.unitPrice}

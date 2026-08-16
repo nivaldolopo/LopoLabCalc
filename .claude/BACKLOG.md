@@ -44,13 +44,11 @@
    tomadas pelo dono** no mesmo dia. **Ordem de execução (2026-08-15)** — 7 passos:
    ~~① TD-013 + UX-17a (tokens)~~ ✅ **FEITO (2026-08-15)** → ~~② UX-13a (desktop)~~ ✅ **FEITO
    (2026-08-15)** → ~~③ UX-13b + UX-14 (chrome mobile juntos)~~ ✅ **FEITO (2026-08-15)** →
-   ~~④ UX-15 (alvos + confirmação + avisos)~~ ✅ **FEITO (2026-08-16)** → **▶ ⑤ UX-16** → ⑥ UX-19 →
-   ⑦ UX-17b (conversão dos 16 CSS).
+   ~~④ UX-15 (alvos + confirmação + avisos)~~ ✅ **FEITO (2026-08-16)** → ~~⑤ UX-16 (rótulo foca o
+   campo)~~ ✅ **FEITO (2026-08-16)** → **▶ ⑥ UX-19** → ⑦ UX-17b (conversão dos 16 CSS).
    ✅ **As 2 decisões saíram junto com o passo ①** (dono, 2026-08-15): **[DEC-04]** (faixas de margem,
    destravou o ⑥) e **[DEC-05]** (lucide nos controles; volta como tarefa de código, fora da fila) —
-   **o cluster não tem mais bloqueio nenhum**, os 6 passos restantes são só código.
-   **UX-16 é o item de folga:** mecânico, zero mudança visual, não colide com nada — pode subir pra
-   qualquer posição.
+   **o cluster não tem mais bloqueio nenhum**, os 2 passos restantes são só código.
 12. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
    ⚠ **Continua sendo o último.** Fora o cluster UI/UX (item 11, codificável hoje), o que resta é o
    Dashboard (só vale com venda real acumulada) e o Tier 2 comercial, **bloqueado pela marca**.
@@ -293,16 +291,20 @@
   (eram 4 cópias) e a **`/vendas` ganhou o aviso que nunca teve** — a exclusão que estorna acabado +
   filamento gravava sem `try/catch` e falhava em silêncio. Writeup e as medições: `HISTORICO.md`.
 
-- **[UX-16] Rótulo não foca o campo (44 `<label>`, **1** com `htmlFor`)**
-  **▸ ▶ PRÓXIMA — passo ⑤ — e é o ITEM DE FOLGA do cluster:** mecânico, zero mudança visual, não colide com
-  nenhum outro item. Pode subir pra qualquer posição se as decisões (DEC-04/05) demorarem.
-  **Medido:** 44 `<label>` nos componentes, **1** com `htmlFor`; 77 `<input>/<select>`, **0** com `id`.
-  O navegador não sabe que um é o nome do outro → clicar em "Mão de obra (min)" não faz nada, e o alvo
-  de clique é só a caixinha. Num formulário de ~20 campos numéricos é atrito em toda sessão.
-  **Correção:** aninhar o input **dentro** do `<label>` (dispensa `id`) ou `useId()`.
-  ⚠ **Visualmente muda ZERO** — é ganho puro (alvo de clique triplica + leitor de tela passa a anunciar
-  o campo). Mecânico, risco baixíssimo. **Decidido (dono): fazer.**
-  **Onde:** `ProductForm.tsx` e os demais componentes de formulário.
+- ~~**[UX-16] Rótulo não foca o campo**~~ ✅ **FEITO (2026-08-16, passo ⑤)** — `useId()` +
+  `htmlFor`/`id` (**não** aninhado: `.section-label` é `display:flex`, o input viraria filho de flex).
+  ⚠ **O escopo dobrou na medição, e o dono aprovou:** além dos 44 `<label>` havia **67
+  `<div className="section-label">`** — rótulo *falso*, quase todos nos **modais e páginas** (o item
+  original, medido só por `<label>`, teria consertado a calculadora e deixado o resto do app igual).
+  **As 3 regras aplicadas:** rotula **campo** → vira `<label htmlFor>`; rotula **cabeçalho ou valor
+  só-leitura** → segue `div` (label sem controle engana o leitor de tela); rotula **grupo** (chips de
+  máquina, caixas do subitem) → `role="group"` + `aria-labelledby`. `aria-label` redundante foi
+  **removido** (com label real ele vence o texto visível — WCAG 2.5.3); campo em linha de tabela
+  (acessórios, filamento da `/producao`), que não tinha nome nenhum, **ganhou** `aria-label`.
+  **Medido rodando:** rótulo clicável **1 → 19** (`/`), **0 → 8** (`/orcamento`), **2 → 11**
+  (`/producao`), **0 → 7** (SaleModal), **0 → 5** (StockColorModal); **zero** campo sem nome acessível.
+  **Zero visual, provado:** desfazendo a troca de tag ao vivo (método do TD-013) deu **0 diferenças**
+  em 49 rótulos e altura idêntica em toda página. **Onde:** 15 componentes de formulário.
 
 - **[UX-17] Sistema visual: escala uniforme (sem perder densidade) + tokens**
   **▸ PARTIDO EM DOIS (2026-08-15), e é a mudança de ordem mais importante do cluster:**

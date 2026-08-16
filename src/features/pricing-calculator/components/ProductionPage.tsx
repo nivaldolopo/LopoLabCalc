@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Factory, Plus, Trash2 } from "lucide-react";
 import { errorMessage, guardOnline } from "@/lib/errors";
@@ -84,6 +84,7 @@ function grams(value: number): string {
 }
 
 export function ProductionPage() {
+  const fieldId = useId();
   const { theme, toggleTheme } = useTheme();
   const searchParams = useSearchParams();
   const { products } = useProducts();
@@ -669,8 +670,11 @@ export function ProductionPage() {
 
       <div className="prod-form">
         <div className="field-block">
-          <div className="section-label">O que foi impresso?</div>
+          <label className="section-label" htmlFor={`${fieldId}-what`}>
+            O que foi impresso?
+          </label>
           <select
+            id={`${fieldId}-what`}
             className="field-input"
             value={selectedKey}
             onChange={(event) => selectOption(event.target.value)}
@@ -695,11 +699,15 @@ export function ProductionPage() {
 
         {rows.map((row) => {
           const isAvulso = !row.productId && !row.subitemId;
+          const rowId = `${fieldId}-${row.key}`;
           return (
             <div className="prod-event" key={row.key}>
               <div className="field-block compact">
-                <div className="section-label">Nome da impressão</div>
+                <label className="section-label" htmlFor={`${rowId}-name`}>
+                  Nome da impressão
+                </label>
                 <input
+                  id={`${rowId}-name`}
                   className="field-input"
                   type="text"
                   value={row.productName}
@@ -712,8 +720,11 @@ export function ProductionPage() {
 
               <div className="two-col">
                 <div className="field-block compact">
-                  <div className="section-label">Máquina</div>
+                  <label className="section-label" htmlFor={`${rowId}-machine`}>
+                    Máquina
+                  </label>
                   <select
+                    id={`${rowId}-machine`}
                     className="field-input"
                     value={row.machineId}
                     onChange={(event) =>
@@ -738,6 +749,9 @@ export function ProductionPage() {
                 </div>
               </div>
 
+              {/* UX-16: rotula a LISTA de cores (N linhas), não um campo — segue
+                  <div>, e cada controle da linha ganha o próprio `aria-label`
+                  (antes nenhum deles tinha nome). */}
               <div className="section-label">Filamento</div>
               {/* FEAT-11: o seletor de cor vale para QUALQUER linha — a mesma peça
                   é impressa em outra cor o tempo todo, e antes disso só dava para
@@ -752,6 +766,7 @@ export function ProductionPage() {
                 <div className="prod-fil">
                   <select
                     className="field-input"
+                    aria-label="Cor do filamento"
                     value={fil.filamentId ?? ""}
                     onChange={(event) =>
                       setFilColor(row.key, index, event.target.value)
@@ -770,6 +785,7 @@ export function ProductionPage() {
                     <input
                       className="field-input prod-fil-free"
                       type="text"
+                      aria-label="Nome da cor avulsa"
                       value={fil.colorName}
                       onChange={(event) =>
                         updateFil(row.key, index, {
@@ -782,6 +798,7 @@ export function ProductionPage() {
                   <div className="prod-fil-g">
                     <NumberInput
                       className="field-input"
+                      aria-label="Gramas usadas"
                       min={0}
                       value={fil.totalG}
                       onChange={(totalG) =>
@@ -794,6 +811,7 @@ export function ProductionPage() {
                     <div className="prod-fil-price">
                       <NumberInput
                         className="field-input"
+                        aria-label="Preço por kg"
                         min={0}
                         step="0.01"
                         value={fil.pricePerKg}
@@ -856,11 +874,12 @@ export function ProductionPage() {
         {rows.length > 0 ? (
           <>
             <div className="field-block compact">
-              <div className="section-label">
+              <label className="section-label" htmlFor={`${fieldId}-plates`}>
                 Quantas placas{" "}
                 <span className="label-hint">(tiragem desta impressão)</span>
-              </div>
+              </label>
               <NumberInput
+                id={`${fieldId}-plates`}
                 className="field-input"
                 min={1}
                 step="1"
@@ -882,8 +901,11 @@ export function ProductionPage() {
 
             <div className="two-col">
               <div className="field-block compact">
-                <div className="section-label">Desfecho</div>
+                <label className="section-label" htmlFor={`${fieldId}-outcome`}>
+                  Desfecho
+                </label>
                 <select
+                  id={`${fieldId}-outcome`}
                   className="field-input"
                   value={outcome}
                   onChange={(event) => {
@@ -900,8 +922,11 @@ export function ProductionPage() {
                 </select>
               </div>
               <div className="field-block compact">
-                <div className="section-label">Modo</div>
+                <label className="section-label" htmlFor={`${fieldId}-mode`}>
+                  Modo
+                </label>
                 <select
+                  id={`${fieldId}-mode`}
                   className="field-input"
                   value={mode}
                   onChange={(event) =>
@@ -916,8 +941,11 @@ export function ProductionPage() {
 
             <div className="two-col">
               <div className="field-block compact">
-                <div className="section-label">Data</div>
+                <label className="section-label" htmlFor={`${fieldId}-date`}>
+                  Data
+                </label>
                 <input
+                  id={`${fieldId}-date`}
                   className="field-input"
                   type="date"
                   value={dateStr}
@@ -925,10 +953,11 @@ export function ProductionPage() {
                 />
               </div>
               <div className="field-block compact">
-                <div className="section-label">
+                <label className="section-label" htmlFor={`${fieldId}-notes`}>
                   Observações <span className="label-hint">(opcional)</span>
-                </div>
+                </label>
                 <input
+                  id={`${fieldId}-notes`}
                   className="field-input"
                   type="text"
                   value={notes}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Download, FileText, Plus, Trash2 } from "lucide-react";
 import { errorMessage } from "@/lib/errors";
@@ -50,6 +50,7 @@ function newItem(partial: Partial<QuoteItem>): QuoteItem {
 }
 
 export function QuotePage() {
+  const fieldId = useId();
   const { theme, toggleTheme } = useTheme();
   const searchParams = useSearchParams();
   const { products } = useProducts();
@@ -368,9 +369,12 @@ export function QuotePage() {
             Dados do negócio <span className="label-hint">(saem no PDF)</span>
           </div>
           <div className="field-block compact">
+            {/* Sem rótulo visível (o título da seção serve de contexto) — o
+                placeholder some ao digitar, então o nome acessível é o aria. */}
             <input
               className="field-input"
               type="text"
+              aria-label="Nome do negócio"
               value={business.name}
               onChange={(event) => updateBusiness({ name: event.target.value })}
               onBlur={() => void saveBusiness(business)}
@@ -379,8 +383,11 @@ export function QuotePage() {
           </div>
           <div className="two-col">
             <div className="field-block compact">
-              <div className="section-label">Telefone / WhatsApp</div>
+              <label className="section-label" htmlFor={`${fieldId}-phone`}>
+                Telefone / WhatsApp
+              </label>
               <input
+                id={`${fieldId}-phone`}
                 className="field-input"
                 type="text"
                 value={business.phone}
@@ -392,8 +399,11 @@ export function QuotePage() {
               />
             </div>
             <div className="field-block compact">
-              <div className="section-label">Instagram</div>
+              <label className="section-label" htmlFor={`${fieldId}-instagram`}>
+                Instagram
+              </label>
               <input
+                id={`${fieldId}-instagram`}
                 className="field-input"
                 type="text"
                 value={business.instagram}
@@ -406,8 +416,11 @@ export function QuotePage() {
             </div>
           </div>
           <div className="field-block compact">
-            <div className="section-label">E-mail</div>
+            <label className="section-label" htmlFor={`${fieldId}-email`}>
+              E-mail
+            </label>
             <input
+              id={`${fieldId}-email`}
               className="field-input"
               type="text"
               value={business.email}
@@ -422,8 +435,11 @@ export function QuotePage() {
           <div className="section-label">Dados do orçamento</div>
           <div className="two-col">
             <div className="field-block compact">
-              <div className="section-label">Número</div>
+              <label className="section-label" htmlFor={`${fieldId}-number`}>
+                Número
+              </label>
               <NumberInput
+                id={`${fieldId}-number`}
                 className="field-input"
                 min={1}
                 value={quoteNumber}
@@ -434,10 +450,11 @@ export function QuotePage() {
               />
             </div>
             <div className="field-block compact">
-              <div className="section-label">
+              <label className="section-label" htmlFor={`${fieldId}-customer`}>
                 Cliente <span className="label-hint">(opcional)</span>
-              </div>
+              </label>
               <input
+                id={`${fieldId}-customer`}
                 className="field-input"
                 type="text"
                 value={customer}
@@ -448,8 +465,11 @@ export function QuotePage() {
           </div>
           <div className="two-col">
             <div className="field-block compact">
-              <div className="section-label">Data</div>
+              <label className="section-label" htmlFor={`${fieldId}-date`}>
+                Data
+              </label>
               <input
+                id={`${fieldId}-date`}
                 className="field-input"
                 type="date"
                 value={dateStr}
@@ -457,8 +477,11 @@ export function QuotePage() {
               />
             </div>
             <div className="field-block compact">
-              <div className="section-label">Validade (dias)</div>
+              <label className="section-label" htmlFor={`${fieldId}-validity`}>
+                Validade (dias)
+              </label>
               <NumberInput
+                id={`${fieldId}-validity`}
                 className="field-input"
                 min={1}
                 value={validityDays}
@@ -487,6 +510,7 @@ export function QuotePage() {
                   <input
                     className="field-input"
                     type="text"
+                    aria-label="Descrição do item"
                     value={item.description}
                     onChange={(event) =>
                       updateItem(item.key, { description: event.target.value })
@@ -504,8 +528,14 @@ export function QuotePage() {
                 </div>
                 <div className="quote-item-grid">
                   <div className="field-block compact">
-                    <div className="section-label">Qtd</div>
+                    <label
+                      className="section-label"
+                      htmlFor={`${fieldId}-${item.key}-qty`}
+                    >
+                      Qtd
+                    </label>
                     <NumberInput
+                      id={`${fieldId}-${item.key}-qty`}
                       className="field-input"
                       min={1}
                       value={item.quantity}
@@ -515,8 +545,14 @@ export function QuotePage() {
                     />
                   </div>
                   <div className="field-block compact">
-                    <div className="section-label">Preço unit.</div>
+                    <label
+                      className="section-label"
+                      htmlFor={`${fieldId}-${item.key}-price`}
+                    >
+                      Preço unit.
+                    </label>
                     <NumberInput
+                      id={`${fieldId}-${item.key}-price`}
                       className="field-input"
                       min={0}
                       step="0.01"
@@ -527,6 +563,7 @@ export function QuotePage() {
                     />
                   </div>
                   <div className="field-block compact">
+                    {/* Subtotal é valor calculado, não campo — segue <div>. */}
                     <div className="section-label">Subtotal</div>
                     <div className="quote-subtotal mono">
                       {formatCurrency(unit * qty)}
@@ -544,6 +581,7 @@ export function QuotePage() {
               <Plus size={15} />
               <select
                 className="field-input"
+                aria-label="Adicionar produto do catálogo"
                 value={addPick}
                 onChange={(event) => addFromCatalog(event.target.value)}
               >
@@ -566,10 +604,11 @@ export function QuotePage() {
         </div>
 
         <div className="field-block compact quote-notes">
-          <div className="section-label">
+          <label className="section-label" htmlFor={`${fieldId}-notes`}>
             Observações <span className="label-hint">(opcional)</span>
-          </div>
+          </label>
           <textarea
+            id={`${fieldId}-notes`}
             className="field-input"
             rows={2}
             value={notes}

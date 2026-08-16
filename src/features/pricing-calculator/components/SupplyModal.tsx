@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { Supply } from "../types";
 import { NumberInput } from "./NumberInput";
 
@@ -28,6 +28,7 @@ const UNITS = ["un", "par", "m", "cm", "kit", "folha"];
  * custo de uma compra antiga se perderia na primeira reposição.
  */
 export function SupplyModal({ supply, onClose, onSave }: SupplyModalProps) {
+  const fieldId = useId();
   const [name, setName] = useState(supply?.name ?? "");
   const [unit, setUnit] = useState(supply?.unit ?? "un");
   const [minQty, setMinQty] = useState(supply?.minQty ?? 0);
@@ -69,8 +70,11 @@ export function SupplyModal({ supply, onClose, onSave }: SupplyModalProps) {
 
         <div className="stock-form-grid">
           <div className="field-block stock-field-wide">
-            <div className="section-label">Nome</div>
+            <label className="section-label" htmlFor={`${fieldId}-name`}>
+              Nome
+            </label>
             <input
+              id={`${fieldId}-name`}
               className="field-input"
               type="text"
               value={name}
@@ -80,8 +84,11 @@ export function SupplyModal({ supply, onClose, onSave }: SupplyModalProps) {
           </div>
 
           <div className="field-block">
-            <div className="section-label">Unidade</div>
+            <label className="section-label" htmlFor={`${fieldId}-unit`}>
+              Unidade
+            </label>
             <input
+              id={`${fieldId}-unit`}
               className="field-input"
               type="text"
               list="supply-units"
@@ -97,9 +104,11 @@ export function SupplyModal({ supply, onClose, onSave }: SupplyModalProps) {
           </div>
 
           <div className="field-block">
-            <div className="section-label">Estoque mínimo</div>
+            <label className="section-label" htmlFor={`${fieldId}-min`}>
+              Estoque mínimo
+            </label>
             <NumberInput
-              aria-label="Estoque mínimo"
+              id={`${fieldId}-min`}
               className="field-input"
               min={0}
               value={minQty}

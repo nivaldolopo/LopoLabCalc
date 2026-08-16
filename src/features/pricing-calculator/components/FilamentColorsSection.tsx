@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { round2 } from "@/lib/number";
 import { formatCurrency } from "@/lib/formatting/currency";
@@ -40,6 +41,7 @@ export function FilamentColorsSection({
   stock,
   label = "🎨 Filamento por cor",
 }: FilamentColorsSectionProps) {
+  const fieldId = useId();
   const multi = filaments.length > 1;
 
   // Cores oferecidas no dropdown: as ativas (arquivada some da escolha, mas um
@@ -127,7 +129,9 @@ export function FilamentColorsSection({
   return (
     <div className="field-block">
       <div className="section-head">
-        <label className="section-label">{label}</label>
+        {/* UX-16: título da seção — não é rótulo de campo nenhum, então NÃO é
+            <label> (um <label> sem controle só engana o leitor de tela). */}
+        <div className="section-label">{label}</div>
         <button
           className="link-button bordered"
           type="button"
@@ -155,12 +159,16 @@ export function FilamentColorsSection({
           // Só-leitura quando há preço vivo (cor com rolo). Cor sem rolo ou
           // removida cai no preço salvo, que permanece editável (fallback D3).
           const showLivePrice = Boolean(linkedColor) && livePrice > 0;
+          const rowId = `${fieldId}-${index}`;
           return (
             <div className="filament-row" key={f.id ?? index}>
               <div className="filament-main">
                 <div className="filament-cell grow">
-                  <label className="section-label">Cor</label>
+                  <label className="section-label" htmlFor={`${rowId}-color`}>
+                    Cor
+                  </label>
                   <select
+                    id={`${rowId}-color`}
                     className="field-input"
                     value={f.filamentId ?? ""}
                     onChange={(event) => selectColor(index, event.target.value)}
@@ -186,6 +194,7 @@ export function FilamentColorsSection({
                     <input
                       className="field-input filament-freename"
                       type="text"
+                      aria-label="Nome da cor avulsa"
                       value={f.colorName}
                       onChange={(event) =>
                         updateAt(index, { colorName: event.target.value })
@@ -200,7 +209,14 @@ export function FilamentColorsSection({
                   ) : null}
                 </div>
                 <div className="filament-cell">
-                  <label className="section-label">Filamento (R$/kg)</label>
+                  {/* Com preço vivo o valor é um <div> só-leitura — aí o rótulo
+                      não tem campo para apontar (htmlFor undefined = sem atributo). */}
+                  <label
+                    className="section-label"
+                    htmlFor={showLivePrice ? undefined : `${rowId}-price`}
+                  >
+                    Filamento (R$/kg)
+                  </label>
                   {showLivePrice ? (
                     <div
                       className="filament-total-value"
@@ -210,6 +226,7 @@ export function FilamentColorsSection({
                     </div>
                   ) : (
                     <NumberInput
+                      id={`${rowId}-price`}
                       className="field-input"
                       min={0}
                       value={f.pricePerKg}
@@ -219,7 +236,9 @@ export function FilamentColorsSection({
                 </div>
                 {detailed ? (
                   <div className="filament-cell">
-                    <label className="section-label">Total (g)</label>
+                    {/* Detalhado, o Total é só-leitura (soma travada) — sem campo
+                        para apontar, não é <label>. */}
+                    <div className="section-label">Total (g)</div>
                     <div
                       className="filament-total-value"
                       title="Model + Suporte + Purga + Torre"
@@ -229,8 +248,11 @@ export function FilamentColorsSection({
                   </div>
                 ) : (
                   <div className="filament-cell">
-                    <label className="section-label">Total (g)</label>
+                    <label className="section-label" htmlFor={`${rowId}-total`}>
+                      Total (g)
+                    </label>
                     <NumberInput
+                      id={`${rowId}-total`}
                       className="field-input"
                       min={0}
                       value={f.totalG}
@@ -254,8 +276,11 @@ export function FilamentColorsSection({
                 <>
                   <div className="filament-detail">
                     <div className="filament-cell">
-                      <label className="section-label">Model (g)</label>
+                      <label className="section-label" htmlFor={`${rowId}-model`}>
+                        Model (g)
+                      </label>
                       <NumberInput
+                        id={`${rowId}-model`}
                         className="field-input"
                         min={0}
                         value={f.modelG ?? 0}
@@ -263,8 +288,14 @@ export function FilamentColorsSection({
                       />
                     </div>
                     <div className="filament-cell">
-                      <label className="section-label">Suporte (g)</label>
+                      <label
+                        className="section-label"
+                        htmlFor={`${rowId}-support`}
+                      >
+                        Suporte (g)
+                      </label>
                       <NumberInput
+                        id={`${rowId}-support`}
                         className="field-input"
                         min={0}
                         value={f.supportG ?? 0}
@@ -272,8 +303,11 @@ export function FilamentColorsSection({
                       />
                     </div>
                     <div className="filament-cell">
-                      <label className="section-label">Purga (g)</label>
+                      <label className="section-label" htmlFor={`${rowId}-purge`}>
+                        Purga (g)
+                      </label>
                       <NumberInput
+                        id={`${rowId}-purge`}
                         className="field-input"
                         min={0}
                         value={f.purgedG ?? 0}
@@ -281,8 +315,11 @@ export function FilamentColorsSection({
                       />
                     </div>
                     <div className="filament-cell">
-                      <label className="section-label">Torre (g)</label>
+                      <label className="section-label" htmlFor={`${rowId}-tower`}>
+                        Torre (g)
+                      </label>
                       <NumberInput
+                        id={`${rowId}-tower`}
                         className="field-input"
                         min={0}
                         value={f.towerG ?? 0}

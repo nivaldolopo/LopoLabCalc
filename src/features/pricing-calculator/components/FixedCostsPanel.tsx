@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import type { FixedCostSettings, FixedCostSummary } from "../types";
 import { formatCurrency } from "@/lib/formatting/currency";
 import { NumberInput } from "./NumberInput";
@@ -17,6 +18,7 @@ export function FixedCostsPanel({
   fixedCostShare,
   onChange,
 }: FixedCostsPanelProps) {
+  const fieldId = useId();
   return (
     <div
       className={`fixed-costs-banner ${fixedCosts.enabled ? "" : "collapsed"}`}
@@ -55,16 +57,20 @@ export function FixedCostsPanel({
         <div className="fc-body">
           <div className="fc-grid">
             <div className="fc-item">
-              <label>Aluguel (R$/mês)</label>
+              <label htmlFor={`${fieldId}-rent`}>Aluguel (R$/mês)</label>
               <NumberInput
+                id={`${fieldId}-rent`}
                 min={0}
                 value={fixedCosts.rent}
                 onChange={(rent) => onChange({ rent })}
               />
             </div>
             <div className="fc-item">
-              <label>Outros custos fixos (R$/mês)</label>
+              <label htmlFor={`${fieldId}-other`}>
+                Outros custos fixos (R$/mês)
+              </label>
               <NumberInput
+                id={`${fieldId}-other`}
                 min={0}
                 value={fixedCosts.other}
                 onChange={(other) => onChange({ other })}
@@ -72,24 +78,31 @@ export function FixedCostsPanel({
               />
             </div>
             <div className="fc-item">
-              <label>Máquinas operando</label>
+              <label htmlFor={`${fieldId}-machines`}>Máquinas operando</label>
               <NumberInput
+                id={`${fieldId}-machines`}
                 min={0}
                 value={fixedCosts.machines}
                 onChange={(machines) => onChange({ machines })}
               />
             </div>
             <div className="fc-item">
-              <label>Horas de operação/dia</label>
+              <label htmlFor={`${fieldId}-hours-day`}>
+                Horas de operação/dia
+              </label>
               <NumberInput
+                id={`${fieldId}-hours-day`}
                 min={0}
                 value={fixedCosts.hoursDay}
                 onChange={(hoursDay) => onChange({ hoursDay })}
               />
             </div>
             <div className="fc-item">
-              <label>Dias de operação/mês</label>
+              <label htmlFor={`${fieldId}-days-month`}>
+                Dias de operação/mês
+              </label>
               <NumberInput
+                id={`${fieldId}-days-month`}
                 min={0}
                 value={fixedCosts.daysMonth}
                 onChange={(daysMonth) => onChange({ daysMonth })}

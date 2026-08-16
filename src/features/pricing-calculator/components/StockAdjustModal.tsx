@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { formatDate, todayInputValue, toTimestamp } from "@/lib/formatting/date";
 import { num } from "@/lib/number";
 import { filamentLabel, rollNumbers } from "../lib/stock";
@@ -32,6 +32,7 @@ export function StockAdjustModal({
   onClose,
   onSave,
 }: StockAdjustModalProps) {
+  const fieldId = useId();
   const numbers = rollNumbers(color);
   // Ordem FIFO na lista: o rolo em uso é o primeiro candidato à contagem.
   const rolls = [...color.rolls].sort(
@@ -88,8 +89,11 @@ export function StockAdjustModal({
 
         <div className="stock-form-grid">
           <div className="field-block stock-field-wide">
-            <div className="section-label">Rolo contado</div>
+            <label className="section-label" htmlFor={`${fieldId}-roll`}>
+              Rolo contado
+            </label>
             <select
+              id={`${fieldId}-roll`}
               className="field-input"
               value={rollId}
               onChange={(event) => {
@@ -111,9 +115,11 @@ export function StockAdjustModal({
           </div>
 
           <div className="field-block">
-            <div className="section-label">Contado (g)</div>
+            <label className="section-label" htmlFor={`${fieldId}-counted`}>
+              Contado (g)
+            </label>
             <NumberInput
-              aria-label="Gramas contadas"
+              id={`${fieldId}-counted`}
               className="field-input"
               min={0}
               value={countedG}
@@ -122,9 +128,11 @@ export function StockAdjustModal({
           </div>
 
           <div className="field-block">
-            <div className="section-label">Data da contagem</div>
+            <label className="section-label" htmlFor={`${fieldId}-date`}>
+              Data da contagem
+            </label>
             <input
-              aria-label="Data da contagem"
+              id={`${fieldId}-date`}
               className="field-input"
               type="date"
               value={dateStr}
@@ -133,8 +141,11 @@ export function StockAdjustModal({
           </div>
 
           <div className="field-block stock-field-wide">
-            <div className="section-label">Motivo</div>
+            <label className="section-label" htmlFor={`${fieldId}-reason`}>
+              Motivo
+            </label>
             <input
+              id={`${fieldId}-reason`}
               className="field-input"
               type="text"
               value={reason}

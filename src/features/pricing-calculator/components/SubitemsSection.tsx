@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import type { ProductInput, Subitem, SubitemPrice } from "../types";
@@ -37,6 +37,7 @@ export function SubitemsSection({
   onUpdateSubitem,
   onToggleStage,
 }: SubitemsSectionProps) {
+  const fieldId = useId();
   // Sliders de markup abertos (além dos que já têm override salvo).
   const [markupOpen, setMarkupOpen] = useState<Set<string>>(new Set());
   const on = product.sellBySubitems;
@@ -87,6 +88,7 @@ export function SubitemsSection({
 
           {product.subitems.map((subitem, index) => {
             const priced = priceById.get(subitem.id);
+            const rowId = `${fieldId}-${subitem.id}`;
             return (
               <div className="stage-card subitem-card" key={subitem.id}>
                 <div className="stage-card-head">
@@ -109,8 +111,11 @@ export function SubitemsSection({
                 </div>
 
                 <div className="field-block compact">
-                  <label className="section-label">Nome do subitem</label>
+                  <label className="section-label" htmlFor={`${rowId}-name`}>
+                    Nome do subitem
+                  </label>
                   <input
+                    id={`${rowId}-name`}
                     className="field-input"
                     type="text"
                     value={subitem.name}
@@ -122,8 +127,18 @@ export function SubitemsSection({
                 </div>
 
                 <div className="field-block compact">
-                  <label className="section-label">Etapas deste subitem</label>
-                  <div className="subitem-stages">
+                  {/* UX-16: rotula um GRUPO de caixas, não um campo — <label> não
+                      serve (aponta para um controle só). `role="group"` +
+                      `aria-labelledby` é o equivalente correto e não muda nada
+                      visualmente. As caixas em si já embrulham o input. */}
+                  <div className="section-label" id={`${rowId}-stages-label`}>
+                    Etapas deste subitem
+                  </div>
+                  <div
+                    className="subitem-stages"
+                    role="group"
+                    aria-labelledby={`${rowId}-stages-label`}
+                  >
                     {options.map((option) => {
                       const checked = subitem.stageKeys.includes(option.key);
                       return (
@@ -148,13 +163,17 @@ export function SubitemsSection({
 
                 {markupShown(subitem) ? (
                   <div className="field-block compact subitem-markup">
-                    <label className="section-label markup-header">
+                    <label
+                      className="section-label markup-header"
+                      htmlFor={`${rowId}-markup`}
+                    >
                       <span>📈 Markup deste subitem</span>
                       <span className="markup-value">
                         {(subitem.markup ?? product.markup).toFixed(1)}x
                       </span>
                     </label>
                     <input
+                      id={`${rowId}-markup`}
                       max={6}
                       min={1.5}
                       step={0.1}

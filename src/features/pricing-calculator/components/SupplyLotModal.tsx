@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { todayInputValue, toTimestamp } from "@/lib/formatting/date";
 import type { Supply, SupplyLot } from "../types";
 import { NumberInput } from "./NumberInput";
@@ -19,6 +19,7 @@ type SupplyLotModalProps = {
  * A data importa: é ela que ordena o FIFO, não a ordem de cadastro.
  */
 export function SupplyLotModal({ supply, onClose, onSave }: SupplyLotModalProps) {
+  const fieldId = useId();
   const [initialQty, setInitialQty] = useState(0);
   const [unitPrice, setUnitPrice] = useState(0);
   const [dateStr, setDateStr] = useState(todayInputValue());
@@ -68,11 +69,15 @@ export function SupplyLotModal({ supply, onClose, onSave }: SupplyLotModalProps)
           (custo real).
         </p>
 
+        {/* UX-16: os `aria-label` saíram — com <label> ligado ao campo eles
+            venceriam o texto visível na leitura de tela. */}
         <div className="stock-form-grid">
           <div className="field-block">
-            <div className="section-label">Quantidade ({supply.unit})</div>
+            <label className="section-label" htmlFor={`${fieldId}-qty`}>
+              Quantidade ({supply.unit})
+            </label>
             <NumberInput
-              aria-label="Quantidade comprada"
+              id={`${fieldId}-qty`}
               className="field-input"
               min={0}
               value={initialQty}
@@ -81,9 +86,11 @@ export function SupplyLotModal({ supply, onClose, onSave }: SupplyLotModalProps)
           </div>
 
           <div className="field-block">
-            <div className="section-label">Preço por {supply.unit} (R$)</div>
+            <label className="section-label" htmlFor={`${fieldId}-price`}>
+              Preço por {supply.unit} (R$)
+            </label>
             <NumberInput
-              aria-label="Preço por unidade"
+              id={`${fieldId}-price`}
               className="field-input"
               min={0}
               step="0.01"
@@ -98,9 +105,11 @@ export function SupplyLotModal({ supply, onClose, onSave }: SupplyLotModalProps)
           </div>
 
           <div className="field-block">
-            <div className="section-label">Data da compra</div>
+            <label className="section-label" htmlFor={`${fieldId}-date`}>
+              Data da compra
+            </label>
             <input
-              aria-label="Data da compra"
+              id={`${fieldId}-date`}
               className="field-input"
               type="date"
               value={dateStr}
@@ -110,8 +119,11 @@ export function SupplyLotModal({ supply, onClose, onSave }: SupplyLotModalProps)
           </div>
 
           <div className="field-block stock-field-wide">
-            <div className="section-label">Nota</div>
+            <label className="section-label" htmlFor={`${fieldId}-note`}>
+              Nota
+            </label>
             <input
+              id={`${fieldId}-note`}
               className="field-input"
               type="text"
               value={note}
