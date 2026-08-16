@@ -145,14 +145,26 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-inter), system-ui, sans-serif;
+  /* UX-27 — o app inteiro é coluna de número, e `tabular-nums` existia em 3
+     declarações locais. Onde a fonte é mono os dígitos já alinham sozinhos; o
+     que tremia era o resto (KPIs, margens, os `(76%)`), tudo em Inter. Sobe
+     para o `body` porque a exceção seria a prosa, não o número. Inter, Space
+     Grotesk e JetBrains Mono têm o recurso; em fonte que não tenha, é inerte. */
+  font-variant-numeric: tabular-nums;
   transition:
     background 0.2s,
     color 0.2s;
 }
 
+/* BUG-07 — o `textarea` faltava nesta lista, e sem ele o campo caía na
+   monoespaçada padrão do navegador: medido no /orcamento, todo campo em Inter
+   14px e o de observações em `monospace` 14px. Não era escolha, era esquecimento
+   — `.field-input` define `font-size` e nunca `font-family`. Atinge os 2
+   textarea do sistema (orçamento e SaleModal). */
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 

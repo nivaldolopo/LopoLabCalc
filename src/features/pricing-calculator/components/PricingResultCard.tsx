@@ -102,7 +102,12 @@ export function PricingResultCard({
       <div className="result-label">
         Preço sugerido{multiPiece ? " (por peça)" : ""}
       </div>
-      <div className="result-price sg">
+      {/* UX-30: a interação central do app é mexer no dial e o número mudar —
+          e ela não anunciava nada. `role="status"` já é o padrão de região viva
+          do projeto (FeedbackNote). Fica SÓ aqui: a MobilePriceBar espelha o
+          mesmo preço, e uma segunda região viva faria o leitor falar duas
+          vezes. */}
+      <div className="result-price sg" role="status" aria-live="polite">
         {formatCurrency(result.suggestedPrice)}
       </div>
       {isRounded ? (

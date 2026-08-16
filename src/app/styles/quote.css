@@ -184,10 +184,11 @@
   color: var(--ink);
 }
 
+/* UX-27: o `tabular-nums` daqui subiu para o `body` (base.css) e virou regra do
+   app inteiro — esta declaração local passou a ser redundante. */
 .qh-item-calc {
   color: var(--muted);
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 
 .qh-item-sub {
@@ -235,7 +236,6 @@
 
 .qh-date {
   color: var(--muted);
-  font-variant-numeric: tabular-nums;
 }
 
 .qh-side {

@@ -471,9 +471,9 @@
   font-size: var(--text-md);
 }
 
+/* UX-27: o `tabular-nums` daqui subiu para o `body` (base.css) — redundante. */
 .recibo-date {
   color: var(--muted);
-  font-variant-numeric: tabular-nums;
 }
 
 .recibo-customer {
@@ -530,6 +530,16 @@
 
 .recibo-head-totals strong {
   font-size: var(--text-md);
+}
+
+/* BUG-06 — sem este scroller o excedente da tabela morria no `overflow: hidden`
+   do `.recibo-card`: medido a 375×812, cartão de 345px contra tabela de
+   414…471px = 69 a 126px INALCANÇÁVEIS, e é neles que ficam a coluna de lucro e
+   o botão de excluir. Mesmo padrão do `.table-scroll` do catálogo. O
+   `overflow: hidden` do cartão fica — é ele que arredonda o canto. */
+.recibo-items-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .recibo-items {

@@ -93,6 +93,20 @@
   white-space: nowrap;
 }
 
+/* UX-21 (parte do `text-align`) — as colunas de dinheiro do catálogo eram
+   `start`, então `R$ 33,64` e `R$ 617,90` começavam no mesmo x e a VÍRGULA nunca
+   caía no mesmo lugar. A fonte dessas células já é mono: alinhar à direita
+   resolve sozinho, sem grade nova. `.num` é a convenção que `sales.css` e
+   `cesta-recibo.css` já usam — aqui ela só chega ao catálogo.
+   A especificidade (0,2,1) vence o `text-align: left` de `.catalog-card th`
+   (0,1,1) acima, então o rótulo acompanha a coluna.
+   No celular estas células ou somem (`td[data-label]`) ou viram item flex de
+   largura própria (`col-price`) — o alinhamento não muda nada lá. */
+.catalog-card th.num,
+.catalog-card td.num {
+  text-align: right;
+}
+
 .catalog-card td {
   padding: var(--space-12) var(--space-16);
   vertical-align: middle;

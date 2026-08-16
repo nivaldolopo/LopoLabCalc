@@ -34,6 +34,9 @@ export function CapacityPanel({
   // entra no totalCost; sem o fixo, o líquido é apenas "Contribuição".
   const term = result?.fixedIncluded ? "Lucro" : "Contribuição";
   const failurePct = result?.failureRatePct ?? 0;
+  // DEC-06: mesmo saneamento do `calculateCapacity` (piso 1), para o aviso falar
+  // o número que a conta de fato usou, não o que está digitado no campo.
+  const machinesCount = Math.max(1, Number(settings.machines) || 1);
 
   return (
     <div className="capacity-box">
@@ -137,6 +140,22 @@ export function CapacityPanel({
               </span>
             ),
           )}
+        </div>
+      ) : null}
+      {/* DEC-06 (dono, 2026-08-16) — `machines` significa N CÓPIAS IDÊNTICAS do
+          conjunto que o produto usa, e o `× machines` de calculateCapacity é
+          intencional sob essa definição. O que faltava era o app dizer isso: um
+          produto que roda em 2 máquinas com "Máquinas dedicadas: 2" pressupõe
+          QUATRO impressoras, e nada na tela avisava. Só aparece quando as duas
+          condições coexistem — é aí que a premissa deixa de ser óbvia. */}
+      {result && result.machineBreakdown.length > 1 && machinesCount > 1 ? (
+        <div className="capacity-note">
+          Este produto usa <strong>{result.machineBreakdown.length}</strong>{" "}
+          máquinas. “Máquinas dedicadas: {machinesCount}” significa{" "}
+          <strong>{machinesCount} conjuntos completos</strong> ({machinesCount}×
+          cada uma delas ={" "}
+          {machinesCount * result.machineBreakdown.length} impressoras), não{" "}
+          {machinesCount} impressoras no total.
         </div>
       ) : null}
     </div>

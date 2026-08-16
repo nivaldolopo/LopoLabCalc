@@ -100,6 +100,13 @@ describe("calculateCapacity", () => {
     expect(x2d?.piecesMonth).toBe(300); // folga: floor(600/2)=300
   });
 
+  // DEC-06 (dono, 2026-08-16) — este caso é a definição de `machines`, não um
+  // efeito colateral: N CÓPIAS IDÊNTICAS do conjunto que o produto usa. Produto
+  // A1+X2D com `machines: 2` pressupõe 2 A1 e 2 X2D = 4 impressoras, e por isso
+  // 400 ciclos está CERTO. A oficina real tem 2 máquinas, uma de cada — quem
+  // preencher `machines: 2` pensando "tenho 2 impressoras" projeta o dobro. A
+  // saída escolhida foi tornar a premissa VISÍVEL (aviso no CapacityPanel), não
+  // mudar a conta.
   it("o multiplicador de máquinas escala o gargalo", () => {
     const product = makeProductNoFail({
       printHours: 3,

@@ -172,6 +172,8 @@ export function SubitemsSection({
                         {(subitem.markup ?? product.markup).toFixed(1)}x
                       </span>
                     </label>
+                    {/* UX-30: mesmo motivo do dial do produto — sem
+                        `aria-valuetext` o leitor fala "3", não "3,0x". */}
                     <input
                       id={`${rowId}-markup`}
                       max={6}
@@ -179,6 +181,7 @@ export function SubitemsSection({
                       step={0.1}
                       type="range"
                       value={subitem.markup ?? product.markup}
+                      aria-valuetext={`${(subitem.markup ?? product.markup).toFixed(1)}x`}
                       onChange={(event) =>
                         onUpdateSubitem(subitem.id, {
                           markup: Number(event.target.value),

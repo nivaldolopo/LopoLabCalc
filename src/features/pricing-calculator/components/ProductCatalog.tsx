@@ -332,10 +332,15 @@ export function ProductCatalog({
             <thead>
               <tr>
                 <th className="col-name">Produto</th>
-                <th className="col-price">Preço/peça</th>
-                <th>Peças</th>
-                <th>Custo/peça</th>
-                <th>Margem</th>
+                {/* UX-21: `.num` é a convenção que /vendas (sales.css) e o
+                    recibo (cesta-recibo.css) já usavam — alinha a coluna à
+                    direita. A fonte destas células já é mono, então é o
+                    `text-align` sozinho que faz a vírgula parar de dançar
+                    entre `R$ 33,64` e `R$ 617,90`. */}
+                <th className="col-price num">Preço/peça</th>
+                <th className="num">Peças</th>
+                <th className="num">Custo/peça</th>
+                <th className="num">Margem</th>
                 <th>Máquina</th>
                 <th className="col-actions">Ações</th>
               </tr>
@@ -370,20 +375,23 @@ export function ProductCatalog({
                         <span className="arrow-icon">▼</span>
                         {product.name}
                       </td>
-                      <td className="col-price mono price-cell">
+                      <td className="col-price mono price-cell num">
                         {formatCurrency(result.suggestedPrice)}
                         <span className="per-unit-hint">/peça</span>
                       </td>
-                      <td className="mono muted" data-label="Peças/impressão">
+                      <td
+                        className="mono muted num"
+                        data-label="Peças/impressão"
+                      >
                         {result.pieces > 1 ? `${result.pieces}x` : "—"}
                       </td>
-                      <td className="mono" data-label="Custo/peça">
+                      <td className="mono num" data-label="Custo/peça">
                         {formatCurrency(result.totalCost)}
                       </td>
                       {/* UX-10: a margem do `PricingResult` é BRUTA (pré-taxa).
                           Ao lado dela, o piso: o que sobra no pior meio de
                           pagamento configurado. */}
-                      <td className="mono muted" data-label="Margem">
+                      <td className="mono muted num" data-label="Margem">
                         {/* UX-19: a faixa pinta um <span> PRÓPRIO — o `.muted`
                             do td é 0,1,0 e vem depois do base.css na cascata,
                             então a classe no td perderia o empate. */}

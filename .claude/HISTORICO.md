@@ -9,6 +9,57 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Ondas 0 e 1 do backlog — as 2 decisões + os 5 consertos (2026-08-16)
+
+> **Contexto:** primeira execução depois que o backlog ganhou ORDEM. A **onda 0 eram perguntas ao
+> dono** (não código) e a **onda 1** era o lote "quebra, ou é conserto de 1 linha". Saíram juntas,
+> no mesmo dia e no mesmo commit.
+
+### As duas decisões da onda 0
+
+**[DEC-06] — `machines` = N cópias idênticas do conjunto; a conta FICA, o aviso ENTRA.**
+A pergunta era se `× machines` deveria continuar multiplicando sobre produto multi-máquina, já que o
+gargalo (TD-003) **já** credita o paralelismo entre máquinas distintas. As opções eram (a) barato —
+`machines` = cópias idênticas, e (b) caro — `machines` vira a lista de máquinas físicas da oficina.
+**O dono escolheu (a), mas recusou a parte em que o multiplicador "deixaria de funcionar"**: em vez
+de silenciar o campo em produto multi-máquina, o app passa a **dizer o que ele significa**.
+
+O ponto fino: com a definição (a), os **400 ciclos** travados em `calculateCapacity.test.ts:103`
+(A1 3h + X2D 2h, `machines: 2`) estão **certos** — pressupõem 2 A1 e 2 X2D. O problema nunca foi a
+conta, foi ela ser **muda**: a oficina real tem 2 máquinas, uma de cada, e `DEFAULT_FIXED_COSTS.
+machines = 2`, então quem preenche o campo pensando "tenho 2 impressoras" projeta o dobro sem que
+nada na tela avise. A saída escolhida ataca exatamente isso — e **não conserta** o número de quem
+preencheu errado; devolve a informação para o dono decidir o valor certo.
+
+Onde caiu: o aviso reaproveita a condição que o `CapacityPanel` **já** usava para o bloco do
+gargalo (`machineBreakdown.length > 1`), somada a `machines > 1` — só aparece quando as duas
+coexistem, que é quando a premissa deixa de ser óbvia. O `calculateCapacity.ts` e o teste ganharam o
+comentário que registra a intenção; **nenhum número mudou** (386 testes passando, intactos).
+
+**[UX-20] — sub-decisão (c): a cor mora na %; sem % companheira, mora no R$.**
+Em 3 pontos (linha do item em `/vendas`, `ProfitSummary`, cards do `/maquinas`) o valor não tem %
+ao lado. As opções eram (a) passar a exibir a % ali, (b) aceitar o número neutro, (c) manter a cor
+onde não há %. O dono escolheu **(c)**. ⚠ Isso cria uma **exceção deliberada** à regra do UX-20, e
+ela **tem de ficar escrita no código** quando a onda 2 executar — senão o próximo a passar por ali
+"conserta" a exceção e apaga a leitura desses três pontos. **O UX-20 segue aberto na onda 2**; o que
+fechou aqui foi só a pergunta.
+
+### Os 5 consertos da onda 1
+
+| Item | O que era | O que entrou | Prova medida |
+|---|---|---|---|
+| **BUG-06** | `.recibo-card` tem `overflow: hidden` e a tabela é mais larga → o excedente **não rolava, era cortado** | `div.recibo-items-scroll` com `overflow-x: auto` (mesmo padrão do `.table-scroll` do catálogo); o `overflow: hidden` do cartão fica, é ele que arredonda | 375×812: **23/23** recibos com `client 345px` × `scroll 445…471px`. O botão de excluir estava em **x=456** com a borda do cartão em **x=360**; rolando 108px vai pra **x=348** — alcançável |
+| **BUG-07** | o reset cobria `button, input, select` e esquecia `textarea` → observações em `monospace` | uma palavra no `base.css` | `/orcamento`: textarea agora `Inter 16px`, **idêntico** ao input vizinho |
+| **UX-27** | `tabular-nums` em 3 declarações locais, num app inteiro de números | subiu pro `body`; as 3 locais saíram | `getComputedStyle(body).fontVariantNumeric === "tabular-nums"` |
+| **UX-21 (só o `text-align`)** | colunas de dinheiro do catálogo em `start` → a vírgula nunca alinhava | `.num` — a convenção que `sales.css` e `cesta-recibo.css` já usavam — chegou ao catálogo | 1280×900: **um único x** (`485.28`) para `R$ 33,64` e `R$ 617,90`; custo em `684.33/684.34` (0,01px de arredondamento) |
+| **UX-30** | o preço mudava em silêncio | `role="status"` + `aria-live="polite"` no `.result-price` (**só** ali — a `MobilePriceBar` espelha o mesmo número e duplicaria a fala) + `aria-valuetext` nos 2 dials de markup | DOM: `aria-valuetext="3.0x"`, igual ao rótulo visível |
+
+⚠ **Achado NOVO que a verificação levantou e foi PRO BACKLOG (onda 3, dentro do UX-21):** a 1280 a
+coluna de preço do catálogo cabe, mas a **826px de largura útil não** — `R$ 617,90` mede 75,61px numa
+faixa de 73,7px (`1.1fr`), o texto transborda e o `overflow: hidden` do `.main-row td` **corta**.
+É defeito de **grade**, pré-existente: com o alinhamento à esquerda ele cortava igual, só não
+aparecia. Não é regressão do `text-align`.
+
 ## 🔍 Auditoria de UI/UX + cálculo (2026-08-16) — o LEVANTAMENTO
 
 > **O que é:** o *porquê* e a MEDIÇÃO dos **33 achados** da auditoria pedida pelo dono depois do

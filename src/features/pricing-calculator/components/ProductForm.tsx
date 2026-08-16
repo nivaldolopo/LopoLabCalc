@@ -180,6 +180,10 @@ export function ProductForm({
           <span>📈 Markup sobre o custo (sem mão de obra)</span>
           <span className="markup-value">{product.markup.toFixed(1)}x</span>
         </label>
+        {/* UX-30: sem `aria-valuetext` o leitor de tela fala só "3" — o "x" que
+            o olho lê em `.markup-value` não existe para ele. Repete o MESMO
+            texto do rótulo acima; o preço resultante fica por conta da região
+            viva do card de preço. */}
         <input
           id={`${fieldId}-markup`}
           max={6}
@@ -187,6 +191,7 @@ export function ProductForm({
           step={0.1}
           type="range"
           value={product.markup}
+          aria-valuetext={`${product.markup.toFixed(1)}x`}
           onChange={(event) => onChange({ markup: Number(event.target.value) })}
         />
         <div className="markup-labels">

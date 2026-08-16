@@ -6,9 +6,9 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
-> **Tier 0, Tier 1, Tier 4, o 7e e o cluster UI/UX de 2026-08-15 ✅ FECHADOS.** O registro deles
-> (com as medições) foi movido pro `HISTORICO.md` na **faxina de 2026-08-16** — seção
-> "📒 Arquivo do BACKLOG". **Este arquivo só tem o que está ABERTO.**
+> **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15 e as ondas 0–1 ✅ FECHADOS.** O
+> registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e o
+> writeup da onda 1. **Este arquivo só tem o que está ABERTO.**
 
 ## Ordem de prioridade — ondas (dono, 2026-08-16)
 
@@ -26,14 +26,15 @@
 > ⚠ Dentro de cada onda **não há ordem** — são do mesmo tamanho e do mesmo tipo. O que a onda fixa
 > é *quando o bloco entra*, não a sequência interna.
 
+> ✅ **Ondas 0 e 1 FECHADAS em 2026-08-16** (mesmo dia). A 0 eram as duas perguntas — respondidas
+> (ver abaixo); a 1 eram os 5 consertos, feitos e no ar. Writeup: `HISTORICO.md`.
+
 | Onda | Itens | Por que aqui |
 |---|---|---|
-| **0 — perguntas** *(não é código)* | **[DEC-06]** · a **sub-decisão do [UX-20]** (a/b/c) | DEC-06 muda a matemática da capacidade; respondida tarde, tudo que tocar capacidade vira retrabalho. Perguntar **em paralelo** com a Onda 1. |
-| **1 — quebra, ou é conserto de 1 linha** | **[BUG-06]** · **[BUG-07]** · **[UX-27]** · **[UX-30]** · a parte de `text-align` do **[UX-21]** | BUG-06 é **dado inalcançável** no celular (lucro e excluir não existem lá), não cosmético. O resto é ~meio dia pro maior retorno visual do lote. |
-| **2 — o bloco COR** ⏳ *prazo externo* | **[TD-014]** · **[UX-20]** · **[UX-24]** · **[UX-25]** · a parte de cor do **[UX-26]** | Única onda com prazo (a marca). O UX-20 é a **mesma passada** por `.sale-pos`/`.sale-neg` que o TD-014 exige — pega carona de graça. |
+| **▶ 2 — o bloco COR** ⏳ *prazo externo* | **[TD-014]** · **[UX-20]** · **[UX-24]** · **[UX-25]** · a parte de cor do **[UX-26]** | Única onda com prazo (a marca). O UX-20 é a **mesma passada** por `.sale-pos`/`.sale-neg` que o TD-014 exige — pega carona de graça. |
 | **3 — grade e alinhamento** | resto do **[UX-21]** · **[UX-22]** · **[UX-23]** · **[UX-33]** | É literalmente o que o dono viu com os próprios olhos ("textos descentralizados"). |
 | **4 — sistema** | **[TD-015]** (8 modais) · **[UX-29]** · **[UX-31]** · **[UX-28]** · **[UX-32]** | Caro, sem prazo, alto valor estrutural. O TD-015 apaga 8 cópias de `.modal-overlay`. |
-| **5 — matemática e leitura** | **[UX-26]** (as barras) · **[TD-016]** · **[UX-34]** | Depende do **[DEC-06]** já ter sido respondido. |
+| **5 — matemática e leitura** | **[UX-26]** (as barras) · **[TD-016]** · **[UX-34]** | ✅ Destravada — o **[DEC-06]** foi respondido. |
 | **fora da fila** | **[DEC-05]** (lucide) | Fazer **junto do rebrand**, não antes — ver o critério acima. |
 | **⏸ bloqueadas** | **[FEAT-03]** + **[branding/logo real]** (a marca não existe) · **[Dashboard]** (precisa de ~1-2 meses de venda real) | Sempre por último; nenhuma das duas depende de decisão nossa. |
 
@@ -42,7 +43,7 @@
 
 ## Itens abertos
 
-### Cluster da auditoria de 2026-08-16 (UX-20…UX-34 · TD-014…TD-016 · BUG-06/07 · DEC-06)
+### Cluster da auditoria de 2026-08-16 (UX-20…UX-34 · TD-014…TD-016)
 
 > **Origem:** auditoria de UI/UX **+ cálculo** pedida pelo dono logo após o fechamento do cluster
 > UI/UX. Feita com o site **rodando** e dados reais (93 produtos, 47 vendas, 53 produções), em
@@ -54,15 +55,16 @@
 > **O número medido e o porquê de cada um vivem no [`HISTORICO.md`](HISTORICO.md)**, seção
 > "🔍 Auditoria de UI/UX + cálculo (2026-08-16)" — abra lá ao pegar o item.
 >
-> ✅ **A ordem SAIU (dono, 2026-08-16)** — os 21 itens estão distribuídos nas **ondas 0–5** no topo
-> deste arquivo. Ficou perto do que a auditoria sugeriu, com **duas divergências**: o `UX-22` não é
-> conserto de 1 linha (é alinhamento → foi pra **onda 3**, não pra 1), e o `DEC-06` subiu pra
-> **onda 0** por ser pergunta que trava a matemática de quem vier depois.
+> ✅ **A ordem SAIU (dono, 2026-08-16)** — os 21 itens foram distribuídos nas **ondas 0–5**. Ficou
+> perto do que a auditoria sugeriu, com **duas divergências**: o `UX-22` não é conserto de 1 linha
+> (é alinhamento → foi pra **onda 3**, não pra 1), e o `DEC-06` subiu pra **onda 0** por ser
+> pergunta que travava a matemática de quem vier depois.
+>
+> ✅ **Ondas 0 e 1 fechadas no mesmo dia** — restam **15 itens** aqui.
 >
 > ⚠ **Continua valendo que o mérito de cada item é levantamento** — a ordem diz *quando* o bloco
 > entra, não que o desenho da solução já está aprovado. As "Sugestões" escritas em cada item
-> seguem sendo sugestão da auditoria, não martelo. O `DEC-06` é **pergunta, não tarefa**, e o
-> `UX-20` ainda tem uma **sub-decisão aberta** (a/b/c) — as duas são a **onda 0**.
+> seguem sendo sugestão da auditoria, não martelo.
 
 - **▶ [UX-20] A cor do lucro compete com a faixa de margem** *(pedido do dono, 2026-08-16; era o
   achado **C5** da auditoria — o ÚNICO já decidido)*
@@ -93,11 +95,13 @@
   de menos. Isso **falha com receita 0**: a margem não é finita, `marginTier` devolve `null` e o
   prejuízo ficaria **sem cor nenhuma**. → **manter `.sale-neg` só para valor negativo**; o que
   sai é só o `.sale-pos`.
-  ⚠ **Sub-decisão em aberto:** em alguns pontos o valor **não tem % ao lado** (linha do item em
-  `/vendas`, `ProfitSummary`, cards do `/maquinas`). Sem a cor e sem a %, o número fica sem
-  nenhuma leitura de qualidade. Escolher: (a) exibir a % nesses pontos também, (b) aceitar o
-  valor neutro ali, ou (c) manter a cor só onde não há % companheira. **(a) é o mais coerente
-  com a regra; (c) é o mais barato.**
+  ✅ **Sub-decisão FECHADA (dono, 2026-08-16): (c) — manter a cor onde não há % companheira.**
+  Nos 3 pontos em que o valor **não tem % ao lado** (linha do item em `/vendas`, `ProfitSummary`,
+  cards do `/maquinas`) o R$ **continua** verde/vermelho, porque ali não existe % pra carregar o
+  sinal. A regra final do app fica: **a cor mora na %; sem % companheira, ela mora no R$.**
+  ⚠ Isso é uma **exceção deliberada**, não um esquecimento — quem executar tem de deixá-la
+  **escrita no código**, junto da reescrita dos dois comentários acima. Sem isso, o próximo a
+  passar por ali "conserta" a exceção e apaga a leitura desses três pontos.
   **Onde — APLICA (lucro/sobra pareado com margem):** `SalesPage.tsx` (`:555` card KPI, `:687`
   cabeçalho do recibo, `:764` linha do item) · `StockPage.tsx:712` (`fg-margin-val`) ·
   `SaleModal.tsx` (`:1345` lucro do item, `:1484` total) · `MachinesPage.tsx` (`:118` lucro
@@ -111,16 +115,20 @@
 
 #### Alinhamento — o que o dono viu como "textos descentralizados"
 
-- **[UX-21] As listas não têm UMA grade só** *(A1 + A2 + A3)*. Três defeitos com a mesma raiz:
-  no **catálogo**, cabeçalho (`padding 0 20px`, sem borda, conteúdo **906px**) e linhas
-  (`padding 14px 16px` + borda 1px, conteúdo **904px**) são grades independentes → deriva de
-  **1–3px que acumula** até "AÇÕES"; as **colunas de dinheiro** são `text-align: start`, então
-  `R$ 33,64` e `R$ 617,90` começam no mesmo x e a **vírgula nunca alinha** (a fonte já é mono —
-  `text-align: right` resolve sozinho); e em **`/vendas` cada recibo é uma `<table>` própria em
-  layout automático**, então as colunas se dimensionam pelo nome mais longo *daquele* recibo
-  (**8px de deslocamento** medido entre recibos vizinhos). **Onde:** `catalog.css` ·
-  `cesta-recibo.css` · `SalesPage.tsx`. ⚠ A parte do `text-align` é a de **maior retorno visual
-  por linha de CSS** de todo o cluster.
+- **[UX-21 — o que SOBROU] As listas não têm UMA grade só** *(A1 + A3; o A2 foi fechado na onda 1)*.
+  Dois defeitos com a mesma raiz: no **catálogo**, cabeçalho (`padding 0 20px`, sem borda, conteúdo
+  **906px**) e linhas (`padding 14px 16px` + borda 1px, conteúdo **904px**) são grades
+  independentes → deriva de **1–3px que acumula** até "AÇÕES"; e em **`/vendas` cada recibo é uma
+  `<table>` própria em layout automático**, então as colunas se dimensionam pelo nome mais longo
+  *daquele* recibo (**8px de deslocamento** medido entre recibos vizinhos).
+  ✅ A parte do `text-align` **saiu na onda 1** — `.num` chegou ao catálogo e a vírgula alinha
+  (medido a 1280: um único x, `485.28`, entre `R$ 33,64` e `R$ 617,90`).
+  ⚠ **Achado NOVO da verificação da onda 1, e é desta onda:** a 1280 a coluna de preço cabe, mas a
+  **826px de largura útil ela não cabe** — `R$ 617,90` mede **75,61px** numa faixa de **73,7px**
+  (`1.1fr` do `grid-template-columns` do `catalog.css:655`), o texto **transborda e é cortado** pelo
+  `overflow: hidden` do `.main-row td`. É defeito de GRADE, não de alinhamento — existia antes,
+  escondido pelo alinhamento à esquerda. Consertar junto da deriva de 1–3px.
+  **Onde:** `catalog.css` · `cesta-recibo.css` · `SalesPage.tsx`.
 - **[UX-22] No `/orcamento`, os dois cartões nunca compartilham linha de base** *(A4)*. Topo dos
   campos: esquerda `235·297·379`, direita `250·250·332·332` (**Δ15** e **Δ35**). Junto: o campo
   `type="date"` mede **37px** contra 35px do vizinho na mesma linha. **Onde:** `QuotePage.tsx` +
@@ -160,19 +168,9 @@
   `#D2726B` e custo fixo `#C4836B` são **quase a mesma cor** em linhas vizinhas.
   **Sugestão:** normalizar pelo total, ou barra empilhada 100% (devolve as 6 linhas do bloco).
   **Onde:** `CostBars.tsx`.
-- **[UX-27] `tabular-nums` em 3 lugares de um app inteiro de números** *(C4)*. Onde o valor é
-  mono os dígitos já alinham; onde não é (cartões de KPI, margens, os `(76%)`) a coluna treme.
-  **Correção trivial.**
 
 #### Celular
 
-- **[BUG-06] Em `/vendas`, parte de cada recibo é CORTADA e não dá pra alcançar** *(D1)*.
-  `.recibo-card` tem `overflow: hidden`, mas a tabela de itens é mais larga que o cartão — então
-  o excedente **não rola, é cortado**. Medido a 375×812 em **todos** os recibos: `clientWidth
-  345px` × `scrollWidth 414…471px` = **69 a 126px cortados**. **A coluna de lucro e o botão de
-  excluir não existem no telefone.** ⚠ **O [TD-013] encostou nisso e leu ao contrário** — ele
-  registrou "453px (108px)" como ganho; os 108px são **exatamente o pedaço cortado**.
-  **Onde:** `cesta-recibo.css`.
 - **[UX-28] Os links de ação inline têm 15px de altura** *(D2)*. O UX-15 subiu os alvos do
   catálogo p/ 32px e deixou os `.link-button` de fora: "Gerenciar" `79×15`, "detalhar refugo"
   `286×15`. **Sugestão:** padding vertical até 32px **sem** mudar o tamanho do texto (o alvo
@@ -200,19 +198,9 @@
   correto nas 8 rotas), nem link para pular ao conteúdo. **Sugestão:** a marca vira `<div>`, o
   `<h1>` nomeia a página, e os títulos de seção que **já existem visualmente** viram `<h2>` —
   **sem mudar um pixel**, porque o estilo já vem de classe.
-- **[UX-30] O preço muda em silêncio** *(F4)*. A interação central do app (mexer no dial e ver o
-  número) não anuncia nada. O `FeedbackNote` **já estabeleceu** `role="status"` no projeto.
-  **Sugestão:** `aria-live="polite"` no `.result-price` + `aria-valuetext` no `<input
-  type="range">` (senão o valor falado é "54", não "R$ 27,14"). **Correção trivial.**
 
 #### Formulários e controles
 
-- **[BUG-07] Os campos de observação estão em monoespaçada por acidente** *(G1)*. `textarea`
-  **não é estilizado em nenhum arquivo do app**: o reset do `base.css` cobre `button, input,
-  select` e esquece dele, e o `.field-input` define `font-size` mas **não** `font-family`.
-  Medido em `/orcamento`: todos os campos em **Inter 14px**, o de observações em **`monospace`
-  14px**. Atinge os 2 textarea do sistema (orçamento e `SaleModal`). **Conserto de UMA palavra**
-  no `base.css`.
 - **[UX-31] O foco de teclado não é um sistema** *(G3)*. Nos 16 CSS: `:focus-visible` **2×**
   (`.back-to-top`, `.brand-reset`) · `:focus` 6× (campos, **todos** com `outline: none`) ·
   **botões: nenhum** → ficam com o anel padrão do navegador, fora da identidade. Os dois que têm
@@ -240,15 +228,12 @@
 
 #### Matemática
 
-- **▶ [DEC-06] O que `machines` significa na capacidade?** *(I1 — **decisão, não tarefa**)*.
-  O modelo do gargalo (TD-003) **já** credita o paralelismo entre máquinas distintas; depois
-  disso `× machines` multiplica **de novo**, o que só vale com N cópias do conjunto inteiro.
-  **Travado em teste** (`calculateCapacity.test.ts:103`): produto A1 3h + X2D 2h com
-  `machines: 2` → **400 ciclos**, o que exigiria **2 A1 e 2 X2D = 4 máquinas**. A oficina tem
-  **2, uma de cada**, e `DEFAULT_FIXED_COSTS.machines = 2` → **todo produto que roda nas duas
-  projeta o dobro**. **As duas saídas:** (a) `machines` = "cópias idênticas em paralelo" → não
-  se aplica a produto multi-máquina (**barato**); (b) `machines` = "máquinas da oficina" → o
-  gargalo passa a ser por máquina **física** e o campo vira lista (**descreve a oficina real**).
+> ✅ **[DEC-06] respondido (dono, 2026-08-16) — saída (a) com aviso.** `machines` = **N cópias
+> idênticas do conjunto que o produto usa**; a matemática **não muda** e o `× machines` sobre
+> produto multi-máquina é intencional. O que entrou foi o **aviso** no `CapacityPanel` quando o
+> produto usa >1 máquina e `machines > 1`. ⚠ Isso **não corrige** quem preencheu `machines: 2`
+> pensando "tenho 2 impressoras" — torna a premissa visível. Detalhe: `HISTORICO.md`.
+
 - **[TD-016] O ritmo de lucro do ROI é média de vida inteira** *(I2)*.
   `profitPerMonth = lucro ÷ (agora − 1ª venda)`: um mês forte seguido de período parado faz a
   média **decair sozinha** e a projeção de payback afastar a data mesmo com ritmo recente bom.

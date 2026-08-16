@@ -14,29 +14,25 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **o backlog ganhou ORDEM e passou por faxina (2026-08-16)** — **zero código
-  alterado**. Os 21 itens abertos viraram **ondas 0–5** e o `BACKLOG.md` caiu de **671 → 273
-  linhas** (o registro dos itens fechados foi pro `HISTORICO.md`, seção "📒 Arquivo do BACKLOG").
-  Antes disso, a **auditoria** (também sem código) e o **✅ CLUSTER UI/UX FECHADO** no passo ⑦
-  (UX-17b: os 16 CSS consumindo tokens — 875 declarações, fonte 23→9, raio 15→8, medido no DOM).
-  Writeups: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ ONDAS 0 e 1 FECHADAS (2026-08-16)** — as 2 decisões do dono + os 5
+  consertos, num commit. **BUG-06** (recibo cortado no celular, 23/23) · **BUG-07** (`textarea`
+  fora do reset) · **UX-27** (`tabular-nums` no `body`) · **UX-21 parcial** (`.num` no catálogo) ·
+  **UX-30** (`aria-live` + `aria-valuetext`) · **aviso do [DEC-06]**. Verificado no DOM a 1280×900
+  e 375×812; **386 testes intactos**. Writeup: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ PRÓXIMA TAREFA — a onda 0 do [`BACKLOG.md`](.claude/BACKLOG.md): duas PERGUNTAS ao dono**,
-  não código. **[DEC-06]** o que `machines` significa na capacidade (hoje todo produto
-  multi-máquina **projeta o dobro**) · a **sub-decisão do [UX-20]** (a/b/c: onde não há % ao lado
-  do R$, exibe a %, aceita o valor neutro, ou mantém a cor?). Respondidas, a **onda 1** (BUG-06 ·
-  BUG-07 · UX-27 · UX-30 · o `text-align` do UX-21) é ~meio dia e já pode sair.
-- **Ordem do backlog decidida (dono, 2026-08-16): ondas 0–5** — os 21 itens abertos vieram da
-  auditoria (33 achados → 21 itens: `UX-20…UX-34` · `TD-014…TD-016` · `BUG-06/07` · `DEC-06`).
-  **O critério foi PRAZO EXTERNO, e ele corta pros dois lados:** **[TD-014]** (tokenizar cor)
-  feito **antes** da marca **economiza** — o rebrand vira troca de paleta → **onda 2**; já o
-  **[DEC-05]** (lucide) feito antes **custa** retrabalho → **fora da fila, vai junto do rebrand**.
-  ⚠ A ordem diz *quando* o bloco entra — o **desenho** de cada item segue sendo sugestão da
-  auditoria, sem martelo. Medições e porquês: `HISTORICO.md` / `BACKLOG.md`.
+- **▶ PRÓXIMA TAREFA — a onda 2 do [`BACKLOG.md`](.claude/BACKLOG.md): o bloco COR** (`TD-014` ·
+  `UX-20` · `UX-24` · `UX-25` · parte do `UX-26`). **Única onda com prazo externo** (a marca):
+  tokenizar a cor **antes** dela transforma o rebrand em troca de paleta. O `UX-20` pega carona (é
+  a mesma passada por `.sale-pos`/`.sale-neg`) e sua sub-decisão **já está fechada** — (c): sem %
+  companheira a cor fica no R$, exceção que tem de ficar **escrita no código**.
+- **Ordem do backlog (dono, 2026-08-16): ondas 0–5**, com **0 e 1 fechadas** — restam 15 itens.
+  **Critério = PRAZO EXTERNO, cortando pros dois lados:** `TD-014` antes da marca **economiza** →
+  onda 2; `DEC-05` (lucide) antes **custa** → fora da fila, junto do rebrand. ⚠ A ordem diz
+  *quando* o bloco entra, não que o **desenho** já está aprovado. Porquês: `HISTORICO.md`.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do `/maquinas`
@@ -144,6 +140,8 @@ src/
 - **CSS novo escreve TOKEN, não px** (UX-17a/b): a escala de espaço/raio/tipografia vive em `:root` no
   `base.css` e os 16 arquivos já a consomem. Valor cru só para o que **não é escala** (largura de
   grade, espessura de borda, margem negativa de ajuste, reserva de espaço).
+- **Coluna de número usa `.num`** (alinha à direita) — `sales.css`, `cesta-recibo.css` e, desde o
+  UX-21, `catalog.css`. `tabular-nums` é global (`body`, UX-27): não redeclarar por componente.
 - `src/lib/firebase/client.ts` — init + `db`; lê `NEXT_PUBLIC_FIREBASE_*` com fallback embutido nos
   valores reais (hoje as vars da Vercel são ignoradas).
 - **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar

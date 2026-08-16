@@ -708,6 +708,14 @@ export function SalesPage() {
                 </div>
               </div>
 
+              {/* BUG-06: o `.recibo-card` tem `overflow: hidden` (é ele que
+                  arredonda o cartão) e a tabela é mais larga que ele no
+                  celular — o excedente não rolava, era CORTADO. Medido a
+                  375×812: 345px de cartão contra 414…471px de tabela, e é
+                  justamente ali que ficam a coluna de lucro e o botão de
+                  excluir. Este scroller devolve o acesso; o `overflow: hidden`
+                  do cartão fica. */}
+              <div className="recibo-items-scroll">
               <table className="recibo-items">
                 <tbody>
                   {recibo.items.map((sale) => {
@@ -861,6 +869,7 @@ export function SalesPage() {
                   })}
                 </tbody>
               </table>
+              </div>
 
               {recibo.items.some((item) => item.notes) ? (
                 <div className="recibo-notes">

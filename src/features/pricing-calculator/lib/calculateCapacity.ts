@@ -18,6 +18,12 @@ export function calculateCapacity(
   const totalPrintHours = product.printHours + extraHours;
   const hoursDay = Number(settings.hoursDay) || 0;
   const daysMonth = Number(settings.daysMonth) || 0;
+  // DEC-06 (dono, 2026-08-16) — `machines` = N CÓPIAS IDÊNTICAS do conjunto de
+  // máquinas que o produto usa. O TD-003 abaixo já credita o paralelismo entre
+  // máquinas DIFERENTES; este fator multiplica conjuntos inteiros, então num
+  // produto A1+X2D o `machines: 2` pressupõe 2 A1 e 2 X2D (quatro impressoras).
+  // A conta fica; o que faltava era dizer isso — o `CapacityPanel` avisa quando
+  // as duas condições coexistem.
   const machines = Math.max(1, Number(settings.machines) || 1);
 
   if (totalPrintHours <= 0 || hoursDay <= 0 || daysMonth <= 0) return null;
