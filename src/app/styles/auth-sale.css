@@ -6,7 +6,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 /* Tela de login / barreira de acesso */
@@ -15,7 +15,7 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  padding: 24px;
+  padding: var(--space-24);
 }
 
 .auth-box {
@@ -24,8 +24,8 @@
   text-align: center;
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 32px 28px;
+  border-radius: var(--radius-2xl);
+  padding: var(--space-32) var(--space-24);
 }
 
 .auth-logo {
@@ -34,14 +34,14 @@
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--accent);
   color: white;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-12);
 }
 
 .auth-brand {
-  font-size: 20px;
+  font-size: var(--display-sm);
   font-weight: 700;
   color: var(--ink);
 }
@@ -51,17 +51,17 @@
 }
 
 .auth-title {
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 700;
   color: var(--ink);
-  margin: 18px 0 8px;
+  margin: var(--space-16) 0 var(--space-8);
 }
 
 .auth-sub {
-  font-size: 14px;
+  font-size: var(--text-lg);
   color: var(--muted);
   line-height: 1.5;
-  margin: 0 0 20px;
+  margin: 0 0 var(--space-20);
 }
 
 .auth-btn {
@@ -69,8 +69,8 @@
 }
 
 .auth-error {
-  margin-top: 14px;
-  font-size: 13px;
+  margin-top: var(--space-14);
+  font-size: var(--text-md);
   color: #e05252;
   word-break: break-word;
 }
@@ -80,7 +80,7 @@
 
 .cd-register-sale {
   width: 100%;
-  margin-top: 14px;
+  margin-top: var(--space-14);
 }
 
 .sale-neg {
@@ -92,41 +92,41 @@
 }
 
 .sale-price-hint {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
-  margin-top: 4px;
+  margin-top: var(--space-4);
 }
 
 .sale-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-  gap: 10px;
-  margin-top: 16px;
-  padding: 12px;
+  gap: var(--space-10);
+  margin-top: var(--space-16);
+  padding: var(--space-12);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--details-bg);
 }
 
 .sale-summary-item {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-2);
 }
 
 .sale-summary-item span {
-  font-size: 11px;
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.3px;
   color: var(--muted2);
 }
 
 .sale-summary-item strong {
-  font-size: 15px;
+  font-size: var(--text-lg);
 }
 
 .sale-summary-margin {
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 500;
   color: var(--muted);
 }

@@ -3,33 +3,33 @@
 .quote-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: var(--space-16);
+  margin-bottom: var(--space-16);
 }
 
 .quote-card > .section-label,
 .quote-items-card > .section-label {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-12);
 }
 
 .quote-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 .quote-item {
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-12);
   background: var(--details-bg);
 }
 
 .quote-item-head {
   display: flex;
-  gap: 8px;
+  gap: var(--space-8);
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-8);
 }
 
 .quote-item-head .field-input {
@@ -39,7 +39,7 @@
 .quote-item-grid {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .quote-item-grid .field-block {
@@ -47,10 +47,10 @@
 }
 
 .quote-subtotal {
-  padding: 8px 10px;
+  padding: var(--space-8) var(--space-10);
   border: 1.5px solid transparent;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-lg);
   font-weight: 600;
   color: var(--ink);
   background: var(--field-bg);
@@ -58,10 +58,10 @@
 
 .quote-add {
   display: flex;
-  gap: 10px;
+  gap: var(--space-10);
   align-items: center;
   flex-wrap: wrap;
-  margin: 14px 0 4px;
+  margin: var(--space-14) 0 var(--space-4);
 }
 
 .quote-add-catalog {
@@ -71,59 +71,59 @@
 }
 
 .quote-notes {
-  margin-top: 16px;
+  margin-top: var(--space-16);
 }
 
 .quote-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-16);
   flex-wrap: wrap;
-  margin-top: 18px;
-  padding-top: 16px;
+  margin-top: var(--space-16);
+  padding-top: var(--space-16);
   border-top: 1px solid var(--border);
 }
 
 .quote-total {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
 }
 
 .quote-total span {
-  font-size: 11px;
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: var(--muted2);
 }
 
 .quote-total strong {
-  font-size: 24px;
+  font-size: var(--display-sm);
 }
 
 .quote-generate {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
   width: auto;
-  padding: 12px 22px;
+  padding: var(--space-12) var(--space-20);
 }
 
 .quote-history {
-  margin-top: 16px;
+  margin-top: var(--space-16);
 }
 
 .quote-history-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
 }
 
 .quote-history-row {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--details-bg);
   overflow: hidden;
 }
@@ -132,9 +132,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
   flex-wrap: wrap;
-  padding: 10px 12px;
+  padding: var(--space-10) var(--space-12);
   cursor: pointer;
 }
 
@@ -145,35 +145,35 @@
 .qh-main {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: var(--text-md);
 }
 
 .qh-arrow {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--muted2);
 }
 
 .qh-details {
-  padding: 4px 12px 12px;
+  padding: var(--space-4) var(--space-12) var(--space-12);
   border-top: 1px solid var(--border-soft);
 }
 
 .qh-items {
   display: flex;
   flex-direction: column;
-  margin-top: 8px;
+  margin-top: var(--space-8);
 }
 
 .qh-item {
   display: grid;
   grid-template-columns: 1fr auto minmax(72px, auto);
-  gap: 10px;
+  gap: var(--space-10);
   align-items: baseline;
-  padding: 7px 8px;
+  padding: var(--space-6) var(--space-8);
   border-bottom: 1px solid var(--border-soft);
-  font-size: 13px;
+  font-size: var(--text-md);
 }
 
 .qh-item:last-child {
@@ -201,25 +201,25 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 12px;
-  margin-top: 8px;
-  padding-top: 8px;
+  gap: var(--space-12);
+  margin-top: var(--space-8);
+  padding-top: var(--space-8);
   border-top: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--muted);
 }
 
 .qh-total-row strong {
-  font-size: 15px;
+  font-size: var(--text-lg);
   color: var(--ink);
 }
 
 .qh-extra {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin-top: 10px;
-  font-size: 12px;
+  gap: var(--space-2);
+  margin-top: var(--space-10);
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
@@ -241,7 +241,7 @@
 .qh-side {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 .qh-total {
@@ -268,7 +268,7 @@
      "qtd × unit" + subtotal na 2ª — nada de rolagem horizontal. */
   .qh-item {
     grid-template-columns: 1fr auto;
-    gap: 2px 10px;
+    gap: var(--space-2) var(--space-10);
   }
 
   .qh-item-desc {

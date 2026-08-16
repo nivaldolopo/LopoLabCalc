@@ -8,12 +8,12 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin: 0 0 18px;
+  gap: var(--space-16);
+  margin: 0 0 var(--space-16);
 }
 
 .stock-intro {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1.5;
   margin: 0;
@@ -28,7 +28,7 @@
 
 /* UX-05: barra da busca acima da lista de cards. */
 .stock-search {
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-16);
 }
 
 .stock-search .search-box {
@@ -39,17 +39,17 @@
 .stock-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
+  gap: var(--space-16);
   align-items: start;
 }
 
 .stock-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px 18px;
+  gap: var(--space-12);
+  padding: var(--space-16) var(--space-16);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--card-bg);
 }
 
@@ -60,7 +60,7 @@
 .stock-head {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 .stock-dot {
@@ -69,25 +69,25 @@
   border-radius: 50%;
   border: 1px solid var(--border);
   flex: 0 0 auto;
-  margin-top: 3px;
+  margin-top: var(--space-2);
 }
 
 .stock-title {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
   flex: 1;
   min-width: 0;
 }
 
 .stock-title strong {
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 700;
   line-height: 1.3;
 }
 
 .stock-sub {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted2);
 }
 
@@ -95,19 +95,19 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: var(--space-4);
   text-align: right;
 }
 
 .stock-balance strong {
-  font-size: 16px;
+  font-size: var(--text-xl);
 }
 
 .stock-badge {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 20px;
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-2xl);
   white-space: nowrap;
 }
 
@@ -118,11 +118,11 @@
 }
 
 .stock-current {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1.45;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: var(--space-8) var(--space-10);
+  border-radius: var(--radius-md);
   background: var(--markup-row-bg);
 }
 
@@ -130,62 +130,57 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 .btn-sm {
-  padding: 6px 10px;
-  font-size: 12px;
-  border-radius: 8px;
+  padding: var(--space-6) var(--space-10);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-md);
   font-weight: 600;
 }
 
-/* UX-15: o `.btn.danger` que morava aqui foi pro `forms.css` (dono do `.btn`).
-   ⚠ O `.btn:disabled` abaixo tem o MESMO defeito de escopo — regra global no
-   CSS de uma página —, mas tem consumidores em todo o app; a mudança fica
-   anotada no BACKLOG para o UX-17b, junto da varredura dos 16 arquivos. */
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+/* UX-17b: o `.btn:disabled` que fechava esta dupla foi pro `forms.css`, junto
+   do `.btn.danger` que o UX-15 já tinha mudado de lugar. Nenhuma regra global
+   de `.btn` mora mais neste arquivo. */
 
 .stock-expand {
   margin-left: auto;
-  gap: 4px;
+  gap: var(--space-4);
 }
 
 .stock-blocked {
-  font-size: 11.5px;
+  font-size: var(--text-xs);
   color: var(--muted);
   line-height: 1.45;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: var(--space-8) var(--space-10);
+  border-radius: var(--radius-md);
   border: 1px dashed var(--border);
 }
 
 .stock-detail {
   border-top: 1px solid var(--border);
-  padding-top: 12px;
+  padding-top: var(--space-12);
 }
 
 .stock-statement-label {
-  margin-top: 14px;
+  margin-top: var(--space-14);
 }
 
 .stock-empty-line {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted2);
-  padding: 6px 0;
+  padding: var(--space-6) 0;
 }
 
 .stock-roll,
 .stock-entry {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  padding: 6px 0;
+  gap: var(--space-8);
+  padding: var(--space-6) 0;
   border-bottom: 1px solid var(--border-soft);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .stock-roll:last-child,
@@ -198,19 +193,19 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-4);
 }
 
 .stock-tag {
   font-style: normal;
-  font-size: 9.5px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
   color: var(--accent);
   border: 1px solid var(--accent);
-  border-radius: 20px;
-  padding: 1px 5px;
+  border-radius: var(--radius-2xl);
+  padding: var(--space-2) var(--space-4);
 }
 
 .stock-roll-info,
@@ -224,7 +219,7 @@
 .stock-entry-sub {
   display: block;
   font-style: normal;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted2);
 }
 
@@ -237,38 +232,38 @@
 .stock-entry-date {
   flex: 0 0 auto;
   color: var(--muted2);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 .stock-spent,
 .stock-archived-box {
-  margin-top: 8px;
+  margin-top: var(--space-8);
 }
 
 .stock-spent > summary,
 .stock-archived-box > summary {
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--muted);
-  padding: 6px 0;
+  padding: var(--space-6) 0;
 }
 
 .stock-archived-box {
-  margin-top: 22px;
+  margin-top: var(--space-20);
   border-top: 1px solid var(--border);
-  padding-top: 10px;
+  padding-top: var(--space-10);
 }
 
 .stock-archived-box > summary {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-12);
 }
 
 .stock-note {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted2);
   line-height: 1.45;
-  margin: 12px 0 0;
+  margin: var(--space-12) 0 0;
 }
 
 /* Modais (nova cor / rolo / ajuste) */
@@ -276,7 +271,7 @@
 .stock-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: var(--space-14);
 }
 
 .stock-form-grid .field-block {
@@ -284,7 +279,7 @@
 }
 
 .stock-form-grid .section-label {
-  margin-bottom: 6px;
+  margin-bottom: var(--space-6);
 }
 
 .stock-field-wide {
@@ -294,30 +289,30 @@
 .stock-material-new {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .stock-hex-input {
   width: 100%;
   height: 37px;
-  padding: 2px;
+  padding: var(--space-2);
   border: 1.5px solid var(--field-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--field-bg);
   cursor: pointer;
 }
 
 .field-hint {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted2);
-  margin-top: 4px;
+  margin-top: var(--space-4);
 }
 
 .stock-delta {
-  margin-top: 14px;
-  font-size: 12.5px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  margin-top: var(--space-14);
+  font-size: var(--text-md);
+  padding: var(--space-8) var(--space-10);
+  border-radius: var(--radius-md);
   background: var(--markup-row-bg);
 }
 
@@ -333,36 +328,44 @@
   color: var(--muted);
 }
 
-/* Abas Insumos / Produtos (FEAT-05c) */
+/* Abas Filamentos / Insumos / Produtos (FEAT-05c).
+   UX-17b — o app tinha DOIS paradigmas de aba: chip arredondado na NavBar e
+   sublinhado aqui. Unificados no chip (decisão do dono): a NavBar aparece em
+   toda página, então é ela que define a linguagem de "escolher 1 de N". O
+   corpo abaixo é o mesmo do `.icon-label-button` (forms.css) — mas escrito
+   aqui, e não pendurado naquela classe, porque estes são <button role="tab">
+   e não destinos de navegação: compartilham a APARÊNCIA, não a semântica. */
 .stock-tabs {
   display: flex;
-  gap: 6px;
-  margin: 0 0 18px;
-  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin: 0 0 var(--space-16);
 }
 
 .stock-tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 9px 16px;
-  border: none;
-  background: none;
-  color: var(--muted);
-  font-size: 13px;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-12);
+  border: 1.5px solid var(--field-border);
+  border-radius: var(--radius-md);
+  background: var(--field-bg);
+  color: var(--ink);
+  font-size: var(--text-md);
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  transition: all 0.15s;
 }
 
 .stock-tab:hover {
-  color: var(--ink);
+  border-color: var(--muted);
 }
 
 .stock-tab.active {
+  border-color: var(--accent);
   color: var(--accent);
-  border-bottom-color: var(--accent);
+  background: var(--chip-active-bg);
 }
 
 /* Cards do Estoque de Produtos (acabados) */
@@ -373,19 +376,19 @@
   width: 30px;
   height: 30px;
   flex: 0 0 auto;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--chip-active-bg);
   color: var(--accent);
 }
 
 .fg-warn {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--muted);
   background: var(--chip-active-bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  padding: var(--space-8) var(--space-10);
 }
 
 .fg-warn.neg {
@@ -405,16 +408,16 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto minmax(76px, auto);
   align-items: center;
-  gap: 14px;
-  font-size: 13px;
-  padding: 9px 0;
+  gap: var(--space-14);
+  font-size: var(--text-md);
+  padding: var(--space-8) 0;
   border-top: 1px solid var(--border-soft);
 }
 
 .fg-part-main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -425,7 +428,7 @@
 }
 
 .fg-part-note {
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--accent);
 }
@@ -433,14 +436,14 @@
 /* FEAT-11: de que cores é o saldo desta peça ("2 Azul · 1 Preto"). Discreto: o
    número que importa é o total da peça — a cor é o detalhe de dentro. */
 .fg-part-colors {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
   overflow-wrap: anywhere;
 }
 
 .fg-part-bal {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   white-space: nowrap;
   text-align: right;
 }
@@ -451,7 +454,7 @@
 
 /* Custo congelado médio da SKU, ao lado do saldo. */
 .fg-part-cost {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted2);
   white-space: nowrap;
   text-align: right;
@@ -462,7 +465,7 @@
 .fg-part-action {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 /* Paleta dos 6 componentes. Vive aqui (e não na base) porque só a composição de
@@ -475,7 +478,7 @@
   --c-energy: #d9a021;
   --c-depreciation: #6b7a99;
   --c-maintenance: #a8617a;
-  margin-top: 10px;
+  margin-top: var(--space-10);
 }
 
 [data-theme="dark"] .fg-comp {
@@ -489,7 +492,7 @@
 .fg-comp-bar {
   display: flex;
   height: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   background: var(--border-soft);
 }
@@ -528,23 +531,23 @@
 .fg-comp-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
-  margin-top: 6px;
-  font-size: 11px;
+  gap: var(--space-4) var(--space-12);
+  margin-top: var(--space-6);
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
 .fg-comp-item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
   white-space: nowrap;
 }
 
 .fg-comp-dot {
   width: 7px;
   height: 7px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   flex: 0 0 auto;
 }
 
@@ -554,18 +557,18 @@
   align-items: baseline;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 4px 10px;
-  margin-top: 10px;
-  padding-top: 8px;
+  gap: var(--space-4) var(--space-10);
+  margin-top: var(--space-10);
+  padding-top: var(--space-8);
   border-top: 1px solid var(--border-soft);
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
 .fg-margin-val {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-6);
   color: var(--green);
 }
 
@@ -574,12 +577,12 @@
 }
 
 .fg-margin-val strong {
-  font-size: 14px;
+  font-size: var(--text-lg);
 }
 
 .fg-margin-val em {
   font-style: normal;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted2);
 }
 
@@ -589,7 +592,7 @@
 .fg-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 /* No modo linha o card não tem o gap interno da grade — o head e o detalhe já
@@ -605,7 +608,7 @@
 
 .fg-head {
   align-items: center;
-  padding: 14px 18px;
+  padding: var(--space-14) var(--space-16);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -616,7 +619,7 @@
 
 /* A seta (global do catálogo) alinhada ao topo do título multi-linha. */
 .fg-head .arrow-icon {
-  margin-top: 2px;
+  margin-top: var(--space-2);
   flex: 0 0 auto;
 }
 
@@ -632,8 +635,8 @@
 .fg-details {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 4px 18px 16px;
+  gap: var(--space-12);
+  padding: var(--space-4) var(--space-16) var(--space-16);
   border-top: 1px solid var(--border-soft);
 }
 
@@ -645,12 +648,12 @@
 .fg-sell-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
   flex-wrap: wrap;
 }
 
 .fg-sell-hint {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted2);
 }
 
@@ -658,12 +661,12 @@
    pra vencer o `.btn.primary` (0,2,0) global, que tem `flex:1`. */
 .fg-details .btn.fg-sell-btn {
   flex: 0 0 auto;
-  padding: 8px 14px;
+  padding: var(--space-8) var(--space-14);
 }
 
 /* Na coluna de ação da peça o botão é bem miúdo. */
 .fg-part .btn.fg-sell-btn {
-  padding: 4px 10px;
+  padding: var(--space-4) var(--space-10);
 }
 
 .inline-link {

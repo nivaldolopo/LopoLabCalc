@@ -2,24 +2,34 @@
    UX-17a — TOKENS de escala (espaço / raio / tipografia).
    Bloco SEPARADO das cores de propósito: estes NÃO mudam com o tema.
 
-   Aqui eles são apenas DECLARADOS — nenhum CSS os consome ainda, então este
-   commit não muda um pixel. A conversão dos 16 arquivos de `styles/` é o
-   UX-17b (último passo do cluster), feita depois que os passos ②–⑥ escreverem
-   o CSS novo — que já nasce usando token.
-
    A escala foi extraída do inventário REAL do CSS (medido em 2026-08-15), não
    inventada: manter DENSO e só uniformizar é decisão do dono. Por isso os
-   valores dominantes (font 11/12/13, espaço 8/10/12, raio 8/10/12) estão todos
-   preservados — converter não deve mexer no visual.
+   valores dominantes (font 11/12/13, espaço 8/10/12, raio 8/10/12) foram todos
+   preservados. Os nomes de `--space-*` são o próprio valor em px de propósito:
+   a conversão fica mecânica (12px → var(--space-12)) e qualquer valor fora do
+   inventário salta aos olhos na revisão.
 
-   Os ÓRFÃOS de fora da escala não ganharam token e morrem no UX-17b, colapsando
-   para o vizinho mais próximo:
+   ⚠ CORREÇÃO (UX-17b, 2026-08-16). O texto original prometia aqui que
+   "converter não deve mexer no visual". Isso se provou FALSO e a promessa foi
+   retirada: a conversão trocou 875 declarações nos 16 arquivos e, dessas, 96
+   eram ÓRFÃOS — valores fora da escala que não têm token e colapsaram para o
+   vizinho, mexendo de 1 a 2px cada. Não dá para ter as duas coisas (escala
+   curta E zero pixel); o dono escolheu a escala curta. As 779 restantes são
+   troca literal e essas, sim, não mudam nada.
+
+   Órfãos que morreram no UX-17b (todos colapsados para o vizinho):
      • font-size: 9.5 · 11.5 · 12.5 · 15 · 17 · 18 · 21 · 22 · 24 · 28 · 30
+       (+ `0.78rem`, único valor em rem do app, que era 12.5px disfarçado)
      • border-radius: 2 · 5 · 7 · 9 · 14 · 20
-     • espaço: 1 · 3 · 5 · 7 · 9 · 18 · 22 · 28
-   Os nomes de `--space-*` são o próprio valor em px de propósito: a conversão
-   do UX-17b vira mecânica (12px → var(--space-12)) e qualquer valor fora do
-   inventário fica óbvio na revisão.
+     • espaço: 1 · 3 · 5 · 7 · 9 · 18 · 19 · 22 · 26 · 28
+   Única exceção que SOBE em vez de descer: o `15px` de `.field-input`/`.btn` no
+   celular virou 16px, porque abaixo disso o iOS dá zoom ao focar o campo
+   (ver responsive.css).
+
+   O que de propósito NÃO virou token: margem negativa de ajuste fino
+   (`-1/-2/-6/-12px`), reserva de espaço (o `60px` do rodapé do `.wrap`, o
+   `52px` que segura o botão ☰) e tudo que não é escala — largura de grade,
+   espessura de borda, `top/right/bottom` de posicionamento.
 --------------------------------------------------------------------------- */
 :root {
   /* Espaço — padding, margin e gap. 12 níveis; cobre 100% do uso atual. */
@@ -161,7 +171,7 @@ button {
 .wrap {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 28px 20px 60px;
+  padding: var(--space-24) var(--space-20) 60px;
 }
 
 /* UX-13b — requisito explícito do dono: a barra fixa NÃO pode cobrir nada. A
@@ -179,11 +189,11 @@ button {
 .search-box {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   min-width: 200px;
-  padding: 0 10px;
+  padding: 0 var(--space-10);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--card-bg);
   color: var(--ink);
 }
@@ -204,7 +214,7 @@ button {
   outline: 0;
   background: transparent;
   color: inherit;
-  padding: 8px 0;
+  padding: var(--space-8) 0;
 }
 
 /* Some o "x" nativo do type=search — o botão de limpar é o nosso. */
@@ -289,7 +299,9 @@ button {
 
 .search-box-count {
   flex-shrink: 0;
-  font-size: 0.78rem;
+  /* UX-17b: era `0.78rem` — o único valor em rem do app inteiro, e que dava
+     12.48px, ou seja o órfão `12.5px` disfarçado. */
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -298,9 +310,9 @@ button {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  padding: 2px;
+  padding: var(--space-2);
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -317,7 +329,7 @@ button {
    `display: block` força a linha própria nas duas que não são flex-column. */
 .margin-net-hint {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted2);
   cursor: help;
 }

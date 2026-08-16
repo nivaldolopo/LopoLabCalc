@@ -2,21 +2,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
+  gap: var(--space-12);
+  margin-bottom: var(--space-6);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
   min-width: 0;
 }
 
 .logo {
   width: 36px;
   height: 36px;
-  border-radius: 9px;
+  border-radius: var(--radius-lg);
   background: var(--ink);
   color: var(--accent);
   display: flex;
@@ -26,7 +26,7 @@
 }
 
 h1 {
-  font-size: 22px;
+  font-size: var(--display-sm);
   font-weight: 700;
   margin: 0;
   line-height: 1;
@@ -46,7 +46,7 @@ h1 span {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   line-height: inherit;
 }
 
@@ -57,23 +57,23 @@ h1 span {
 .brand-reset:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 .brand-meta {
   color: var(--muted);
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  margin-top: 2px;
+  gap: var(--space-8);
+  font-size: var(--text-sm);
+  margin-top: var(--space-2);
   flex-wrap: wrap;
 }
 
 .subtitle {
   color: var(--muted);
-  font-size: 14px;
-  margin: 10px 0 20px;
+  font-size: var(--text-lg);
+  margin: var(--space-10) 0 var(--space-20);
   max-width: 560px;
 }
 
@@ -81,17 +81,17 @@ h1 span {
    para os destinos ficarem SEMPRE na mesma posição em toda página. Ações
    específicas da página entram em .navbar-page-actions, abaixo da barra. */
 .navbar {
-  margin: 8px 0 18px;
+  margin: var(--space-8) 0 var(--space-16);
 }
 
 .navbar-bar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
-  padding: 8px;
+  gap: var(--space-10);
+  padding: var(--space-8);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--card-bg);
 }
 
@@ -100,7 +100,7 @@ h1 span {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 /* Tema + sair encostam à direita; os destinos ficam fixos à esquerda. */
@@ -111,8 +111,8 @@ h1 span {
 .navbar-page-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--space-10);
+  margin-top: var(--space-10);
 }
 
 /* UX-14 — as três peças que só existem no CELULAR (a gaveta). No desktop a
@@ -272,7 +272,7 @@ h1 span {
   color: var(--muted);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
 }
 
 .cloud-status::before {
@@ -299,9 +299,9 @@ h1 span {
   border: 1px solid rgba(196, 131, 107, 0.35);
   background: rgba(196, 131, 107, 0.1);
   color: #c4836b;
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 13px;
-  margin-bottom: 14px;
+  border-radius: var(--radius-md);
+  padding: var(--space-10) var(--space-12);
+  font-size: var(--text-md);
+  margin-bottom: var(--space-14);
 }
 

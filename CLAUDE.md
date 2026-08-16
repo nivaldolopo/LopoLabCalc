@@ -14,27 +14,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ passo ⑥ do cluster UI/UX = UX-19 (2026-08-16)** — a **cor passou a
-  trabalhar**: a régua da DEC-04 virou o módulo puro `lib/marginTier.ts` (+12 testes) e pinta a margem
-  em **4 superfícies** (o item citava 2; dono aprovou somar calculadora + estoque). **Nenhuma regra CSS
-  existente editada** — `base.css` é o 1º `@import` e perde todo empate, então a faixa vai num `<span>`
-  próprio. **Medido:** 93 produtos = 20 bom · 63 ok · 10 ruim; dial ao vivo 45%🔴→54%🟠→65%🟢; **0
-  mudança de geometria** (clone do `<main>` sem os 372 spans: 7114px idêntica). **2 achados só da
-  medição:** `.sale-pos`/`.sale-neg` estavam **mortos** no cabeçalho do recibo e `65%` saía âmbar E
-  verde. 386 testes. Writeup: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ passo ⑦ = UX-17b (2026-08-16) — o CLUSTER UI/UX FECHOU.** Os 16 CSS passaram
+  a consumir os tokens que o UX-17a só tinha declarado: **875 declarações trocadas** (779 literais +
+  **96 órfãos colapsados**); fonte de **23 tamanhos → 9**, raio de **15 → 8**. **Prova por medição, não
+  por diff:** 25 estados (7 rotas × 2 tamanhos + 3 abas, 3 modais, gaveta) medidos antes×depois no DOM
+  — **toda** diferença cai na lista de órfãos, **0 elemento sumiu**. **Junto:** `.btn:disabled` foi pro
+  `forms.css` e as **abas da `/estoque` viraram chip** (byte a byte iguais às da NavBar, nos 2 temas).
+  Writeup + os falsos positivos da medição: [`HISTORICO.md`](.claude/HISTORICO.md).
+- ⚠ **O que o dono vai ver mudado** (preço da escala curta, tudo medido): toda página **4px mais curta
+  no topo** · **h1 22→20px** · o fundo do destino ativo da NavBar era **verde cru** com texto laranja e
+  virou `--chip-active-bg` · no **celular** campo e botão vão 15→**16px** (abaixo disso o iOS dá zoom ao
+  focar), o que custou +57px na `/vendas` e +70px na `/producao` — se preferir o botão em 14px, é **1
+  linha** no `responsive.css`.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ PRÓXIMA TAREFA: passo ⑦ = UX-17b — o ÚLTIMO do cluster.** Converter os **16 CSS** de `styles/`
-  para os tokens que o UX-17a já declarou (**5.055 linhas, 219 `font-size`, 23 tamanhos distintos**);
-  matar os órfãos (9.5/11.5/12.5px, raios 2/5/7/9/14/20). **Junto:** mover `.btn:disabled` do
-  `stock.css` pro `forms.css` e unificar os 2 paradigmas de aba (chips na NavBar × sublinhado na
-  `/estoque`). ⚠ **Ler o aviso do item no [`BACKLOG.md`](.claude/BACKLOG.md) antes:** seletor de
-  **elemento nu** cria dependência invisível entre páginas, e a prova é **medir no DOM**, não o diff.
-  ✅ **Sem bloqueio** — a DEC-05 (lucide nos controles) volta como tarefa de código fora da fila.
-  Fechado o cluster, restam só o **Dashboard** (precisa de venda real) e o **Tier 2**, travado na marca.
+- **▶ PRÓXIMA TAREFA sugerida: DEC-05 — lucide em tudo que é CONTROLE**, emoji só como decoração (hoje
+  os dois convivem em **9 componentes**; emoji não herda `currentColor` nem responde ao tema). É a
+  única coisa **codificável hoje** — o Dashboard só vale com venda real acumulada e o Tier 2 está
+  travado na marca. Já decidida (dono, 2026-08-15), sem posição na fila: **ele diz quando entra**, e
+  com a ressalva dele de que **a marca está chegando** (contar com um ajuste depois). Detalhe no
+  [`BACKLOG.md`](.claude/BACKLOG.md).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do `/maquinas`
@@ -42,8 +44,7 @@
   **análise** — ROI e Dashboard agregam o histórico inteiro (TD-006). ROI: ver `lib/machineRoi.ts`.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
-- **Decisões encerradas:** variáveis de Preview do Firebase não cadastradas (só Production, Diretriz 1);
-  conversão peso↔metragem **descartada** pelo dono (não repropor).
+- **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).
 
 ## Resumo do projeto (contexto rápido)
 
@@ -140,6 +141,9 @@ src/
 ```
 
 **Pontos-chave:**
+- **CSS novo escreve TOKEN, não px** (UX-17a/b): a escala de espaço/raio/tipografia vive em `:root` no
+  `base.css` e os 16 arquivos já a consomem. Valor cru só para o que **não é escala** (largura de
+  grade, espessura de borda, margem negativa de ajuste, reserva de espaço).
 - `src/lib/firebase/client.ts` — init + `db`; lê `NEXT_PUBLIC_FIREBASE_*` com fallback embutido nos
   valores reais (hoje as vars da Vercel são ignoradas).
 - **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar

@@ -5,25 +5,25 @@
 }
 
 .roi-note {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
-  margin: 0 0 20px;
+  margin: 0 0 var(--space-20);
   line-height: 1.5;
 }
 
 .roi-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
+  gap: var(--space-16);
 }
 
 .roi-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px 18px 16px;
+  gap: var(--space-16);
+  padding: var(--space-16) var(--space-16) var(--space-16);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--card-bg);
 }
 
@@ -31,50 +31,50 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .roi-title {
-  font-size: 17px;
+  font-size: var(--text-xl);
   font-weight: 700;
 }
 
 .roi-price {
-  font-size: 14px;
+  font-size: var(--text-lg);
   color: var(--muted);
 }
 
 .roi-block {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--space-6);
 }
 
 .roi-block-label {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 12px;
+  font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: var(--muted2);
 }
 
 .roi-block-label strong {
-  font-size: 14px;
+  font-size: var(--text-lg);
   color: var(--fg, inherit);
 }
 
 .roi-bar {
   height: 9px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg);
   overflow: hidden;
 }
 
 .roi-bar-fill {
   height: 100%;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   transition: width 0.3s ease;
 }
 
@@ -91,7 +91,7 @@
 }
 
 .roi-status {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
 
@@ -110,7 +110,7 @@
 /* UX-09: ressalva do payback (lucro bruto). Deliberadamente discreta — informa
    sem competir com a barra. */
 .roi-caveat {
-  font-size: 11px;
+  font-size: var(--text-xs);
   line-height: 1.4;
   color: var(--muted2);
   font-style: italic;
@@ -120,7 +120,7 @@
    destaca sem virar caixa de erro. */
 .roi-note.roi-warn {
   border-left: 3px solid var(--accent);
-  padding-left: 10px;
+  padding-left: var(--space-10);
   margin-top: -12px;
 }
 
@@ -129,29 +129,29 @@
   /* BUG-04: 4×1fr num card estreito (min 340px) não cabia — "R$ 861,92/mês" em
      mono estourava a borda. 2×2 garante ~130px+ por célula, nenhum valor quebra. */
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px 14px;
-  padding-top: 10px;
+  gap: var(--space-10) var(--space-14);
+  padding-top: var(--space-10);
   border-top: 1px solid var(--border);
 }
 
 .roi-metric {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-2);
   /* Deixa a célula encolher abaixo do conteúdo (grid trilha `1fr` tem
      min-width:auto por padrão) — trava definitiva contra o vazamento. */
   min-width: 0;
 }
 
 .roi-metric > span {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: var(--muted2);
 }
 
 .roi-metric strong {
-  font-size: 14px;
+  font-size: var(--text-lg);
 }
 
 @media (max-width: 620px) {

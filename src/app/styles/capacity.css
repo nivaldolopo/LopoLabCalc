@@ -1,59 +1,59 @@
 .capacity-box {
   background: rgba(46, 125, 50, 0.06);
   border: 1px solid rgba(46, 125, 50, 0.2);
-  border-radius: 12px;
-  padding: 16px;
-  margin-top: 16px;
+  border-radius: var(--radius-xl);
+  padding: var(--space-16);
+  margin-top: var(--space-16);
 }
 
 .capacity-title {
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--green);
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-12);
 }
 
 .capacity-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: var(--space-14);
 }
 
 .capacity-col-title {
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-6);
 }
 
 .capacity-val {
-  font-size: 22px;
+  font-size: var(--display-sm);
   font-weight: 700;
   color: var(--ink);
   font-family: var(--font-space-grotesk), sans-serif;
 }
 
 .capacity-sub {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted2);
-  margin-top: 2px;
+  margin-top: var(--space-2);
 }
 
 .capacity-profit {
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 600;
   color: var(--green);
-  margin-top: 4px;
+  margin-top: var(--space-4);
 }
 
 .capacity-inputs {
   display: flex;
-  gap: 12px;
+  gap: var(--space-12);
   flex-wrap: wrap;
-  margin-bottom: 14px;
-  padding-bottom: 14px;
+  margin-bottom: var(--space-14);
+  padding-bottom: var(--space-14);
   border-bottom: 1px solid rgba(46, 125, 50, 0.15);
 }
 
@@ -63,10 +63,10 @@
 }
 
 .capacity-inputs label {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-4);
 }
 
 /* TD-010: aviso de SIMULAÇÃO — só aparece quando o usuário mexe nos campos e o
@@ -75,9 +75,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px 8px;
-  margin: -6px 0 12px;
-  font-size: 11px;
+  gap: var(--space-4) var(--space-8);
+  margin: -6px 0 var(--space-12);
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -95,10 +95,10 @@
    "impressões" seguem sendo ciclos rodados — sem este rótulo o número muda de
    significado em silêncio. */
 .capacity-note {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: var(--space-12);
+  padding-top: var(--space-12);
   border-top: 1px solid rgba(46, 125, 50, 0.15);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted2);
   line-height: 1.5;
 }
@@ -107,11 +107,11 @@
 .capacity-bottleneck {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
-  margin-top: 12px;
-  padding-top: 12px;
+  gap: var(--space-4) var(--space-14);
+  margin-top: var(--space-12);
+  padding-top: var(--space-12);
   border-top: 1px solid rgba(46, 125, 50, 0.15);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 .capacity-bottleneck .cb-limit {

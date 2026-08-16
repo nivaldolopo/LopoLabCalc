@@ -39,20 +39,18 @@
    **UX-12** · **UX-11** feitos.
 10. ~~**FEAT-11 — trocar a cor na hora de produzir/vender**~~ ✅ **FECHADO (2026-08-13)** — opção
    **A + C** (dono): troca pontual na `/producao` **e** cor como dimensão da SKU do acabado.
-11. **▶ Cluster UI/UX (auditoria de 2026-08-15)** — **UX-13 → UX-19 + TD-013**. Nasceu de uma auditoria
-   com o site rodando (desktop 1280 + celular 375), com medições; as decisões de escopo **já foram
-   tomadas pelo dono** no mesmo dia. **Ordem de execução (2026-08-15)** — 7 passos:
-   ~~① TD-013 + UX-17a (tokens)~~ ✅ **FEITO (2026-08-15)** → ~~② UX-13a (desktop)~~ ✅ **FEITO
-   (2026-08-15)** → ~~③ UX-13b + UX-14 (chrome mobile juntos)~~ ✅ **FEITO (2026-08-15)** →
-   ~~④ UX-15 (alvos + confirmação + avisos)~~ ✅ **FEITO (2026-08-16)** → ~~⑤ UX-16 (rótulo foca o
-   campo)~~ ✅ **FEITO (2026-08-16)** → ~~⑥ UX-19 (cor por faixa)~~ ✅ **FEITO (2026-08-16)** →
-   **▶ ⑦ UX-17b (conversão dos 16 CSS) — ÚLTIMO passo do cluster**.
-   ✅ **As 2 decisões saíram junto com o passo ①** (dono, 2026-08-15): **[DEC-04]** (faixas de margem,
-   destravou o ⑥) e **[DEC-05]** (lucide nos controles; volta como tarefa de código, fora da fila) —
-   **o cluster não tem mais bloqueio nenhum**, os 2 passos restantes são só código.
-12. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
-   ⚠ **Continua sendo o último.** Fora o cluster UI/UX (item 11, codificável hoje), o que resta é o
-   Dashboard (só vale com venda real acumulada) e o Tier 2 comercial, **bloqueado pela marca**.
+11. ~~**Cluster UI/UX (auditoria de 2026-08-15)**~~ ✅ **FECHADO (2026-08-16)** — **UX-13 → UX-19 +
+   TD-013**, os 7 passos: ~~① TD-013 + UX-17a (tokens)~~ · ~~② UX-13a (desktop)~~ · ~~③ UX-13b + UX-14
+   (chrome mobile)~~ · ~~④ UX-15 (alvos + confirmação + avisos)~~ · ~~⑤ UX-16 (rótulo foca o campo)~~ ·
+   ~~⑥ UX-19 (cor por faixa)~~ · ~~⑦ UX-17b (conversão dos 16 CSS)~~ — **todos FEITOS**.
+   As 2 decisões que saíram do cluster: **[DEC-04]** ✅ (faixas de margem, virou o UX-19) e
+   **[DEC-05]** (lucide nos controles) — esta **segue aberta como tarefa de código**, sem posição na
+   fila; ver "Decisões em aberto".
+12. **▶ [DEC-05] lucide nos controles** — a única tarefa **codificável hoje** (o dono decide quando).
+13. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
+   ⚠ **Continua sendo o último.** Fechado o cluster UI/UX, o que resta é a DEC-05 (código, sem
+   bloqueio), o Dashboard (só vale com venda real acumulada) e o Tier 2 comercial, **bloqueado pela
+   marca**.
 
 ### Porquês da ordem (decisões de 2026-07-20)
 
@@ -221,7 +219,7 @@
 > **Origem:** auditoria de UI/UX pedida pelo dono, feita com o site **rodando** (`pnpm dev`, login real),
 > em **1280×900** e **375×838**, com medições no DOM — não é impressão de leitura de código. As decisões
 > de escopo abaixo (marcadas **Decidido**) são do **dono, 2026-08-15**, no mesmo chat da auditoria.
-> **Situação (2026-08-16):** passos ①–⑥ **feitos**; só o **⑦ UX-17b** segue aberto.
+> **Situação (2026-08-16): CLUSTER FECHADO** — os 7 passos (①–⑦) estão feitos. Nada aqui segue aberto.
 > **Os blocos seguem em ordem de ID** (fácil de achar pelo número); a **ordem de execução** é o
 > `①②③…` marcado em cada um — ver "Ordem de prioridade" item 11 e os porquês acima.
 
@@ -317,36 +315,28 @@
     deve mexer no visual**. Os órfãos (9.5/11.5/12.5px, raio 2/5/7/9/14/20…) **não ganharam token de
     propósito** — a lista deles está no comentário do `base.css` e eles morrem no UX-17b.
     Zero consumidor ainda ⇒ zero mudança visual neste passo.
-  - **[UX-17b] — passo ⑦ (último): CONVERTER** os 16 arquivos de `styles/`. **Medido no código
-    (2026-08-15): 5.055 linhas de CSS em 16 arquivos, 219 declarações de `font-size`.** Vai por
-    último porque os passos ②–⑥ escrevem CSS novo — converter antes é reescrever duas vezes, e
-    **metade do CSS da navbar vai ser jogada fora pelo UX-14** de qualquer jeito.
-    ⚠ **AVISO que saiu da execução do passo ① (2026-08-15) — ler antes de pegar este item:**
-    **regra global de ELEMENTO cria dependência invisível.** No TD-013, escopar o `td` global do
-    `catalog.css` apagou junto o `border-top` que — sem ninguém saber — era o que separava o 1º item
-    do cabeçalho do recibo em `/vendas`, e que num recibo de UM item era a **única** borda da linha.
-    Nada no CSS do recibo dizia isso; só apareceu **medindo o site rodando** (a altura da página caiu
-    3975 → 3952px). O antídoto do `.cost-detail-table` já era a **segunda** vítima do mesmo seletor.
-    **Como agir no ⑦:** (a) tratar todo seletor de elemento nu (`table`, `td`, `th`, `a`, `input`…)
-    como suspeito de estar segurando algo em outra página; (b) a prova de "não mudou nada" é
-    **medir antes × depois no DOM**, não ler o diff — o método que funcionou foi injetar as regras
-    antigas na página ao vivo (`<style>` temporário) e comparar geometria no mesmo instante;
-    (c) quando uma regra global se revelar necessária, **repor no dono legítimo** (foi o que se fez em
-    `.recibo-items td`), não restaurar o global.
-    ➕ **Achado no UX-15 (2026-08-16), já mapeado:** `.btn:disabled` mora no **`stock.css`** — mesmo
-    defeito de escopo do `.btn.danger` (que já saiu de lá), mas este **tem consumidores em todo o
-    app**, então a mudança fica para cá. Mover para o `forms.css`, dono do `.btn`.
-  **Medido:** das ~220 declarações de `font-size`, **155 estão entre 10 e 13px** (65× `12px`, 50× `11px`,
-  40× `13px`) — e existem **23 tamanhos distintos**, incluindo `11.5px`, `12.5px` e `9.5px`. Idem
-  `border-radius`: **15 valores** (2, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 999px…). O `base.css` tem 19
-  variáveis, **todas de cor** — não há `--space-*`, `--radius-*`, `--text-*`.
-  ⚠ **Decidido (dono): manter DENSO, mas UNIFORME.** Ou seja **não** é para aumentar o corpo do texto
-  (a proposta original de subir pra 13–14px foi **recusada** — o dono prefere ver mais linhas por tela).
-  O trabalho é **normalizar**: colapsar os 23 tamanhos numa escala curta (ex.: 11/12/13/14 + os títulos),
-  matar os órfãos (`11.5`/`12.5`/`9.5`), e fazer o mesmo com raio e espaçamento via tokens.
-  **Junto:** o app tem **dois paradigmas de aba** — chips arredondados na `NavBar` e abas sublinhadas na
-  `/estoque` (Filamentos/Insumos/Produtos). Unificar.
-  **Onde:** `base.css` (tokens) + conversão gradual dos **16** arquivos de `styles/`.
+  - ~~**[UX-17b] — passo ⑦ (último): CONVERTER os 16 arquivos de `styles/`**~~ ✅ **FEITO
+    (2026-08-16)** — **875 declarações trocadas: 779 literais + 96 ÓRFÃOS colapsados.** Tipografia de
+    **23 tamanhos → 9**, raio de **15 → 8**. ⚠ **A contradição que a medição expôs, e o martelo do
+    dono:** o `base.css` prometia "converter não deve mexer no visual" e o item mandava "matar os
+    órfãos" — **as duas coisas não podem ser verdade**; o dono escolheu a **escala curta**, aceitando
+    o drift de 1–2px, e a promessa foi retirada do comentário. Única exceção que **sobe** em vez de
+    descer: `15px → 16px` em `.field-input`/`.btn` no celular (abaixo de 16px o iOS dá zoom ao focar).
+    **O medo do TD-013 quase não se aplicou:** só existiam **4** seletores de elemento nu no app
+    inteiro (`button, input, select`, `button`, `h1`×2) e nenhum segurava espaço/raio de outra página.
+    **Prova:** 25 estados medidos antes×depois no DOM (7 rotas × 2 tamanhos + 3 abas + 3 modais +
+    gaveta) — **toda** diferença cai na lista de órfãos, **0 elemento sumiu**. Writeup e as medições
+    por rota: `HISTORICO.md`. ➕ **Junto:** `.btn:disabled` foi do `stock.css` pro `forms.css` (última
+    regra global de `.btn` fora do dono) e as **abas da `/estoque` viraram chip**, byte a byte iguais
+    às da NavBar nos 2 temas — resolvendo os "dois paradigmas de aba". ➕ **Achado de brinde:** o
+    destino ativo da NavBar tinha fundo `rgba(74,158,118,.12)` — **verde cru**, ao lado de borda e
+    texto laranja, sem responder ao tema; virou `--chip-active-bg`.
+  **Medido antes (2026-08-15):** das ~220 declarações de `font-size`, **155 entre 10 e 13px** (65×
+  `12px`, 50× `11px`, 40× `13px`), **23 tamanhos distintos** incluindo `11.5`/`12.5`/`9.5px`. Idem
+  `border-radius`: **15 valores**. O `base.css` tinha 19 variáveis, **todas de cor**.
+  ⚠ **Decidido (dono): manter DENSO, mas UNIFORME.** **Não** era para aumentar o corpo do texto (a
+  proposta de subir pra 13–14px foi **recusada** — o dono prefere mais linhas por tela).
+  **Onde:** `base.css` (tokens) + os **16** arquivos de `styles/`.
 
 > **[UX-18] saiu daqui em 2026-08-15** → virou **[DEC-05]**, na seção "Decisões em aberto (DEC-*)".
 > Motivo: o próprio item dizia "precisa do martelo do dono" e tem overlap com o branding (⏸ sem data);

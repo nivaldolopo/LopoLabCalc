@@ -1,13 +1,13 @@
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
+  gap: var(--space-20);
 }
 
 .left-column {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-20);
 }
 
 .card,
@@ -16,12 +16,12 @@
 .catalog-card {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-2xl);
 }
 
 .card,
 .result-card {
-  padding: 24px;
+  padding: var(--space-24);
 }
 
 .result-card {
@@ -31,11 +31,11 @@
 }
 
 .field-block {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-20);
 }
 
 .field-block.compact {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-12);
 }
 
 .field-block.last {
@@ -46,19 +46,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: var(--space-12);
+  margin-bottom: var(--space-8);
 }
 
 .section-label {
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.4px;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-4);
 }
 
 .label-hint {
@@ -68,9 +68,9 @@
 }
 
 .section-note {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
-  margin-bottom: 10px;
+  margin-bottom: var(--space-10);
 }
 
 .field-input,
@@ -80,10 +80,10 @@
 .machine-edit-row input,
 .catalog-actions select {
   width: 100%;
-  padding: 8px 10px;
+  padding: var(--space-8) var(--space-10);
   border: 1.5px solid var(--field-border);
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-lg);
   background: var(--field-bg);
   color: var(--ink);
 }
@@ -99,15 +99,15 @@
 }
 
 .product-name {
-  font-size: 16px;
+  font-size: var(--text-xl);
   font-weight: 500;
 }
 
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: var(--space-16);
+  margin-bottom: var(--space-20);
 }
 
 .two-col.no-margin {
@@ -117,12 +117,12 @@
 .time-inputs {
   display: grid;
   grid-template-columns: 1fr auto 1fr auto;
-  gap: 8px;
+  gap: var(--space-8);
   align-items: center;
 }
 
 .time-sep {
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--muted);
 }
 
@@ -130,19 +130,19 @@
 .filament-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .filament-row {
   border: 1px solid var(--field-border);
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-12);
   background: var(--chip-bg);
 }
 
 .filament-main {
   display: flex;
-  gap: 10px;
+  gap: var(--space-10);
   align-items: flex-end;
   flex-wrap: wrap;
 }
@@ -158,28 +158,28 @@
 
 .filament-remove {
   flex: 0 0 auto;
-  margin-bottom: 2px;
+  margin-bottom: var(--space-2);
 }
 
 .filament-total-value {
-  padding: 8px 10px;
-  font-size: 14px;
+  padding: var(--space-8) var(--space-10);
+  font-size: var(--text-lg);
   font-family: var(--font-jetbrains-mono), monospace;
   color: var(--muted);
   border: 1.5px dashed var(--field-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--field-bg);
 }
 
 /* 7c: nome livre da cor avulsa (aparece sob o dropdown quando "Avulso"). */
 .filament-freename {
-  margin-top: 6px;
+  margin-top: var(--space-6);
 }
 
 /* 7c: aviso de cor removida do Estoque (molde do machine-missing-badge). */
 .filament-missing-badge {
-  margin-top: 6px;
-  font-size: 12px;
+  margin-top: var(--space-6);
+  font-size: var(--text-sm);
   font-weight: 600;
   color: #c4836b;
 }
@@ -187,25 +187,25 @@
 .filament-detail {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--space-10);
+  margin-top: var(--space-10);
   align-items: end;
 }
 
 .filament-detail-toggle {
-  margin-top: 8px;
+  margin-top: var(--space-8);
 }
 
 .machine-row {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
 }
 
 .machine-chip {
   flex: 1;
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: var(--space-10) var(--space-14);
+  border-radius: var(--radius-lg);
   border: 1.5px solid var(--field-border);
   background: var(--chip-bg);
   cursor: pointer;
@@ -230,14 +230,14 @@
 
 .machine-chip .mname {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--text-lg);
   color: var(--ink);
 }
 
 .machine-chip .mmeta {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted2);
-  margin-top: 2px;
+  margin-top: var(--space-2);
   font-family: var(--font-jetbrains-mono), monospace;
 }
 
@@ -245,9 +245,9 @@ input[type="range"] {
   appearance: none;
   width: 100%;
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--field-border);
-  margin-top: 10px;
+  margin-top: var(--space-10);
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -268,9 +268,9 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .markup-labels {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted2);
-  margin-top: 4px;
+  margin-top: var(--space-4);
 }
 
 .markup-value {
@@ -280,31 +280,31 @@ input[type="range"]::-webkit-slider-thumb {
 
 .btn-row {
   display: flex;
-  gap: 10px;
-  margin-top: 4px;
+  gap: var(--space-10);
+  margin-top: var(--space-4);
   flex-wrap: wrap;
 }
 
 /* Aviso de validação do formulário de produto (substitui o window.alert). */
 .form-error {
-  margin-top: 12px;
-  padding: 9px 12px;
-  border-radius: 8px;
+  margin-top: var(--space-12);
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-md);
   background: rgba(196, 131, 107, 0.1);
   border: 1px solid rgba(196, 131, 107, 0.35);
   color: #c4836b;
-  font-size: 13px;
+  font-size: var(--text-md);
 }
 
 /* Confirmação de escrita bem-sucedida (par verde do .form-error, TD-004). */
 .form-ok {
-  margin-top: 12px;
-  padding: 9px 12px;
-  border-radius: 8px;
+  margin-top: var(--space-12);
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-md);
   background: rgba(74, 158, 118, 0.12);
   border: 1px solid rgba(74, 158, 118, 0.4);
   color: #4a9e76;
-  font-size: 13px;
+  font-size: var(--text-md);
 }
 
 /* UX-15 — o aviso de página (`FeedbackNote`): ícone + texto + fechar. Classe
@@ -340,15 +340,23 @@ input[type="range"]::-webkit-slider-thumb {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-8);
   transition: all 0.15s;
 }
 
 .btn {
-  padding: 12px 16px;
-  border-radius: 10px;
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-lg);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--text-lg);
+}
+
+/* UX-17b: veio do `stock.css`, onde era a última regra global de `.btn` morando
+   no CSS de uma página só (o defeito do TD-013). Fica ANTES do
+   `.btn.primary:disabled`, que é mais específico e continua vencendo o fundo. */
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn.primary {
@@ -396,7 +404,7 @@ input[type="range"]::-webkit-slider-thumb {
 .load-more-row {
   display: flex;
   justify-content: center;
-  margin: 16px 0 4px;
+  margin: var(--space-16) 0 var(--space-4);
 }
 
 /* TD-006 Fase 3: barra de filtro das listas paginadas (produto + período no
@@ -404,15 +412,15 @@ input[type="range"]::-webkit-slider-thumb {
 .history-filter {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: var(--space-10);
+  margin-bottom: var(--space-14);
 }
 
 .history-filter-row {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 .history-filter-product {
@@ -423,8 +431,8 @@ input[type="range"]::-webkit-slider-thumb {
 .history-filter-date {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
@@ -435,13 +443,13 @@ input[type="range"]::-webkit-slider-thumb {
 .history-filter-clear {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
   background: transparent;
   border: 1.5px solid var(--field-border);
-  border-radius: 8px;
-  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-8) var(--space-12);
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
@@ -465,9 +473,9 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .icon-label-button {
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  padding: var(--space-8) var(--space-12);
+  font-size: var(--text-md);
   font-weight: 600;
   white-space: nowrap;
   /* UX-14: os 7 destinos da NavBar são <Link> e vinham SUBLINHADOS — no
@@ -476,17 +484,21 @@ input[type="range"]::-webkit-slider-thumb {
   text-decoration: none;
 }
 
-/* Rota ativa na barra de navegação unificada (NavBar). */
+/* Rota ativa na barra de navegação unificada (NavBar).
+   ⚠ UX-17b: o fundo era `rgba(74, 158, 118, 0.12)` — VERDE cru, ao lado de uma
+   borda e um texto em `--accent` (laranja), e sem responder ao tema. Existe
+   token exato para "chip ligado" (`--chip-active-bg`, definido nos dois temas),
+   que é o que as abas do estoque passaram a usar ao adotar este mesmo chip. */
 .icon-label-button[aria-current="page"] {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(74, 158, 118, 0.12);
+  background: var(--chip-active-bg);
 }
 
 .link-button {
   background: transparent;
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   padding: 0;
 }
@@ -495,18 +507,18 @@ input[type="range"]::-webkit-slider-thumb {
 .link-button.add-line {
   border: 1.5px solid var(--field-border);
   background: var(--field-bg);
-  border-radius: 8px;
-  padding: 7px 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-6) var(--space-12);
 }
 
 .link-button.add-line {
-  margin-top: 8px;
+  margin-top: var(--space-8);
 }
 
 .icon-button {
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
 }
 

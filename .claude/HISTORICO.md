@@ -9,6 +9,86 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Cluster UI/UX passo ⑦ — UX-17b: os 16 CSS passam a consumir os tokens (2026-08-16)
+
+**Fecha o cluster UI/UX.** O passo ① tinha **declarado** os tokens no `base.css` e parado ali de
+propósito; este é o outro lado — **875 declarações trocadas** nos 16 arquivos de `styles/`.
+
+**A contradição que a medição expôs, e o martelo do dono.** O `base.css` prometia *"converter não
+deve mexer no visual"* e o item do backlog mandava *"matar os órfãos"*. Medido antes de começar:
+**~70 declarações caem fora da escala** (o número final foi **96**). **As duas coisas não podem ser
+verdade.** O dono escolheu a **escala curta**, aceitando o drift de 1–2px — e a promessa foi
+**retirada** do comentário do `base.css`, que hoje registra o que de fato aconteceu. Placar:
+**779 trocas literais** (zero pixel) + **96 órfãos colapsados**; tipografia de **23 tamanhos → 9**,
+raio de **15 → 8**.
+
+**A conversão foi feita por script, não à mão** (`tokenize.mjs`, no scratchpad): ele só mexe nas
+propriedades de escala (`font-size`, `border-radius`, `padding*`, `margin*`, `gap*`), pula linha com
+`var()`/`calc()`, e **qualquer valor sem token é deixado intacto e REPORTADO** — nada é adivinhado em
+silêncio. Sobraram 7 valores crus, todos de propósito: margem negativa de ajuste fino (`-1/-2/-6/-12`)
+e reserva de espaço (`60px` do rodapé do `.wrap`, `52px` que segura o botão ☰).
+⚠ **Armadilha que quase passou batido:** metade dos arquivos está em **CRLF** e em JS o `.` do regex
+**não casa `\r`** — a primeira rodada converteu 539 declarações e deixou 6 arquivos inteiros intactos
+(`header.css`, `forms.css`, `sections.css`, `responsive.css`, `quote.css`, `base.css`) **sem erro
+nenhum**. Só apareceu porque o relatório por arquivo não batia com o inventário.
+
+**O medo herdado do TD-013 quase não se aplicou.** O aviso do backlog mandava tratar todo seletor de
+elemento nu como suspeito. Levantamento: o app inteiro tem **4** (`button, input, select { font:
+inherit }`, `button { color: inherit }` e `h1` em dois arquivos) — e **nenhum** declara espaço, raio
+ou tamanho arbitrário além do `font-size` do `h1`, que tem dono claro. O risco real era outro.
+
+**Como a prova foi feita (o que dá pra reusar).** `lint`/`test`/`build` não veem CSS. A sonda mede
+cada elemento (`getBoundingClientRect` + `font-size`/raio/padding/margin/gap/cor computados) e
+**guarda a linha de base no `localStorage` da própria página** — sobrevive ao reload e ao HMR, e o
+diff roda dentro do navegador, então o relatório que sai é só o agrupamento. Dois ajustes que a
+prática exigiu: (a) a 1ª versão gastou **2,7 MB só no catálogo** e ia estourar a cota — os estilos
+viram **dicionário** (15.508 elementos, só **173** estilos distintos) e caiu para 1,1 MB; (b) o diff
+**agrupa** por mudança em vez de listar elemento a elemento, senão o `.wrap` de 28→24px sozinho
+produziria milhares de linhas de "moveu 4px".
+
+**Resultado: 25 estados medidos** (7 rotas × 2 tamanhos + as 3 abas do estoque, 3 modais e a gaveta
+aberta). **Toda** diferença de estilo, em todos eles, cai na lista de órfãos ou nas 2 mudanças
+deliberadas — e **`sumiram: []` em todos**. Altura das páginas: `/` 1384→1368 · `/catalogo`
+6984→6974 · `/vendas` 3442→3431 · `/orcamento` 2082→2067 · `/producao` 2438→2422 · `/maquinas` e
+`/estoque` **idênticas**.
+
+**Duas exceções deliberadas, com o motivo:**
+- **`15px → 16px` (e não 14) em `.field-input`/`.btn` no celular** — abaixo de 16px o **iOS dá zoom
+  automático ao focar o campo**, e o zoom desfaz o espaço vertical que o UX-13b/14 acabou de ganhar.
+  ⚠ **Custo medido, e é o maior do lote:** `/vendas` **+57px** e `/producao` **+70px**; no catálogo o
+  bump pega **1.674 elementos** (todo botão dos 93 cards, com os `svg`/`path` que herdam). O `.btn`
+  acompanha o campo só para não destoar — se o dono preferir 14px (= igual ao desktop), é **uma
+  linha** no `responsive.css`.
+- **`0.78rem` → `--text-xs`** — era o único valor em `rem` do app e dava 12.48px: o órfão `12.5px`
+  disfarçado.
+
+**As duas faxinas que viajaram junto:**
+- **`.btn:disabled` saiu do `stock.css` para o `forms.css`** — era a última regra global de `.btn`
+  morando no CSS de uma página (o defeito do TD-013; o `.btn.danger` já tinha saído no UX-15).
+  Cascata conferida: os únicos outros `:disabled` são `.fee-toggle:disabled` (outra classe) e
+  `.btn.primary:disabled` (0,3,0), que segue vencendo o fundo.
+- **As abas da `/estoque` viraram chip** (decisão do dono: a NavBar aparece em toda página, então é
+  ela que define a linguagem de "escolher 1 de N"). Só CSS — o `StockPage.tsx` já usava
+  `role="tablist"` + `.stock-tab`/`.active`. Medido: `radius 0→8` · `padding 9px 16px → 8px 12px` ·
+  `margin-bottom -1px → 0` · inativa passa a ter fundo e borda. **Verificado nos 2 temas: aba e chip
+  da NavBar saem byte a byte idênticos** (claro e escuro).
+  - ➕ **Achado ao ler o chip pra copiar:** `.icon-label-button[aria-current="page"]` pintava o fundo
+    com `rgba(74, 158, 118, 0.12)` — **verde cru**, ao lado de borda e texto em `--accent` (laranja),
+    e sem responder ao tema. Existia token exato (`--chip-active-bg`, definido nos dois temas). Não
+    dava pra copiar o bug pra dentro da `/estoque`.
+
+**Dois falsos positivos que a medição levantou e que NÃO são bugs** (registrados pra não serem
+"redescobertos"): (1) na `/` o `innerWidth` mede **388** contra `clientWidth` 375 — parece overflow
+horizontal, mas `scrollX` não sai de 0; é contabilidade de barra de rolagem do navegador embutido.
+(2) `.capacity-box` tem retângulo **fora da área rolável** — está dentro do `<details>` **fechado**,
+onde o Chrome usa `content-visibility`, então o box existe geometricamente mas não é renderizado.
+Ambos idênticos antes e depois.
+
+**Conferido no fim:** a corrente do UX-13b sobreviveu à tokenização — `.wrap.has-price-bar` mantém
+`calc(60px + var(--price-bar-h))` (o script pula `calc`), a folga do último card até a barra mede
+**60px** (o número exato da entrega do UX-13b) e o `.back-to-top` continua subindo os 56px da barra.
+386 testes, `lint` e `build` limpos.
+
 ## ✅ Cluster UI/UX passo ⑥ — UX-19: a cor passa a trabalhar (2026-08-16)
 
 **O problema.** Num app cuja função é dizer se o preço está bom, todo número de margem saía da
