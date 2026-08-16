@@ -14,39 +14,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ passo ⑦ = UX-17b (2026-08-16) — o CLUSTER UI/UX FECHOU.** Os 16 CSS passaram
-  a consumir os tokens que o UX-17a só tinha declarado: **875 declarações trocadas** (779 literais +
-  **96 órfãos colapsados**); fonte de **23 tamanhos → 9**, raio de **15 → 8**. **Prova por medição, não
-  por diff:** 25 estados (7 rotas × 2 tamanhos + 3 abas, 3 modais, gaveta) medidos antes×depois no DOM
-  — **toda** diferença cai na lista de órfãos, **0 elemento sumiu**. **Junto:** `.btn:disabled` foi pro
-  `forms.css` e as **abas da `/estoque` viraram chip** (byte a byte iguais às da NavBar, nos 2 temas).
-  Writeup + os falsos positivos da medição: [`HISTORICO.md`](.claude/HISTORICO.md).
-- ⚠ **O que o dono vai ver mudado** (preço da escala curta, tudo medido): toda página **4px mais curta
-  no topo** · **h1 22→20px** · o fundo do destino ativo da NavBar era **verde cru** com texto laranja e
-  virou `--chip-active-bg` · no **celular** campo e botão vão 15→**16px** (abaixo disso o iOS dá zoom ao
-  focar), o que custou +57px na `/vendas` e +70px na `/producao` — se preferir o botão em 14px, é **1
-  linha** no `responsive.css`.
+- **Última mudança:** **auditoria de UI/UX + cálculo (2026-08-16)** — levantamento, **zero código
+  alterado** (ver bullet da auditoria abaixo). Antes dela o **✅ CLUSTER UI/UX FECHOU** no passo ⑦
+  (UX-17b: os 16 CSS passaram a consumir os tokens — 875 declarações, fonte 23→9 tamanhos, raio
+  15→8, provado por medição no DOM). Writeups: [`HISTORICO.md`](.claude/HISTORICO.md).
+- ⚠ **Uma escolha do UX-17b ainda em aberto:** no celular campo e botão foram a **16px** (abaixo
+  disso o iOS dá zoom ao focar), alongando `/vendas` (+57px) e `/producao` (+70px). Se preferir o
+  botão em 14px, é **1 linha** no `responsive.css`.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ DUAS tarefas codificáveis hoje** (nenhuma bloqueada; o dono diz quando cada uma entra) —
-  detalhe das duas no [`BACKLOG.md`](.claude/BACKLOG.md):
-  - **[UX-20] cor do lucro × faixa de margem** (decidida 2026-08-16). Hoje o valor em R$ e a %
-    saem no **mesmo verde** (`.sale-pos` e `--margin-good` são ambos `var(--green)`) e, quando a
-    margem cai, a linha manda recados opostos. Regra nova: **valor neutro, cor só na margem** —
-    **no app inteiro**. ⚠ **reverte** decisão do UX-19 registrada em 2 comentários do código, e
-    há 3 implementações diferentes da mesma cor (a do `stock.css` nem usa `.sale-pos`).
-  - **[DEC-05] lucide em tudo que é CONTROLE**, emoji só como decoração (convivem em **9
-    componentes**; emoji não herda `currentColor` nem responde ao tema). Decidida (dono,
-    2026-08-15), com a ressalva de que **a marca está chegando** (contar com um ajuste depois).
-- ⚠ **Auditoria de UI/UX + cálculo (2026-08-16): 33 achados, só o UX-20 entrou no backlog.** Os
-  outros 32 seguem **sem triagem** — os mais graves medidos: recibo **cortado 69–126px** no
-  celular (`overflow: hidden`, não rola), botão primário com **contraste 2,84:1**, colunas de
-  dinheiro **alinhadas à esquerda**, barras de custo escaladas pelo **maior item e não pelo
-  total**, e a capacidade **dobrando** produto multi-máquina (`× machines` sobre o gargalo).
-  Perguntar ao dono se quer que virem itens.
+- **▶ DECIDIDAS, prontas pra codar** (o dono diz quando entram) — detalhe no
+  [`BACKLOG.md`](.claude/BACKLOG.md): **[UX-20]** cor do lucro (valor neutro, cor só na margem, no
+  app inteiro; ⚠ **reverte** o UX-19 em 2 comentários do código) · **[DEC-05]** lucide nos
+  controles (⚠ **a marca está chegando** — contar com um ajuste depois).
+- **Auditoria de UI/UX + cálculo (2026-08-16): 33 achados → 21 itens, TODOS no backlog** (cluster
+  `UX-20…UX-34` · `TD-014…TD-016` · `BUG-06/07` · `DEC-06`; medições no `HISTORICO.md`). **Só o
+  UX-20 está decidido; os outros 20 são levantamento, sem ordem interna** (priorização é do dono).
+  ⚠ **Os 3 pra olhar primeiro:** **BUG-06** (no celular a `/vendas` corta 69–126px de cada recibo
+  — lucro e excluir **não existem** no telefone) · **DEC-06** (a capacidade **dobra** produto
+  multi-máquina; é **pergunta**, não tarefa) · **TD-014** (tokenizar cor — único com **prazo
+  externo**: feito antes da marca, o rebrand vira troca de paleta).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do `/maquinas`

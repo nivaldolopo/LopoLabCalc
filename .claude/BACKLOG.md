@@ -46,13 +46,21 @@
    As 2 decisões que saíram do cluster: **[DEC-04]** ✅ (faixas de margem, virou o UX-19) e
    **[DEC-05]** (lucide nos controles) — esta **segue aberta como tarefa de código**, sem posição na
    fila; ver "Decisões em aberto".
-12. **▶ Codificáveis hoje** — sem bloqueio nenhum; **o dono decide quando cada uma entra**:
-   **[UX-20]** cor do lucro × faixa de margem (decidida 2026-08-16, regra do app inteiro) ·
-   **[DEC-05]** lucide nos controles.
-13. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
-   ⚠ **Continua sendo o último.** Fechado o cluster UI/UX, o que resta é a **UX-20** e a
-   **DEC-05** (código, sem bloqueio), o Dashboard (só vale com venda real acumulada) e o Tier 2
-   comercial, **bloqueado pela marca**.
+12. **▶ Decididas, prontas pra codar** — sem bloqueio; **o dono decide quando cada uma entra**:
+   **[UX-20]** cor do lucro × faixa de margem (2026-08-16, regra do app inteiro) ·
+   **[DEC-05]** lucide nos controles (2026-08-15; leva o **G2** junto — o critério do emoji).
+13. **▶ Cluster da auditoria de 2026-08-16** — **20 itens levantados, nenhum decidido ainda**
+   (`UX-21…UX-34` · `TD-014…TD-016` · `BUG-06/07` · `DEC-06`). **Sem ordem interna** — a
+   priorização é do dono, como no cluster anterior. Medições e porquês no
+   [`HISTORICO.md`](HISTORICO.md). ⚠ **Dois merecem olhar antes dos outros:** o **[BUG-06]**
+   (recibo cortado no celular — dado inalcançável, não é cosmético) e o **[DEC-06]** (a
+   capacidade dobrando produto multi-máquina), que é **pergunta, não tarefa**. E o **[TD-014]**
+   (tokenizar cor) é o único com **prazo externo**: feito antes da marca, o rebrand vira troca de
+   paleta.
+14. **Dashboard** (`/painel`) — só com ~1-2 meses de venda real; absorve **UX-07(b)**.
+   ⚠ **Continua sendo o último.** O que resta é o cluster da auditoria + **UX-20**/**DEC-05**
+   (código, sem bloqueio), o Dashboard (só vale com venda real acumulada) e o Tier 2 comercial,
+   **bloqueado pela marca**.
 
 ### Porquês da ordem (decisões de 2026-07-20)
 
@@ -216,8 +224,28 @@
   depois do `breakdown-total` (e da linha "Total da impressão", pra não partir o bloco de custo em
   produto multi-peça); `.break-even-box` ganhou `margin-top`. Só JSX + CSS, cálculo intacto.
 
-- **▶ [UX-20] A cor do lucro compete com a faixa de margem** *(pedido do dono, 2026-08-16; saiu
-  da auditoria de UI/UX do mesmo dia)*
+### Cluster da auditoria de 2026-08-16 (UX-20…UX-34 · TD-014…TD-016 · BUG-06/07 · DEC-06)
+
+> **Origem:** auditoria de UI/UX **+ cálculo** pedida pelo dono logo após o fechamento do cluster
+> UI/UX. Feita com o site **rodando** e dados reais (93 produtos, 47 vendas, 53 produções), em
+> **7 rotas + 9 modais**, a **1280×900** e **375×812**, nos **dois temas**, com medição no DOM —
+> não é impressão de leitura de código.
+>
+> **33 achados → 21 itens.** Vários achados eram o **mesmo defeito em lugares diferentes** e foram
+> consolidados; o código-referência do relatório (A1…I3) está anotado em cada item.
+> **O número medido e o porquê de cada um vivem no [`HISTORICO.md`](HISTORICO.md)**, seção
+> "🔍 Auditoria de UI/UX + cálculo (2026-08-16)" — abra lá ao pegar o item.
+>
+> ⚠ **SEM ordem interna definida** — a priorização é do dono, como foi no cluster anterior. O que
+> a auditoria sugeriu (não é decisão): os consertos de 1 linha primeiro (`UX-22`, `BUG-07`,
+> `UX-27`, `UX-30`), depois tabela/celular (`BUG-06`, `UX-21`), depois o bloco de COR
+> (`TD-014` + `UX-24`), que é o que **destrava o rebrand**.
+>
+> ⚠ **Só o `UX-20` está DECIDIDO.** Os outros 20 são levantamento — nenhum tem martelo do dono
+> ainda, e o `DEC-06` é explicitamente uma pergunta, não uma tarefa.
+
+- **▶ [UX-20] A cor do lucro compete com a faixa de margem** *(pedido do dono, 2026-08-16; era o
+  achado **C5** da auditoria — o ÚNICO já decidido)*
   Em "Lucro **R$ 25,46 (76%)**" há **dois** sinais de cor sobrepostos: o valor recebe
   `.sale-pos`/`.sale-neg` (lucro × prejuízo) e a % recebe a faixa da **DEC-04** (ruim/ok/boa).
   **Medido: são o MESMO tom** — `.sale-pos` é `color: var(--green)` (`auth-sale.css:90`) e
@@ -258,8 +286,159 @@
   `StockPage.tsx:599` e `SuppliesTab.tsx:438` (`stock-entry-delta` = entrada × saída de material)
   · `SaleModal.tsx:1330` (preço acima × abaixo do sugerido). **Não trocar em massa** — três
   desses ficariam errados.
-  **Casa bem com o cluster de COR** (tokenizar `--danger`/`--warn`/`--success` + contrastes): é a
-  mesma passada por `.sale-pos`/`.sale-neg`. Mas **não depende dele** — pode sair sozinha.
+  **Casa bem com o [TD-014]** (tokenizar cor): é a mesma passada por `.sale-pos`/`.sale-neg`. Mas
+  **não depende dele** — pode sair sozinha.
+
+#### Alinhamento — o que o dono viu como "textos descentralizados"
+
+- **[UX-21] As listas não têm UMA grade só** *(A1 + A2 + A3)*. Três defeitos com a mesma raiz:
+  no **catálogo**, cabeçalho (`padding 0 20px`, sem borda, conteúdo **906px**) e linhas
+  (`padding 14px 16px` + borda 1px, conteúdo **904px**) são grades independentes → deriva de
+  **1–3px que acumula** até "AÇÕES"; as **colunas de dinheiro** são `text-align: start`, então
+  `R$ 33,64` e `R$ 617,90` começam no mesmo x e a **vírgula nunca alinha** (a fonte já é mono —
+  `text-align: right` resolve sozinho); e em **`/vendas` cada recibo é uma `<table>` própria em
+  layout automático**, então as colunas se dimensionam pelo nome mais longo *daquele* recibo
+  (**8px de deslocamento** medido entre recibos vizinhos). **Onde:** `catalog.css` ·
+  `cesta-recibo.css` · `SalesPage.tsx`. ⚠ A parte do `text-align` é a de **maior retorno visual
+  por linha de CSS** de todo o cluster.
+- **[UX-22] No `/orcamento`, os dois cartões nunca compartilham linha de base** *(A4)*. Topo dos
+  campos: esquerda `235·297·379`, direita `250·250·332·332` (**Δ15** e **Δ35**). Junto: o campo
+  `type="date"` mede **37px** contra 35px do vizinho na mesma linha. **Onde:** `QuotePage.tsx` +
+  `quote.css` + `forms.css`.
+- **[UX-23] O texto de introdução de página tem 4 tratamentos** *(A5)*. `/estoque` espremido ao
+  lado do botão · `/producao` largura inteira · `/maquinas` **dois** parágrafos (~120px antes do
+  1º dado) · `/catalogo` e `/vendas` nenhum. Nunca virou componente. **Sugestão:** um
+  `PageIntro` com medida de linha limitada (~70 caracteres).
+
+#### Cor — o buraco que o UX-17 deixou
+
+- **[TD-014] Tokenizar a COR (o UX-17a, de novo, para cor)** *(B2 + B3 + C3)*. O UX-17 tokenizou
+  espaço/raio/tipografia e **parou antes da cor**. Medido: **51 hex distintos + 8 bases
+  `rgba()`**; o `base.css` declara ~23 de superfície e **nenhuma semântica** (`#c4836b` 11× e
+  `#e05252` 5× fazem o papel de "perigo/aviso" sem nome). E a mesma tinta aparece em **6
+  opacidades** (`rgba(255,107,53,·)` em `.08/.1/.12/.2/.22/.3`) — os **órfãos** do UX-17b, agora
+  em cor. Inclui a paleta do `CostBars.tsx` (6 hex crus que **não respondem ao tema**).
+  ⚠ **Tem PRAZO:** esses literais **fixam o RGB do laranja** → quando a marca chegar, são 14
+  edições à mão. Feito antes, o rebrand vira **troca de paleta**. **Onde:** `base.css` + os 16
+  CSS + `CostBars.tsx`.
+- **[UX-24] Contrastes que reprovam no AA** *(B1)*. Medido: **branco sobre `--accent` = 2,84:1**
+  (é o **botão primário**, reprova nos DOIS temas) · `--muted2` **2,93** claro / **3,18** escuro
+  (52 usos, e é o texto de **10–11px**) · `--accent` como texto **2,84** no claro (57 usos; no
+  escuro está ok em 6,02). ⚠ **O UX-19 mediu as 3 cores de margem com todo cuidado (5,13–5,62) e
+  a paleta em que elas vivem nunca foi auditada.** **Sugestão:** separar "laranja da marca" de
+  "laranja que carrega texto". **Casa com o [TD-014].**
+- **[UX-25] Cinco ações da lista, cinco cores** *(B4)*. vender `#5faa80` · produzir `#b8925a` ·
+  orçar `#8f6bc4` · editar `#6b88c4` · excluir `#c4836b`. Nada se destaca e o Excluir não se
+  distingue por cor. **Sugestão:** neutro + cor no hover, vermelho semântico só no destrutivo.
+
+#### Gráficos e números
+
+- **[UX-26] As barras de custo mentem a proporção** *(C1 + C2)*. `maxValue = Math.max(...items)`
+  → o maior custo **sempre** desenha barra inteira. Medido no cenário base: mão de obra desenha
+  **100%** sendo **40%** do custo; material **88%** sendo **35%**. O bloco termina em "Custo
+  total", então o olho lê as barras como fatia dele — **e não são**. Junto: reserva de falha
+  `#D2726B` e custo fixo `#C4836B` são **quase a mesma cor** em linhas vizinhas.
+  **Sugestão:** normalizar pelo total, ou barra empilhada 100% (devolve as 6 linhas do bloco).
+  **Onde:** `CostBars.tsx`.
+- **[UX-27] `tabular-nums` em 3 lugares de um app inteiro de números** *(C4)*. Onde o valor é
+  mono os dígitos já alinham; onde não é (cartões de KPI, margens, os `(76%)`) a coluna treme.
+  **Correção trivial.**
+
+#### Celular
+
+- **[BUG-06] Em `/vendas`, parte de cada recibo é CORTADA e não dá pra alcançar** *(D1)*.
+  `.recibo-card` tem `overflow: hidden`, mas a tabela de itens é mais larga que o cartão — então
+  o excedente **não rola, é cortado**. Medido a 375×812 em **todos** os recibos: `clientWidth
+  345px` × `scrollWidth 414…471px` = **69 a 126px cortados**. **A coluna de lucro e o botão de
+  excluir não existem no telefone.** ⚠ **O [TD-013] encostou nisso e leu ao contrário** — ele
+  registrou "453px (108px)" como ganho; os 108px são **exatamente o pedaço cortado**.
+  **Onde:** `cesta-recibo.css`.
+- **[UX-28] Os links de ação inline têm 15px de altura** *(D2)*. O UX-15 subiu os alvos do
+  catálogo p/ 32px e deixou os `.link-button` de fora: "Gerenciar" `79×15`, "detalhar refugo"
+  `286×15`. **Sugestão:** padding vertical até 32px **sem** mudar o tamanho do texto (o alvo
+  cresce, a densidade não muda). **Onde:** `forms.css`.
+
+#### Modais
+
+- **[TD-015] Casca de modal compartilhada** *(E1 + E2 + E3)*. **O padrão certo já existe** — o
+  `ConfirmDialog` (UX-15) e a gaveta (UX-14) fazem tudo direito; nunca foi propagado. Levantado:
+  **8 dos 9** modais **sem** `role="dialog"`, **sem** `aria-modal`, **sem** nome acessível e
+  **sem** Escape (`SaleModal`, `MachineManagerModal`, `StockColorModal`, `StockRollModal`,
+  `StockAdjustModal`, `SupplyModal`, `SupplyLotModal`, `SupplyAdjustModal`). **Nenhum** trava a
+  rolagem do fundo (`document.body` segue `overflow: visible`; a gaveta **já** trava). E no
+  `SaleModal` (**774px** numa viewport de 910px, `overflow-y: auto`) o rodapé rola junto → os
+  botões ficam **abaixo da dobra**, e não há **✕** no cabeçalho. **Sugestão:** extrair a casca do
+  `ConfirmDialog` para um `<Modal>` com cabeçalho/rodapé fixos — resolve os três de uma vez e
+  apaga 8 cópias de `.modal-overlay`.
+
+#### Estrutura e semântica (a camada que o UX-16 não tocou)
+
+- **[UX-29] O documento não tem sumário nem marcos** *(F1 + F2 + F3)*. Na **calculadora** o único
+  título é a **MARCA** (`h1=1 "Lopo Lab", h2=0, h3=0`) — todos os nomes de seção são `<div>`; as
+  outras 6 rotas já têm `<h1>` de página. No app: `h1` 10× · `h2` **1×** · `h3` 10× (todos
+  `.modal-title`) → salto h1→h3. E **não existe `<nav>` nem `<header>`** (só `<main>`, esse
+  correto nas 8 rotas), nem link para pular ao conteúdo. **Sugestão:** a marca vira `<div>`, o
+  `<h1>` nomeia a página, e os títulos de seção que **já existem visualmente** viram `<h2>` —
+  **sem mudar um pixel**, porque o estilo já vem de classe.
+- **[UX-30] O preço muda em silêncio** *(F4)*. A interação central do app (mexer no dial e ver o
+  número) não anuncia nada. O `FeedbackNote` **já estabeleceu** `role="status"` no projeto.
+  **Sugestão:** `aria-live="polite"` no `.result-price` + `aria-valuetext` no `<input
+  type="range">` (senão o valor falado é "54", não "R$ 27,14"). **Correção trivial.**
+
+#### Formulários e controles
+
+- **[BUG-07] Os campos de observação estão em monoespaçada por acidente** *(G1)*. `textarea`
+  **não é estilizado em nenhum arquivo do app**: o reset do `base.css` cobre `button, input,
+  select` e esquece dele, e o `.field-input` define `font-size` mas **não** `font-family`.
+  Medido em `/orcamento`: todos os campos em **Inter 14px**, o de observações em **`monospace`
+  14px**. Atinge os 2 textarea do sistema (orçamento e `SaleModal`). **Conserto de UMA palavra**
+  no `base.css`.
+- **[UX-31] O foco de teclado não é um sistema** *(G3)*. Nos 16 CSS: `:focus-visible` **2×**
+  (`.back-to-top`, `.brand-reset`) · `:focus` 6× (campos, **todos** com `outline: none`) ·
+  **botões: nenhum** → ficam com o anel padrão do navegador, fora da identidade. Os dois que têm
+  foco decente são recentes: a intenção existe, não virou sistema. **Sugestão:** token de foco +
+  uma regra `:focus-visible` global. É o par natural do UX-16.
+- **[UX-32] O primário desabilitado parece defeito, não "ainda não"** *(G4)*.
+  `background: var(--border)` + `color: var(--muted2)`, largura inteira, 45px — na calculadora
+  sem nome e em `/producao` sem produto é o **maior elemento da tela**. **Sugestão:** contorno em
+  vez de preenchimento + uma linha dizendo **o que falta** ("dê um nome ao produto para salvar").
+- **[G2 → anexado à [DEC-05]]** — os emoji dos rótulos **não seguem regra nenhuma**: no MESMO
+  formulário, `🏷️ nome da etapa`/`🎨 filamento`/`⏱ tempo`/`⚡ tarifa`/`🔢 peças`/`🎲 taxa` têm, e
+  `nome do produto`/`máquina`/`cor`/`filamento (R$/kg)`/`total (g)`/`mão de obra`/`valor-hora`
+  não têm. **Não é decoração deliberada, é acaso.** Ao executar a DEC-05, decidir também o
+  **critério** (ou todo rótulo de seção tem ícone, ou nenhum tem).
+
+#### Hierarquia de navegação
+
+- **[UX-33] Dois níveis de navegação com a MESMA aparência** *(H1 + H2 + H3)*. O UX-17b deixou as
+  abas do estoque "byte a byte iguais" às da NavBar — resolveu o **estilo** e criou um problema de
+  **hierarquia**: "em que página estou" e "em que aba estou" ficam idênticos, a poucos pixels de
+  distância. E existe um **terceiro** paradigma (o segmentado de desconto no `SaleModal`).
+  Junto: "Escuro"/"Sair" ocupam uma **faixa inteira sozinhos** (~40px em toda página, p/ 2
+  botões). **Sugestão:** mesma família, pesos diferentes — chip preenchido p/ página, sublinhado
+  ou contorno leve p/ aba interna; e os 2 utilitários sobem para a linha do título.
+
+#### Matemática
+
+- **▶ [DEC-06] O que `machines` significa na capacidade?** *(I1 — **decisão, não tarefa**)*.
+  O modelo do gargalo (TD-003) **já** credita o paralelismo entre máquinas distintas; depois
+  disso `× machines` multiplica **de novo**, o que só vale com N cópias do conjunto inteiro.
+  **Travado em teste** (`calculateCapacity.test.ts:103`): produto A1 3h + X2D 2h com
+  `machines: 2` → **400 ciclos**, o que exigiria **2 A1 e 2 X2D = 4 máquinas**. A oficina tem
+  **2, uma de cada**, e `DEFAULT_FIXED_COSTS.machines = 2` → **todo produto que roda nas duas
+  projeta o dobro**. **As duas saídas:** (a) `machines` = "cópias idênticas em paralelo" → não
+  se aplica a produto multi-máquina (**barato**); (b) `machines` = "máquinas da oficina" → o
+  gargalo passa a ser por máquina **física** e o campo vira lista (**descreve a oficina real**).
+- **[TD-016] O ritmo de lucro do ROI é média de vida inteira** *(I2)*.
+  `profitPerMonth = lucro ÷ (agora − 1ª venda)`: um mês forte seguido de período parado faz a
+  média **decair sozinha** e a projeção de payback afastar a data mesmo com ritmo recente bom.
+  Responde "quanto rendeu até aqui", não "quanto rende agora". **Sugestão:** janela móvel de
+  60–90 dias p/ o ritmo, mantendo o acumulado. **Não depende do [Dashboard]** — que segue dono do
+  payback honesto (UX-09). **Onde:** `machineRoi.ts`.
+- **[UX-34] A ressalva do payback ocupa mais tela que o dado** *(I3)*. O UX-09 pôs o aviso em 3
+  pontos de propósito e **funcionou** — o efeito colateral é visual: subtítulo do KPI + caixa no
+  topo + linha italic em cada cartão. **Sugestão:** manter a linha por cartão (viaja junto do
+  número) e recolher a caixa do topo para um ícone com dica. **Onde:** `MachinesPage.tsx`.
 
 ### Cluster UI/UX — auditoria de 2026-08-15 (UX-13→17 + UX-19 + TD-013; o UX-18 virou DEC-05)
 
