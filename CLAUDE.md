@@ -14,25 +14,25 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ passo ⑤ do cluster UI/UX = UX-16 (2026-08-16)** — rótulo **foca o campo**,
-  via `useId()` + `htmlFor`/`id` (**não** aninhando: `.section-label` é `display:flex`). **O escopo
-  dobrou na medição** (dono aprovou): além dos 44 `<label>` havia **67 `div.section-label`** — rótulo
-  *falso*, quase todos nos **modais e páginas**. Cabeçalho e valor só-leitura seguem `div`; grupo de
-  chips/caixas virou `role="group"`. **Medido rodando:** rótulo clicável **1→19** (`/`), **0→8**
-  (`/orcamento`), **2→11** (`/producao`), **0→7** (SaleModal); **zero** campo sem nome acessível.
-  **Zero visual, provado no DOM** (método do TD-013): 0 diferenças em 49 rótulos, altura idêntica.
-  376 testes. Writeup: [`BACKLOG.md`](.claude/BACKLOG.md).
+- **Última mudança:** **✅ passo ⑥ do cluster UI/UX = UX-19 (2026-08-16)** — a **cor passou a
+  trabalhar**: a régua da DEC-04 virou o módulo puro `lib/marginTier.ts` (+12 testes) e pinta a margem
+  em **4 superfícies** (o item citava 2; dono aprovou somar calculadora + estoque). **Nenhuma regra CSS
+  existente editada** — `base.css` é o 1º `@import` e perde todo empate, então a faixa vai num `<span>`
+  próprio. **Medido:** 93 produtos = 20 bom · 63 ok · 10 ruim; dial ao vivo 45%🔴→54%🟠→65%🟢; **0
+  mudança de geometria** (clone do `<main>` sem os 372 spans: 7114px idêntica). **2 achados só da
+  medição:** `.sale-pos`/`.sale-neg` estavam **mortos** no cabeçalho do recibo e `65%` saía âmbar E
+  verde. 386 testes. Writeup: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ PRÓXIMA TAREFA: passo ⑥ do cluster UI/UX = UX-19 (números sem gradação).** Pintar por faixa de
-  margem — régua da **DEC-04** já decidida: **<50% ruim · 50–65% ok · >65% bom**, a MESMA nas duas
-  telas. ⚠ Os números medem coisas diferentes: catálogo = margem **precificada**; `/vendas` = lucro
-  **realizado** (já líquido de taxa). **Junto:** o "Sem cliente" em negrito em toda venda fica mudo
-  (`--muted2`) ou some. **Onde:** `ProductCatalog.tsx`+`catalog.css` · `SalesPage.tsx`+
-  `cesta-recibo.css`. **Depois só sobra o ⑦ UX-17b** (converter os 16 CSS; por último de propósito).
+- **▶ PRÓXIMA TAREFA: passo ⑦ = UX-17b — o ÚLTIMO do cluster.** Converter os **16 CSS** de `styles/`
+  para os tokens que o UX-17a já declarou (**5.055 linhas, 219 `font-size`, 23 tamanhos distintos**);
+  matar os órfãos (9.5/11.5/12.5px, raios 2/5/7/9/14/20). **Junto:** mover `.btn:disabled` do
+  `stock.css` pro `forms.css` e unificar os 2 paradigmas de aba (chips na NavBar × sublinhado na
+  `/estoque`). ⚠ **Ler o aviso do item no [`BACKLOG.md`](.claude/BACKLOG.md) antes:** seletor de
+  **elemento nu** cria dependência invisível entre páginas, e a prova é **medir no DOM**, não o diff.
   ✅ **Sem bloqueio** — a DEC-05 (lucide nos controles) volta como tarefa de código fora da fila.
   Fechado o cluster, restam só o **Dashboard** (precisa de venda real) e o **Tier 2**, travado na marca.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
@@ -112,6 +112,8 @@ src/
                             #       de cada PARTE, via stageKey → Subitem.stageKeys — FEAT-11),
                             #     saleReconciliation (passo 8: item acabado→consumo vs
                             #       encomenda→dispara producao; +reverse),
+                            #     marginTier (UX-19: a régua da DEC-04 — faixa de margem ruim/ok/bom,
+                            #       usada por catálogo, calculadora, /vendas e estoque),
                             #     saleContext (foto congelada da venda), filaments (cores, FEAT-02;
                             #       colorKeyOf = identidade de cor da peça, FEAT-11),
                             #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento:

@@ -9,6 +9,63 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Cluster UI/UX passo ⑥ — UX-19: a cor passa a trabalhar (2026-08-16)
+
+**O problema.** Num app cuja função é dizer se o preço está bom, todo número de margem saía da
+mesma cor: catálogo em cinza (49% a 72%), `/vendas` em verde (61% a 100%). A régua era a
+**[DEC-04]** (`< 50` ruim · `50–65` ok · `> 65` bom, a mesma nas duas telas), decidida em 2026-08-15.
+
+**A régua virou código, não CSS.** `lib/marginTier.ts` (novo, puro, 12 testes — molde do
+`roundPrice.ts`): `MARGIN_TIER_CUTS` guarda os dois cortes num lugar só, `marginTier()` devolve a
+faixa e `marginTierClass()`/`marginTierTitle()` são o que os componentes chamam. O `title` existe
+pra faixa **não ser transmitida só por cor**.
+
+**Escopo dobrou de 2 para 4 superfícies (dono aprovou no plano):** o item citava catálogo e
+`/vendas`, mas o mesmo número mora também no **card de preço da calculadora** (onde o dial de markup
+é mexido — o lugar mais útil de todos) e na **margem congelada da aba Produtos do estoque**.
+
+**A regra de cascata que evitou retrabalho.** `base.css` é o **1º `@import`**, então classe declarada
+lá **perde todo empate de especificidade** com os 15 CSS de área (`.muted` mora no `catalog.css`;
+`.cd-ph-margin`, `.result-margin`, `.fg-margin-val`, `.sales-total-sub` declaram cor na própria
+classe). Por isso a faixa vai sempre num **`<span>` próprio** em volta do número — e o resultado é
+que **nenhuma regra CSS existente precisou ser editada**.
+
+**Duas coisas que só apareceram MEDINDO** (método do TD-013 — as duas eram invisíveis no diff):
+1. **`.sale-pos`/`.sale-neg` estavam MORTOS no cabeçalho do recibo.** `.recibo-head-totals strong`
+   (0,1,1) vencia as classes (0,1,0) desde sempre: o lucro saía cor de `--ink` e **a Taxa nunca ficou
+   vermelha**. Ou seja, o "todos no mesmo verde" que a auditoria viu era das **linhas de item**, não
+   do cabeçalho — lá não havia cor nenhuma. Consertado com `:not(.sale-pos):not(.sale-neg)` no
+   seletor base, no **dono legítimo** da regra e **sem repetir valor de cor** em arquivo alheio.
+2. **`65%` aparecia âmbar E verde na mesma tela.** A faixa lia o valor cru (65,4 × 65,6) e a tela
+   mostra o `toFixed(0)`. `marginTier` passou a arredondar **antes** de comparar: a cor explica o
+   número escrito, não um decimal invisível. Depois disso: **0 conflitos** em 93 produtos.
+
+**Contraste medido, não estimado.** O âmbar claro nasceu `#b26a00` e mediu **4,24/4,05** contra o
+card e o fundo — abaixo do AA (4,5). Escureceu pra `#a05a00` = **5,31/5,07**, alinhado com o vermelho
+(5,62/5,38) e o verde (5,13/4,90). No escuro: 4,47 · 7,69 · 6,14 — o vermelho fica 0,03 abaixo **de
+propósito**, é o `#e05252` que o app inteiro já usa pra prejuízo.
+
+**Medido no site rodando (1280, tema claro e escuro, dados reais):**
+- Catálogo, 93 produtos: **20 bom · 63 ok · 10 ruim** — a régua da DEC-04 distribui o catálogo
+  inteiro nas 3 faixas, que era exatamente o motivo dos cortes escolhidos.
+- Calculadora, mexendo o dial ao vivo: markup 2,4 → **45% vermelho**; 3,0 → **54% âmbar**;
+  4,2 → **65% verde**. A tela responde sozinha.
+- **Zero mudança de geometria, provado**: clonando o `<main>` e desfazendo os 372 `<span>` no clone,
+  no mesmo instante — página **7114px idêntica**, 187 linhas comparadas, **0 diferenças**. Em
+  `/vendas` (incluindo o "Sem cliente" voltando a negrito no clone): **3674px idêntica**, 23
+  cabeçalhos, 0 diferenças.
+
+**Junto:** "Sem cliente" — um campo **vazio** em negrito/`--ink` em 17 das 23 vendas, ocupando a
+posição de maior ênfase da linha — ficou mudo (`.recibo-customer.is-empty`: `--muted2`, peso 400).
+Continua escrito: a ausência do nome sozinha não diria que o campo existe.
+
+**Ficou de fora de propósito:** a linha de item do recibo (`ri-profit`) mostra **só R$, sem %** —
+pintar por faixa ali seria informação transmitida **apenas por cor**. Segue `sale-pos`/`sale-neg`.
+
+**Onde:** `lib/marginTier.ts` (+teste) · `base.css` (3 tokens × 2 temas + 3 classes) ·
+`ProductCatalog.tsx` · `PricingResultCard.tsx` · `StockPage.tsx` · `SalesPage.tsx` ·
+`cesta-recibo.css`. **386 testes.**
+
 ## ✅ Cluster UI/UX passo ④ — UX-15: alvos de ação + como o app confirma e avisa (2026-08-16)
 
 **Alvo de 32px no catálogo.** As 95 linhas terminavam em 5 ícones de 24px colados, com o **Excluir**

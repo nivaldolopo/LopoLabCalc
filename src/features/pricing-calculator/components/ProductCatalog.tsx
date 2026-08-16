@@ -28,6 +28,7 @@ import { matchesQuery } from "@/lib/text";
 import { calculatePricing } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { filamentsTotalG, normalizeFilaments } from "../lib/filaments";
+import { marginTierClass, marginTierTitle } from "../lib/marginTier";
 import {
   downloadCsv,
   exportProductsCsv,
@@ -383,7 +384,15 @@ export function ProductCatalog({
                           Ao lado dela, o piso: o que sobra no pior meio de
                           pagamento configurado. */}
                       <td className="mono muted" data-label="Margem">
-                        {result.margin.toFixed(0)}%
+                        {/* UX-19: a faixa pinta um <span> PRÓPRIO — o `.muted`
+                            do td é 0,1,0 e vem depois do base.css na cascata,
+                            então a classe no td perderia o empate. */}
+                        <span
+                          className={marginTierClass(result.margin)}
+                          title={marginTierTitle(result.margin)}
+                        >
+                          {result.margin.toFixed(0)}%
+                        </span>
                         <NetMarginHint result={result} fees={fees} compact />
                       </td>
                       <td data-label="Máquina">
@@ -588,7 +597,14 @@ function CatalogDetails({
               {formatCurrency(result.suggestedPrice)}
             </span>
             <span className="cd-ph-margin">
-              margem de {result.margin.toFixed(0)}% sobre o preço final
+              margem de{" "}
+              <span
+                className={marginTierClass(result.margin)}
+                title={marginTierTitle(result.margin)}
+              >
+                {result.margin.toFixed(0)}%
+              </span>{" "}
+              sobre o preço final
             </span>
             {/* UX-10: a linha acima é a margem BRUTA (Pix/dinheiro). Esta é o
                 piso — o que sobra na pior taxa configurada. */}

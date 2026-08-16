@@ -20,6 +20,7 @@ import { useSalesPage } from "../hooks/useSalesPage";
 import { useStock } from "../hooks/useStock";
 import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
+import { marginTierClass, marginTierTitle } from "../lib/marginTier";
 import { reverseReciboReconciliation } from "../lib/saleReconciliation";
 import type { CloudStatus, ProductionEvent, RoundingMode, Sale } from "../types";
 import {
@@ -555,7 +556,15 @@ export function SalesPage() {
           >
             {formatCurrency(salesTotals.profit)}
           </strong>
-          <span className="sales-total-sub">margem {margin.toFixed(0)}%</span>
+          <span className="sales-total-sub">
+            margem{" "}
+            <span
+              className={marginTierClass(margin)}
+              title={marginTierTitle(margin)}
+            >
+              {margin.toFixed(0)}%
+            </span>
+          </span>
         </div>
       </div>
 
@@ -629,7 +638,13 @@ export function SalesPage() {
                   <span className="recibo-date">
                     {formatDate(recibo.saleDate)}
                   </span>
-                  <span className="recibo-customer">
+                  {/* UX-19: "Sem cliente" é um campo VAZIO — não pode ocupar a
+                      posição de maior ênfase da linha em toda venda. Mudo
+                      (muted2, peso normal), mas continua escrito: a ausência do
+                      nome sozinha não diria que o campo existe. */}
+                  <span
+                    className={`recibo-customer ${recibo.customer ? "" : "is-empty"}`}
+                  >
                     {recibo.customer || "Sem cliente"}
                   </span>
                   <span className="sales-badge">
@@ -663,11 +678,22 @@ export function SalesPage() {
                     ) : null}
                     <span>
                       Lucro{" "}
+                      {/* UX-19: o R$ segue verde/vermelho (lucro × prejuízo) e
+                          só a % recebe a faixa da DEC-04 — assim os DOIS sinais
+                          sobrevivem. ⚠ Aqui a margem é REALIZADA (já líquida da
+                          taxa), diferente da precificada do catálogo; a régua é
+                          a mesma por decisão do dono. */}
                       <strong
                         className={`mono ${recibo.profit < 0 ? "sale-neg" : "sale-pos"}`}
                       >
                         {formatCurrency(recibo.profit)} (
-                        {recibo.margin.toFixed(0)}%)
+                        <span
+                          className={marginTierClass(recibo.margin)}
+                          title={marginTierTitle(recibo.margin)}
+                        >
+                          {recibo.margin.toFixed(0)}%
+                        </span>
+                        )
                       </strong>
                     </span>
                   </div>

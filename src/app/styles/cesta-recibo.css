@@ -481,6 +481,15 @@
   color: var(--ink);
 }
 
+/* UX-19 — venda sem cliente: o texto "Sem cliente" é a AUSÊNCIA de um dado e
+   estava em negrito/ink, disputando o olho com o nome real das outras linhas.
+   Mudo. Mora aqui (dono da classe) e não em base.css, pra vencer o empate de
+   especificidade com a regra acima pela ordem. */
+.recibo-customer.is-empty {
+  font-weight: 400;
+  color: var(--muted2);
+}
+
 .recibo-pay {
   font-size: 12px;
   color: var(--muted);
@@ -509,9 +518,18 @@
   color: var(--muted2);
 }
 
+/* UX-19 — os `:not()` consertam uma regra MORTA achada medindo a página: o JSX
+   marca o lucro com `.sale-pos`/`.sale-neg` e a Taxa com `.sale-neg` desde
+   sempre, mas este seletor (0,1,1) vencia as duas classes (0,1,0), então tudo
+   saía cor de --ink. Ou seja: a Taxa nunca ficou vermelha e o PREJUÍZO nunca
+   apareceu como prejuízo aqui. Escapar o elemento que já tem cor própria evita
+   repetir os valores de cor num arquivo que não é dono deles. */
+.recibo-head-totals strong:not(.sale-pos):not(.sale-neg) {
+  color: var(--ink);
+}
+
 .recibo-head-totals strong {
   font-size: 13px;
-  color: var(--ink);
 }
 
 .recibo-items {

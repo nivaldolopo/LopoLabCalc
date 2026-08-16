@@ -86,6 +86,16 @@
   --markup-row-bg: #fafaf7;
   --th-bg: #fafaf7;
   --details-bg: #f9f9f6;
+
+  /* UX-19 — faixas de margem da [DEC-04]. Ficam no bloco de COR (mudam com o
+     tema), não no de escala. `good` aponta pro --green que cada tema já define:
+     o var() resolve na hora do uso, então basta declarar uma vez.
+     Contraste MEDIDO sobre o card branco / fundo #fafaf7 (AA pede 4.5): bad
+     5.62/5.38 · ok 5.31/5.07 · good 5.13/4.90. O âmbar começou em #b26a00 e
+     escureceu pra cá justamente porque media 4.24/4.05. */
+  --margin-bad: #c62828;
+  --margin-ok: #a05a00;
+  --margin-good: var(--green);
 }
 
 [data-theme="dark"] {
@@ -106,6 +116,14 @@
   --markup-row-bg: #12121e;
   --th-bg: #12121e;
   --details-bg: #141424;
+
+  /* UX-19 — no escuro o vermelho é o MESMO do `.sale-neg` (auth-sale.css), que
+     já era escolhido pra fundo escuro; o âmbar sobe de tom pelo mesmo motivo.
+     Contraste medido sobre o card #1a1a2e: bad 4.47 · ok 7.69 · good 6.14. O
+     bad fica 0,03 abaixo do AA de propósito — é o vermelho que o app inteiro já
+     usa pra prejuízo, e divergir dele custaria mais que os 0,03. */
+  --margin-bad: #e05252;
+  --margin-ok: #e0a33a;
 }
 
 * {
@@ -302,5 +320,27 @@ button {
   font-size: 11px;
   color: var(--muted2);
   cursor: help;
+}
+
+/* UX-19: cor por faixa de margem ([DEC-04], régua em `lib/marginTier.ts`). Mora
+   aqui pelo mesmo motivo do `.margin-net-hint` acima — atravessa 4 áreas
+   (catálogo, calculadora, /vendas, /estoque) e não é de nenhum CSS de página.
+
+   ⚠ Como usar (e o porquê): `base.css` é o 1º @import, então estas classes
+   PERDEM todo empate de especificidade com os 15 CSS de área (`.muted` mora no
+   catalog.css, `.cd-ph-margin`/`.result-margin`/`.fg-margin-val`/
+   `.sales-total-sub` declaram cor na própria classe). Por isso a classe vai
+   sempre num <span> PRÓPRIO em volta do número — nunca no elemento que já tem
+   `color` de outro arquivo. Assim nenhuma regra existente precisou ser editada. */
+.margin-bad {
+  color: var(--margin-bad);
+}
+
+.margin-ok {
+  color: var(--margin-ok);
+}
+
+.margin-good {
+  color: var(--margin-good);
 }
 

@@ -47,6 +47,7 @@ import {
 } from "../lib/finishedGoods";
 import { calculatePricing } from "../lib/calculatePricing";
 import { NO_COLOR_KEY } from "../lib/filaments";
+import { marginTierClass, marginTierTitle } from "../lib/marginTier";
 import {
   productPrintHours,
   saleContextFromResult,
@@ -710,7 +711,17 @@ export function StockPage() {
         </span>
         <span className={`fg-margin-val ${profit < 0 ? "sale-neg" : ""}`}>
           <strong className="mono">{formatCurrency(profit)}</strong>
-          <em>{margin.toFixed(0)}% de margem</em>
+          {/* UX-19: o R$ segue verde/vermelho (sobra × prejuízo) e só a % recebe
+              a faixa da DEC-04 — os dois sinais convivem. */}
+          <em>
+            <span
+              className={marginTierClass(margin)}
+              title={marginTierTitle(margin)}
+            >
+              {margin.toFixed(0)}%
+            </span>{" "}
+            de margem
+          </em>
         </span>
       </div>
     );

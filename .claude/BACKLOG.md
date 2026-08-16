@@ -45,7 +45,8 @@
    ~~① TD-013 + UX-17a (tokens)~~ ✅ **FEITO (2026-08-15)** → ~~② UX-13a (desktop)~~ ✅ **FEITO
    (2026-08-15)** → ~~③ UX-13b + UX-14 (chrome mobile juntos)~~ ✅ **FEITO (2026-08-15)** →
    ~~④ UX-15 (alvos + confirmação + avisos)~~ ✅ **FEITO (2026-08-16)** → ~~⑤ UX-16 (rótulo foca o
-   campo)~~ ✅ **FEITO (2026-08-16)** → **▶ ⑥ UX-19** → ⑦ UX-17b (conversão dos 16 CSS).
+   campo)~~ ✅ **FEITO (2026-08-16)** → ~~⑥ UX-19 (cor por faixa)~~ ✅ **FEITO (2026-08-16)** →
+   **▶ ⑦ UX-17b (conversão dos 16 CSS) — ÚLTIMO passo do cluster**.
    ✅ **As 2 decisões saíram junto com o passo ①** (dono, 2026-08-15): **[DEC-04]** (faixas de margem,
    destravou o ⑥) e **[DEC-05]** (lucide nos controles; volta como tarefa de código, fora da fila) —
    **o cluster não tem mais bloqueio nenhum**, os 2 passos restantes são só código.
@@ -220,7 +221,7 @@
 > **Origem:** auditoria de UI/UX pedida pelo dono, feita com o site **rodando** (`pnpm dev`, login real),
 > em **1280×900** e **375×838**, com medições no DOM — não é impressão de leitura de código. As decisões
 > de escopo abaixo (marcadas **Decidido**) são do **dono, 2026-08-15**, no mesmo chat da auditoria.
-> **Nada foi alterado no site** — o cluster inteiro está aberto.
+> **Situação (2026-08-16):** passos ①–⑥ **feitos**; só o **⑦ UX-17b** segue aberto.
 > **Os blocos seguem em ordem de ID** (fácil de achar pelo número); a **ordem de execução** é o
 > `①②③…` marcado em cada um — ver "Ordem de prioridade" item 11 e os porquês acima.
 
@@ -351,15 +352,17 @@
 > Motivo: o próprio item dizia "precisa do martelo do dono" e tem overlap com o branding (⏸ sem data);
 > deixá-lo na fila de código travaria por tempo indeterminado tudo que viesse depois dele.
 
-- **[UX-19] Números sem gradação + ênfase no lugar errado**
-  **▸ Passo ⑥ — depende da [DEC-04]** (faixas de margem). Perguntar cedo, não na hora de codar.
-  O catálogo mostra margens de **49% a 72%** todas em cinza; a `/vendas` mostra lucros de **61% a 100%**
-  todos no mesmo verde. Num app cuja função é dizer se o preço está bom, **a cor não está trabalhando**.
-  Pintar por faixa é quase uma linha de CSS e faz a tela responder sozinha.
-  **Junto:** em `/vendas`, **"Sem cliente" aparece em negrito em toda venda** — um campo vazio ocupando a
-  posição de maior ênfase da linha. Deve ser mudo (`--muted2`) ou sumir.
-  ⚠ As faixas (o que é margem ruim/ok/boa) são a **[DEC-04]** — decisão do dono, não código.
-  **Onde:** `ProductCatalog.tsx` + `catalog.css` · `SalesPage.tsx` + `cesta-recibo.css`.
+- ~~**[UX-19] Números sem gradação + ênfase no lugar errado**~~ ✅ **FEITO (2026-08-16, passo ⑥)** —
+  a régua da **[DEC-04]** virou o módulo puro **`lib/marginTier.ts`** (+12 testes) e a cor entrou em
+  **4 superfícies**: o item citava 2, mas o dono aprovou incluir o **card de preço da calculadora**
+  (onde o dial de markup é mexido) e a **margem congelada do estoque**. **Nenhuma regra CSS existente
+  foi editada** — `base.css` é o 1º `@import` e perde todo empate, então a faixa vai sempre num
+  `<span>` próprio. **Medido:** 93 produtos = **20 bom · 63 ok · 10 ruim**; dial ao vivo 45% vermelho
+  → 54% âmbar → 65% verde; **0 mudança de geometria** (clone do `<main>` sem os 372 spans: 7114px
+  idêntica, 0 de 187 linhas diferentes). **2 achados que só a medição pegou:** `.sale-pos`/`.sale-neg`
+  estavam **mortos** no cabeçalho do recibo (a Taxa nunca ficou vermelha) e `65%` saía âmbar E verde
+  na mesma tela (a faixa lia o valor cru, a tela o arredondado). **Junto:** "Sem cliente" ficou mudo.
+  Writeup + os contrastes medidos: `HISTORICO.md`.
 
 - ~~**[TD-013] `table { min-width: 600px }` é seletor global morando no CSS do catálogo**~~ ✅ **FEITO
   (2026-08-15, passo ①)** — os 3 seletores de elemento (`table`/`th`/`td`) viraram `.catalog-card *` e o

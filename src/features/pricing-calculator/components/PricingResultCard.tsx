@@ -18,6 +18,7 @@ import type {
   PricingResult,
   RoundingMode,
 } from "../types";
+import { marginTierClass, marginTierTitle } from "../lib/marginTier";
 import { ROUNDING_OPTIONS } from "../lib/roundPrice";
 import { CapacityPanel } from "./CapacityPanel";
 import { CostBars } from "./CostBars";
@@ -110,7 +111,18 @@ export function PricingResultCard({
         </div>
       ) : null}
       <div className="result-margin">
-        margem de {result.margin.toFixed(0)}% sobre o preço final
+        {/* UX-19: aqui é onde o dial de markup é mexido — a faixa da DEC-04
+            responde ao vivo. O <span> existe porque a classe precisa de um
+            elemento próprio (o `.result-margin` já tem cor do sections.css);
+            só cor, nada de peso, pra não mexer na geometria. */}
+        margem de{" "}
+        <span
+          className={marginTierClass(result.margin)}
+          title={marginTierTitle(result.margin)}
+        >
+          {result.margin.toFixed(0)}%
+        </span>{" "}
+        sobre o preço final
         {/* UX-10: a margem acima é BRUTA (só vale em Pix/dinheiro). O piso —
             pior taxa configurada — fica logo abaixo, onde o markup é decidido. */}
         <NetMarginHint result={result} fees={fees} />
