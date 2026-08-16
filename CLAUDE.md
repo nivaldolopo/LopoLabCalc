@@ -15,10 +15,12 @@
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
 - **Última mudança:** **✅ passo ③ do cluster UI/UX = UX-13b + UX-14 (2026-08-15)** — no celular a
-  `.navbar` virou **painel lateral** (gaveta pela direita; fechada = nome da página + ☰) e a calculadora
-  ganhou **barra fina fixa no rodapé** (preço/peça · margem · markup ao vivo; toque rola até o card).
-  **Medido antes × depois na mesma sessão (375×838):** navbar **227 → 46px**, 1º campo **421 → 172px**
-  (48,7% → **19,9%** da tela), `.wrap` reserva **116px** e o `.back-to-top` sobe a altura da barra ⇒
+  `.navbar` virou **painel lateral** (gaveta pela direita) e a calculadora ganhou **barra fina fixa no
+  rodapé** (preço/peça · margem · markup ao vivo; toque rola até o card). Fechada, a nav **não ocupa
+  linha nenhuma**: sobra só o ☰, absoluto no canto do `.header`, ao lado do título/`Sincronizado` (a
+  1ª versão repetia o nome da página numa linha própria — redundante com o `<h1>`).
+  **Medido antes × depois (375×838):** navbar **227 → 0px**, 1º campo **421 → 118px**
+  (48,7% → **14,1%** da tela), `.wrap` reserva **116px** e o `.back-to-top` sobe a altura da barra ⇒
   **nada coberto** (60px de folga). Desktop **idêntico** (navbar 53px · 1º campo 240px · página 1384px).
   Junto: `.subtitle` some no celular, os 7 links perderam o sublinhado e o bloco órfão de `.navbar*`
   saiu do `quote.css` (defeito do TD-013). 376 testes.

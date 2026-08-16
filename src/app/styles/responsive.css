@@ -1,6 +1,12 @@
 @media (max-width: 760px) {
   .wrap {
-    padding: 16px 14px 60px;
+    /* Declarados como token porque o botão ☰ da nav (.navbar-mobile-head, em
+       header.css) se ancora NESTE recuo: ele é absoluto dentro do .wrap e
+       precisa cair exatamente na linha do título da página. */
+    --wrap-pad-top: 16px;
+    --wrap-pad-x: 14px;
+    position: relative;
+    padding: var(--wrap-pad-top) var(--wrap-pad-x) 60px;
   }
 
   .header,

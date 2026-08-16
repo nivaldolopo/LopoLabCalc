@@ -31,15 +31,13 @@ const NAV_ITEMS = [
 // mudar de lugar ao trocar de página. Ações da página descem para baixo dela.
 //
 // UX-14 (celular): o MESMO markup vira painel lateral abaixo de 760px — a
-// `.navbar-bar` sai do fluxo e a `.navbar-mobile-head` (nome da página + botão
-// de abrir) fica no lugar dela. Medido antes: os 7 destinos quebravam em 4
-// linhas de 2 + tema/sair numa quinta, 227px de barra, e o 1º campo do
-// formulário só começava aos 421px = 50,2% da tela.
+// `.navbar-bar` sai do fluxo e sobra só o botão ☰, que NÃO ocupa linha: ele
+// flutua no canto do `.header` da página, ao lado do título/status. Medido
+// antes: os 7 destinos quebravam em 4 linhas de 2 + tema/sair numa quinta,
+// 227px de barra, e o 1º campo do formulário só começava aos 421px = 50,2%.
 export function NavBar({ theme, onToggleTheme, children }: NavBarProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const activeLabel =
-    NAV_ITEMS.find((item) => item.href === pathname)?.label ?? "Menu";
 
   // Escape fecha; enquanto aberto, o fundo não rola (a gaveta é que rola).
   useEffect(() => {
@@ -61,10 +59,12 @@ export function NavBar({ theme, onToggleTheme, children }: NavBarProps) {
       className={`navbar${open ? " is-open" : ""}`}
       aria-label="Navegação principal"
     >
-      {/* Só existe no celular (display:none no desktop): a linha de ~44px que
-          substitui a barra de 227px quando a gaveta está fechada. */}
+      {/* Só existe no celular (display:none no desktop): fechada, a nav não
+          ocupa linha nenhuma — só este botão, flutuando no canto superior
+          direito, ao lado do título que o `.header` da página já mostra.
+          (Antes havia aqui um `.navbar-current` com o nome da página: era o
+          MESMO nome do `<h1>` logo à esquerda — redundância removida.) */}
       <div className="navbar-mobile-head">
-        <span className="navbar-current">{activeLabel}</span>
         <button
           className="navbar-toggle"
           type="button"

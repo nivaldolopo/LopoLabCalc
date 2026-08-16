@@ -135,29 +135,28 @@ h1 span {
    bloco de lá venceria este na cascata — por isso ele foi APAGADO, não movido
    por cima. */
 @media (max-width: 760px) {
+  /* Fechada, a nav não ocupa NENHUMA linha: o único resto visível é o botão de
+     abrir, absoluto no canto superior direito do .wrap (que é o `position:
+     relative` do responsive.css, onde os recuos viram token). Ele fica na
+     mesma faixa do <h1> + status da página, à direita — por isso a nav some do
+     fluxo e só as ações de página abaixo mantêm margem. */
   .navbar {
-    margin: var(--space-8) 0 var(--space-12);
+    margin: 0;
   }
 
   .navbar-mobile-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-8);
-    /* 40px do botão + 2+2 de padding = os ~44px da linha fechada. */
-    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-12);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    background: var(--card-bg);
+    display: block;
+    position: absolute;
+    top: var(--wrap-pad-top);
+    right: var(--wrap-pad-x);
   }
 
-  .navbar-current {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--text-lg);
-    font-weight: 600;
+  /* Garante que a faixa do cabeçalho seja ao menos a altura do botão, para ele
+     nunca invadir o primeiro card em páginas de título curto. */
+  .header {
+    min-height: 40px;
+    margin-bottom: var(--space-12);
+    padding-right: 52px;
   }
 
   .navbar-toggle,
@@ -252,7 +251,12 @@ h1 span {
   }
 
   /* Ações da página (ex.: "Nova venda" em /vendas) ficam FORA da gaveta e
-     ocupam a largura toda. Regra que veio do quote.css. */
+     ocupam a largura toda. Regra que veio do quote.css. A margem de baixo é
+     desta media query porque a .navbar deixou de ter margem no celular. */
+  .navbar-page-actions {
+    margin-bottom: var(--space-12);
+  }
+
   .navbar-page-actions > * {
     flex: 1;
   }
