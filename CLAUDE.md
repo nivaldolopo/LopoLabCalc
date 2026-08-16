@@ -14,21 +14,14 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ passo ⑤ do cluster UI/UX = UX-16 (2026-08-16)** — rótulo agora **foca o
-  campo**, via `useId()` + `htmlFor`/`id` (**não** aninhando: `.section-label` é `display:flex` e o
-  input viraria filho de flex). **O escopo dobrou na medição** (aprovado pelo dono): além dos 44
-  `<label>`, havia **67 `<div className="section-label">`** — rótulo *falso*, o grosso deles nos
-  **modais e páginas** (venda, orçamento, produção, 6 modais de estoque). Os que rotulam **campo**
-  viraram `<label>`; os de **cabeçalho / valor só-leitura** seguem `div` (label sem controle engana o
-  leitor de tela) e os que rotulam **grupo** (chips de máquina, caixas do subitem) viraram
-  `role="group"` + `aria-labelledby`. Os `aria-label` redundantes saíram (com label real eles
-  **venceriam** o texto visível); os campos em linha de tabela (acessórios, filamento da produção),
-  que não tinham nome nenhum, ganharam `aria-label`. **Medido no site rodando:** controles com rótulo
-  clicável **1 → 19** na calculadora, **0 → 8** na `/orcamento`, **2 → 11** na `/producao`, **0 → 7**
-  no SaleModal, **0 → 5** no StockColorModal — e **zero** campo sem nome acessível em todas.
-  **Zero mudança visual, provado no DOM:** desfazendo a troca de tag ao vivo (método do TD-013),
-  **0 diferenças** de geometria/estilo em 49 rótulos e altura idêntica em toda página (`/` 1458px,
-  `/orcamento` 2127px, `/producao` 3106px, SaleModal 774px). 376 testes.
+- **Última mudança:** **✅ passo ⑤ do cluster UI/UX = UX-16 (2026-08-16)** — rótulo **foca o campo**,
+  via `useId()` + `htmlFor`/`id` (**não** aninhando: `.section-label` é `display:flex`). **O escopo
+  dobrou na medição** (dono aprovou): além dos 44 `<label>` havia **67 `div.section-label`** — rótulo
+  *falso*, quase todos nos **modais e páginas**. Cabeçalho e valor só-leitura seguem `div`; grupo de
+  chips/caixas virou `role="group"`. **Medido rodando:** rótulo clicável **1→19** (`/`), **0→8**
+  (`/orcamento`), **2→11** (`/producao`), **0→7** (SaleModal); **zero** campo sem nome acessível.
+  **Zero visual, provado no DOM** (método do TD-013): 0 diferenças em 49 rótulos, altura idêntica.
+  376 testes. Writeup: [`BACKLOG.md`](.claude/BACKLOG.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
@@ -37,13 +30,11 @@
 - **▶ PRÓXIMA TAREFA: passo ⑥ do cluster UI/UX = UX-19 (números sem gradação).** Pintar por faixa de
   margem — régua da **DEC-04** já decidida: **<50% ruim · 50–65% ok · >65% bom**, a MESMA nas duas
   telas. ⚠ Os números medem coisas diferentes: catálogo = margem **precificada**; `/vendas` = lucro
-  **realizado** (já líquido de taxa). **Junto:** o "Sem cliente" em negrito em toda venda deve ficar
-  mudo (`--muted2`) ou sumir. **Onde:** `ProductCatalog.tsx`+`catalog.css` · `SalesPage.tsx`+
-  `cesta-recibo.css`. **Fila restante (2 passos):** ⑥ UX-19 → ⑦ UX-17b (converter os 16 CSS; por
-  último de propósito).
+  **realizado** (já líquido de taxa). **Junto:** o "Sem cliente" em negrito em toda venda fica mudo
+  (`--muted2`) ou some. **Onde:** `ProductCatalog.tsx`+`catalog.css` · `SalesPage.tsx`+
+  `cesta-recibo.css`. **Depois só sobra o ⑦ UX-17b** (converter os 16 CSS; por último de propósito).
   ✅ **Sem bloqueio** — a DEC-05 (lucide nos controles) volta como tarefa de código fora da fila.
-  Detalhe/porquês: [`BACKLOG.md`](.claude/BACKLOG.md). Depois do cluster sobram só o **Dashboard**
-  (precisa de venda real acumulada) e o **Tier 2 comercial**, bloqueado pela marca.
+  Fechado o cluster, restam só o **Dashboard** (precisa de venda real) e o **Tier 2**, travado na marca.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do `/maquinas`
