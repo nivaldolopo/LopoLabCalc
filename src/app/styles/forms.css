@@ -620,9 +620,26 @@ input[type="range"]::-webkit-slider-thumb {
 .icon-button.sale,
 .icon-button.produce,
 .icon-button.quote,
-.icon-button.edit,
-.icon-button.danger {
+.icon-button.edit {
   color: var(--muted);
+}
+
+/* UX-36 — o Excluir sai do repouso neutro (decisão do dono, 2026-08-17). O
+   UX-25 tinha razão no diagnóstico — CINCO cores não hierarquizam nada — mas
+   UMA cor hierarquiza: o destrutivo é o único irreversível da fileira e agora
+   se anuncia antes do toque, não só no hover. A auditoria de 2026-08-17 mediu o
+   custo do repouso neutro: no celular ele fica a 8px do Editar, com a MESMA
+   aparência, e o erro de toque não tem volta.
+   O vocabulário é o do `.btn.danger` (soft + line + danger), não um desenho
+   novo — é o mesmo par que a página inteira já usa para "cuidado".
+   ⚠ O contorno é `box-shadow: inset`, e NÃO `border`: 1px de borda somaria 2px
+   à caixa e o ícone pularia de tamanho no meio da fileira (mesma razão do
+   UX-32). Vale no app inteiro — as 9 telas que usam `.icon-button.danger`
+   excluem algo. */
+.icon-button.danger {
+  color: var(--danger);
+  background: var(--danger-soft);
+  box-shadow: inset 0 0 0 1px var(--danger-line);
 }
 
 .icon-button:hover {
@@ -631,7 +648,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .icon-button.danger:hover {
-  background: var(--danger-soft);
+  background: var(--danger-tint);
   color: var(--danger);
 }
 

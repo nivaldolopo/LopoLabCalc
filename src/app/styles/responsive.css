@@ -194,6 +194,16 @@
     margin-top: var(--space-12);
   }
 
+  /* UX-36 — aqui o alvo é o DEDO, e aqui há espaço: a faixa mede 317px a 375 de
+     viewport e 5×44 + 4 folgas de 8 + o divisor pedem 265px. No desktop os 32px
+     ficam (a pista de "Ações" é fixa em 196px — o porquê está no `catalog.css`).
+     Esta é a única forma de agir sobre o produto no celular: a linha fechada
+     esconde a coluna inteira, então errar o toque aqui custa caro. */
+  .main-row.open td.col-actions .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
   .details-row.open {
     display: block;
     border: 1px solid var(--accent);

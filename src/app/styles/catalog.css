@@ -546,7 +546,13 @@
    anteriores vinham do FEAT-08, quando a coluna passou de 2 pra 5 ícones e a
    largura foi tirada do tamanho do botão; agora sai da faixa (ver o
    `grid-template-columns` do `.main-row`, mais abaixo). Vale SÓ no catálogo:
-   o `.icon-button` global segue em 28px (decisão do dono). */
+   o `.icon-button` global segue em 28px (decisão do dono).
+   ⚠ UX-36 — os 32px FICAM no desktop, e a conta é a faixa: "Ações" é uma pista
+   FIXA de 196px, e 5×44 + divisor + folgas pedem ~250px. Os 54px a mais sairiam
+   das faixas flexíveis, que a 826px de viewport já estão no piso — sobram 33px
+   na linha inteira. Crescer aqui reabriria exatamente o corte que o UX-21
+   fechou. Onde o alvo importa (o dedo) há espaço: no celular a linha aberta vai
+   a 44px — ver `responsive.css`. */
 td.col-actions .icon-button {
   width: var(--space-32);
   height: var(--space-32);

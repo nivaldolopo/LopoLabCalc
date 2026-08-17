@@ -14,27 +14,27 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ Auditoria de layout responsivo + 4 consertos (2026-08-17)** — pedida pelo
-  dono a partir de um print (nome de peça quebrado **letra a letra** no `/estoque`). Medição no DOM
-  nas 7 rotas, 375px e 1280px, acordeões um a um + passe de contraste WCAG nos dois temas.
-  **Causa raiz única: `1fr` sem `minmax(0, …)`** — o mínimo implícito é o min-content, e `<select>`
-  de option longa e `<input type="date">` não encolhem. Corrigido em `.fg-part`, `.grid` do celular
-  e `.two-col` (+ alinhamento). Medido: nome da peça **0 → 313px**; home **parou de rolar de lado**
-  (389 → 375px); par Cliente/Data do SaleModal **119+177 → 138+138px**. **Contraste: zero falhas.**
-  `lint` ✅ · **389/389** ✅ · `build` ✅. Levantamento: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ UX-36 + UX-37 — alvo de toque e o peso do destrutivo (2026-08-17)**.
+  O alvo cresce **onde é dedo**: no celular as 5 ações do `/catalogo` vão a **44px** (cabem: 265px
+  numa faixa de 317px); **no desktop os 32px ficam**, porque "Ações" é pista fixa de 196px e a
+  grade a 826px já está no piso — crescer reabriria o corte do UX-21. O **Excluir sai do repouso
+  neutro** e passa a usar o vocabulário do `.btn.danger` (`--danger` + `-soft` + `-line`, contorno
+  em `box-shadow: inset` pra caixa não pular) — vale no app inteiro; os outros 4 seguem neutros.
+  O gatilho de composição (UX-37) cresce pela receita do UX-28 (`padding` + margem negativa):
+  **15–17 → 32/33px**, com a linha-mãe intacta. Contraste do Excluir **4,81** (claro) / **4,53**
+  (escuro). `lint` ✅ · **389/389** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — o backlog REABRIU.** A auditoria de 2026-08-17 deixou **5 itens novos, todos
-  escolhíveis já** (nada depende do rebrand nem de dado externo): **`UX-36`** (ações do catálogo em
-  ícones de 24px, *excluir* colado no *editar*) · **`UX-37`** (gatilho de composição, 15px de
-  altura) · **`UX-38`** (lucro do recibo fora da tela no celular) · **`A11Y-01`** (botão só-ícone
-  sem `aria-label`) · **`UX-39`** (produtos homônimos no seletor — *confirmar com o dono antes*).
-  Detalhe: `BACKLOG.md`. O resto segue no rebrand (`DEC-05`+`G2`) ou bloqueado (`FEAT-03`,
-  branding, `Dashboard`).
+- **▶ PRÓXIMA TAREFA — sobraram 3 do cluster da auditoria, todos escolhíveis já** (nada depende do
+  rebrand nem de dado externo): **`UX-38`** (lucro do recibo fora da tela no celular) ·
+  **`A11Y-01`** (botão só-ícone sem `aria-label`) · **`UX-40`** (as 3 ações por subitem em 24px —
+  a linha do celular não tem de onde tirar espaço; **cruza com o `UX-38`**, mesma forma de
+  problema). Detalhe: `BACKLOG.md`. O resto segue no rebrand (`DEC-05`+`G2`) ou bloqueado
+  (`FEAT-03`, branding, `Dashboard`).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
@@ -119,6 +119,9 @@ src/
   `-tint`, borda → `-line`. **Três papéis do laranja:** `--accent` só onde NÃO carrega letra ·
   `--accent-text` quando É texto · `--accent-strong` quando carrega texto **branco** em cima.
   Categorias de custo → `--cost-*`. Hex cru só para `#fff` sobre preenchimento e sombras.
+  **Ação destrutiva se anuncia em repouso** (UX-36): `.btn.danger` e `.icon-button.danger` usam o
+  mesmo trio `--danger` + `-soft` + `-line` (`-tint` no hover). Contorno de ícone é
+  `box-shadow: inset`, nunca `border` — borda muda a caixa e o controle pula.
   ⚠ **Ao escolher/alterar um tom, meça no DOM o PIOR fundo real** (o tingimento a 10% come ~0,3), e
   **mate `transition` antes de ler** — senão a medida pega a cor no meio da troca de tema.
 - **Coluna flexível de grade escreve `minmax(0, 1fr)`, nunca `1fr` puro** (auditoria 2026-08-17): o
@@ -144,6 +147,9 @@ src/
   sumário viraria ruído). **Foco é `:focus-visible` + `--focus-ring`** (UX-31): controle novo não
   precisa declarar nada; ⚠ campo que apagar o `outline` no `:focus` tem de devolver o anel **no
   mesmo arquivo** — `base.css` é o 1º import e perde o desempate de especificidade.
+  **Alvo pequeno cresce por `padding`/`min-height` + margem negativa de igual valor** (UX-28/UX-37):
+  o alvo sobe, a caixa no fluxo não. **Meça a faixa antes de engordar botão em fileira** — no
+  desktop o alvo maior pode não caber, e 44px é regra do DEDO (UX-36: 44 no celular, 32 no desktop).
 - **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar
   watts/`lifeHours` recalcula energia e desgaste de TODOS os produtos, que guardam só o `machineId`.
   `useMachines` semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.

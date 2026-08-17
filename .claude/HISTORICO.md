@@ -9,6 +9,75 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ UX-36 + UX-37 — alvo de toque e o peso do destrutivo (2026-08-17)
+
+> **Os 2 itens** saíram do cluster da auditoria de layout do mesmo dia. O fio comum: **controle
+> importante em alvo pequeno demais**. Decisões do dono nesta rodada: o Excluir ganha **separação
+> E cor**, "normalizado com o que aparece no resto do site"; e o **[UX-39] é lixo de teste** que
+> some no recadastro (fechado sem código — ver abaixo).
+
+### O que a medição corrigiu no próprio item
+
+O backlog dizia "as 5 ações do catálogo medem **24×24px**". **Medido no DOM, elas medem 32×32** —
+os 24px são de OUTRO grupo, os 3 ícones por subitem (`.sp-actions`), que ficam no mesmo painel
+expandido. A auditoria juntou as duas fileiras numa frase só. Os 32px vieram do UX-15 e continuam
+abaixo dos 44px, então o item vale — só não pela largura que estava escrita.
+
+### UX-36 — o alvo cresce onde é dedo, não onde é ponteiro
+
+| Onde | Antes | Depois | Por quê |
+|---|---|---|---|
+| Celular (`.main-row.open td.col-actions`) | 32×32 | **44×44** | Cabe: a faixa mede **317px** e 5×44 + 4 folgas de 8 + o divisor pedem **265px**. E é a **única** forma de agir sobre o produto ali — a linha fechada esconde a coluna inteira |
+| Desktop (`td.col-actions`) | 32×32 | **32×32** (fica) | "Ações" é pista **FIXA de 196px**; 5×44 pediriam ~250px, e os 54px sairiam das faixas flexíveis que a **826px já estão no piso** (sobram 33px na linha). Crescer aqui reabriria o corte que o UX-21 fechou |
+
+**O Excluir sai do repouso neutro.** O UX-25 acertou o diagnóstico — **cinco** cores não
+hierarquizam nada — mas **uma** hierarquiza. Agora ele usa o vocabulário que a página inteira já
+tem para "cuidado", o do `.btn.danger`: `--danger` + `--danger-soft` + `--danger-line`, com
+`--danger-tint` no hover. **Vale no app inteiro** (as 9 telas com `.icon-button.danger` excluem
+algo); os outros quatro seguem neutros, então a fileira continua parecendo uma fileira.
+
+⚠ O contorno é `box-shadow: inset`, **não** `border` — 1px de borda somaria 2px à caixa e o ícone
+pularia de tamanho no meio da fileira (mesma razão do UX-32).
+
+**Medido — 375×812, linha aberta:** os 5 botões em **44×44** · folga Editar→Excluir **29px** contra
+**8px** entre os demais · `scrollWidth 375 = clientWidth` (sem rolagem lateral). **1280×900:**
+botões **32×32**, pistas **idênticas** (`259,9 / 119,1 / 65 / 108,3 / 75,8 / 130 / 196px`), linha
+em **62px** — zero regressão.
+**Contraste do Excluir sobre o fundo composto** (transições mortas antes de ler): claro
+`rgb(198,40,40)` sobre `rgb(249,234,234)` = **4,81** · escuro `rgb(232,96,96)` sobre
+`rgb(47,33,51)` = **4,53**. Passa o AA de texto nos dois — e ícone é objeto gráfico, que pede 3.
+
+### UX-37 — o gatilho da composição, pela receita do UX-28
+
+`.cost-detail-trigger` media **15–17px**: metade do alvo, num controle que abre a composição inteira
+do custo. Cresceu pela **mesma receita do UX-28** (`.link-button`) — o alvo sobe, a caixa no fluxo
+não: `padding-block: 8px` + `margin-block: -8px` + `min-height: 32px`.
+
+⚠ **Por que não virou `inline-flex`** (que seria o jeito óbvio de centralizar): o conteúdo é texto +
+`<strong>` + `<span>` com **espaços significativos** entre eles; em flex cada um vira item próprio e
+os espaços somem — o rótulo colaria no número.
+
+**Medido:** `/estoque` **15 → 32px** (linha-mãe `.sales-total-sub` segue em **16px**) · `/producao`
+**17 → 33px** (`.prod-summary-line` segue em **17px**) · SaleModal **→ 32px**. O texto do gatilho
+continua com os espaços (`"custo real gasto R$ 10,88 · composição ▾"`).
+**Sondagem de sobreposição** (`elementFromPoint` nas bordas): a 4px acima e abaixo do alvo só há
+`div` não-interativo (`.prod-summary`/`.prod-note`, `strong`/`.sales-total-card`, `.cesta-item`) —
+**o alvo maior não rouba clique de vizinho**.
+
+### UX-39 — fechado sem código
+
+O dono confirmou: os "coffee prank coffee part" ×4 e "Arraia Flexível" ×2 são **lixo de teste**, e
+somem no recadastro (Diretriz 7). Nada a desempatar no seletor.
+
+### O achado que ficou aberto
+
+Os **24px dos `.sp-actions`** (as 3 ações por subitem) **não** foram tocados: a 375px a linha já
+está espremida — o nome do subitem ocupa **37,6px** de 297px úteis — e crescer os ícones de 76 para
+136px o mataria de vez. É alvo **e** grade ao mesmo tempo, então virou item próprio: **[UX-40]** no
+backlog.
+
+**Verificação:** `lint` ✅ · `test` **389/389** ✅ · `build` ✅ · medições acima nos dois temas.
+
 ## 🔍 Auditoria de layout responsivo (2026-08-17) — o LEVANTAMENTO + os 4 consertos
 
 > **Gatilho:** o dono mandou um print do `/estoque` → aba Produtos, no celular: num produto com mais

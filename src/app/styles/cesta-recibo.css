@@ -230,8 +230,19 @@
 /* Detalhe de custo (CostDetail): gatilho inline + JANELA FLUTUANTE (Popover API).
    Compartilhado pela cesta (modal) e pelo histórico (/vendas). O popover vive na
    top-layer, então não é cortado pelo scroll do modal e centraliza sozinho. */
+/* UX-37 — o gatilho media 15–17px de altura: metade do alvo, num controle que
+   abre a composição inteira do custo. Cresce pela MESMA receita do UX-28
+   (`.link-button`): o alvo sobe, a caixa no fluxo não — aqui via `padding-block`
+   + `margin-block` negativo de igual valor, porque este botão é `inline-block` e
+   o `min-height` sozinho empurraria a linha do cartão.
+   ⚠ NÃO virar `inline-flex` para centralizar: o conteúdo é texto + `<strong>` +
+   `<span>` com espaços significativos entre eles, e cada um viraria item de flex
+   (os espaços somem e o rótulo cola no número). */
 .cost-detail-trigger {
   padding: 0;
+  padding-block: var(--space-8);
+  margin-block: calc(-1 * var(--space-8));
+  min-height: var(--space-32);
   border: 0;
   background: none;
   font: inherit;
