@@ -6,7 +6,8 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
-> **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15 e as ondas 0–5 ✅ FECHADOS.** O
+> **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15, as ondas 0–5 e o `[micro]` do
+> botão de 14px (2026-08-17) ✅ FECHADOS.** O
 > registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e os
 > writeups das ondas 1 a 5. **Este arquivo só tem o que está ABERTO.**
 >
@@ -113,13 +114,6 @@
     eventos de `producao` que o geraram (as camadas da SKU têm `sourceEventId`). Puxa buscar `producao`
     por `productId` sob demanda (pós-TD-006 a coleção não é mais assinada inteira) = a mesma agregação
     server-side do painel. Sai da aba Produtos do estoque e entra aqui.
-
-### Micro-item solto (herdado do UX-17b, sem onda)
-
-- **[micro] O botão do celular em 16px** — no UX-17b campo **e** botão foram a **16px** (abaixo
-  disso o iOS dá zoom ao focar o campo), o que alongou `/vendas` (**+57px**) e `/producao`
-  (**+70px**). O campo **precisa** dos 16px; o botão não. Se o dono preferir o botão em **14px**,
-  é **1 linha** no `responsive.css`. Fica aqui até ele decidir — não entra em onda nenhuma.
 
 ### Decisões já marteladas que ainda são tarefa de CÓDIGO
 

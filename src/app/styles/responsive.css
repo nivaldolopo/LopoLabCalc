@@ -53,11 +53,14 @@
     gap: var(--space-10);
   }
 
-  /* UX-17b — os dois eram o órfão `15px`. Únicos que SOBEM (para 16px) em vez
+  /* UX-17b — o campo era o órfão `15px` e é o único que SOBE (para 16px) em vez
      de colapsar para o vizinho de baixo: o iOS dá zoom automático ao focar um
      campo com fonte < 16px, e o zoom desfaz o espaço vertical que o UX-13b/14
-     acabou de ganhar no celular. O `.btn` acompanha só para não destoar do
-     campo ao lado. */
+     acabou de ganhar no celular.
+     [micro] (decisão do dono, 2026-08-17): o `.btn` NÃO acompanha mais. Ele
+     subia só para não destoar do campo ao lado — e essa estética custou +57px
+     na /vendas e +70px na /producao. Sem `font-size` aqui ele herda o
+     `--text-lg` (14px) do `forms.css`; o zoom do iOS não se aplica a botão. */
   .field-input {
     font-size: var(--text-xl);
     padding: var(--space-10);
@@ -65,7 +68,6 @@
 
   .btn {
     padding: var(--space-14) var(--space-12);
-    font-size: var(--text-xl);
   }
 
   .result-price {

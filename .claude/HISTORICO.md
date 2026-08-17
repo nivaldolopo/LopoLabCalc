@@ -9,6 +9,39 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ [micro] O botão do celular volta a 14px (2026-08-17)
+
+> Resíduo do UX-17b, fora de qualquer onda: lá, **campo e botão** subiram pra 16px no celular. O
+> campo **precisa** (abaixo de 16px o iOS dá zoom ao focar); o botão só acompanhou "pra não
+> destoar do campo ao lado". **Martelo do dono (2026-08-17): 14px.**
+
+**A mudança é uma remoção:** o `.btn` do `responsive.css` perdeu a linha `font-size` e volta a
+herdar o `--text-lg` (14px) do `forms.css` — o `padding` continua igual. O comentário do bloco foi
+reescrito pra registrar que o campo sobe **sozinho**, e por quê.
+
+**Medido no DOM (375px, tema escuro, servidor local, `transition` morta antes de ler — sem isso a
+leitura pega a fonte no meio da animação do `transition: all` do `.btn` e mede 14px mesmo com
+`!important` inline):**
+
+| Botão | Antes | Depois |
+|---|---|---|
+| `Salvar` (calculadora) | 48px | **45px** |
+| `Registrar produção` | 48px | **45px** |
+| `Carregar mais …` (/vendas, /producao) | 50px | **47px** |
+
+Página inteira: `/` −7px · `/producao` −6px · `/vendas` −3px. **Bem menos que os +57/+70px que o
+UX-17b tinha somado** — aquele ganho era quase todo do CAMPO (há muitos por tela), não do botão,
+que aparece 1–2 vezes por rota. O item valia pela coerência, não pelo pixel.
+
+⚠ **Alvo de toque preservado:** o menor ficou em **45px**, acima do mínimo de 44px do UX-30.
+
+ℹ️ **Não afetados** (e nunca estiveram em 16px): os três `.btn.btn-secondary` do card de resultado
+(`Vender`/`Produzir`/`Orçar`) medem **34px** com fonte 13px — quem manda neles é uma regra mais
+específica, que sempre venceu o `.btn` do `responsive.css`. Ficam **abaixo dos 44px**; é anterior a
+esta mudança e não foi tocado aqui.
+
+**Verificação:** `lint` ✅ · `test` **389/389** ✅ · `build` ✅ · medição no DOM acima.
+
 ## ✅ Onda 5 do backlog — matemática e leitura (2026-08-17) — **a ÚLTIMA da fila**
 
 > **Os 3 itens:** `UX-26` (a matemática das barras de custo) · `TD-016` (o ritmo de lucro do ROI) ·

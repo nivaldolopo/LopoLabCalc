@@ -14,14 +14,13 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ ONDA 5 FECHADA — matemática e leitura (2026-08-17)**, a **última da
-  fila**. **UX-26** (a régua das barras era o maior item: mão de obra desenhava 100% sendo 40%.
-  Virou **faixa empilhada 100%** sobre o custo total, com legenda `R$ + %` — e o desenho do
-  `/estoque` virou o componente `CostStack`, um só pros 3 consumidores) · **TD-016** (o ritmo do ROI
-  vira **janela móvel de 90 dias**, que encurta se o histórico for menor; máquina parada mostra
-  `R$ 0/mês` e nenhuma data; KPI "Ritmo (90d)") · **UX-34** (a ressalva do topo do `/maquinas` vira
-  `<details>` fechado: **108 → 36px** no celular, 36 → 18 no desktop). `lint` ✅ · **389/389** ✅ ·
-  `build` ✅. Writeup e medições: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ [micro] o botão do celular volta a 14px (2026-08-17)** — resíduo do
+  UX-17b, decidido pelo dono. O `.btn` do `responsive.css` perdeu a linha `font-size` e herda o
+  `--text-lg` do `forms.css`; **só o CAMPO sobe pra 16px** (abaixo disso o iOS dá zoom ao focar).
+  Medido no DOM: botões **48 → 45px** e **50 → 47px**; páginas `/` −7px, `/producao` −6px,
+  `/vendas` −3px (bem menos que os +57/+70 do UX-17b — aquilo era quase todo do campo). Alvo de
+  toque preservado (mínimo 45 > 44px). `lint` ✅ · **389/389** ✅ · `build` ✅.
+  Writeup e medições: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
@@ -32,8 +31,7 @@
   código que restava está **acoplado ao rebrand** (`DEC-05`+`G2`) ou **bloqueado por dado externo**
   (`FEAT-03`, branding, `Dashboard`) — nada disso depende de decisão nossa. **Não invente tarefa:**
   em chat novo, pergunte ao dono o que ele quer (item novo, auditoria nova, ou esperar a marca).
-  O `[micro]` do botão de 16px no celular segue à espera de decisão dele (1 linha). Fila e
-  bloqueios: `BACKLOG.md`.
+  O `[micro]` que restava (botão do celular) foi decidido e fechado. Fila e bloqueios: `BACKLOG.md`.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
