@@ -23,8 +23,9 @@
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
-  existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
+- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — o PDF antes da
+  logo obriga a refazer o cabeçalho. **As CORES saíram (2026-08-16): amarelo + preto**; a **logo
+  não** (2 opções em prévia com o designer). Destrava quando o dono avisar.
 - **▶ PRÓXIMA TAREFA — a onda 3 do [`BACKLOG.md`](.claude/BACKLOG.md): grade e alinhamento**
   (`UX-21` restante · `UX-22` · `UX-23` · `UX-33`). É o que o dono viu com os próprios olhos
   ("textos descentralizados"). ⚠ O `UX-21` carrega um achado novo da onda 1: a 826px de largura
@@ -32,8 +33,9 @@
   alinhamento.
 - **Ordem do backlog (dono, 2026-08-16): ondas 0–5**, com **0, 1 e 2 fechadas** — restam 10 itens.
   **⚠ O prazo externo acabou:** ele existia só pelo `TD-014`, e com a cor tokenizada o rebrand virou
-  troca de paleta. Da onda 3 em diante nada tem prazo — a ordem é valor, não urgência. `DEC-05`
-  (lucide) segue fora da fila, junto do rebrand. Porquês: `HISTORICO.md`.
+  troca de paleta **+ 1 token** (o amarelo carrega texto PRETO, não branco — o `--accent-strong`
+  inverte; detalhe no `BACKLOG.md`). Da onda 3 em diante nada tem prazo — a ordem é valor, não
+  urgência. `DEC-05` (lucide) segue fora da fila, junto do rebrand. Porquês: `HISTORICO.md`.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do `/maquinas`

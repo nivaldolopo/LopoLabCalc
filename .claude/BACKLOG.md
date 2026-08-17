@@ -162,6 +162,8 @@
   Junto: "Escuro"/"Sair" ocupam uma **faixa inteira sozinhos** (~40px em toda página, p/ 2
   botões). **Sugestão:** mesma família, pesos diferentes — chip preenchido p/ página, sublinhado
   ou contorno leve p/ aba interna; e os 2 utilitários sobem para a linha do título.
+  ⚠ **Se o chip preenchido usar accent, NÃO escrever `color: white`** — seria o 6º branco cravado
+  sobre accent, e a marca amarela inverte esse par. Ver **[branding/rebrand]**.
 
 #### Matemática
 
@@ -188,8 +190,35 @@
   tarefa): prazo de entrega, foto/thumbnail do item, formas de pagamento/condições, termos/observações,
   QR code do WhatsApp, detalhar etapas/subitens (usa FEAT-01), desconto/acréscimo, branding real.
   **Onde:** `generateQuotePdf.ts` + `QuotePage`/`config/orcamento`. Lista completa em `HISTORICO.md`.
-- **[branding/logo real]** trocar o logo placeholder (impressora) pela logo real no PDF — já há
-  comentário no código. Overlap com FEAT-03.
+- **[branding/rebrand]** paleta + logo real *(engloba o antigo "[branding/logo real]": trocar o
+  placeholder de impressora no PDF, que já tem comentário no código)*. **Bloqueado:** a logo ainda
+  não está fechada. **Leva junto a [DEC-05]** (lucide) e a logo do **[FEAT-03]**.
+  ✅ **Cores marteladas pelo dono (2026-08-16): amarelo + preto.** Prévia do designer vista — duas
+  opções (1: wordmark em caixas de traço fino · 2: abelha + wordmark em pixel art), **ainda não
+  escolhida**; um jogo de 5 padrões de preenchimento acompanha as duas.
+  **O que a prévia JÁ decide, e não depende da opção escolhida:**
+  - O amarelo é **dourado** (~`#F2B705`–`#F5C518` — pedir o hex exato). Em toda essa faixa,
+    **branco em cima reprova** (~1,8–2,1) e **preto passa folgado** (~10–11,5). As travas da marca
+    nunca usam branco — não é estilo, é o único par que funciona.
+  - → **O `--accent-strong` inverte de sentido.** Ele existe como *"o accent escuro o bastante pra
+    carregar BRANCO"* (UX-24), e esse branco está **cravado em 5 lugares**: `forms.css:369`
+    (`.btn.primary`) · `base.css:404` (`.back-to-top`) · `cesta-recibo.css:152` e `:212` (toggles de
+    desconto) · `sections.css:79` (badge 10px).
+    → **A troca NÃO é só de paleta:** é a paleta **+ um token novo `--on-accent`** (a tinta que fica
+    *em cima* do accent). O TD-014 não o criou porque na época o branco era constante.
+  - As duas travas mapeiam **1:1 nos temas**: amarelo-sobre-preto = escuro (~11:1);
+    preto-sobre-amarelo = o preenchimento accent no claro. Nada a inventar.
+  - **Decisão pendente pra hora do rebrand:** o `--accent-text` no tema **claro** — amarelo como
+    texto sobre fundo claro reprova. Ou vira âmbar escuro (~`#8a6a00`, ~5,1 no branco; **medir no
+    tingimento 10%**, que come ~0,3), ou o accent-como-texto no claro vira **preto** e o amarelo fica
+    só preenchimento/tingimento (mais fiel a "amarelo e preto").
+  - **Input pro dono levar ao designer (só aparece porque existe app):** favicon 16/32px, marca de
+    ~32px no cabeçalho e cabeçalho do PDF. A **opção 2 é nativa nesses tamanhos** (pixel art já é
+    grade; a abelha funciona **sem** a palavra). A **opção 1 não reduz** — traço fino some e não há
+    símbolo isolável, exigiria criar um só pro app.
+  - **Oportunidade (não é tarefa):** os 5 padrões são preenchimentos de impressão 3D. Hoje as 8
+    categorias do `CostBars` se distinguem **só por cor** — falha pra daltônico e em P&B. Padrão +
+    cor distingue nos dois. Cruza com o **[UX-26]**.
 - **[Dashboard] (`/painel`)** — receita/custo/lucro do mês, lucro líquido (menos custos fixos),
   utilização das máquinas (comprar outra?), receita por máquina, lucro por material, produto mais
   lucrativo. Só vale com ~1-2 meses de vendas no banco.
