@@ -43,7 +43,7 @@
 }
 
 .link-inline {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
   text-decoration: none;
 }
@@ -111,6 +111,6 @@
   padding: var(--space-2) var(--space-8);
   border-radius: var(--radius-pill);
   background: var(--chip-active-bg);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 

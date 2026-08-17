@@ -112,9 +112,9 @@
 }
 
 .stock-badge.low {
-  background: rgba(196, 131, 107, 0.14);
-  border: 1px solid rgba(196, 131, 107, 0.35);
-  color: #c4836b;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-line);
+  color: var(--warn);
 }
 
 .stock-current {
@@ -202,7 +202,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  color: var(--accent);
+  color: var(--accent-text);
   border: 1px solid var(--accent);
   border-radius: var(--radius-2xl);
   padding: var(--space-2) var(--space-4);
@@ -317,11 +317,15 @@
 }
 
 .stock-delta.pos {
-  color: var(--green);
+  color: var(--success);
 }
 
+/* Saída de material. É `--warn`, NÃO `--danger`: dar baixa não é erro nem
+   prejuízo — é o sentido do movimento (o par `.pos` é o verde da entrada).
+   Mesma leitura que o [UX-20] usa pra deixar este ponto de fora da regra da
+   margem. */
 .stock-delta.neg {
-  color: #c4836b;
+  color: var(--warn);
 }
 
 .stock-delta.zero {
@@ -364,7 +368,7 @@
 
 .stock-tab.active {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--chip-active-bg);
 }
 
@@ -378,7 +382,7 @@
   flex: 0 0 auto;
   border-radius: var(--radius-md);
   background: var(--chip-active-bg);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .fg-warn {
@@ -392,8 +396,8 @@
 }
 
 .fg-warn.neg {
-  color: #c4836b;
-  border-color: #c4836b55;
+  color: var(--warn);
+  border-color: var(--warn-line);
 }
 
 /* UX-08: as peças viraram uma "tabelinha" alinhada — nome (+ nota de avulsas) |
@@ -430,7 +434,7 @@
 .fg-part-note {
   font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* FEAT-11: de que cores é o saldo desta peça ("2 Azul · 1 Preto"). Discreto: o
@@ -468,25 +472,19 @@
   gap: var(--space-6);
 }
 
-/* Paleta dos 6 componentes. Vive aqui (e não na base) porque só a composição de
-   custo usa: material puxa o accent da marca por ser quase sempre o dominante; o
-   resto acompanha em tons distinguíveis nos dois temas. */
+/* TD-014 — a paleta dos componentes de custo SUBIU pro `base.css` (`--cost-*`).
+   Ela morava aqui com a justificativa de que "só a composição de custo usa", e
+   isso era falso: o `CostBars.tsx` desenhava o MESMO conceito com outras 8
+   cores cravadas no JSX. Agora há uma paleta só, e este bloco só faz o
+   apelido local que o resto do arquivo já consome. */
 .fg-comp {
-  --c-material: var(--accent);
-  --c-labor: #2f7d8c;
-  --c-supplies: #7a5ea8;
-  --c-energy: #d9a021;
-  --c-depreciation: #6b7a99;
-  --c-maintenance: #a8617a;
+  --c-material: var(--cost-material);
+  --c-labor: var(--cost-labor);
+  --c-supplies: var(--cost-supplies);
+  --c-energy: var(--cost-energy);
+  --c-depreciation: var(--cost-depreciation);
+  --c-maintenance: var(--cost-maintenance);
   margin-top: var(--space-10);
-}
-
-[data-theme="dark"] .fg-comp {
-  --c-labor: #4db6c8;
-  --c-supplies: #a688d8;
-  --c-energy: #e8bc4d;
-  --c-depreciation: #8fa0c0;
-  --c-maintenance: #cf869e;
 }
 
 .fg-comp-bar {
@@ -565,15 +563,16 @@
   color: var(--muted);
 }
 
+/* UX-20 — este era o TERCEIRO jeito de pintar lucro no app, e o único que a
+   busca por `.sale-pos` não achava: o verde vinha da PRÓPRIA classe, e o
+   prejuízo era `--accent` (laranja) em vez do vermelho que o resto do app usa
+   — duas cores para o mesmo significado. Agora o verde sai daqui (a cor mora
+   na %, logo ao lado, que já carrega a faixa da DEC-04) e o negativo entra na
+   fila do `.sale-neg` comum, definido no `auth-sale.css`. */
 .fg-margin-val {
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-6);
-  color: var(--green);
-}
-
-.fg-margin-val.sale-neg {
-  color: var(--accent);
 }
 
 .fg-margin-val strong {
@@ -625,7 +624,7 @@
 
 .fg-card.open .arrow-icon {
   transform: rotate(180deg);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .fg-value-inline strong {
@@ -670,7 +669,7 @@
 }
 
 .inline-link {
-  color: var(--accent);
+  color: var(--accent-text);
   text-decoration: underline;
 }
 

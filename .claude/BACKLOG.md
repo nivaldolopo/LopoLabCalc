@@ -6,9 +6,9 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
-> **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15 e as ondas 0–1 ✅ FECHADOS.** O
-> registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e o
-> writeup da onda 1. **Este arquivo só tem o que está ABERTO.**
+> **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15 e as ondas 0–2 ✅ FECHADOS.** O
+> registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e os
+> writeups das ondas 1 e 2. **Este arquivo só tem o que está ABERTO.**
 
 ## Ordem de prioridade — ondas (dono, 2026-08-16)
 
@@ -20,21 +20,24 @@
 > **O critério que decidiu a ordem — prazo externo, e ele corta pros DOIS lados:**
 > - **[TD-014] feito ANTES da marca ECONOMIZA** — com a cor tokenizada, o rebrand vira troca de
 >   paleta; sem ela, são 14 edições à mão em literais que fixam o RGB do laranja. → **sobe**.
+>   ✅ **Feito (onda 2)** — a tinta agora mora num `-rgb` por cor no `base.css`, e todo o resto
+>   deriva dela. O prazo externo **deixou de existir**.
 > - **[DEC-05] feito antes da marca CUSTA** — o próprio item registra a ressalva do dono de que
 >   vai precisar de ajuste depois. É o simétrico do TD-014. → **desce, sai da fila.**
 >
 > ⚠ Dentro de cada onda **não há ordem** — são do mesmo tamanho e do mesmo tipo. O que a onda fixa
 > é *quando o bloco entra*, não a sequência interna.
 
-> ✅ **Ondas 0 e 1 FECHADAS em 2026-08-16** (mesmo dia). A 0 eram as duas perguntas — respondidas
-> (ver abaixo); a 1 eram os 5 consertos, feitos e no ar. Writeup: `HISTORICO.md`.
+> ✅ **Ondas 0, 1 e 2 FECHADAS em 2026-08-16** (mesmo dia). A 0 eram as duas perguntas —
+> respondidas (ver abaixo); a 1 eram os 5 consertos; a 2 era o bloco COR, com o **prazo externo da
+> marca já neutralizado** (a cor virou token: o rebrand agora é troca de paleta). Writeups:
+> `HISTORICO.md`.
 
 | Onda | Itens | Por que aqui |
 |---|---|---|
-| **▶ 2 — o bloco COR** ⏳ *prazo externo* | **[TD-014]** · **[UX-20]** · **[UX-24]** · **[UX-25]** · a parte de cor do **[UX-26]** | Única onda com prazo (a marca). O UX-20 é a **mesma passada** por `.sale-pos`/`.sale-neg` que o TD-014 exige — pega carona de graça. |
-| **3 — grade e alinhamento** | resto do **[UX-21]** · **[UX-22]** · **[UX-23]** · **[UX-33]** | É literalmente o que o dono viu com os próprios olhos ("textos descentralizados"). |
+| **▶ 3 — grade e alinhamento** | resto do **[UX-21]** · **[UX-22]** · **[UX-23]** · **[UX-33]** | É literalmente o que o dono viu com os próprios olhos ("textos descentralizados"). |
 | **4 — sistema** | **[TD-015]** (8 modais) · **[UX-29]** · **[UX-31]** · **[UX-28]** · **[UX-32]** | Caro, sem prazo, alto valor estrutural. O TD-015 apaga 8 cópias de `.modal-overlay`. |
-| **5 — matemática e leitura** | **[UX-26]** (as barras) · **[TD-016]** · **[UX-34]** | ✅ Destravada — o **[DEC-06]** foi respondido. |
+| **5 — matemática e leitura** | **[UX-26]** (só a MATEMÁTICA das barras) · **[TD-016]** · **[UX-34]** | ✅ Destravada — o **[DEC-06]** foi respondido. A parte de COR do UX-26 saiu na onda 2. |
 | **fora da fila** | **[DEC-05]** (lucide) | Fazer **junto do rebrand**, não antes — ver o critério acima. |
 | **⏸ bloqueadas** | **[FEAT-03]** + **[branding/logo real]** (a marca não existe) · **[Dashboard]** (precisa de ~1-2 meses de venda real) | Sempre por último; nenhuma das duas depende de decisão nossa. |
 
@@ -60,58 +63,11 @@
 > (é alinhamento → foi pra **onda 3**, não pra 1), e o `DEC-06` subiu pra **onda 0** por ser
 > pergunta que travava a matemática de quem vier depois.
 >
-> ✅ **Ondas 0 e 1 fechadas no mesmo dia** — restam **15 itens** aqui.
+> ✅ **Ondas 0, 1 e 2 fechadas no mesmo dia** — restam **10 itens** aqui.
 >
 > ⚠ **Continua valendo que o mérito de cada item é levantamento** — a ordem diz *quando* o bloco
 > entra, não que o desenho da solução já está aprovado. As "Sugestões" escritas em cada item
 > seguem sendo sugestão da auditoria, não martelo.
-
-- **▶ [UX-20] A cor do lucro compete com a faixa de margem** *(pedido do dono, 2026-08-16; era o
-  achado **C5** da auditoria — o ÚNICO já decidido)*
-  Em "Lucro **R$ 25,46 (76%)**" há **dois** sinais de cor sobrepostos: o valor recebe
-  `.sale-pos`/`.sale-neg` (lucro × prejuízo) e a % recebe a faixa da **DEC-04** (ruim/ok/boa).
-  **Medido: são o MESMO tom** — `.sale-pos` é `color: var(--green)` (`auth-sale.css:90`) e
-  `--margin-good` é `var(--green)` (`base.css:108`). Enquanto a margem é boa, o verde dobra sem
-  graduar nada (todo lucro positivo é verde); quando ela cai, a linha manda recados opostos —
-  R$ **verde** ao lado de % **âmbar/vermelha** (existe nos dados reais: `R$ 20,11 (61%)`).
-  **✅ Decidido (dono, 2026-08-16): valor em R$ na cor normal, cor SÓ na margem — e como REGRA
-  DO APP INTEIRO**, não só na `/vendas` (o dono ampliou o escopo no mesmo dia).
-  ⚠ **Reverte uma decisão do [UX-19]**, registrada em **DOIS** comentários no código
-  (`SalesPage.tsx:681` e `StockPage.tsx:714`): *"o R$ segue verde/vermelho … e só a % recebe a
-  faixa da DEC-04 — assim os DOIS sinais sobrevivem"*. Quem pegar está **mudando** uma decisão,
-  não completando uma — mesmo molde do **[UX-15] vs [TD-004]**. Os dois comentários têm de ser
-  reescritos junto, senão o código passa a mentir.
-  ⚠ **A cor do lucro NÃO sai de um lugar só — são TRÊS implementações diferentes** do mesmo
-  conceito, e a busca por `.sale-pos` **não acha a terceira**:
-  1. `.sale-pos` / `.sale-neg` na classe (a maioria dos pontos) — verde `var(--green)` /
-     vermelho `#e05252`;
-  2. `.fg-margin-val` (`stock.css:568`) — o verde vem da **própria classe** (`color:
-     var(--green)`), sem `.sale-pos`; o JSX só acrescenta `.sale-neg` no negativo;
-  3. e nesse mesmo `.fg-margin-val.sale-neg` (`stock.css:575`) o prejuízo é **`var(--accent)`
-     (laranja)**, não o vermelho `#e05252` que o resto do app usa — **duas cores para o mesmo
-     significado**. Unificar isso faz parte da tarefa.
-  ⚠ **Borda obrigatória (senão some sinal):** hoje o vermelho do PREJUÍZO mora no R$. Tirando a
-  cor de lá, o prejuízo passa a depender da % vermelha (margem negativa cai em "ruim") + do sinal
-  de menos. Isso **falha com receita 0**: a margem não é finita, `marginTier` devolve `null` e o
-  prejuízo ficaria **sem cor nenhuma**. → **manter `.sale-neg` só para valor negativo**; o que
-  sai é só o `.sale-pos`.
-  ✅ **Sub-decisão FECHADA (dono, 2026-08-16): (c) — manter a cor onde não há % companheira.**
-  Nos 3 pontos em que o valor **não tem % ao lado** (linha do item em `/vendas`, `ProfitSummary`,
-  cards do `/maquinas`) o R$ **continua** verde/vermelho, porque ali não existe % pra carregar o
-  sinal. A regra final do app fica: **a cor mora na %; sem % companheira, ela mora no R$.**
-  ⚠ Isso é uma **exceção deliberada**, não um esquecimento — quem executar tem de deixá-la
-  **escrita no código**, junto da reescrita dos dois comentários acima. Sem isso, o próximo a
-  passar por ali "conserta" a exceção e apaga a leitura desses três pontos.
-  **Onde — APLICA (lucro/sobra pareado com margem):** `SalesPage.tsx` (`:555` card KPI, `:687`
-  cabeçalho do recibo, `:764` linha do item) · `StockPage.tsx:712` (`fg-margin-val`) ·
-  `SaleModal.tsx` (`:1345` lucro do item, `:1484` total) · `MachinesPage.tsx` (`:118` lucro
-  acumulado, `:221` card de ROI) · `ProfitSummary.tsx:18`.
-  **NÃO aplica (mesma classe, outro significado — o ± é o sentido inteiro, não "bom × ruim"):**
-  `StockPage.tsx:599` e `SuppliesTab.tsx:438` (`stock-entry-delta` = entrada × saída de material)
-  · `SaleModal.tsx:1330` (preço acima × abaixo do sugerido). **Não trocar em massa** — três
-  desses ficariam errados.
-  **Casa bem com o [TD-014]** (tokenizar cor): é a mesma passada por `.sale-pos`/`.sale-neg`. Mas
-  **não depende dele** — pode sair sozinha.
 
 #### Alinhamento — o que o dono viu como "textos descentralizados"
 
@@ -138,36 +94,17 @@
   1º dado) · `/catalogo` e `/vendas` nenhum. Nunca virou componente. **Sugestão:** um
   `PageIntro` com medida de linha limitada (~70 caracteres).
 
-#### Cor — o buraco que o UX-17 deixou
-
-- **[TD-014] Tokenizar a COR (o UX-17a, de novo, para cor)** *(B2 + B3 + C3)*. O UX-17 tokenizou
-  espaço/raio/tipografia e **parou antes da cor**. Medido: **51 hex distintos + 8 bases
-  `rgba()`**; o `base.css` declara ~23 de superfície e **nenhuma semântica** (`#c4836b` 11× e
-  `#e05252` 5× fazem o papel de "perigo/aviso" sem nome). E a mesma tinta aparece em **6
-  opacidades** (`rgba(255,107,53,·)` em `.08/.1/.12/.2/.22/.3`) — os **órfãos** do UX-17b, agora
-  em cor. Inclui a paleta do `CostBars.tsx` (6 hex crus que **não respondem ao tema**).
-  ⚠ **Tem PRAZO:** esses literais **fixam o RGB do laranja** → quando a marca chegar, são 14
-  edições à mão. Feito antes, o rebrand vira **troca de paleta**. **Onde:** `base.css` + os 16
-  CSS + `CostBars.tsx`.
-- **[UX-24] Contrastes que reprovam no AA** *(B1)*. Medido: **branco sobre `--accent` = 2,84:1**
-  (é o **botão primário**, reprova nos DOIS temas) · `--muted2` **2,93** claro / **3,18** escuro
-  (52 usos, e é o texto de **10–11px**) · `--accent` como texto **2,84** no claro (57 usos; no
-  escuro está ok em 6,02). ⚠ **O UX-19 mediu as 3 cores de margem com todo cuidado (5,13–5,62) e
-  a paleta em que elas vivem nunca foi auditada.** **Sugestão:** separar "laranja da marca" de
-  "laranja que carrega texto". **Casa com o [TD-014].**
-- **[UX-25] Cinco ações da lista, cinco cores** *(B4)*. vender `#5faa80` · produzir `#b8925a` ·
-  orçar `#8f6bc4` · editar `#6b88c4` · excluir `#c4836b`. Nada se destaca e o Excluir não se
-  distingue por cor. **Sugestão:** neutro + cor no hover, vermelho semântico só no destrutivo.
-
 #### Gráficos e números
 
-- **[UX-26] As barras de custo mentem a proporção** *(C1 + C2)*. `maxValue = Math.max(...items)`
-  → o maior custo **sempre** desenha barra inteira. Medido no cenário base: mão de obra desenha
-  **100%** sendo **40%** do custo; material **88%** sendo **35%**. O bloco termina em "Custo
-  total", então o olho lê as barras como fatia dele — **e não são**. Junto: reserva de falha
-  `#D2726B` e custo fixo `#C4836B` são **quase a mesma cor** em linhas vizinhas.
+- **[UX-26 — o que SOBROU] As barras de custo mentem a proporção** *(C1; o C2, das duas cores
+  quase iguais, foi fechado na onda 2)*. `maxValue = Math.max(...items)` → o maior custo **sempre**
+  desenha barra inteira. Medido no cenário base: mão de obra desenha **100%** sendo **40%** do
+  custo; material **88%** sendo **35%**. O bloco termina em "Custo total", então o olho lê as barras
+  como fatia dele — **e não são**.
   **Sugestão:** normalizar pelo total, ou barra empilhada 100% (devolve as 6 linhas do bloco).
-  **Onde:** `CostBars.tsx`.
+  ✅ A paleta já não atrapalha: as 8 categorias viraram `--cost-*` no `base.css`, respondem ao tema
+  e não há mais duas cores quase iguais em linhas vizinhas. Sobrou **só a matemática**.
+  **Onde:** `CostBars.tsx` (o `maxValue`, que tem um comentário apontando pra cá).
 
 #### Celular
 

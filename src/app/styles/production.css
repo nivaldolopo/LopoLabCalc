@@ -60,19 +60,21 @@
   line-height: 1.4;
   padding: var(--space-4) var(--space-8);
   border-radius: var(--radius-sm);
-  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+  /* TD-014 — era `var(--surface-2, rgba(127,127,127,0.08))` e `--surface-2`
+     NUNCA existiu no app: o fallback cinza era o valor real, em todo tema. */
+  background: var(--border-soft);
   color: var(--muted);
 }
 
 /* Cor mais cara = margem menor: laranja de atenção. Mais barata: só informativo. */
 .prod-fil-swap.up {
-  background: rgba(255, 107, 53, 0.1);
-  color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .prod-fil-swap.down {
-  background: rgba(74, 155, 106, 0.12);
-  color: #4a9b6a;
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .prod-fil-free {
@@ -129,7 +131,7 @@
 
 .prod-summary-line strong {
   font-size: var(--text-lg);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .prod-note {
@@ -151,13 +153,13 @@
 }
 
 .prod-warn.info {
-  background: rgba(255, 107, 53, 0.1);
-  color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .prod-warn.strong {
-  background: rgba(196, 79, 79, 0.14);
-  color: #c44f4f;
+  background: var(--danger-soft);
+  color: var(--danger);
   font-weight: 600;
 }
 
@@ -269,8 +271,8 @@
   padding: var(--space-2) var(--space-8);
   border-radius: var(--radius-2xl);
   white-space: nowrap;
-  background: rgba(255, 107, 53, 0.12);
-  color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 /* Desfechos que não geram receita/estoque ficam neutros; falha destaca. */
@@ -283,8 +285,8 @@
 }
 
 .prod-badge.falha {
-  background: rgba(196, 79, 79, 0.14);
-  color: #c44f4f;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 @media (max-width: 640px) {

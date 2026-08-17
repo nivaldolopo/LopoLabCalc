@@ -15,6 +15,10 @@ export function ProfitSummary({
   const profitPerPiece = result.suggestedPrice - result.totalCost;
   const profitBatch = profitPerPiece * result.pieces;
   const profitPerHour = printHours > 0 ? profitBatch / printHours : 0;
+  // UX-20 — EXCEÇÃO DELIBERADA, não esquecimento: as três linhas deste card
+  // mostram R$ sem % ao lado, então é o R$ que carrega o sinal. "Sem %
+  // companheira, a cor mora no R$" (sub-decisão (c) do dono, 2026-08-16). A
+  // regra completa está no `auth-sale.css`, no bloco do `.sale-pos`.
   const cls = profitPerPiece < 0 ? "sale-neg" : "sale-pos";
   // Só é "lucro" de verdade quando o custo fixo entra no totalCost (toggle
   // ligado, rateio > 0). Sem o fixo, o número é a MESMA "Contribuição" da

@@ -83,11 +83,11 @@
 }
 
 .roi-bar-fill.payback.done {
-  background: var(--green);
+  background: var(--success);
 }
 
 .roi-bar-fill.life {
-  background: #5b8def;
+  background: var(--info);
 }
 
 .roi-status {
@@ -96,11 +96,11 @@
 }
 
 .roi-status.pos {
-  color: var(--green);
+  color: var(--success);
 }
 
 .roi-status.neg {
-  color: #e05252;
+  color: var(--danger);
 }
 
 .roi-status.muted {

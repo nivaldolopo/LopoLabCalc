@@ -551,9 +551,10 @@ export function SalesPage() {
         </div>
         <div className="sales-total-card">
           <span>Lucro</span>
-          <strong
-            className={`sg mono ${salesTotals.profit < 0 ? "sale-neg" : "sale-pos"}`}
-          >
+          {/* UX-20: a cor mora na % (logo abaixo, na sub-linha "margem"); aqui
+              só sobra o `.sale-neg` do valor negativo. A regra inteira está no
+              `auth-sale.css`, no bloco do `.sale-pos`. */}
+          <strong className={`sg mono ${salesTotals.profit < 0 ? "sale-neg" : ""}`}>
             {formatCurrency(salesTotals.profit)}
           </strong>
           <span className="sales-total-sub">
@@ -678,14 +679,16 @@ export function SalesPage() {
                     ) : null}
                     <span>
                       Lucro{" "}
-                      {/* UX-19: o R$ segue verde/vermelho (lucro × prejuízo) e
-                          só a % recebe a faixa da DEC-04 — assim os DOIS sinais
-                          sobrevivem. ⚠ Aqui a margem é REALIZADA (já líquida da
-                          taxa), diferente da precificada do catálogo; a régua é
-                          a mesma por decisão do dono. */}
-                      <strong
-                        className={`mono ${recibo.profit < 0 ? "sale-neg" : "sale-pos"}`}
-                      >
+                      {/* UX-20 (2026-08-16) REVERTEU o que estava escrito aqui:
+                          o R$ NÃO segue mais verde/vermelho no positivo — a cor
+                          mora só na %, que já carrega a faixa da DEC-04. Ter os
+                          dois era o mesmo verde dobrado quando a margem era boa
+                          e dois recados opostos quando ela caía. Regra completa
+                          no `auth-sale.css`, bloco do `.sale-pos`.
+                          ⚠ Aqui a margem é REALIZADA (já líquida da taxa),
+                          diferente da precificada do catálogo; a régua é a
+                          mesma por decisão do dono. */}
+                      <strong className={`mono ${recibo.profit < 0 ? "sale-neg" : ""}`}>
                         {formatCurrency(recibo.profit)} (
                         <span
                           className={marginTierClass(recibo.margin)}
@@ -768,6 +771,12 @@ export function SalesPage() {
                               )}
                             </strong>
                           </td>
+                          {/* UX-20 — EXCEÇÃO DELIBERADA, não esquecimento: a
+                              linha do item não tem % ao lado, então é o R$ que
+                              carrega o sinal. "Sem % companheira, a cor mora no
+                              R$" (sub-decisão (c) do dono). Não uniformizar com
+                              o cabeçalho do recibo logo acima — lá existe %,
+                              aqui não. */}
                           <td
                             className={`num mono ri-profit ${sale.profit < 0 ? "sale-neg" : "sale-pos"}`}
                           >

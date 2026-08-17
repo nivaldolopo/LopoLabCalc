@@ -134,7 +134,7 @@
 
 .main-row.open .arrow-icon {
   transform: rotate(180deg);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .details-row {
@@ -179,19 +179,19 @@
 }
 
 .db-val.accent {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .db-val.green {
-  color: var(--green);
+  color: var(--success);
 }
 
 .db-val.purple {
-  color: #b57edc;
+  color: var(--cost-supplies);
 }
 
 .db-val.price {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 700;
 }
 
@@ -255,8 +255,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  background: rgba(255, 107, 53, 0.08);
-  border: 1px solid rgba(255, 107, 53, 0.22);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-tint);
   border-radius: var(--radius-xl);
   padding: var(--space-12) var(--space-16);
   margin-bottom: var(--space-16);
@@ -267,13 +267,13 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .cd-ph-value {
   font-size: var(--display-md);
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
   line-height: 1.1;
   font-family: var(--font-space-grotesk), sans-serif;
 }
@@ -314,12 +314,12 @@
 }
 
 .result-label.green {
-  color: var(--green);
+  color: var(--success);
 }
 
 .cd-capacity-lite {
-  border: 1px solid rgba(46, 125, 50, 0.22);
-  background: rgba(46, 125, 50, 0.05);
+  border: 1px solid var(--success-tint);
+  background: var(--success-soft);
   border-radius: var(--radius-xl);
   padding: var(--space-16) var(--space-16);
 }
@@ -342,7 +342,7 @@
   align-items: baseline;
   gap: var(--space-12);
   padding: var(--space-12) 0;
-  border-top: 1px solid rgba(46, 125, 50, 0.16);
+  border-top: 1px solid var(--success-tint);
 }
 
 .cd-cap-row:first-child {
@@ -373,7 +373,7 @@
   text-align: right;
   font-size: var(--text-lg);
   font-weight: 700;
-  color: var(--green);
+  color: var(--success);
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -564,20 +564,11 @@ td.col-actions .icon-button {
   background: var(--border-soft);
 }
 
-.icon-button.sale {
-  color: #5faa80;
-}
-
-.icon-button.produce {
-  color: #b8925a;
-}
-
-.icon-button.quote {
-  color: #8f6bc4;
-}
+/* UX-25 — `.icon-button.sale/.produce/.quote` saíram daqui para o `forms.css`,
+   dono legítimo do `.icon-button`, junto das outras duas ações (TD-013). */
 
 .details-links a {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: var(--text-sm);
   text-decoration: none;
   display: inline-flex;
@@ -768,6 +759,6 @@ td.col-actions {
 
 .price-cell {
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 

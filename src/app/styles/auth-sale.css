@@ -47,7 +47,7 @@
 }
 
 .auth-brand span {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .auth-title {
@@ -71,7 +71,7 @@
 .auth-error {
   margin-top: var(--space-14);
   font-size: var(--text-md);
-  color: #e05252;
+  color: var(--danger);
   word-break: break-word;
 }
 
@@ -83,12 +83,45 @@
   margin-top: var(--space-14);
 }
 
+/* ===========================================================================
+   UX-20 — A REGRA DE COR DO LUCRO NO APP INTEIRO (dono, 2026-08-16).
+
+     "A cor mora na %. Sem % companheira, ela mora no R$."
+
+   Por quê: em "Lucro R$ 25,46 (76%)" havia DOIS sinais de cor sobrepostos — o
+   R$ com `.sale-pos`/`.sale-neg` e a % com a faixa da DEC-04. Medido: eram o
+   MESMO tom enquanto a margem fosse boa (verde dobrado, graduando nada), e
+   quando ela caía a linha mandava recados OPOSTOS — R$ verde ao lado de %
+   âmbar. Existe nos dados reais: `R$ 20,11 (61%)`.
+
+   ⚠ Isto REVERTE uma decisão do [UX-19], que dizia "o R$ segue verde/vermelho
+   e só a % recebe a faixa — assim os DOIS sinais sobrevivem". Os dois
+   comentários que registravam aquilo (SalesPage e StockPage) foram reescritos
+   junto; se você está lendo este bloco por causa de um deles, é aqui que a
+   decisão vigente mora.
+
+   ⚠ `.sale-pos` NÃO foi apagado — ele é a metade "sem % companheira" da regra.
+   Sobrevive em 5 pontos, cada um com o motivo escrito no TSX ao lado:
+   linha do item em `/vendas` · lucro do item no `SaleModal` · `ProfitSummary`
+   · os 2 cartões do `/maquinas`. Se você vier "limpar" isso, vai apagar a
+   leitura desses cinco lugares — eles não têm % pra carregar o sinal.
+
+   ⚠ `.sale-neg` fica em TODO valor negativo, inclusive onde o `.sale-pos`
+   saiu. Não é simetria esquecida: com receita 0 a margem não é finita,
+   `marginTier()` devolve `null`, e sem esta regra o prejuízo ficaria sem cor
+   nenhuma.
+
+   ⚠ E há um terceiro uso desta MESMA dupla que não é lucro nem prejuízo —
+   entrada × saída de material (`stock-entry-delta`) e preço acima × abaixo do
+   sugerido. Ali o ± é o sentido inteiro, não "bom × ruim": a regra acima não
+   se aplica e a cor fica onde está.
+   =========================================================================== */
 .sale-neg {
-  color: #e05252;
+  color: var(--danger);
 }
 
 .sale-pos {
-  color: var(--green);
+  color: var(--success);
 }
 
 .sale-price-hint {

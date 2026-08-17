@@ -77,17 +77,63 @@
   --price-bar-h: 56px;
 }
 
+/* ---------------------------------------------------------------------------
+   TD-014 — TOKENS de COR. O bloco irmão do de escala acima; estes SIM mudam
+   com o tema.
+
+   O que existia antes deste item: ~23 tokens de SUPERFÍCIE (fundo, borda,
+   campo) e nada de semântica. O significado morava em literal espalhado —
+   medido em 2026-08-16: 49 hex distintos + 8 bases `rgba()` nos 16 arquivos,
+   com `#c4836b` 10× e `#e05252` 6× fazendo o papel de "perigo" sem nome, e a
+   MESMA tinta laranja em 6 opacidades (.08/.1/.12/.2/.22/.3).
+
+   A descoberta que organizou o bloco: o [UX-19] já tinha construído a paleta
+   semântica sem saber. As três cores da faixa de margem (bad/ok/good) foram as
+   ÚNICAS medidas com cuidado no app (5,07–5,62 no claro) — elas só estavam
+   presas dentro do nome "margem". Aqui elas sobem para `--danger` / `--warn` /
+   `--success`, e `--margin-*` passa a apontar de volta. Nada de tom novo
+   inventado: é a cor que já tinha passado no teste.
+
+   ⚠ CONSEQUÊNCIA MEDIDA: com isso, 12 pontos que reprovavam no AA passam a
+   herdar cor aprovada — inclusive alguns que a auditoria NÃO tinha listado
+   (`.sale-neg` #e05252 = 3,65/3,82 · o terracota do erro de formulário
+   #c4836b = 2,95/3,09 · o verde do "salvo" #4a9e76 = 3,12/3,26). O UX-24
+   pedia 3 correções; a passada por toda a paleta achou o resto.
+
+   COMO ESCREVER COR NOVA (a regra que este bloco cria):
+     • significado → `--danger` / `--warn` / `--success` / `--accent`;
+     • fundo tênue → `-soft` · fundo forte, hover e borda sutil → `-tint` ·
+       borda → `-line`. A escada é de 3 degraus (.10/.20/.35) e substitui as
+       13 opacidades soltas que existiam. Órfãos colapsam pro degrau vizinho,
+       mesma política do UX-17b — a lista do que mexeu está no HISTORICO.
+     • a tinta mora no `-rgb`; o resto DERIVA dela. Trocar a marca = trocar UMA
+       linha por cor, e é exatamente por isso que este item vem antes do
+       rebrand.
+
+   O que de propósito NÃO virou token: as sombras `rgba(0, 0, 0, ·)` (7×). Não
+   são cor de marca, não travam o rebrand, e a geometria da sombra é local.
+--------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
-  --accent: #ff6b35;
+
+  /* Superfície e texto. */
   --ink: #1a1a2e;
   --bg: #fafaf7;
   --border: #ece8dd;
   --border-soft: #f0ede3;
   --muted: #6b6858;
-  --muted2: #9b9788;
+  /* UX-24 — era #9b9788, que media 2,80/2,93 sendo o texto de 10-11px em 52
+     lugares.
+     ⚠ Mesmo erro do `--accent-text` acima, e mesma correção: #767263 passava
+     no liso (4,61/4,82) e caía para 4,22 no painel de capacidade, onde o
+     `.capacity-sub` de 11px pousa sobre o verde 10%. O tom foi escolhido pelo
+     PIOR fundo real, não pelo card: agora 5,18 no fundo liso e ~4,74 sobre o
+     tingido.
+     ⚠ Custo assumido: o degrau para o `--muted` (#6b6858, 5,36) quase sumiu. A
+     saída melhor seria o texto de 11px crescer, mas "não aumentar o texto" é
+     instrução do dono desde o UX-17a — então o degrau é que cede. */
+  --muted2: #6e6a5b;
   --field-border: #e5e1d8;
-  --green: #2e7d32;
   --card-bg: #ffffff;
   --field-bg: #ffffff;
   --chip-bg: #ffffff;
@@ -96,16 +142,98 @@
   --markup-row-bg: #fafaf7;
   --th-bg: #fafaf7;
   --details-bg: #f9f9f6;
+  /* Trilho do interruptor desligado. Era um `#d8d4c8` cru em sections.css e,
+     por isso, o MESMO cinza claro no tema escuro — não respondia ao tema. */
+  --toggle-off: #d8d4c8;
 
-  /* UX-19 — faixas de margem da [DEC-04]. Ficam no bloco de COR (mudam com o
-     tema), não no de escala. `good` aponta pro --green que cada tema já define:
-     o var() resolve na hora do uso, então basta declarar uma vez.
-     Contraste MEDIDO sobre o card branco / fundo #fafaf7 (AA pede 4.5): bad
-     5.62/5.38 · ok 5.31/5.07 · good 5.13/4.90. O âmbar começou em #b26a00 e
-     escureceu pra cá justamente porque media 4.24/4.05. */
-  --margin-bad: #c62828;
-  --margin-ok: #a05a00;
-  --margin-good: var(--green);
+  /* --- A marca. ---
+     Três papéis distintos, porque um laranja só não dá conta: branco sobre
+     `--accent` mede 2,84 (reprova nos DOIS temas) e `--accent` como texto mede
+     2,71/2,84 no claro. `--accent` continua sendo a cor da marca em tudo que
+     NÃO carrega letra (barra, chip, borda, faixa); quem carrega letra usa os
+     outros dois. Decisão do dono (2026-08-16): separar marca de texto, em vez
+     de escurecer a marca inteira. */
+  --accent-rgb: 255, 107, 53;
+  --accent: rgb(var(--accent-rgb));
+  --accent-soft: rgba(var(--accent-rgb), 0.1);
+  --accent-tint: rgba(var(--accent-rgb), 0.2);
+  --accent-line: rgba(var(--accent-rgb), 0.35);
+  /* Laranja que carrega TEXTO BRANCO em cima (botão primário, chip cheio).
+     Não muda com o tema: branco sobre cor não depende do fundo da página.
+     Branco sobre ele mede 5,18 (era 2,84 sobre o `--accent`). */
+  --accent-strong: #c2410c;
+  /* Laranja que É texto, sobre o fundo da página.
+     ⚠ O tom saiu da MEDIÇÃO NO DOM, e a primeira tentativa (#c74a0b) errou:
+     ela passava no liso (4,55 no fundo / 4,76 no card) e REPROVAVA nos fundos
+     que este mesmo laranja pinta — chip ativo da NavBar, aba do estoque,
+     `.prod-badge`, `.sales-badge`, todos `--accent-soft` (laranja 10%), onde
+     caía para 4,29–4,41. O tom tem de sobreviver ao PRÓPRIO tingimento: com
+     este, o pior caso real é 4,66 (`.prod-badge` sobre rgb(255,240,235)).
+     No escuro o próprio `--accent` já passa (6,71/6,02) e o token aponta pra
+     ele — ver o bloco `[data-theme="dark"]`. */
+  --accent-text: var(--accent-strong);
+
+  /* --- Semântica. Os três tons vêm do UX-19 (ver o cabeçalho). --- */
+  /* Erro, prejuízo, falha, ação destrutiva. Medido: 5,38/5,62. */
+  --danger-rgb: 198, 40, 40;
+  --danger: rgb(var(--danger-rgb));
+  --danger-soft: rgba(var(--danger-rgb), 0.1);
+  --danger-tint: rgba(var(--danger-rgb), 0.2);
+  --danger-line: rgba(var(--danger-rgb), 0.35);
+
+  /* Atenção que NÃO é erro: estoque baixo, cor sumida do catálogo, saída de
+     material. A separação é nova — antes isto e o erro eram o mesmo terracota,
+     e não dava pra distinguir "deu ruim" de "olha isso". Medido: 5,07/5,31. */
+  --warn-rgb: 160, 90, 0;
+  --warn: rgb(var(--warn-rgb));
+  --warn-soft: rgba(var(--warn-rgb), 0.1);
+  --warn-tint: rgba(var(--warn-rgb), 0.2);
+  --warn-line: rgba(var(--warn-rgb), 0.35);
+
+  /* Lucro, salvo, sobra, entrada. Absorve os 3 verdes que existiam soltos
+     (#4a9e76, #4a9b6a, #5faa80 — todos entre 2,66 e 3,39).
+     ⚠ Escureceu 2 pontos em relação ao #2e7d32 do UX-19 (que media 4,90/5,13)
+     pelo MESMO motivo do `--accent-text` e do `--muted2`: sobre o painel de
+     capacidade, que é pintado com este próprio verde a 10%, o tom antigo caía
+     para 4,49 — reprovava por um centésimo. Agora 5,23/5,47 no liso e 4,80 no
+     painel. A diferença é imperceptível a olho; o que muda é passar. Isto vale
+     também para o `--margin-good`, que deriva daqui. */
+  --success-rgb: 44, 120, 48;
+  --success: rgb(var(--success-rgb));
+  --success-soft: rgba(var(--success-rgb), 0.1);
+  --success-tint: rgba(var(--success-rgb), 0.2);
+  --success-line: rgba(var(--success-rgb), 0.35);
+
+  /* Informativo neutro (barra de vida útil do ROI). Só decorativo — não
+     carrega texto, então não entra na conta de contraste. */
+  --info: #5b8def;
+
+  /* UX-19 — as faixas da [DEC-04] agora DERIVAM da semântica em vez de
+     repetir o hex. O contraste é o mesmo de antes porque a cor é a mesma. */
+  --margin-bad: var(--danger);
+  --margin-ok: var(--warn);
+  --margin-good: var(--success);
+
+  /* Paleta da COMPOSIÇÃO DE CUSTO — as 8 categorias.
+     Subiu pra cá porque existiam DUAS paletas independentes para o mesmo
+     conceito e elas discordavam: a de `.fg-comp` (stock.css, 6 cores, com
+     variante escura) e a do `CostBars.tsx` (8 cores cravadas no JSX, sem
+     variante escura). Energia era #d9a021 num lugar e #E0A96D no outro;
+     manutenção, #a8617a contra #5FA8A0. Venceu a do `.fg-comp`, que já tinha
+     sido pensada para os dois temas; as duas categorias que só o CostBars tem
+     entraram agora.
+     ⚠ Parte-cor do [UX-26]: reserva de falha (#D2726B) e custo fixo (#C4836B)
+     eram quase a mesma tinta em linhas vizinhas. Falha vira o vermelho
+     semântico (é risco) e custo fixo vira o neutro (é o balde do "não
+     atribuível"). A MATEMÁTICA das barras não foi tocada — é da onda 5. */
+  --cost-material: var(--accent);
+  --cost-labor: #2f7d8c;
+  --cost-supplies: #7a5ea8;
+  --cost-energy: #d9a021;
+  --cost-depreciation: #6b7a99;
+  --cost-maintenance: #a8617a;
+  --cost-failure: var(--danger);
+  --cost-fixed: var(--muted);
 }
 
 [data-theme="dark"] {
@@ -115,9 +243,17 @@
   --border: #2a2a40;
   --border-soft: #1e1e30;
   --muted: #9b97aa;
-  --muted2: #6b6880;
+  /* UX-24 — era #6b6880 (3,55 no fundo / 3,18 no card).
+     ⚠ O tom foi escolhido MEDINDO NO DOM onde o `--muted2` de fato pousa, não
+     sobre o card. O pior fundo real do tema escuro não é o card: é o painel de
+     capacidade (verde 10% sobre o card = rgb(31,41,49)), onde `.capacity-sub`
+     imprime 11px. Contra ELE, #85819c dava 3,96 e ainda reprovava — daí este
+     tom. Pior caso agora: 4,87 (capacidade) · 5,52 (chip ativo) · 5,62 (card).
+     ⚠ Custo assumido: o degrau para o `--muted` (#9b97aa) quase sumiu no
+     escuro. A saída melhor seria o texto de 11px crescer, mas "não aumentar o
+     texto" é instrução do dono desde o UX-17a — então o degrau é que cede. */
+  --muted2: #9591ab;
   --field-border: #2a2a40;
-  --green: #4caf50;
   --card-bg: #1a1a2e;
   --field-bg: #12121e;
   --chip-bg: #12121e;
@@ -126,14 +262,28 @@
   --markup-row-bg: #12121e;
   --th-bg: #12121e;
   --details-bg: #141424;
+  --toggle-off: #3a3a52;
 
-  /* UX-19 — no escuro o vermelho é o MESMO do `.sale-neg` (auth-sale.css), que
-     já era escolhido pra fundo escuro; o âmbar sobe de tom pelo mesmo motivo.
-     Contraste medido sobre o card #1a1a2e: bad 4.47 · ok 7.69 · good 6.14. O
-     bad fica 0,03 abaixo do AA de propósito — é o vermelho que o app inteiro já
-     usa pra prejuízo, e divergir dele custaria mais que os 0,03. */
-  --margin-bad: #e05252;
-  --margin-ok: #e0a33a;
+  /* Aqui o laranja da marca JÁ passa como texto (6,71 no fundo / 6,02 no
+     card), então o token volta pra ele: escurecer no escuro seria piorar.
+     `--accent-strong` NÃO é redeclarado de propósito — branco sobre cor não
+     depende do tema. */
+  --accent-text: var(--accent);
+
+  /* Só a TINTA muda; `--danger`, `-soft`, `-tint` e `-line` derivam sozinhos
+     porque `var()` resolve na hora do uso. É o motivo de a base ser `-rgb`.
+     Medidos sobre o card #1a1a2e: danger 4,47 · warn 7,69 · success 6,14. O
+     danger fica 0,03 abaixo do AA de propósito — herdado do UX-19: é o
+     vermelho que o app inteiro já usa pra prejuízo. */
+  --danger-rgb: 224, 82, 82;
+  --warn-rgb: 224, 163, 58;
+  --success-rgb: 76, 175, 80;
+
+  --cost-labor: #4db6c8;
+  --cost-supplies: #a688d8;
+  --cost-energy: #e8bc4d;
+  --cost-depreciation: #8fa0c0;
+  --cost-maintenance: #cf869e;
 }
 
 * {
@@ -249,7 +399,8 @@ button {
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 50%;
-  background: var(--accent);
+  /* UX-24 — seta branca sobre cor: mesmo caso do `.btn.primary`. */
+  background: var(--accent-strong);
   color: #fff;
   cursor: pointer;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);

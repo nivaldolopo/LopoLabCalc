@@ -14,25 +14,26 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ ONDAS 0 e 1 FECHADAS (2026-08-16)** — as 2 decisões do dono + os 5
-  consertos, num commit. **BUG-06** (recibo cortado no celular, 23/23) · **BUG-07** (`textarea`
-  fora do reset) · **UX-27** (`tabular-nums` no `body`) · **UX-21 parcial** (`.num` no catálogo) ·
-  **UX-30** (`aria-live` + `aria-valuetext`) · **aviso do [DEC-06]**. Verificado no DOM a 1280×900
-  e 375×812; **386 testes intactos**. Writeup: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ ONDA 2 FECHADA — o bloco COR (2026-08-16)**. **TD-014** (a cor virou
+  token: `--danger`/`--warn`/`--success`/`--accent-*`/`--cost-*`, a tinta num `-rgb` e o resto
+  derivando — ~80 literais convertidos) · **UX-20** (a cor mora na %, com 5 exceções escritas no
+  código) · **UX-24** (AA) · **UX-25** (as 5 ações) · a parte de cor do **UX-26**. Medido no DOM:
+  **4.561 textos em 7 rotas × 2 temas, zero reprovações**; **386 testes intactos**. Writeup e as 3
+  descobertas da passada: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — **a marca ainda não
   existe**; o PDF antes da logo obriga a refazer o cabeçalho. Destrava quando o dono avisar.
-- **▶ PRÓXIMA TAREFA — a onda 2 do [`BACKLOG.md`](.claude/BACKLOG.md): o bloco COR** (`TD-014` ·
-  `UX-20` · `UX-24` · `UX-25` · parte do `UX-26`). **Única onda com prazo externo** (a marca):
-  tokenizar a cor **antes** dela transforma o rebrand em troca de paleta. O `UX-20` pega carona (é
-  a mesma passada por `.sale-pos`/`.sale-neg`) e sua sub-decisão **já está fechada** — (c): sem %
-  companheira a cor fica no R$, exceção que tem de ficar **escrita no código**.
-- **Ordem do backlog (dono, 2026-08-16): ondas 0–5**, com **0 e 1 fechadas** — restam 15 itens.
-  **Critério = PRAZO EXTERNO, cortando pros dois lados:** `TD-014` antes da marca **economiza** →
-  onda 2; `DEC-05` (lucide) antes **custa** → fora da fila, junto do rebrand. ⚠ A ordem diz
-  *quando* o bloco entra, não que o **desenho** já está aprovado. Porquês: `HISTORICO.md`.
+- **▶ PRÓXIMA TAREFA — a onda 3 do [`BACKLOG.md`](.claude/BACKLOG.md): grade e alinhamento**
+  (`UX-21` restante · `UX-22` · `UX-23` · `UX-33`). É o que o dono viu com os próprios olhos
+  ("textos descentralizados"). ⚠ O `UX-21` carrega um achado novo da onda 1: a 826px de largura
+  útil a coluna de preço do catálogo **transborda e é cortada** — é defeito de GRADE, não de
+  alinhamento.
+- **Ordem do backlog (dono, 2026-08-16): ondas 0–5**, com **0, 1 e 2 fechadas** — restam 10 itens.
+  **⚠ O prazo externo acabou:** ele existia só pelo `TD-014`, e com a cor tokenizada o rebrand virou
+  troca de paleta. Da onda 3 em diante nada tem prazo — a ordem é valor, não urgência. `DEC-05`
+  (lucide) segue fora da fila, junto do rebrand. Porquês: `HISTORICO.md`.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do `/maquinas`
@@ -70,66 +71,48 @@ src/
   features/pricing-calculator/
     components/             # UI: PricingCalculator (raiz) + ProductForm + PricingResultCard +
                             #     CapacityPanel/MachineSelector/MachineManagerModal/FixedCostsPanel/
-                            #     AccessoriesSection/ExtraStagesSection/SubitemsSection/LinksSection,
-                            #     CatalogPage (/catalogo) + ProductCatalog, SalesPage (/vendas),
-                            #     QuotePage (/orcamento), MachinesPage (/maquinas),
-                            #     ProductionPage (/producao), StockPage (/estoque: abas Filamentos/
-                            #       Insumos/Produtos) + StockColorModal/StockRollModal/
-                            #       StockAdjustModal + SuppliesTab (7e) + SupplyModal/
-                            #       SupplyLotModal/SupplyAdjustModal,
-                            #     SaleModal (registrar venda) + SaleFlow (a fiação dele, usada
-                            #       pelas 2 páginas), Header, AuthGate (login),
-                            #     NavBar (no celular vira painel lateral — UX-14),
-                            #     MobilePriceBar (barra fixa da calculadora no celular — UX-13b),
-                            #     compartilhados: NumberInput, ProfitSummary, SearchBox,
-                            #       ConfirmDialog (+useConfirm: ask(): Promise<boolean> — UX-15),
-                            #       FeedbackNote (+useFeedback: aviso de escrita; ok some em 5s),
-                            #       NetMarginHint (UX-10: margem líquida ao lado da bruta),
-                            #       CostDetail (composição 1 ou 2 colunas — precificado × real;
-                            #       exporta CostBreakdownTable, reusada pelo popover E pelos
-                            #       dropdowns de /vendas · /producao · /estoque — UX-06/07a)
+                            #     AccessoriesSection/ExtraStagesSection/SubitemsSection/LinksSection ·
+                            #   uma por rota: CatalogPage (+ProductCatalog), SalesPage, QuotePage,
+                            #     MachinesPage, ProductionPage, StockPage (abas Filamentos/Insumos/
+                            #     Produtos) + StockColor/Roll/AdjustModal + SuppliesTab (7e) +
+                            #     Supply/SupplyLot/SupplyAdjustModal ·
+                            #   SaleModal + SaleFlow (a fiação dele, usada pelas 2 páginas),
+                            #     Header, AuthGate, NavBar (no celular vira gaveta — UX-14),
+                            #     MobilePriceBar (UX-13b) ·
+                            #   compartilhados: NumberInput, ProfitSummary, SearchBox, CostBars,
+                            #     ConfirmDialog (+useConfirm), FeedbackNote (+useFeedback),
+                            #     NetMarginHint (UX-10), CostDetail (composição 1 ou 2 colunas —
+                            #       precificado × real; exporta CostBreakdownTable, reusada pelo
+                            #       popover E pelos dropdowns de /vendas · /producao · /estoque)
     hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
                             #     useSupplies (coleção insumos — 7e),
                             #     useAuth, useQuoteConfig (negócio), useQuotes (histórico),
                             #     useFees (taxas de pagamento), useStock (estoque de filamento),
                             #     useProduction (coleção producao — FEAT-04),
                             #     useFinishedGoods (coleção acabados — FEAT-05)
-    lib/                    # calculatePricing, calculateCapacity, validateProduct, productCsv,
-                            #     fifo (núcleo FIFO compartilhado: ordem + overdraft D4),
-                            #     stock (FIFO do filamento) + supplies (gêmeo em unidades, 7e) —
-                            #       matemática pura,
-                            #     production (baixa da produção FEAT-04: orquestra o FIFO por evento;
-                            #       productionCost = frozenCost material+energia+deprec.+manut.+
-                            #       labor+INSUMOS; + a ÁLGEBRA do custo congelado do FEAT-06, que
-                            #       atravessa 3 escalas: placa, unidade, unidade×qtd),
-                            #     finishedGoods (estoque de acabados FEAT-05: camadas FIFO, valor
-                            #       parado DECOMPOSTO — puro; SKU = subitem × COR no FEAT-11),
-                            #     productionPlan (builder puro produto/subitem→eventos; usado pela
-                            #       /producao E pela encomenda do passo 8; submissionColors = a cor
-                            #       de cada PARTE, via stageKey → Subitem.stageKeys — FEAT-11),
-                            #     saleReconciliation (passo 8: item acabado→consumo vs
-                            #       encomenda→dispara producao; +reverse),
-                            #     marginTier (UX-19: a régua da DEC-04 — faixa de margem ruim/ok/bom,
-                            #       usada por catálogo, calculadora, /vendas e estoque),
-                            #     saleContext (foto congelada da venda), filaments (cores, FEAT-02;
-                            #       colorKeyOf = identidade de cor da peça, FEAT-11),
-                            #     generateQuotePdf (orçamento), paymentFees (taxa de pagamento:
-                            #       matriz bandeira × parcela, gross-up do repasse, desconto FEAT-09,
-                            #       margem líquida do UX-10; testado em paymentFees.test.ts)
+    lib/                    # TODA a matemática, pura. calculatePricing, calculateCapacity,
+                            #   validateProduct, productCsv · fifo (núcleo: ordem + overdraft D4) →
+                            #   stock (filamento em g) + supplies (insumos em unidades, 7e) ·
+                            #   production (baixa por evento + custo congelado FEAT-06, em 3
+                            #     escalas: placa, unidade, unidade×qtd) ·
+                            #   finishedGoods (acabados FEAT-05: camadas FIFO, valor parado
+                            #     decomposto; SKU = subitem × COR no FEAT-11) ·
+                            #   productionPlan (produto/subitem→eventos; usado pela /producao E pela
+                            #     encomenda do passo 8) · saleReconciliation (passo 8 + reverse) ·
+                            #   marginTier (a régua da DEC-04) · saleContext · filaments ·
+                            #   generateQuotePdf · paymentFees (bandeira × parcela, gross-up,
+                            #     desconto FEAT-09, margem líquida UX-10)
     constants.ts, types.ts
   lib/
-    firebase/               # client.ts (init + db), frozenCost.ts (FEAT-06: serialização do
-                            #   FrozenCostBreakdown — o mesmo objeto vai p/ 3 coleções),
-                            #   productsRepository (CRUD + subscribe), machinesRepository (doc
-                            #     config/machines), quoteConfigRepository (config/orcamento),
-                            #     quotesRepository (`orcamentos`), feesRepository (config/taxas),
-                            #   salesRepository (`vendas`, snapshots congelados; reconcileRecibo =
-                            #     batch atômico vendas+producao+estoque+acabados — passo 8),
-                            #   stockRepository (`estoque`: um doc por COR, rolos dentro) +
-                            #     suppliesRepository (`insumos`: um doc por INSUMO, lotes — 7e),
-                            #   productionRepository (`producao`: N eventos + baixa dos rolos no
-                            #     mesmo writeBatch — FEAT-04),
-                            #   finishedGoodsRepository (`acabados`: doc por PRODUTO, id = productId)
+    firebase/               # client.ts (init + db) · frozenCost.ts (FEAT-06: o mesmo objeto vai p/
+                            #   3 coleções) · productsRepository · machinesRepository
+                            #   (config/machines) · quoteConfigRepository · quotesRepository ·
+                            #   feesRepository · salesRepository (`vendas`, snapshots congelados;
+                            #     reconcileRecibo = batch atômico das 4 coleções — passo 8) ·
+                            #   stockRepository (`estoque`: doc por COR) + suppliesRepository
+                            #     (`insumos`: doc por INSUMO) · productionRepository (`producao`:
+                            #     N eventos + baixa dos rolos no mesmo writeBatch) ·
+                            #   finishedGoodsRepository (`acabados`: doc por PRODUTO)
     errors.ts               # guardOnline (offline trava a escrita) + errorMessage — UX-15
     formatting/currency.ts  # formatCurrency / formatDecimal
     formatting/date.ts      # ponte timestamp ↔ <input type="date"> (toDateInput, toTimestamp,
@@ -140,6 +123,13 @@ src/
 - **CSS novo escreve TOKEN, não px** (UX-17a/b): a escala de espaço/raio/tipografia vive em `:root` no
   `base.css` e os 16 arquivos já a consomem. Valor cru só para o que **não é escala** (largura de
   grade, espessura de borda, margem negativa de ajuste, reserva de espaço).
+- **CSS novo escreve TOKEN, não hex** (TD-014): idem para COR. Significado →
+  `--danger`/`--warn`/`--success`/`--accent`; fundo tênue → `-soft`, fundo forte/hover/borda sutil →
+  `-tint`, borda → `-line`. **Três papéis do laranja:** `--accent` só onde NÃO carrega letra ·
+  `--accent-text` quando É texto · `--accent-strong` quando carrega texto **branco** em cima.
+  Categorias de custo → `--cost-*`. Hex cru só para `#fff` sobre preenchimento e sombras.
+  ⚠ **Ao escolher/alterar um tom, meça no DOM o PIOR fundo real** — não o card: a cor costuma pousar
+  sobre o seu próprio tingimento a 10%, e ali ela perde ~0,3 de contraste.
 - **Coluna de número usa `.num`** (alinha à direita) — `sales.css`, `cesta-recibo.css` e, desde o
   UX-21, `catalog.css`. `tabular-nums` é global (`body`, UX-27): não redeclarar por componente.
 - `src/lib/firebase/client.ts` — init + `db`; lê `NEXT_PUBLIC_FIREBASE_*` com fallback embutido nos

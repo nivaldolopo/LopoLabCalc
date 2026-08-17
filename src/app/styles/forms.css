@@ -181,7 +181,7 @@
   margin-top: var(--space-6);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: #c4836b;
+  color: var(--warn);
 }
 
 .filament-detail {
@@ -274,7 +274,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .markup-value {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 700;
 }
 
@@ -290,9 +290,9 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: var(--space-12);
   padding: var(--space-8) var(--space-12);
   border-radius: var(--radius-md);
-  background: rgba(196, 131, 107, 0.1);
-  border: 1px solid rgba(196, 131, 107, 0.35);
-  color: #c4836b;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-line);
+  color: var(--danger);
   font-size: var(--text-md);
 }
 
@@ -301,9 +301,9 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: var(--space-12);
   padding: var(--space-8) var(--space-12);
   border-radius: var(--radius-md);
-  background: rgba(74, 158, 118, 0.12);
-  border: 1px solid rgba(74, 158, 118, 0.4);
-  color: #4a9e76;
+  background: var(--success-soft);
+  border: 1px solid var(--success-line);
+  color: var(--success);
   font-size: var(--text-md);
 }
 
@@ -359,9 +359,13 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: not-allowed;
 }
 
+/* UX-24 — o preenchimento é `--accent-strong`, não `--accent`: branco sobre o
+   laranja da marca mede 2,84 e reprova nos DOIS temas (contraste de texto sobre
+   cor não depende do fundo da página, por isso não há variante escura). Com o
+   tom forte, 4,76. É o maior elemento clicável do app; era o pior contraste. */
 .btn.primary {
   flex: 1;
-  background: var(--accent);
+  background: var(--accent-strong);
   color: white;
 }
 
@@ -372,7 +376,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .btn.primary.saved {
-  background: var(--green);
+  background: var(--success);
 }
 
 /* UX-15 — o botão que apaga/estorna. Morava no `stock.css` (regra global no
@@ -380,13 +384,13 @@ input[type="range"]::-webkit-slider-thumb {
    dono legítimo do `.btn` e ganhou corpo, porque agora é a ação afirmativa do
    ConfirmDialog e precisa se distinguir do Cancelar à sua esquerda. */
 .btn.danger {
-  background: rgba(196, 131, 107, 0.14);
-  border: 1.5px solid rgba(196, 131, 107, 0.5);
-  color: #c4836b;
+  background: var(--danger-soft);
+  border: 1.5px solid var(--danger-line);
+  color: var(--danger);
 }
 
 .btn.danger:hover {
-  background: rgba(196, 131, 107, 0.24);
+  background: var(--danger-tint);
 }
 
 /* TD-006: botão "carregar mais" das listas paginadas (/vendas, /producao). */
@@ -398,7 +402,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 .btn.ghost:hover {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .load-more-row {
@@ -457,7 +461,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 .history-filter-clear:hover {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .btn-secondary,
@@ -485,19 +489,19 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* Rota ativa na barra de navegação unificada (NavBar).
-   ⚠ UX-17b: o fundo era `rgba(74, 158, 118, 0.12)` — VERDE cru, ao lado de uma
+   ⚠ UX-17b: o fundo era `var(--success-soft)` — VERDE cru, ao lado de uma
    borda e um texto em `--accent` (laranja), e sem responder ao tema. Existe
    token exato para "chip ligado" (`--chip-active-bg`, definido nos dois temas),
    que é o que as abas do estoque passaram a usar ao adotar este mesmo chip. */
 .icon-label-button[aria-current="page"] {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--chip-active-bg);
 }
 
 .link-button {
   background: transparent;
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: var(--text-sm);
   font-weight: 600;
   padding: 0;
@@ -522,16 +526,34 @@ input[type="range"]::-webkit-slider-thumb {
   background: transparent;
 }
 
+/* UX-25 — as 5 ações da lista tinham 5 cores (vender #5faa80 · produzir
+   #b8925a · orçar #8f6bc4 · editar #6b88c4 · excluir #c4836b). Duas
+   consequências medidas: nada se destacava, porque tudo se destacava; e o
+   Excluir NÃO se distinguia por cor (o terracota dele era o tom mais próximo
+   do laranja da marca). De quebra, as cinco reprovavam no AA — de 2,66 a 4,14
+   sobre o card.
+   Agora o repouso é NEUTRO para as cinco: a fileira volta a parecer uma
+   fileira e quem diferencia é a FORMA do ícone. A cor entra no hover, que é o
+   instante em que ela de fato informa. O Excluir é o único com cor própria
+   ali — o vermelho semântico — porque é o único irreversível.
+   ⚠ `sale`/`produce`/`quote` vieram do `catalog.css`: eram o CSS de UMA página
+   estilizando uma classe global (o defeito do TD-013), e por isso a busca por
+   "icon-button" nunca achava as 5 juntas. */
+.icon-button.sale,
+.icon-button.produce,
+.icon-button.quote,
+.icon-button.edit,
 .icon-button.danger {
-  color: #c4836b;
-}
-
-.icon-button.edit {
-  color: #6b88c4;
+  color: var(--muted);
 }
 
 .icon-button:hover {
   background: var(--markup-row-bg);
-  color: var(--accent);
+  color: var(--accent-text);
+}
+
+.icon-button.danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 

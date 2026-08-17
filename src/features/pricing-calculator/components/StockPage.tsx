@@ -711,8 +711,13 @@ export function StockPage() {
         </span>
         <span className={`fg-margin-val ${profit < 0 ? "sale-neg" : ""}`}>
           <strong className="mono">{formatCurrency(profit)}</strong>
-          {/* UX-19: o R$ segue verde/vermelho (sobra × prejuízo) e só a % recebe
-              a faixa da DEC-04 — os dois sinais convivem. */}
+          {/* UX-20 (2026-08-16) REVERTEU o que estava escrito aqui: o R$ não
+              segue mais verde/vermelho no positivo — a cor mora só na %, que já
+              carrega a faixa da DEC-04. O verde vinha da classe `.fg-margin-val`
+              (não do `.sale-pos`), e o prejuízo era LARANJA aqui contra vermelho
+              no resto do app: duas cores para o mesmo significado. As duas
+              coisas foram corrigidas no `stock.css`. Regra completa no
+              `auth-sale.css`, bloco do `.sale-pos`. */}
           <em>
             <span
               className={marginTierClass(margin)}

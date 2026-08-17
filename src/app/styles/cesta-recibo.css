@@ -148,7 +148,7 @@
 }
 
 .discount-unit-toggle button.on {
-  background: var(--accent);
+  background: var(--accent-strong);
   color: #fff;
 }
 
@@ -209,7 +209,7 @@
 }
 
 .discount-mode-toggle button.on {
-  background: var(--accent);
+  background: var(--accent-strong);
   color: #fff;
 }
 
@@ -252,7 +252,7 @@
 .cost-detail-hint {
   margin-left: var(--space-4);
   font-size: var(--text-xs);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* Janela flutuante ANCORADA ao gatilho — o JS posiciona (left/top) via
@@ -384,7 +384,7 @@
 }
 
 .cost-detail-body .cost-detail-total.real td {
-  color: var(--green);
+  color: var(--success);
 }
 
 .cost-detail-note {
@@ -411,7 +411,7 @@
 }
 
 .cesta-warn.strong {
-  color: #e05252;
+  color: var(--danger);
   font-weight: 600;
 }
 
@@ -587,7 +587,7 @@
 
 .ri-row.open .arrow-icon {
   transform: rotate(180deg);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .ri-name-text {

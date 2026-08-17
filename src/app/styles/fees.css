@@ -50,7 +50,7 @@
   align-self: center;
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;

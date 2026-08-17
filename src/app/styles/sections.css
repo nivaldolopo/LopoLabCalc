@@ -74,7 +74,8 @@
 
 .collapse-badge {
   font-size: var(--text-2xs);
-  background: var(--accent);
+  /* UX-24 — texto branco de 10px sobre cor: precisa do tom forte. */
+  background: var(--accent-strong);
   color: white;
   border-radius: var(--radius-lg);
   padding: var(--space-2) var(--space-6);
@@ -174,7 +175,7 @@
 }
 
 .fcvalue.accent {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .toggle-wrap {
@@ -193,7 +194,7 @@
   width: 36px;
   height: 20px;
   border-radius: var(--radius-lg);
-  background: #d8d4c8;
+  background: var(--toggle-off);
   position: relative;
   transition: background 0.2s;
   flex-shrink: 0;
@@ -250,7 +251,7 @@
 .result-price {
   font-size: var(--display-lg);
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
   line-height: 1.1;
   margin-bottom: var(--space-4);
 }
@@ -388,8 +389,8 @@
 }
 
 .break-even-box {
-  background: rgba(255, 107, 53, 0.08);
-  border: 1px solid rgba(255, 107, 53, 0.2);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-tint);
   border-radius: var(--radius-xl);
   padding: var(--space-14) var(--space-16);
   /* UX-12: agora vem DEPOIS do "Custo total", que não tem margem inferior —
@@ -401,7 +402,7 @@
 
 .break-even-title {
   font-size: var(--text-xs);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -415,7 +416,7 @@
 }
 
 .break-even-val strong {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: var(--text-xl);
 }
 
@@ -427,20 +428,20 @@
 }
 
 .break-even-context.warn {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
 /* Máquina órfã no catálogo (TD-009): destaca o produto cujo machineId não
    existe mais e caiu no fallback. */
 .machine-missing-badge {
-  color: #c4836b;
+  color: var(--warn);
   font-weight: 600;
   cursor: help;
 }
 
 .per-piece-row {
-  background: rgba(255, 107, 53, 0.12);
+  background: var(--accent-soft);
   border-radius: var(--radius-md);
   padding: var(--space-8) var(--space-12);
   margin-bottom: var(--space-12);
@@ -448,7 +449,7 @@
 
 .per-piece-label {
   font-size: var(--text-xs);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -530,23 +531,23 @@
 }
 
 .breakdown-fixed {
-  background: rgba(255, 107, 53, 0.1);
+  background: var(--accent-soft);
   border-radius: var(--radius-md);
   padding: var(--space-8) var(--space-10);
 }
 
 .breakdown-fixed .blabel {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .fc-warning {
   margin-top: var(--space-10);
   padding: var(--space-8) var(--space-12);
   border-radius: var(--radius-md);
-  background: rgba(255, 107, 53, 0.12);
-  border: 1px solid rgba(255, 107, 53, 0.3);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
   font-size: var(--text-sm);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* FEAT-01 — subitens vendáveis (montagem no produto) */
@@ -652,7 +653,7 @@
 }
 
 .accessory-hint.warn {
-  color: #e05252;
+  color: var(--danger);
 }
 
 .accessory-hint .link-button {
@@ -704,7 +705,7 @@
   .price-bar-price {
     font-size: var(--display-sm);
     font-weight: 700;
-    color: var(--accent);
+    color: var(--accent-text);
     white-space: nowrap;
   }
 

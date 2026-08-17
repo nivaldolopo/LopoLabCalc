@@ -147,7 +147,7 @@
     flex: 0 0 auto;
     font-size: var(--text-xl);
     font-weight: 700;
-    color: var(--accent);
+    color: var(--accent-text);
   }
 
   .per-unit-hint {

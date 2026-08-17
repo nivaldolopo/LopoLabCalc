@@ -114,6 +114,9 @@ export function MachinesPage() {
         </div>
         <div className="sales-total-card">
           <span>Lucro acumulado</span>
+          {/* UX-20 — EXCEÇÃO DELIBERADA: a sub-linha deste cartão é a ressalva
+              do UX-09, não uma %. Sem % companheira, a cor mora no R$
+              (sub-decisão (c) do dono). Regra no `auth-sale.css`. */}
           <strong
             className={`sg mono ${totals.profit < 0 ? "sale-neg" : "sale-pos"}`}
           >
@@ -217,6 +220,9 @@ export function MachinesPage() {
                 </div>
                 <div className="roi-metric">
                   <span>Lucro</span>
+                  {/* UX-20 — EXCEÇÃO DELIBERADA: as métricas do cartão de ROI
+                      não têm % de margem. Sem % companheira, a cor mora no R$
+                      (sub-decisão (c) do dono). Regra no `auth-sale.css`. */}
                   <strong
                     className={`mono ${roi.profit < 0 ? "sale-neg" : "sale-pos"}`}
                   >

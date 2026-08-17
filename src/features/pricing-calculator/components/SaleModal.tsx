@@ -50,6 +50,7 @@ import {
   chargedWithFee,
   type SaleModalContext,
 } from "../lib/saleContext";
+import { marginTierClass, marginTierTitle } from "../lib/marginTier";
 import { NumberInput } from "./NumberInput";
 import type {
   CardBrandTier,
@@ -1342,6 +1343,13 @@ export function SaleModal({
                   </span>
                   <span>
                     lucro{" "}
+                    {/* UX-20 — EXCEÇÃO DELIBERADA: o pé do item da cesta mostra
+                        "sugerido / lucro" e nenhuma %. Sem % companheira, a cor
+                        mora no R$ (sub-decisão (c) do dono).
+                        ⚠ Este ponto NÃO estava na lista de 3 exceções que o dono
+                        enumerou — foi achado ao conferir ponto a ponto se havia
+                        % ao lado. Vale a REGRA, não a contagem: quem revisar
+                        deve confirmar que é isso mesmo que ele queria. */}
                     <strong className={itemProfit < 0 ? "sale-neg" : "sale-pos"}>
                       {formatCurrency(itemProfit)}
                     </strong>
@@ -1481,9 +1489,28 @@ export function SaleModal({
           ) : null}
           <div className="sale-summary-item">
             <span>Lucro</span>
-            <strong className={`mono ${profit < 0 ? "sale-neg" : "sale-pos"}`}>
+            {/* UX-20: a cor mora na % ao lado; no R$ sobra só o `.sale-neg`.
+                ⚠ Para isso, a % teve de GANHAR a faixa da DEC-04 aqui — ela era
+                a única "(NN%)" do app que saía em `--muted`, sem régua nenhuma
+                (o UX-19 passou batido por este ponto). Sem esta linha, tirar o
+                verde do R$ apagaria o sinal em vez de mudá-lo de lugar. */}
+            <strong className={`mono ${profit < 0 ? "sale-neg" : ""}`}>
               {formatCurrency(profit)}{" "}
-              <span className="sale-summary-margin">({margin.toFixed(0)}%)</span>
+              {/* A faixa vai num <span> PRÓPRIO por dentro, nunca junto do
+                  `.sale-summary-margin`: aquele declara `color` e mora no
+                  `auth-sale.css`, importado DEPOIS do `base.css` — na mesma
+                  especificidade o último vence e o muted comeria a faixa. É a
+                  regra escrita no `base.css`, acima do `.margin-bad`. */}
+              <span className="sale-summary-margin">
+                (
+                <span
+                  className={marginTierClass(margin)}
+                  title={marginTierTitle(margin)}
+                >
+                  {margin.toFixed(0)}%
+                </span>
+                )
+              </span>
             </strong>
           </div>
         </div>

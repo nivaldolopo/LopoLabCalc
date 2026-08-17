@@ -9,6 +9,128 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Onda 2 do backlog — o bloco COR (2026-08-16)
+
+> **Os 5 itens:** `TD-014` (tokenizar a cor) · `UX-20` (a cor do lucro) · `UX-24` (contraste AA) ·
+> `UX-25` (as 5 ações) · a **parte de cor** do `UX-26`. A matemática das barras do `UX-26` **não**
+> foi tocada — segue na onda 5.
+>
+> **Por que esta onda primeiro:** era a única com prazo externo (a marca). Com a cor tokenizada, o
+> rebrand vira troca de paleta; sem ela, eram 14 edições à mão em literais que fixam o RGB do laranja.
+
+### A descoberta que organizou o TD-014
+
+O `UX-19` **já tinha construído a paleta semântica sem saber**. As três cores da faixa de margem
+(`bad`/`ok`/`good`) eram as únicas do app medidas com cuidado — 5,07–5,62 no claro — e estavam
+presas dentro do nome "margem". Elas subiram para `--danger` / `--warn` / `--success`, e
+`--margin-*` passou a apontar de volta. **Nenhum tom novo foi inventado**: é a cor que já tinha
+passado no teste, agora com o nome do que ela significa.
+
+Junto veio uma separação que não existia: `--danger` (erro, prejuízo, falha, destrutivo) × `--warn`
+(atenção que **não** é erro: estoque baixo, cor sumida, saída de material). Antes os dois eram o
+mesmo terracota `#c4836b`, e não dava para distinguir "deu ruim" de "olha isso".
+
+**A escada de opacidade:** as 13 opacidades soltas (`.05 .06 .08 .1 .12 .14 .15 .16 .2 .22 .24 .3
+.35 .4 .5`) viraram 3 degraus — `-soft` (.10, fundo) · `-tint` (.20, fundo forte/hover/borda sutil)
+· `-line` (.35, borda). Órfãos colapsam pro vizinho, mesma política do `UX-17b`.
+
+**A tinta mora no `-rgb`; o resto deriva.** `--danger: rgb(var(--danger-rgb))` e os três alfas saem
+do mesmo `-rgb`, e `var()` resolve na hora do uso — por isso o tema escuro redeclara **só** o
+`-rgb`. Trocar a marca = trocar uma linha por cor.
+
+**Números:** 49 hex distintos + 8 bases `rgba()` → **~80 literais convertidos** em 15 arquivos.
+Sobraram de propósito os `#fff` de texto sobre preenchimento e as 7 sombras `rgba(0,0,0,·)` — não
+são cor de marca e não travam o rebrand.
+
+### Três defeitos achados na passada (nenhum estava no backlog)
+
+1. **Duas paletas independentes para o MESMO conceito.** `.fg-comp` (stock.css, 6 cores, com
+   variante escura) e `CostBars.tsx` (8 cores cravadas no JSX, **sem** variante escura) pintavam a
+   composição de custo — e discordavam: energia `#d9a021` × `#E0A96D`, manutenção `#a8617a` ×
+   `#5FA8A0`. Venceu a do `.fg-comp`, que já tinha sido pensada para os dois temas; virou `--cost-*`
+   no `base.css` e as duas passaram a consumir. As 2 categorias que só o CostBars tinha entraram
+   agora — e é aí que a **parte-cor do UX-26** se resolveu: reserva de falha (`#D2726B`) e custo
+   fixo (`#C4836B`) eram quase a mesma tinta em linhas vizinhas → falha virou o vermelho semântico
+   (é risco) e custo fixo virou o neutro (é o balde do não-atribuível).
+2. **`--surface-2` nunca existiu.** `production.css` usava `var(--surface-2, rgba(127,127,127,.08))`
+   — o fallback cinza **era** o valor real, em todo tema.
+3. **O trilho do interruptor não respondia ao tema.** `#d8d4c8` cru no `sections.css`: o mesmo
+   cinza claro no escuro. Virou `--toggle-off`, com valor por tema.
+
+### UX-24 — o AA, e por que a auditoria subestimou
+
+A auditoria tinha listado **3** reprovações. Medindo a paleta inteira, eram **12** — as que faltavam
+eram justamente as mais usadas: `.sale-neg` (`#e05252` = **3,65/3,82**, o vermelho do prejuízo no app
+inteiro), o terracota do erro de formulário (**2,95/3,09**) e o verde do "salvo" (**3,12/3,26**).
+Quase todas se resolveram sozinhas ao herdar a semântica, porque a semântica veio do UX-19.
+
+**Decisão do dono: separar marca de texto** (em vez de escurecer a marca). Três papéis:
+`--accent` = a marca em tudo que **não** carrega letra · `--accent-strong` = o que carrega texto
+**branco** em cima (botão primário; não muda com o tema, porque branco-sobre-cor não depende do
+fundo da página) · `--accent-text` = o laranja que **é** texto (no escuro aponta pro `--accent`, que
+lá já passa em 6,71/6,02).
+
+**⚠ A lição que custou duas iterações: o tom tem de sobreviver ao PRÓPRIO tingimento.** As primeiras
+escolhas foram feitas contra o card branco e **passavam** ali — e reprovavam nos fundos que a mesma
+cor pinta. O `--accent-text` a `#c74a0b` media 4,76 no card e **4,29** no `.prod-badge` (que é
+`--accent-soft`, laranja 10%); o `--muted2` a `#767263` media 4,82 no card e **4,22** no painel de
+capacidade (verde 10%); o `--success` a `#2e7d32` media 4,90 e **4,49** no mesmo painel — reprovava
+por um centésimo. Os três foram reescolhidos **medindo no DOM o pior fundo real**, não o card.
+Por isso o `--success` desceu 2 pontos em relação ao valor do UX-19 (e o `--margin-good` junto).
+
+**Custo assumido e registrado no código:** o degrau `--muted` → `--muted2` quase sumiu nos dois
+temas. A saída melhor seria o texto de 11px crescer, mas "não aumentar o texto" é instrução do dono
+desde o `UX-17a` — então quem cede é o degrau.
+
+**Medição final** (varredura de nós de TEXTO, com composição de alfa, 7 rotas × 2 temas):
+**4.561 textos medidos, ZERO reprovações**, exceto o `.margin-bad` em 4,47 no escuro — que é a
+exceção **deliberada** herdada do UX-19 e já documentada no `base.css`.
+⚠ O primeiro script de medição dava 1,34 num ponto: era **bug do script** (ignorava o alfa de um
+fundo `rgba`), não do app. Quem repetir a medição precisa compor as camadas.
+
+### UX-20 — a cor mora na %
+
+Regra do app inteiro, escrita num bloco no `auth-sale.css` (o dono do `.sale-pos`): **a cor mora na
+%; sem % companheira, mora no R$.** Reverte o UX-19, e os **dois** comentários que registravam a
+decisão antiga (`SalesPage` e `StockPage`) foram reescritos junto.
+
+- **Aplica em 4 pontos** (têm % ao lado): KPI e cabeçalho do recibo em `/vendas`, total do
+  `SaleModal`, `fg-margin-val` no `/estoque`.
+- **⚠ Exceção deliberada em 5**, cada uma com o motivo escrito no TSX ao lado: linha do item em
+  `/vendas`, lucro do item no `SaleModal`, `ProfitSummary`, os 2 cartões do `/maquinas`.
+  **O dono tinha enumerado 3** — o do `SaleModal` foi achado conferindo ponto a ponto se havia %; o
+  comentário no código diz isso e pede confirmação.
+- **⚠ Buraco que o item não previa:** o total do `SaleModal` era a única "(NN%)" do app **sem** a
+  régua da DEC-04 (saía em `--muted`). Tirar o verde do R$ ali teria **apagado** o sinal em vez de
+  mudá-lo de lugar — a % teve de ganhar `marginTierClass` antes.
+- **A armadilha da cascata:** a faixa vai num `<span>` PRÓPRIO por dentro, nunca junto de uma classe
+  que já declara `color` e mora num CSS importado depois do `base.css` — na mesma especificidade o
+  último vence. A regra já estava escrita no `base.css`, acima do `.margin-bad`.
+- **Terceira implementação unificada:** `.fg-margin-val` tirava o verde da própria classe e pintava
+  o prejuízo de **laranja** contra o vermelho do resto do app. Duas cores para o mesmo significado.
+- `.sale-neg` **fica** em todo valor negativo (guarda do caso receita = 0, em que `marginTier`
+  devolve `null`), e os 3 usos que **não** são lucro/prejuízo (entrada×saída de material, preço
+  acima×abaixo do sugerido) ficaram intactos.
+
+**Prova nos dados reais:** o caso que motivou o item — `R$ 20,11 (61%)` — agora tem o R$ em `--ink`
+e só a % em âmbar. Antes eram R$ **verde** ao lado de % **âmbar**, dois recados opostos.
+
+### UX-25 — as 5 ações
+
+`sale #5faa80 · produce #b8925a · quote #8f6bc4 · edit #6b88c4 · danger #c4836b` (todas entre 2,66 e
+4,14 no AA). Repouso agora é **neutro** para as cinco — a fileira volta a parecer uma fileira e quem
+diferencia é a forma do ícone; a cor entra no **hover**, que é quando ela informa. O Excluir é o
+único com cor própria ali (o vermelho semântico), porque é o único irreversível.
+Junto, `sale`/`produce`/`quote` saíram do `catalog.css` — era CSS de UMA página estilizando classe
+global (o defeito do `TD-013`), e por isso a busca por `icon-button` nunca achava as 5 juntas.
+
+### Verificação
+
+`pnpm lint` limpo · **386 testes intactos** · `pnpm build` ok · varredura de contraste no DOM nas 7
+rotas × 2 temas · capturas a 1280×900 e 375×812.
+
+---
+
 ## ✅ Ondas 0 e 1 do backlog — as 2 decisões + os 5 consertos (2026-08-16)
 
 > **Contexto:** primeira execução depois que o backlog ganhou ORDEM. A **onda 0 eram perguntas ao
