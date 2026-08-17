@@ -9,15 +9,60 @@
   padding: var(--space-20);
 }
 
+/* TD-015 — a caixa é uma GRADE de três faixas: cabeçalho e rodapé fixos, corpo
+   rolável no meio. Antes o `overflow-y: auto` estava na caixa inteira, então os
+   botões rolavam junto do formulário: no SaleModal (774px numa viewport de
+   910px) eles nasciam abaixo da dobra. `1fr` na faixa do meio + `min-height: 0`
+   é o que faz o corpo encolher em vez de empurrar o rodapé para fora. */
 .modal-box {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
   background: var(--card-bg);
   border-radius: var(--radius-2xl);
-  padding: var(--space-24);
   max-width: 560px;
   width: 100%;
   max-height: 85vh;
-  overflow-y: auto;
   border: 1px solid var(--border);
+}
+
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-24) var(--space-24) var(--space-16);
+}
+
+.modal-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-body {
+  padding: 0 var(--space-24);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* O ✕ que nenhum dos 8 modais tinha. Sai da rolagem junto com o cabeçalho —
+   fechar não pode depender de rolar de volta ao topo. */
+.modal-close {
+  flex-shrink: 0;
+  width: var(--space-32);
+  height: var(--space-32);
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.modal-close:hover {
+  background: var(--border);
+  color: var(--ink);
 }
 
 .modal-title {
@@ -27,10 +72,12 @@
   margin: 0 0 var(--space-4);
 }
 
+/* A margem inferior saiu: a linha explicativa agora mora no cabeçalho, cujo
+   `padding-bottom` é quem dá o respiro até o corpo. */
 .modal-sub {
   font-size: var(--text-md);
   color: var(--muted);
-  margin: 0 0 var(--space-16);
+  margin: 0;
 }
 
 .machine-edit-row,
@@ -54,10 +101,12 @@
   padding: 0 var(--space-2);
 }
 
+/* Faixa de baixo da grade. O `margin-top` virou `padding` da própria faixa: ela
+   não rola mais junto do corpo, então o respiro é dela, não do que vem antes. */
 .modal-actions {
   display: flex;
   gap: var(--space-10);
-  margin-top: var(--space-20);
+  padding: var(--space-20) var(--space-24) var(--space-24);
 }
 
 /* UX-15 — confirmação própria (ConfirmDialog). Reusa a casca do `.modal-box`;
@@ -67,11 +116,12 @@
   max-width: 440px;
 }
 
+/* Sem `margin-top`: o corpo virou faixa própria da grade e o respiro até o
+   título já vem do `padding-bottom` do `.modal-head` (TD-015). */
 .confirm-body {
   font-size: var(--text-md);
   color: var(--muted);
   line-height: 1.5;
-  margin-top: var(--space-8);
 }
 
 .confirm-body p {

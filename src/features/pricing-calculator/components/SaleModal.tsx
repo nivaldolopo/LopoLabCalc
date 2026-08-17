@@ -51,6 +51,7 @@ import {
   type SaleModalContext,
 } from "../lib/saleContext";
 import { marginTierClass, marginTierTitle } from "../lib/marginTier";
+import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
 import type {
   CardBrandTier,
@@ -863,661 +864,17 @@ export function SaleModal({
   const multiItem = items.length > 1;
 
   return (
-    <div className="modal-overlay open" onMouseDown={onClose}>
-      <div
-        className="modal-box sale-modal"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <h3 className="modal-title">
-          {isEdit ? "Editar venda" : "Registrar venda"}
-        </h3>
-        <p className="modal-sub">
-          {isEdit
-            ? "Ajuste os dados desta venda. O custo permanece congelado no valor do momento da venda; alterar quantidade ou preço recalcula receita e lucro."
-            : "Congela uma foto do custo e do preço no momento da venda. Adicione um ou mais produtos ao mesmo recibo. Editar valores na calculadora depois não altera este registro."}
-        </p>
-
-        <div className="two-col">
-          <div className="field-block compact">
-            <label className="section-label" htmlFor={`${fieldId}-customer`}>
-              Cliente <span className="label-hint">(opcional)</span>
-            </label>
-            <input
-              id={`${fieldId}-customer`}
-              className="field-input"
-              type="text"
-              value={customer}
-              onChange={(event) => setCustomer(event.target.value)}
-              placeholder="Nome do cliente"
-            />
-          </div>
-          <div className="field-block compact">
-            <label className="section-label" htmlFor={`${fieldId}-date`}>
-              Data
-            </label>
-            <input
-              id={`${fieldId}-date`}
-              className="field-input"
-              type="date"
-              value={dateStr}
-              onChange={(event) => setDateStr(event.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="two-col">
-          <div className="field-block compact">
-            <label className="section-label" htmlFor={`${fieldId}-channel`}>
-              Canal
-            </label>
-            <select
-              id={`${fieldId}-channel`}
-              className="field-input"
-              value={channel}
-              onChange={(event) =>
-                setChannel(event.target.value as SaleChannel)
-              }
-            >
-              {SALE_CHANNELS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field-block compact">
-            <label className="section-label" htmlFor={`${fieldId}-payment`}>
-              Forma de pagamento
-            </label>
-            <select
-              id={`${fieldId}-payment`}
-              className="field-input"
-              value={paymentMethod}
-              onChange={(event) =>
-                changePaymentMethod(event.target.value as PaymentMethod)
-              }
-            >
-              {PAYMENT_METHODS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Cartão: bandeira (débito e crédito) + parcelas (só crédito). A taxa
-            resolvida aparece na descrição do repasse logo abaixo. */}
-        {isCard ? (
-          <div className="two-col">
-            <div className="field-block compact">
-              <label className="section-label" htmlFor={`${fieldId}-brand`}>
-                Bandeira
-              </label>
-              <select
-                id={`${fieldId}-brand`}
-                className="field-input"
-                value={cardBrandTier}
-                onChange={(event) =>
-                  changeCardBrandTier(event.target.value as CardBrandTier)
-                }
-              >
-                {CARD_BRAND_TIERS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {isCredit ? (
-              <div className="field-block compact">
-                <label
-                  className="section-label"
-                  htmlFor={`${fieldId}-installments`}
-                >
-                  Parcelas
-                </label>
-                <select
-                  id={`${fieldId}-installments`}
-                  className="field-input"
-                  value={installments}
-                  onChange={(event) =>
-                    changeInstallments(Number(event.target.value))
-                  }
-                >
-                  {Array.from({ length: MAX_INSTALLMENTS }, (_, i) => i + 1).map(
-                    (n) => (
-                      <option key={n} value={n}>
-                        {n === 1 ? "À vista" : `${n}x`}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className={`fee-row ${hasFee ? "" : "fee-row-muted"}`}>
-          <button
-            className="fee-toggle"
-            type="button"
-            onClick={toggleFeePassed}
-            disabled={!hasFee}
-            title={
-              hasFee
-                ? undefined
-                : "Sem taxa nesta forma de pagamento (Pix/dinheiro)"
-            }
-          >
-            <span className={`toggle-track ${feePassedToCustomer ? "on" : ""}`}>
-              <span className="toggle-thumb" />
-            </span>
-            <span>
-              <span className="fee-toggle-label">
-                {feePassedToCustomer
-                  ? "Repassar a taxa ao cliente"
-                  : "Absorver a taxa"}
-              </span>
-              <span className="fee-toggle-desc">
-                {hasFee
-                  ? feePassedToCustomer
-                    ? `Preço sobe para cobrir a taxa de ${formatDecimalPct(feeRatePct)}% — você recebe o valor cheio.`
-                    : `A taxa de ${formatDecimalPct(feeRatePct)}% desconta da sua margem.`
-                  : "Pix e dinheiro não têm taxa."}
-              </span>
-            </span>
-          </button>
-          {onFeesChange ? (
-            <button
-              className="fee-edit-link"
-              type="button"
-              onClick={() => setShowFeesEditor((v) => !v)}
-            >
-              {showFeesEditor ? "Fechar taxas" : "Ajustar taxas"}
-            </button>
-          ) : null}
-        </div>
-
-        {showFeesEditor && onFeesChange ? (
-          <div className="fee-editor">
-            <div className="fee-editor-title">Taxas da maquininha (%)</div>
-            <div className="fee-editor-grid">
-              <div className="fee-editor-item">
-                <label htmlFor={`${fieldId}-fee-pix`}>Pix</label>
-                <input
-                  id={`${fieldId}-fee-pix`}
-                  type="number"
-                  min={0}
-                  step="0.1"
-                  value={fees.pix ?? 0}
-                  onChange={(event) => updateFlatFee("pix", event.target.value)}
-                />
-              </div>
-              <div className="fee-editor-item">
-                <label htmlFor={`${fieldId}-fee-dinheiro`}>Dinheiro</label>
-                <input
-                  id={`${fieldId}-fee-dinheiro`}
-                  type="number"
-                  min={0}
-                  step="0.1"
-                  value={fees.dinheiro ?? 0}
-                  onChange={(event) => updateFlatFee("dinheiro", event.target.value)}
-                />
-              </div>
-              <div className="fee-editor-item">
-                <label htmlFor={`${fieldId}-fee-outro`}>Outro</label>
-                <input
-                  id={`${fieldId}-fee-outro`}
-                  type="number"
-                  min={0}
-                  step="0.1"
-                  value={fees.outro ?? 0}
-                  onChange={(event) => updateFlatFee("outro", event.target.value)}
-                />
-              </div>
-            </div>
-            {CARD_BRAND_TIERS.map((tier) => (
-              <div className="fee-editor-tier" key={tier.value}>
-                <div className="fee-editor-subtitle">{tier.label}</div>
-                <div className="fee-editor-grid">
-                  <div className="fee-editor-item">
-                    <label htmlFor={`${fieldId}-fee-${tier.value}-debito`}>
-                      Débito
-                    </label>
-                    <input
-                      id={`${fieldId}-fee-${tier.value}-debito`}
-                      type="number"
-                      min={0}
-                      step="0.1"
-                      value={fees.card[tier.value].debito ?? 0}
-                      onChange={(event) =>
-                        updateTierDebito(tier.value, event.target.value)
-                      }
-                    />
-                  </div>
-                  {fees.card[tier.value].credito.map((rate, index) => (
-                    <div className="fee-editor-item" key={index}>
-                      <label htmlFor={`${fieldId}-fee-${tier.value}-${index}`}>
-                        {index === 0 ? "Créd. à vista" : `Créd. ${index + 1}x`}
-                      </label>
-                      <input
-                        id={`${fieldId}-fee-${tier.value}-${index}`}
-                        type="number"
-                        min={0}
-                        step="0.1"
-                        value={rate ?? 0}
-                        onChange={(event) =>
-                          updateTierCredito(tier.value, index, event.target.value)
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-            <div className="fee-editor-hint">
-              Use os valores da sua maquininha (variam por bandeira e parcela). Salvo
-              na nuvem e compartilhado entre aparelhos.
-            </div>
-          </div>
-        ) : null}
-
-        <div className="section-label cesta-label">
-          {items.length > 1
-            ? `Itens da venda (${items.length})`
-            : "Item da venda"}
-        </div>
-
-        <div className="cesta-list">
-          {items.length === 0 ? (
-            <div className="cesta-empty">
-              Nenhum produto ainda. Adicione pelo seletor abaixo.
-            </div>
-          ) : null}
-          {items.map((item) => {
-            const qty = Math.max(1, Number(item.quantity) || 1);
-            const unitPrice = Math.max(0, Number(item.salePrice) || 0);
-            const r = reconByKey.get(item.key);
-            const unitCost = unitCostOf(item);
-            const itemDiscount = discountOf(item);
-            const fin = saleItemFinancials({
-              chargedUnitPrice: unitPrice,
-              quantity: qty,
-              unitCost,
-              feeRatePct,
-              discountAmount: itemDiscount,
-            });
-            const itemProfit = fin.profit;
-            const priceDelta = unitPrice - item.source.suggestedPrice;
-            const balance = balanceForItem(item.source);
-
-            return (
-              <div className="cesta-item" key={item.key}>
-                <div className="cesta-item-head">
-                  <input
-                    className="field-input"
-                    type="text"
-                    aria-label="Nome do produto vendido"
-                    value={item.productName}
-                    onChange={(event) =>
-                      updateItem(item.key, { productName: event.target.value })
-                    }
-                    placeholder="Nome do produto vendido"
-                  />
-                  <button
-                    className="icon-button danger"
-                    type="button"
-                    onClick={() => removeItem(item.key)}
-                    title="Remover item"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-
-                <div className="cesta-item-grid">
-                  <div className="field-block compact">
-                    <label
-                      className="section-label"
-                      htmlFor={`${fieldId}-${item.key}-qty`}
-                    >
-                      Qtd
-                    </label>
-                    <NumberInput
-                      id={`${fieldId}-${item.key}-qty`}
-                      className="field-input"
-                      min={1}
-                      value={item.quantity}
-                      onChange={(quantity) =>
-                        updateItem(item.key, { quantity })
-                      }
-                    />
-                  </div>
-                  <div className="field-block compact">
-                    <label
-                      className="section-label"
-                      htmlFor={`${fieldId}-${item.key}-price`}
-                    >
-                      Preço unit.
-                    </label>
-                    <NumberInput
-                      id={`${fieldId}-${item.key}-price`}
-                      className="field-input"
-                      min={0}
-                      step="0.01"
-                      value={item.salePrice}
-                      onChange={(salePrice) =>
-                        updateItem(item.key, { salePrice })
-                      }
-                    />
-                  </div>
-                </div>
-
-                {discountMode === "item" ? (
-                  <div className="cesta-discount">
-                    <span className="cesta-discount-label">Desconto</span>
-                    <DiscountInput
-                      value={item.discount ?? ZERO_DISCOUNT}
-                      onChange={(discount) =>
-                        updateItem(item.key, { discount })
-                      }
-                    />
-                    <span className="cesta-discount-eff">
-                      {itemDiscount > 0
-                        ? `−${formatCurrency(itemDiscount)}`
-                        : "—"}
-                    </span>
-                  </div>
-                ) : null}
-
-                <div className="cesta-origem">
-                  <select
-                    className="field-input"
-                    aria-label="Origem desta peça"
-                    value={item.origem}
-                    onChange={(event) => {
-                      // Escolha manual manda — o efeito de default não a reverte.
-                      touchedOrigem.current.add(item.key);
-                      updateItem(item.key, {
-                        origem: event.target.value as SaleItemOrigin,
-                      });
-                    }}
-                    title="De onde sai esta peça: estoque de acabados (pronta) ou produzida agora (encomenda)."
-                  >
-                    <option value="acabado">
-                      Estoque de acabados ({Math.round(balance)} disp.)
-                    </option>
-                    <option value="encomenda">Sob encomenda (produz agora)</option>
-                  </select>
-                  {/* FEAT-06: a composição real vem da reconciliação ao vivo —
-                      camadas do acabado ou o evento que a encomenda vai criar. */}
-                  <CostDetail
-                    breakdown={item.source.costBreakdown}
-                    real={r?.cogsBreakdownPartial ? undefined : r?.cogsBreakdown}
-                    realCogs={unitCost}
-                  />
-                </div>
-
-                {/* FEAT-11: de QUAL cor tirar a peça pronta. Aparece só quando a
-                    parte existe em mais de uma cor — com uma cor só (o caso
-                    normal) a linha fica igual à de antes. Conjunto multicor tem
-                    um seletor por parte: corpo e tampa saem de saldos próprios. */}
-                {item.origem === "acabado"
-                  ? partsOf(item.source).map((part) => {
-                      const options = colorOptionsOf(item.source, part.key);
-                      if (options.length < 2) return null;
-                      return (
-                        <div className="cesta-cor" key={part.key}>
-                          {/* <span> → <label>: os dois são inline, o CSS não
-                              muda nada (só font/cor). */}
-                          <label
-                            className="cesta-cor-label"
-                            htmlFor={`${fieldId}-${item.key}-cor-${part.key}`}
-                          >
-                            {part.name ? `Cor — ${part.name}` : "Cor"}
-                          </label>
-                          <select
-                            id={`${fieldId}-${item.key}-cor-${part.key}`}
-                            className="field-input"
-                            value={colorOf(item, part.key)}
-                            onChange={(event) =>
-                              setColor(item.key, part.key, event.target.value)
-                            }
-                            title="De qual cor sair esta peça (só as cores com saldo aparecem)."
-                          >
-                            {options.map((option) => (
-                              <option key={option.colorKey} value={option.colorKey}>
-                                {option.colorLabel} ({Math.round(option.balance)})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      );
-                    })
-                  : null}
-
-                {item.origem === "acabado" && r && r.finishedShortfall > 0 ? (
-                  <div className="cesta-warn strong">
-                    ⚠ {Math.round(r.finishedShortfall)} além do estoque de acabados
-                    — o saldo fica negativo.
-                  </div>
-                ) : null}
-                {item.origem === "encomenda" && r?.missingProduct ? (
-                  <div className="cesta-warn strong">
-                    ⚠ Produto fora do catálogo — nada a produzir; sem baixa de
-                    filamento.
-                  </div>
-                ) : null}
-                {item.origem === "encomenda" && r && r.filamentShortfallG > 0 ? (
-                  <div className="cesta-warn strong">
-                    ⚠ Passa {Math.round(r.filamentShortfallG)} g do estoque da cor —
-                    saldo negativo (contagem furada?).
-                  </div>
-                ) : null}
-                {item.origem === "encomenda" &&
-                r &&
-                r.crossesRoll &&
-                r.filamentShortfallG === 0 ? (
-                  <div className="cesta-warn">
-                    Atravessa o rolo em uso — custo misto (na A1 sem AMS, é troca
-                    manual no meio da impressão).
-                  </div>
-                ) : null}
-
-                <div className="cesta-item-foot">
-                  <span>
-                    sugerido: {formatCurrency(item.source.suggestedPrice)}
-                    {priceDelta !== 0 ? (
-                      <span className={priceDelta < 0 ? "sale-neg" : "sale-pos"}>
-                        {" "}
-                        ({priceDelta < 0 ? "−" : "+"}
-                        {formatCurrency(Math.abs(priceDelta))})
-                      </span>
-                    ) : null}
-                    {itemDiscount > 0 ? (
-                      <span className="sale-neg">
-                        {" "}
-                        · desc −{formatCurrency(itemDiscount)}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span>
-                    lucro{" "}
-                    {/* UX-20 — EXCEÇÃO DELIBERADA: o pé do item da cesta mostra
-                        "sugerido / lucro" e nenhuma %. Sem % companheira, a cor
-                        mora no R$ (sub-decisão (c) do dono).
-                        ⚠ Este ponto NÃO estava na lista de 3 exceções que o dono
-                        enumerou — foi achado ao conferir ponto a ponto se havia
-                        % ao lado. Vale a REGRA, não a contagem: quem revisar
-                        deve confirmar que é isso mesmo que ele queria. */}
-                    <strong className={itemProfit < 0 ? "sale-neg" : "sale-pos"}>
-                      {formatCurrency(itemProfit)}
-                    </strong>
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {stockItems.length > 0 ? (
-          <div className="cesta-add">
-            <Boxes size={15} />
-            <select
-              className="field-input"
-              aria-label="Adicionar do estoque de produtos"
-              value={stockPick}
-              onChange={(event) => addFromStock(event.target.value)}
-            >
-              <option value="">Adicionar do estoque de produtos…</option>
-              {stockItems.map(({ source, index, balance }) => (
-                <option
-                  key={`stock-${source.productId}-${source.subitemId ?? "w"}-${index}`}
-                  value={index}
-                >
-                  {source.defaultProductName} — {Math.round(balance)} em estoque
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-
-        {catalogItems.length > 0 ? (
-          <div className="cesta-add">
-            <Plus size={15} />
-            <select
-              className="field-input"
-              aria-label="Adicionar outro produto do catálogo"
-              value={addPick}
-              onChange={(event) => addFromCatalog(event.target.value)}
-            >
-              <option value="">Adicionar outro produto do catálogo…</option>
-              {catalogItems.map((option, index) => (
-                <option key={`${option.productId}-${index}`} value={index}>
-                  {option.defaultProductName} —{" "}
-                  {formatCurrency(option.suggestedPrice)}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-
-        <div className="field-block compact">
-          <label className="section-label" htmlFor={`${fieldId}-notes`}>
-            Observações <span className="label-hint">(opcional)</span>
-          </label>
-          <textarea
-            id={`${fieldId}-notes`}
-            className="field-input"
-            rows={2}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder="Detalhes da venda, personalização, etc."
-          />
-        </div>
-
-        <div className="discount-block">
-          <div className="discount-modes">
-            <span className="discount-modes-label">Desconto</span>
-            <div className="discount-mode-toggle">
-              {(
-                [
-                  ["none", "Nenhum"],
-                  ["item", "Por item"],
-                  ["total", "No total"],
-                ] as [DiscountMode, string][]
-              ).map(([mode, label]) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={discountMode === mode ? "on" : ""}
-                  onClick={() => setDiscountMode(mode)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-          {discountMode === "item" ? (
-            <p className="discount-hint">
-              Defina o desconto em cada item acima. Um modo ou outro por venda —
-              nunca os dois juntos.
-            </p>
-          ) : null}
-          {discountMode === "total" ? (
-            <div className="discount-total">
-              <DiscountInput value={totalDiscount} onChange={setTotalDiscount} />
-              <span className="discount-total-eff">
-                {totals.discount > 0
-                  ? `−${formatCurrency(totals.discount)} no recibo`
-                  : "sem desconto"}
-              </span>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="sale-summary">
-          {totals.discount > 0 ? (
-            <>
-              <div className="sale-summary-item">
-                <span>Subtotal</span>
-                <strong className="mono">{formatCurrency(totals.gross)}</strong>
-              </div>
-              <div className="sale-summary-item">
-                <span>Desconto</span>
-                <strong className="mono sale-neg">
-                  −{formatCurrency(totals.discount)}
-                </strong>
-              </div>
-            </>
-          ) : null}
-          <div className="sale-summary-item">
-            <span>Receita</span>
-            <strong className="mono">{formatCurrency(totals.revenue)}</strong>
-          </div>
-          <div className="sale-summary-item">
-            <span>Custo</span>
-            <strong className="mono">{formatCurrency(totals.cost)}</strong>
-          </div>
-          {totals.fee > 0 ? (
-            <div className="sale-summary-item">
-              <span>Taxa ({formatDecimalPct(feeRatePct)}%)</span>
-              <strong className="mono sale-neg">
-                −{formatCurrency(totals.fee)}
-              </strong>
-            </div>
-          ) : null}
-          <div className="sale-summary-item">
-            <span>Lucro</span>
-            {/* UX-20: a cor mora na % ao lado; no R$ sobra só o `.sale-neg`.
-                ⚠ Para isso, a % teve de GANHAR a faixa da DEC-04 aqui — ela era
-                a única "(NN%)" do app que saía em `--muted`, sem régua nenhuma
-                (o UX-19 passou batido por este ponto). Sem esta linha, tirar o
-                verde do R$ apagaria o sinal em vez de mudá-lo de lugar. */}
-            <strong className={`mono ${profit < 0 ? "sale-neg" : ""}`}>
-              {formatCurrency(profit)}{" "}
-              {/* A faixa vai num <span> PRÓPRIO por dentro, nunca junto do
-                  `.sale-summary-margin`: aquele declara `color` e mora no
-                  `auth-sale.css`, importado DEPOIS do `base.css` — na mesma
-                  especificidade o último vence e o muted comeria a faixa. É a
-                  regra escrita no `base.css`, acima do `.margin-bad`. */}
-              <span className="sale-summary-margin">
-                (
-                <span
-                  className={marginTierClass(margin)}
-                  title={marginTierTitle(margin)}
-                >
-                  {margin.toFixed(0)}%
-                </span>
-                )
-              </span>
-            </strong>
-          </div>
-        </div>
-
-        {error ? <div className="form-error">{error}</div> : null}
-
-        <div className="modal-actions">
+    <Modal
+      className="sale-modal"
+      title={isEdit ? "Editar venda" : "Registrar venda"}
+      sub={
+        isEdit
+          ? "Ajuste os dados desta venda. O custo permanece congelado no valor do momento da venda; alterar quantidade ou preço recalcula receita e lucro."
+          : "Congela uma foto do custo e do preço no momento da venda. Adicione um ou mais produtos ao mesmo recibo. Editar valores na calculadora depois não altera este registro."
+      }
+      onClose={onClose}
+      footer={
+        <>
           <button
             className="btn primary"
             type="button"
@@ -1544,8 +901,648 @@ export function SaleModal({
           >
             Cancelar
           </button>
+        </>
+      }
+    >
+      <div className="two-col">
+        <div className="field-block compact">
+          <label className="section-label" htmlFor={`${fieldId}-customer`}>
+            Cliente <span className="label-hint">(opcional)</span>
+          </label>
+          <input
+            id={`${fieldId}-customer`}
+            className="field-input"
+            type="text"
+            value={customer}
+            onChange={(event) => setCustomer(event.target.value)}
+            placeholder="Nome do cliente"
+          />
+        </div>
+        <div className="field-block compact">
+          <label className="section-label" htmlFor={`${fieldId}-date`}>
+            Data
+          </label>
+          <input
+            id={`${fieldId}-date`}
+            className="field-input"
+            type="date"
+            value={dateStr}
+            onChange={(event) => setDateStr(event.target.value)}
+          />
         </div>
       </div>
-    </div>
+
+      <div className="two-col">
+        <div className="field-block compact">
+          <label className="section-label" htmlFor={`${fieldId}-channel`}>
+            Canal
+          </label>
+          <select
+            id={`${fieldId}-channel`}
+            className="field-input"
+            value={channel}
+            onChange={(event) =>
+              setChannel(event.target.value as SaleChannel)
+            }
+          >
+            {SALE_CHANNELS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field-block compact">
+          <label className="section-label" htmlFor={`${fieldId}-payment`}>
+            Forma de pagamento
+          </label>
+          <select
+            id={`${fieldId}-payment`}
+            className="field-input"
+            value={paymentMethod}
+            onChange={(event) =>
+              changePaymentMethod(event.target.value as PaymentMethod)
+            }
+          >
+            {PAYMENT_METHODS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Cartão: bandeira (débito e crédito) + parcelas (só crédito). A taxa
+          resolvida aparece na descrição do repasse logo abaixo. */}
+      {isCard ? (
+        <div className="two-col">
+          <div className="field-block compact">
+            <label className="section-label" htmlFor={`${fieldId}-brand`}>
+              Bandeira
+            </label>
+            <select
+              id={`${fieldId}-brand`}
+              className="field-input"
+              value={cardBrandTier}
+              onChange={(event) =>
+                changeCardBrandTier(event.target.value as CardBrandTier)
+              }
+            >
+              {CARD_BRAND_TIERS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {isCredit ? (
+            <div className="field-block compact">
+              <label
+                className="section-label"
+                htmlFor={`${fieldId}-installments`}
+              >
+                Parcelas
+              </label>
+              <select
+                id={`${fieldId}-installments`}
+                className="field-input"
+                value={installments}
+                onChange={(event) =>
+                  changeInstallments(Number(event.target.value))
+                }
+              >
+                {Array.from({ length: MAX_INSTALLMENTS }, (_, i) => i + 1).map(
+                  (n) => (
+                    <option key={n} value={n}>
+                      {n === 1 ? "À vista" : `${n}x`}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className={`fee-row ${hasFee ? "" : "fee-row-muted"}`}>
+        <button
+          className="fee-toggle"
+          type="button"
+          onClick={toggleFeePassed}
+          disabled={!hasFee}
+          title={
+            hasFee
+              ? undefined
+              : "Sem taxa nesta forma de pagamento (Pix/dinheiro)"
+          }
+        >
+          <span className={`toggle-track ${feePassedToCustomer ? "on" : ""}`}>
+            <span className="toggle-thumb" />
+          </span>
+          <span>
+            <span className="fee-toggle-label">
+              {feePassedToCustomer
+                ? "Repassar a taxa ao cliente"
+                : "Absorver a taxa"}
+            </span>
+            <span className="fee-toggle-desc">
+              {hasFee
+                ? feePassedToCustomer
+                  ? `Preço sobe para cobrir a taxa de ${formatDecimalPct(feeRatePct)}% — você recebe o valor cheio.`
+                  : `A taxa de ${formatDecimalPct(feeRatePct)}% desconta da sua margem.`
+                : "Pix e dinheiro não têm taxa."}
+            </span>
+          </span>
+        </button>
+        {onFeesChange ? (
+          <button
+            className="fee-edit-link"
+            type="button"
+            onClick={() => setShowFeesEditor((v) => !v)}
+          >
+            {showFeesEditor ? "Fechar taxas" : "Ajustar taxas"}
+          </button>
+        ) : null}
+      </div>
+
+      {showFeesEditor && onFeesChange ? (
+        <div className="fee-editor">
+          <div className="fee-editor-title">Taxas da maquininha (%)</div>
+          <div className="fee-editor-grid">
+            <div className="fee-editor-item">
+              <label htmlFor={`${fieldId}-fee-pix`}>Pix</label>
+              <input
+                id={`${fieldId}-fee-pix`}
+                type="number"
+                min={0}
+                step="0.1"
+                value={fees.pix ?? 0}
+                onChange={(event) => updateFlatFee("pix", event.target.value)}
+              />
+            </div>
+            <div className="fee-editor-item">
+              <label htmlFor={`${fieldId}-fee-dinheiro`}>Dinheiro</label>
+              <input
+                id={`${fieldId}-fee-dinheiro`}
+                type="number"
+                min={0}
+                step="0.1"
+                value={fees.dinheiro ?? 0}
+                onChange={(event) => updateFlatFee("dinheiro", event.target.value)}
+              />
+            </div>
+            <div className="fee-editor-item">
+              <label htmlFor={`${fieldId}-fee-outro`}>Outro</label>
+              <input
+                id={`${fieldId}-fee-outro`}
+                type="number"
+                min={0}
+                step="0.1"
+                value={fees.outro ?? 0}
+                onChange={(event) => updateFlatFee("outro", event.target.value)}
+              />
+            </div>
+          </div>
+          {CARD_BRAND_TIERS.map((tier) => (
+            <div className="fee-editor-tier" key={tier.value}>
+              <div className="fee-editor-subtitle">{tier.label}</div>
+              <div className="fee-editor-grid">
+                <div className="fee-editor-item">
+                  <label htmlFor={`${fieldId}-fee-${tier.value}-debito`}>
+                    Débito
+                  </label>
+                  <input
+                    id={`${fieldId}-fee-${tier.value}-debito`}
+                    type="number"
+                    min={0}
+                    step="0.1"
+                    value={fees.card[tier.value].debito ?? 0}
+                    onChange={(event) =>
+                      updateTierDebito(tier.value, event.target.value)
+                    }
+                  />
+                </div>
+                {fees.card[tier.value].credito.map((rate, index) => (
+                  <div className="fee-editor-item" key={index}>
+                    <label htmlFor={`${fieldId}-fee-${tier.value}-${index}`}>
+                      {index === 0 ? "Créd. à vista" : `Créd. ${index + 1}x`}
+                    </label>
+                    <input
+                      id={`${fieldId}-fee-${tier.value}-${index}`}
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      value={rate ?? 0}
+                      onChange={(event) =>
+                        updateTierCredito(tier.value, index, event.target.value)
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div className="fee-editor-hint">
+            Use os valores da sua maquininha (variam por bandeira e parcela). Salvo
+            na nuvem e compartilhado entre aparelhos.
+          </div>
+        </div>
+      ) : null}
+
+      <div className="section-label cesta-label">
+        {items.length > 1
+          ? `Itens da venda (${items.length})`
+          : "Item da venda"}
+      </div>
+
+      <div className="cesta-list">
+        {items.length === 0 ? (
+          <div className="cesta-empty">
+            Nenhum produto ainda. Adicione pelo seletor abaixo.
+          </div>
+        ) : null}
+        {items.map((item) => {
+          const qty = Math.max(1, Number(item.quantity) || 1);
+          const unitPrice = Math.max(0, Number(item.salePrice) || 0);
+          const r = reconByKey.get(item.key);
+          const unitCost = unitCostOf(item);
+          const itemDiscount = discountOf(item);
+          const fin = saleItemFinancials({
+            chargedUnitPrice: unitPrice,
+            quantity: qty,
+            unitCost,
+            feeRatePct,
+            discountAmount: itemDiscount,
+          });
+          const itemProfit = fin.profit;
+          const priceDelta = unitPrice - item.source.suggestedPrice;
+          const balance = balanceForItem(item.source);
+
+          return (
+            <div className="cesta-item" key={item.key}>
+              <div className="cesta-item-head">
+                <input
+                  className="field-input"
+                  type="text"
+                  aria-label="Nome do produto vendido"
+                  value={item.productName}
+                  onChange={(event) =>
+                    updateItem(item.key, { productName: event.target.value })
+                  }
+                  placeholder="Nome do produto vendido"
+                />
+                <button
+                  className="icon-button danger"
+                  type="button"
+                  onClick={() => removeItem(item.key)}
+                  title="Remover item"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+
+              <div className="cesta-item-grid">
+                <div className="field-block compact">
+                  <label
+                    className="section-label"
+                    htmlFor={`${fieldId}-${item.key}-qty`}
+                  >
+                    Qtd
+                  </label>
+                  <NumberInput
+                    id={`${fieldId}-${item.key}-qty`}
+                    className="field-input"
+                    min={1}
+                    value={item.quantity}
+                    onChange={(quantity) =>
+                      updateItem(item.key, { quantity })
+                    }
+                  />
+                </div>
+                <div className="field-block compact">
+                  <label
+                    className="section-label"
+                    htmlFor={`${fieldId}-${item.key}-price`}
+                  >
+                    Preço unit.
+                  </label>
+                  <NumberInput
+                    id={`${fieldId}-${item.key}-price`}
+                    className="field-input"
+                    min={0}
+                    step="0.01"
+                    value={item.salePrice}
+                    onChange={(salePrice) =>
+                      updateItem(item.key, { salePrice })
+                    }
+                  />
+                </div>
+              </div>
+
+              {discountMode === "item" ? (
+                <div className="cesta-discount">
+                  <span className="cesta-discount-label">Desconto</span>
+                  <DiscountInput
+                    value={item.discount ?? ZERO_DISCOUNT}
+                    onChange={(discount) =>
+                      updateItem(item.key, { discount })
+                    }
+                  />
+                  <span className="cesta-discount-eff">
+                    {itemDiscount > 0
+                      ? `−${formatCurrency(itemDiscount)}`
+                      : "—"}
+                  </span>
+                </div>
+              ) : null}
+
+              <div className="cesta-origem">
+                <select
+                  className="field-input"
+                  aria-label="Origem desta peça"
+                  value={item.origem}
+                  onChange={(event) => {
+                    // Escolha manual manda — o efeito de default não a reverte.
+                    touchedOrigem.current.add(item.key);
+                    updateItem(item.key, {
+                      origem: event.target.value as SaleItemOrigin,
+                    });
+                  }}
+                  title="De onde sai esta peça: estoque de acabados (pronta) ou produzida agora (encomenda)."
+                >
+                  <option value="acabado">
+                    Estoque de acabados ({Math.round(balance)} disp.)
+                  </option>
+                  <option value="encomenda">Sob encomenda (produz agora)</option>
+                </select>
+                {/* FEAT-06: a composição real vem da reconciliação ao vivo —
+                    camadas do acabado ou o evento que a encomenda vai criar. */}
+                <CostDetail
+                  breakdown={item.source.costBreakdown}
+                  real={r?.cogsBreakdownPartial ? undefined : r?.cogsBreakdown}
+                  realCogs={unitCost}
+                />
+              </div>
+
+              {/* FEAT-11: de QUAL cor tirar a peça pronta. Aparece só quando a
+                  parte existe em mais de uma cor — com uma cor só (o caso
+                  normal) a linha fica igual à de antes. Conjunto multicor tem
+                  um seletor por parte: corpo e tampa saem de saldos próprios. */}
+              {item.origem === "acabado"
+                ? partsOf(item.source).map((part) => {
+                    const options = colorOptionsOf(item.source, part.key);
+                    if (options.length < 2) return null;
+                    return (
+                      <div className="cesta-cor" key={part.key}>
+                        {/* <span> → <label>: os dois são inline, o CSS não
+                            muda nada (só font/cor). */}
+                        <label
+                          className="cesta-cor-label"
+                          htmlFor={`${fieldId}-${item.key}-cor-${part.key}`}
+                        >
+                          {part.name ? `Cor — ${part.name}` : "Cor"}
+                        </label>
+                        <select
+                          id={`${fieldId}-${item.key}-cor-${part.key}`}
+                          className="field-input"
+                          value={colorOf(item, part.key)}
+                          onChange={(event) =>
+                            setColor(item.key, part.key, event.target.value)
+                          }
+                          title="De qual cor sair esta peça (só as cores com saldo aparecem)."
+                        >
+                          {options.map((option) => (
+                            <option key={option.colorKey} value={option.colorKey}>
+                              {option.colorLabel} ({Math.round(option.balance)})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })
+                : null}
+
+              {item.origem === "acabado" && r && r.finishedShortfall > 0 ? (
+                <div className="cesta-warn strong">
+                  ⚠ {Math.round(r.finishedShortfall)} além do estoque de acabados
+                  — o saldo fica negativo.
+                </div>
+              ) : null}
+              {item.origem === "encomenda" && r?.missingProduct ? (
+                <div className="cesta-warn strong">
+                  ⚠ Produto fora do catálogo — nada a produzir; sem baixa de
+                  filamento.
+                </div>
+              ) : null}
+              {item.origem === "encomenda" && r && r.filamentShortfallG > 0 ? (
+                <div className="cesta-warn strong">
+                  ⚠ Passa {Math.round(r.filamentShortfallG)} g do estoque da cor —
+                  saldo negativo (contagem furada?).
+                </div>
+              ) : null}
+              {item.origem === "encomenda" &&
+              r &&
+              r.crossesRoll &&
+              r.filamentShortfallG === 0 ? (
+                <div className="cesta-warn">
+                  Atravessa o rolo em uso — custo misto (na A1 sem AMS, é troca
+                  manual no meio da impressão).
+                </div>
+              ) : null}
+
+              <div className="cesta-item-foot">
+                <span>
+                  sugerido: {formatCurrency(item.source.suggestedPrice)}
+                  {priceDelta !== 0 ? (
+                    <span className={priceDelta < 0 ? "sale-neg" : "sale-pos"}>
+                      {" "}
+                      ({priceDelta < 0 ? "−" : "+"}
+                      {formatCurrency(Math.abs(priceDelta))})
+                    </span>
+                  ) : null}
+                  {itemDiscount > 0 ? (
+                    <span className="sale-neg">
+                      {" "}
+                      · desc −{formatCurrency(itemDiscount)}
+                    </span>
+                  ) : null}
+                </span>
+                <span>
+                  lucro{" "}
+                  {/* UX-20 — EXCEÇÃO DELIBERADA: o pé do item da cesta mostra
+                      "sugerido / lucro" e nenhuma %. Sem % companheira, a cor
+                      mora no R$ (sub-decisão (c) do dono).
+                      ⚠ Este ponto NÃO estava na lista de 3 exceções que o dono
+                      enumerou — foi achado ao conferir ponto a ponto se havia
+                      % ao lado. Vale a REGRA, não a contagem: quem revisar
+                      deve confirmar que é isso mesmo que ele queria. */}
+                  <strong className={itemProfit < 0 ? "sale-neg" : "sale-pos"}>
+                    {formatCurrency(itemProfit)}
+                  </strong>
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {stockItems.length > 0 ? (
+        <div className="cesta-add">
+          <Boxes size={15} />
+          <select
+            className="field-input"
+            aria-label="Adicionar do estoque de produtos"
+            value={stockPick}
+            onChange={(event) => addFromStock(event.target.value)}
+          >
+            <option value="">Adicionar do estoque de produtos…</option>
+            {stockItems.map(({ source, index, balance }) => (
+              <option
+                key={`stock-${source.productId}-${source.subitemId ?? "w"}-${index}`}
+                value={index}
+              >
+                {source.defaultProductName} — {Math.round(balance)} em estoque
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
+      {catalogItems.length > 0 ? (
+        <div className="cesta-add">
+          <Plus size={15} />
+          <select
+            className="field-input"
+            aria-label="Adicionar outro produto do catálogo"
+            value={addPick}
+            onChange={(event) => addFromCatalog(event.target.value)}
+          >
+            <option value="">Adicionar outro produto do catálogo…</option>
+            {catalogItems.map((option, index) => (
+              <option key={`${option.productId}-${index}`} value={index}>
+                {option.defaultProductName} —{" "}
+                {formatCurrency(option.suggestedPrice)}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
+      <div className="field-block compact">
+        <label className="section-label" htmlFor={`${fieldId}-notes`}>
+          Observações <span className="label-hint">(opcional)</span>
+        </label>
+        <textarea
+          id={`${fieldId}-notes`}
+          className="field-input"
+          rows={2}
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Detalhes da venda, personalização, etc."
+        />
+      </div>
+
+      <div className="discount-block">
+        <div className="discount-modes">
+          <span className="discount-modes-label">Desconto</span>
+          <div className="discount-mode-toggle">
+            {(
+              [
+                ["none", "Nenhum"],
+                ["item", "Por item"],
+                ["total", "No total"],
+              ] as [DiscountMode, string][]
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                className={discountMode === mode ? "on" : ""}
+                onClick={() => setDiscountMode(mode)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {discountMode === "item" ? (
+          <p className="discount-hint">
+            Defina o desconto em cada item acima. Um modo ou outro por venda —
+            nunca os dois juntos.
+          </p>
+        ) : null}
+        {discountMode === "total" ? (
+          <div className="discount-total">
+            <DiscountInput value={totalDiscount} onChange={setTotalDiscount} />
+            <span className="discount-total-eff">
+              {totals.discount > 0
+                ? `−${formatCurrency(totals.discount)} no recibo`
+                : "sem desconto"}
+            </span>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="sale-summary">
+        {totals.discount > 0 ? (
+          <>
+            <div className="sale-summary-item">
+              <span>Subtotal</span>
+              <strong className="mono">{formatCurrency(totals.gross)}</strong>
+            </div>
+            <div className="sale-summary-item">
+              <span>Desconto</span>
+              <strong className="mono sale-neg">
+                −{formatCurrency(totals.discount)}
+              </strong>
+            </div>
+          </>
+        ) : null}
+        <div className="sale-summary-item">
+          <span>Receita</span>
+          <strong className="mono">{formatCurrency(totals.revenue)}</strong>
+        </div>
+        <div className="sale-summary-item">
+          <span>Custo</span>
+          <strong className="mono">{formatCurrency(totals.cost)}</strong>
+        </div>
+        {totals.fee > 0 ? (
+          <div className="sale-summary-item">
+            <span>Taxa ({formatDecimalPct(feeRatePct)}%)</span>
+            <strong className="mono sale-neg">
+              −{formatCurrency(totals.fee)}
+            </strong>
+          </div>
+        ) : null}
+        <div className="sale-summary-item">
+          <span>Lucro</span>
+          {/* UX-20: a cor mora na % ao lado; no R$ sobra só o `.sale-neg`.
+              ⚠ Para isso, a % teve de GANHAR a faixa da DEC-04 aqui — ela era
+              a única "(NN%)" do app que saía em `--muted`, sem régua nenhuma
+              (o UX-19 passou batido por este ponto). Sem esta linha, tirar o
+              verde do R$ apagaria o sinal em vez de mudá-lo de lugar. */}
+          <strong className={`mono ${profit < 0 ? "sale-neg" : ""}`}>
+            {formatCurrency(profit)}{" "}
+            {/* A faixa vai num <span> PRÓPRIO por dentro, nunca junto do
+                `.sale-summary-margin`: aquele declara `color` e mora no
+                `auth-sale.css`, importado DEPOIS do `base.css` — na mesma
+                especificidade o último vence e o muted comeria a faixa. É a
+                regra escrita no `base.css`, acima do `.margin-bad`. */}
+            <span className="sale-summary-margin">
+              (
+              <span
+                className={marginTierClass(margin)}
+                title={marginTierTitle(margin)}
+              >
+                {margin.toFixed(0)}%
+              </span>
+              )
+            </span>
+          </strong>
+        </div>
+      </div>
+
+      {error ? <div className="form-error">{error}</div> : null}
+    </Modal>
   );
 }

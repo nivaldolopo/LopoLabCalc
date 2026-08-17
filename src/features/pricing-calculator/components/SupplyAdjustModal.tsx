@@ -5,6 +5,7 @@ import { formatDate, todayInputValue, toTimestamp } from "@/lib/formatting/date"
 import { num } from "@/lib/number";
 import { lotNumbers } from "../lib/supplies";
 import type { Supply } from "../types";
+import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
 
 type SupplyAdjustModalProps = {
@@ -77,99 +78,12 @@ export function SupplyAdjustModal({
   }
 
   return (
-    <div className="modal-overlay open" onMouseDown={onClose}>
-      <div className="modal-box" onMouseDown={(event) => event.stopPropagation()}>
-        <h3 className="modal-title">Ajuste de inventário</h3>
-        <p className="modal-sub">
-          {supply.name} — conte o que existe de verdade e informe aqui. O que o
-          sistema achava fica guardado no histórico, junto com o motivo.
-        </p>
-
-        <div className="stock-form-grid">
-          <div className="field-block stock-field-wide">
-            <label className="section-label" htmlFor={`${fieldId}-lot`}>
-              Lote contado
-            </label>
-            <select
-              id={`${fieldId}-lot`}
-              className="field-input"
-              value={lotId}
-              onChange={(event) => {
-                const next = lots.find((lot) => lot.id === event.target.value);
-                setLotId(event.target.value);
-                // O contado parte do saldo atual: quem só confere um lote certo
-                // não precisa redigitar o número.
-                setCounted(num(next?.remainingQty));
-              }}
-            >
-              {lots.map((lot) => (
-                <option key={lot.id} value={lot.id}>
-                  Lote #{numbers.get(lot.id)} · comprado em{" "}
-                  {formatDate(lot.purchaseDate)} · sistema:{" "}
-                  {Math.round(num(lot.remainingQty))} {supply.unit}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-counted`}>
-              Contado ({supply.unit})
-            </label>
-            <NumberInput
-              id={`${fieldId}-counted`}
-              className="field-input"
-              min={0}
-              value={counted}
-              onChange={setCounted}
-            />
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-date`}>
-              Data da contagem
-            </label>
-            <input
-              id={`${fieldId}-date`}
-              className="field-input"
-              type="date"
-              value={dateStr}
-              onChange={(event) => setDateStr(event.target.value)}
-            />
-          </div>
-
-          <div className="field-block stock-field-wide">
-            <label className="section-label" htmlFor={`${fieldId}-reason`}>
-              Motivo
-            </label>
-            <input
-              id={`${fieldId}-reason`}
-              className="field-input"
-              type="text"
-              value={reason}
-              placeholder="Contagem, caiu no chão, veio menos que a nota..."
-              onChange={(event) => setReason(event.target.value)}
-            />
-          </div>
-        </div>
-
-        {selected ? (
-          <div
-            className={`stock-delta ${delta === 0 ? "zero" : delta > 0 ? "pos" : "neg"}`}
-          >
-            {delta === 0
-              ? "Sem diferença — o sistema já estava certo."
-              : `O saldo do lote vai de ${Math.round(before)} para ${Math.round(
-                  counted,
-                )} ${supply.unit} (${delta > 0 ? "+" : "−"}${Math.round(
-                  Math.abs(delta),
-                )}).`}
-          </div>
-        ) : null}
-
-        {error ? <div className="form-error">{error}</div> : null}
-
-        <div className="modal-actions">
+    <Modal
+      title="Ajuste de inventário"
+      sub={`${supply.name} — conte o que existe de verdade e informe aqui. O que o sistema achava fica guardado no histórico, junto com o motivo.`}
+      onClose={onClose}
+      footer={
+        <>
           <button
             className="btn primary"
             type="button"
@@ -181,8 +95,92 @@ export function SupplyAdjustModal({
           <button className="btn btn-secondary" type="button" onClick={onClose}>
             Cancelar
           </button>
+        </>
+      }
+    >
+      <div className="stock-form-grid">
+        <div className="field-block stock-field-wide">
+          <label className="section-label" htmlFor={`${fieldId}-lot`}>
+            Lote contado
+          </label>
+          <select
+            id={`${fieldId}-lot`}
+            className="field-input"
+            value={lotId}
+            onChange={(event) => {
+              const next = lots.find((lot) => lot.id === event.target.value);
+              setLotId(event.target.value);
+              // O contado parte do saldo atual: quem só confere um lote certo
+              // não precisa redigitar o número.
+              setCounted(num(next?.remainingQty));
+            }}
+          >
+            {lots.map((lot) => (
+              <option key={lot.id} value={lot.id}>
+                Lote #{numbers.get(lot.id)} · comprado em{" "}
+                {formatDate(lot.purchaseDate)} · sistema:{" "}
+                {Math.round(num(lot.remainingQty))} {supply.unit}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-counted`}>
+            Contado ({supply.unit})
+          </label>
+          <NumberInput
+            id={`${fieldId}-counted`}
+            className="field-input"
+            min={0}
+            value={counted}
+            onChange={setCounted}
+          />
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-date`}>
+            Data da contagem
+          </label>
+          <input
+            id={`${fieldId}-date`}
+            className="field-input"
+            type="date"
+            value={dateStr}
+            onChange={(event) => setDateStr(event.target.value)}
+          />
+        </div>
+
+        <div className="field-block stock-field-wide">
+          <label className="section-label" htmlFor={`${fieldId}-reason`}>
+            Motivo
+          </label>
+          <input
+            id={`${fieldId}-reason`}
+            className="field-input"
+            type="text"
+            value={reason}
+            placeholder="Contagem, caiu no chão, veio menos que a nota..."
+            onChange={(event) => setReason(event.target.value)}
+          />
         </div>
       </div>
-    </div>
+
+      {selected ? (
+        <div
+          className={`stock-delta ${delta === 0 ? "zero" : delta > 0 ? "pos" : "neg"}`}
+        >
+          {delta === 0
+            ? "Sem diferença — o sistema já estava certo."
+            : `O saldo do lote vai de ${Math.round(before)} para ${Math.round(
+                counted,
+              )} ${supply.unit} (${delta > 0 ? "+" : "−"}${Math.round(
+                Math.abs(delta),
+              )}).`}
+        </div>
+      ) : null}
+
+      {error ? <div className="form-error">{error}</div> : null}
+    </Modal>
   );
 }

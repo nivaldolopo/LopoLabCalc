@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import type { Supply } from "../types";
+import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
 
 export type SupplyDraft = {
@@ -57,70 +58,12 @@ export function SupplyModal({ supply, onClose, onSave }: SupplyModalProps) {
   }
 
   return (
-    <div className="modal-overlay open" onMouseDown={onClose}>
-      <div className="modal-box" onMouseDown={(event) => event.stopPropagation()}>
-        <h3 className="modal-title">
-          {supply ? "Editar insumo" : "Novo insumo"}
-        </h3>
-        <p className="modal-sub">
-          Componentes que entram na peça sem ser filamento: ímã, argola,
-          parafuso, corrente, embalagem. O preço vem das compras (lotes), não
-          daqui.
-        </p>
-
-        <div className="stock-form-grid">
-          <div className="field-block stock-field-wide">
-            <label className="section-label" htmlFor={`${fieldId}-name`}>
-              Nome
-            </label>
-            <input
-              id={`${fieldId}-name`}
-              className="field-input"
-              type="text"
-              value={name}
-              placeholder="Ex: Ímã 6×2mm"
-              onChange={(event) => setName(event.target.value)}
-            />
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-unit`}>
-              Unidade
-            </label>
-            <input
-              id={`${fieldId}-unit`}
-              className="field-input"
-              type="text"
-              list="supply-units"
-              value={unit}
-              onChange={(event) => setUnit(event.target.value)}
-            />
-            <datalist id="supply-units">
-              {UNITS.map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
-            <div className="field-hint">só rótulo de tela</div>
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-min`}>
-              Estoque mínimo
-            </label>
-            <NumberInput
-              id={`${fieldId}-min`}
-              className="field-input"
-              min={0}
-              value={minQty}
-              onChange={setMinQty}
-            />
-            <div className="field-hint">0 = sem alerta</div>
-          </div>
-        </div>
-
-        {error ? <div className="form-error">{error}</div> : null}
-
-        <div className="modal-actions">
+    <Modal
+      title={supply ? "Editar insumo" : "Novo insumo"}
+      sub="Componentes que entram na peça sem ser filamento: ímã, argola, parafuso, corrente, embalagem. O preço vem das compras (lotes), não daqui."
+      onClose={onClose}
+      footer={
+        <>
           <button
             className="btn primary"
             type="button"
@@ -132,8 +75,60 @@ export function SupplyModal({ supply, onClose, onSave }: SupplyModalProps) {
           <button className="btn btn-secondary" type="button" onClick={onClose}>
             Cancelar
           </button>
+        </>
+      }
+    >
+      <div className="stock-form-grid">
+        <div className="field-block stock-field-wide">
+          <label className="section-label" htmlFor={`${fieldId}-name`}>
+            Nome
+          </label>
+          <input
+            id={`${fieldId}-name`}
+            className="field-input"
+            type="text"
+            value={name}
+            placeholder="Ex: Ímã 6×2mm"
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-unit`}>
+            Unidade
+          </label>
+          <input
+            id={`${fieldId}-unit`}
+            className="field-input"
+            type="text"
+            list="supply-units"
+            value={unit}
+            onChange={(event) => setUnit(event.target.value)}
+          />
+          <datalist id="supply-units">
+            {UNITS.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
+          <div className="field-hint">só rótulo de tela</div>
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-min`}>
+            Estoque mínimo
+          </label>
+          <NumberInput
+            id={`${fieldId}-min`}
+            className="field-input"
+            min={0}
+            value={minQty}
+            onChange={setMinQty}
+          />
+          <div className="field-hint">0 = sem alerta</div>
         </div>
       </div>
-    </div>
+
+      {error ? <div className="form-error">{error}</div> : null}
+    </Modal>
   );
 }

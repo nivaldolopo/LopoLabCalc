@@ -14,26 +14,28 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ ONDA 3 FECHADA — grade e alinhamento (2026-08-16)**. **UX-21** (deriva do
-  catálogo **1–3px → 0** e **zero número cortado** a 826px, onde 93/93 margens eram cortadas;
-  `/vendas` com `fixed`+colgroup, spread **39px → 0**) · **UX-22** (**Δ0** entre os cartões; o
-  `type="date"` dos 9 campos passa a medir 35px) · **UX-23** (`PageIntro`: 6 introduções, 3 CSS →
-  **618,2px idênticos**) · **UX-33** (`PageHeader` apaga as 7 cópias do cabeçalho; Escuro/Sair sobem
-  pro título = **−45px** a 1024; aba interna vira contorno). `lint` ✅ · **386/386** ✅ · `build` ✅.
-  Writeup + as 2 ressalvas de contraste: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ TD-015 — a casca de modal (push 1 da onda 4, 2026-08-17)**. Novo
+  **`Modal`**: `role="dialog"` + `aria-modal` + nome acessível, **Escape**, **trava da rolagem do
+  fundo** e **✕** — os **8** modais não tinham nada disso. A caixa virou **grade de 3 faixas**
+  (cabeçalho/corpo rolável/rodapé fixos): no `SaleModal` em edição o corpo pede **812px** e mostra
+  **580**, e o rodapé fica em **745–832** numa viewport de **900** — antes rolava junto e nascia
+  abaixo da dobra. O `ConfirmDialog` virou consumidor e guardou só o UX-15 (foco no *Cancelar*).
+  Medido nos **9** modais, a 1280×900 e 375×812. `lint` ✅ · **386/386** ✅ · `build` ✅.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **As CORES saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (o que a
   prévia já decide, e o token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — a onda 4 do [`BACKLOG.md`](.claude/BACKLOG.md): sistema**
-  (`TD-015` os 8 modais · `UX-29` · `UX-31` · `UX-28` · `UX-32`). Cara, sem prazo, alto valor
-  estrutural. ⚠ O `PageHeader` da onda 3 **já barateou o `UX-29`**: as 7 cópias de `.header`
-  viraram uma, então trocar `<div>`→`<header>` e acertar a hierarquia de títulos é um lugar só.
-- **Ordem do backlog (dono, 2026-08-16): ondas 0–5**, com **0, 1, 2 e 3 fechadas** — restam 6 itens
-  (+ o `UX-35`, achado novo de contraste). **Nada mais tem prazo** — a ordem é valor. `DEC-05`
-  (lucide) segue fora da fila, junto do rebrand. Detalhe e porquês: `BACKLOG.md`/`HISTORICO.md`.
+- **▶ PRÓXIMA TAREFA — o push 2 da onda 4** (o dono aprovou a onda inteira em 2 pushes):
+  **`UX-29`** (`<header>` + skip-link + os `div.section-head` viram `<h2>`; ⚠ o `<nav>` do achado F3
+  **já existe** — `NavBar.tsx:55`) · **`UX-31`** (token de foco + `:focus-visible` global) ·
+  **`UX-28`** (alvo dos `.link-button` a 32px, sem mudar o texto) · **`UX-32`** (primário
+  desabilitado vira **contorno + linha do que falta**, decisão do dono) · **`UX-35`** de carona
+  (o `--danger` do tema escuro, medido no card sólido).
+- **Ordem do backlog (dono, 2026-08-16): ondas 0–5**, com **0–3 fechadas** e a **4 pela metade** —
+  restam 5 itens (4 da onda 4 + o `UX-35`) e a onda 5. **Nada mais tem prazo** — a ordem é valor.
+  `DEC-05` (lucide) segue fora da fila, junto do rebrand. Porquês: `BACKLOG.md`/`HISTORICO.md`.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
@@ -82,6 +84,8 @@ src/
                             #   PageHeader (o cabeçalho das 8 rotas: título+meta+status+ícone e
                             #     os utilitários Escuro/Sair — UX-33) + PageIntro (o texto de
                             #     introdução, ~70ch — UX-23) ·
+                            #   Modal (a casca dos 9 diálogos: papel/Escape/trava de rolagem/✕ —
+                            #     TD-015) ·
                             #   compartilhados: NumberInput, ProfitSummary, SearchBox, CostBars,
                             #     ConfirmDialog (+useConfirm), FeedbackNote (+useFeedback),
                             #     NetMarginHint (UX-10), CostDetail (composição 1 ou 2 colunas —
@@ -137,8 +141,10 @@ src/
   `tabular-nums` é global (`body`, UX-27): não redeclarar por componente. **Faixa de número tem
   PISO `max(rótulo, conteúdo)` medido no DOM; faixa de nome tem reticências** (UX-21) — número
   cortado vira outro número. Rolagem horizontal só como válvula (`min-width`).
-- **Cabeçalho e introdução de página são COMPONENTE** — `PageHeader` e `PageIntro`. Página nova não
-  copia `.header` nem inventa `.subtitle`/`.stock-intro`/`.roi-note` próprios.
+- **Cabeçalho, introdução e MODAL são COMPONENTE** — `PageHeader`, `PageIntro` e `Modal`. Página
+  nova não copia `.header` nem inventa `.subtitle`/`.stock-intro`/`.roi-note` próprios; **modal novo
+  não escreve `.modal-overlay` na mão** — usa o `<Modal>` (título/sub/corpo/rodapé) e ganha papel,
+  Escape, trava de rolagem e ✕ de graça.
 - `src/lib/firebase/client.ts` — init + `db`; lê `NEXT_PUBLIC_FIREBASE_*` com fallback embutido nos
   valores reais (hoje as vars da Vercel são ignoradas).
 - **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar

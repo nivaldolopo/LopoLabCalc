@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import type { StockFilament } from "../types";
+import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
 
 // O que o formulário edita: a identidade da cor. Rolos e ajustes NÃO passam por
@@ -70,132 +71,12 @@ export function StockColorModal({
   }
 
   return (
-    <div className="modal-overlay open" onMouseDown={onClose}>
-      <div className="modal-box" onMouseDown={(event) => event.stopPropagation()}>
-        <h3 className="modal-title">{color ? "Editar cor" : "Nova cor"}</h3>
-        <p className="modal-sub">
-          A cor é o que o produto vai apontar — os rolos vivem dentro dela, cada
-          um com o preço que você pagou. O nome exibido é montado a partir de
-          material, cor e marca.
-        </p>
-
-        <div className="stock-form-grid">
-          <div className="field-block">
-            {/* UX-16: os dois ramos são o MESMO campo (texto livre × lista) e só
-                um renderiza por vez — daí o mesmo id nos dois. */}
-            <label className="section-label" htmlFor={`${fieldId}-material`}>
-              Material
-            </label>
-            {typingMaterial ? (
-              <div className="stock-material-new">
-                <input
-                  id={`${fieldId}-material`}
-                  className="field-input"
-                  type="text"
-                  value={material}
-                  autoFocus
-                  placeholder="PLA Basic, PETG HF..."
-                  onChange={(event) => setMaterial(event.target.value)}
-                />
-                {materials.length > 0 ? (
-                  <button
-                    className="link-button"
-                    type="button"
-                    onClick={() => {
-                      setTypingMaterial(false);
-                      setMaterial("");
-                    }}
-                  >
-                    escolher da lista
-                  </button>
-                ) : null}
-              </div>
-            ) : (
-              <select
-                id={`${fieldId}-material`}
-                className="field-input"
-                value={material}
-                onChange={(event) => {
-                  if (event.target.value === NEW_MATERIAL) {
-                    setTypingMaterial(true);
-                    setMaterial("");
-                    return;
-                  }
-                  setMaterial(event.target.value);
-                }}
-              >
-                <option value="">Selecione...</option>
-                {materials.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-                <option value={NEW_MATERIAL}>+ Novo material...</option>
-              </select>
-            )}
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-brand`}>
-              Marca
-            </label>
-            <input
-              id={`${fieldId}-brand`}
-              className="field-input"
-              type="text"
-              value={brand}
-              placeholder="Bambu, Voolt... (opcional)"
-              onChange={(event) => setBrand(event.target.value)}
-            />
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-color-name`}>
-              Cor
-            </label>
-            <input
-              id={`${fieldId}-color-name`}
-              className="field-input"
-              type="text"
-              value={colorName}
-              placeholder="Preto, Vermelho..."
-              onChange={(event) => setColorName(event.target.value)}
-            />
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-hex`}>
-              Amostra
-            </label>
-            {/* UX-16: o `aria-label` saiu — com rótulo de verdade ele VENCERIA o
-                texto visível e o leitor de tela anunciaria outra coisa. */}
-            <input
-              id={`${fieldId}-hex`}
-              className="stock-hex-input"
-              type="color"
-              value={colorHex}
-              onChange={(event) => setColorHex(event.target.value)}
-            />
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-min-g`}>
-              Estoque mínimo (g)
-            </label>
-            <NumberInput
-              id={`${fieldId}-min-g`}
-              className="field-input"
-              min={0}
-              value={minG}
-              onChange={setMinG}
-            />
-            <div className="field-hint">0 = sem alerta</div>
-          </div>
-        </div>
-
-        {error ? <div className="form-error">{error}</div> : null}
-
-        <div className="modal-actions">
+    <Modal
+      title={color ? "Editar cor" : "Nova cor"}
+      sub="A cor é o que o produto vai apontar — os rolos vivem dentro dela, cada um com o preço que você pagou. O nome exibido é montado a partir de material, cor e marca."
+      onClose={onClose}
+      footer={
+        <>
           <button
             className="btn primary"
             type="button"
@@ -207,8 +88,124 @@ export function StockColorModal({
           <button className="btn btn-secondary" type="button" onClick={onClose}>
             Cancelar
           </button>
+        </>
+      }
+    >
+      <div className="stock-form-grid">
+        <div className="field-block">
+          {/* UX-16: os dois ramos são o MESMO campo (texto livre × lista) e só
+              um renderiza por vez — daí o mesmo id nos dois. */}
+          <label className="section-label" htmlFor={`${fieldId}-material`}>
+            Material
+          </label>
+          {typingMaterial ? (
+            <div className="stock-material-new">
+              <input
+                id={`${fieldId}-material`}
+                className="field-input"
+                type="text"
+                value={material}
+                autoFocus
+                placeholder="PLA Basic, PETG HF..."
+                onChange={(event) => setMaterial(event.target.value)}
+              />
+              {materials.length > 0 ? (
+                <button
+                  className="link-button"
+                  type="button"
+                  onClick={() => {
+                    setTypingMaterial(false);
+                    setMaterial("");
+                  }}
+                >
+                  escolher da lista
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <select
+              id={`${fieldId}-material`}
+              className="field-input"
+              value={material}
+              onChange={(event) => {
+                if (event.target.value === NEW_MATERIAL) {
+                  setTypingMaterial(true);
+                  setMaterial("");
+                  return;
+                }
+                setMaterial(event.target.value);
+              }}
+            >
+              <option value="">Selecione...</option>
+              {materials.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+              <option value={NEW_MATERIAL}>+ Novo material...</option>
+            </select>
+          )}
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-brand`}>
+            Marca
+          </label>
+          <input
+            id={`${fieldId}-brand`}
+            className="field-input"
+            type="text"
+            value={brand}
+            placeholder="Bambu, Voolt... (opcional)"
+            onChange={(event) => setBrand(event.target.value)}
+          />
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-color-name`}>
+            Cor
+          </label>
+          <input
+            id={`${fieldId}-color-name`}
+            className="field-input"
+            type="text"
+            value={colorName}
+            placeholder="Preto, Vermelho..."
+            onChange={(event) => setColorName(event.target.value)}
+          />
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-hex`}>
+            Amostra
+          </label>
+          {/* UX-16: o `aria-label` saiu — com rótulo de verdade ele VENCERIA o
+              texto visível e o leitor de tela anunciaria outra coisa. */}
+          <input
+            id={`${fieldId}-hex`}
+            className="stock-hex-input"
+            type="color"
+            value={colorHex}
+            onChange={(event) => setColorHex(event.target.value)}
+          />
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-min-g`}>
+            Estoque mínimo (g)
+          </label>
+          <NumberInput
+            id={`${fieldId}-min-g`}
+            className="field-input"
+            min={0}
+            value={minG}
+            onChange={setMinG}
+          />
+          <div className="field-hint">0 = sem alerta</div>
         </div>
       </div>
-    </div>
+
+      {error ? <div className="form-error">{error}</div> : null}
+    </Modal>
   );
 }

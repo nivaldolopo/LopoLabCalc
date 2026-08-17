@@ -5,6 +5,7 @@ import { formatDate, todayInputValue, toTimestamp } from "@/lib/formatting/date"
 import { num } from "@/lib/number";
 import { filamentLabel, rollNumbers } from "../lib/stock";
 import type { StockFilament } from "../types";
+import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
 
 type StockAdjustModalProps = {
@@ -78,96 +79,12 @@ export function StockAdjustModal({
   }
 
   return (
-    <div className="modal-overlay open" onMouseDown={onClose}>
-      <div className="modal-box" onMouseDown={(event) => event.stopPropagation()}>
-        <h3 className="modal-title">Ajuste de inventário</h3>
-        <p className="modal-sub">
-          {filamentLabel(color)} — pese o rolo e informe o que ele tem de
-          verdade. O que o sistema achava fica guardado no histórico, junto com o
-          motivo.
-        </p>
-
-        <div className="stock-form-grid">
-          <div className="field-block stock-field-wide">
-            <label className="section-label" htmlFor={`${fieldId}-roll`}>
-              Rolo contado
-            </label>
-            <select
-              id={`${fieldId}-roll`}
-              className="field-input"
-              value={rollId}
-              onChange={(event) => {
-                const next = rolls.find((roll) => roll.id === event.target.value);
-                setRollId(event.target.value);
-                // O contado parte do saldo atual do rolo escolhido: quem só
-                // confere um rolo certo não precisa redigitar o número.
-                setCountedG(num(next?.remainingG));
-              }}
-            >
-              {rolls.map((roll) => (
-                <option key={roll.id} value={roll.id}>
-                  Rolo #{numbers.get(roll.id)} · comprado em{" "}
-                  {formatDate(roll.purchaseDate)} · sistema:{" "}
-                  {Math.round(num(roll.remainingG))} g
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-counted`}>
-              Contado (g)
-            </label>
-            <NumberInput
-              id={`${fieldId}-counted`}
-              className="field-input"
-              min={0}
-              value={countedG}
-              onChange={setCountedG}
-            />
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-date`}>
-              Data da contagem
-            </label>
-            <input
-              id={`${fieldId}-date`}
-              className="field-input"
-              type="date"
-              value={dateStr}
-              onChange={(event) => setDateStr(event.target.value)}
-            />
-          </div>
-
-          <div className="field-block stock-field-wide">
-            <label className="section-label" htmlFor={`${fieldId}-reason`}>
-              Motivo
-            </label>
-            <input
-              id={`${fieldId}-reason`}
-              className="field-input"
-              type="text"
-              value={reason}
-              placeholder="Contagem, sobrou no bico, rolo veio com menos..."
-              onChange={(event) => setReason(event.target.value)}
-            />
-          </div>
-        </div>
-
-        {selected ? (
-          <div className={`stock-delta ${delta === 0 ? "zero" : delta > 0 ? "pos" : "neg"}`}>
-            {delta === 0
-              ? "Sem diferença — o sistema já estava certo."
-              : `O saldo do rolo vai de ${Math.round(beforeG)} g para ${Math.round(
-                  countedG,
-                )} g (${delta > 0 ? "+" : "−"}${Math.round(Math.abs(delta))} g).`}
-          </div>
-        ) : null}
-
-        {error ? <div className="form-error">{error}</div> : null}
-
-        <div className="modal-actions">
+    <Modal
+      title="Ajuste de inventário"
+      sub={`${filamentLabel(color)} — pese o rolo e informe o que ele tem de verdade. O que o sistema achava fica guardado no histórico, junto com o motivo.`}
+      onClose={onClose}
+      footer={
+        <>
           <button
             className="btn primary"
             type="button"
@@ -179,8 +96,88 @@ export function StockAdjustModal({
           <button className="btn btn-secondary" type="button" onClick={onClose}>
             Cancelar
           </button>
+        </>
+      }
+    >
+      <div className="stock-form-grid">
+        <div className="field-block stock-field-wide">
+          <label className="section-label" htmlFor={`${fieldId}-roll`}>
+            Rolo contado
+          </label>
+          <select
+            id={`${fieldId}-roll`}
+            className="field-input"
+            value={rollId}
+            onChange={(event) => {
+              const next = rolls.find((roll) => roll.id === event.target.value);
+              setRollId(event.target.value);
+              // O contado parte do saldo atual do rolo escolhido: quem só
+              // confere um rolo certo não precisa redigitar o número.
+              setCountedG(num(next?.remainingG));
+            }}
+          >
+            {rolls.map((roll) => (
+              <option key={roll.id} value={roll.id}>
+                Rolo #{numbers.get(roll.id)} · comprado em{" "}
+                {formatDate(roll.purchaseDate)} · sistema:{" "}
+                {Math.round(num(roll.remainingG))} g
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-counted`}>
+            Contado (g)
+          </label>
+          <NumberInput
+            id={`${fieldId}-counted`}
+            className="field-input"
+            min={0}
+            value={countedG}
+            onChange={setCountedG}
+          />
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-date`}>
+            Data da contagem
+          </label>
+          <input
+            id={`${fieldId}-date`}
+            className="field-input"
+            type="date"
+            value={dateStr}
+            onChange={(event) => setDateStr(event.target.value)}
+          />
+        </div>
+
+        <div className="field-block stock-field-wide">
+          <label className="section-label" htmlFor={`${fieldId}-reason`}>
+            Motivo
+          </label>
+          <input
+            id={`${fieldId}-reason`}
+            className="field-input"
+            type="text"
+            value={reason}
+            placeholder="Contagem, sobrou no bico, rolo veio com menos..."
+            onChange={(event) => setReason(event.target.value)}
+          />
         </div>
       </div>
-    </div>
+
+      {selected ? (
+        <div className={`stock-delta ${delta === 0 ? "zero" : delta > 0 ? "pos" : "neg"}`}>
+          {delta === 0
+            ? "Sem diferença — o sistema já estava certo."
+            : `O saldo do rolo vai de ${Math.round(beforeG)} g para ${Math.round(
+                countedG,
+              )} g (${delta > 0 ? "+" : "−"}${Math.round(Math.abs(delta))} g).`}
+        </div>
+      ) : null}
+
+      {error ? <div className="form-error">{error}</div> : null}
+    </Modal>
   );
 }

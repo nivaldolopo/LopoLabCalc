@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { todayInputValue, toTimestamp } from "@/lib/formatting/date";
 import { filamentLabel } from "../lib/stock";
 import type { FilamentRoll, StockFilament } from "../types";
+import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
 
 type StockRollModalProps = {
@@ -58,78 +59,12 @@ export function StockRollModal({ color, onClose, onSave }: StockRollModalProps) 
   }
 
   return (
-    <div className="modal-overlay open" onMouseDown={onClose}>
-      <div className="modal-box" onMouseDown={(event) => event.stopPropagation()}>
-        <h3 className="modal-title">Registrar rolo</h3>
-        <p className="modal-sub">
-          {filamentLabel(color)} — o preço vale só para este rolo. O catálogo
-          precifica pelo rolo mais novo (custo de repor) e a venda cobra o rolo
-          em uso (custo real).
-        </p>
-
-        <div className="stock-form-grid">
-          {/* UX-16: os `aria-label` saíram junto — com um <label> de verdade
-              ligado ao campo, o aria-label VENCE e o leitor de tela passa a
-              anunciar um texto diferente do que está escrito na tela. */}
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-weight`}>
-              Peso do rolo (g)
-            </label>
-            <NumberInput
-              id={`${fieldId}-weight`}
-              className="field-input"
-              min={0}
-              value={initialG}
-              onChange={setInitialG}
-            />
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-price`}>
-              Preço pago (R$/kg)
-            </label>
-            <NumberInput
-              id={`${fieldId}-price`}
-              className="field-input"
-              min={0}
-              step="0.01"
-              value={pricePerKg}
-              onChange={setPricePerKg}
-            />
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-date`}>
-              Data da compra
-            </label>
-            <input
-              id={`${fieldId}-date`}
-              className="field-input"
-              type="date"
-              value={dateStr}
-              onChange={(event) => setDateStr(event.target.value)}
-            />
-            <div className="field-hint">define a ordem de consumo (FIFO)</div>
-          </div>
-
-          <div className="field-block stock-field-wide">
-            <label className="section-label" htmlFor={`${fieldId}-note`}>
-              Nota
-            </label>
-            <input
-              id={`${fieldId}-note`}
-              className="field-input"
-              type="text"
-              value={note}
-              placeholder="NF, fornecedor... (opcional)"
-              onChange={(event) => setNote(event.target.value)}
-            />
-          </div>
-        </div>
-
-        {error ? <div className="form-error">{error}</div> : null}
-
-        <div className="modal-actions">
+    <Modal
+      title="Registrar rolo"
+      sub={`${filamentLabel(color)} — o preço vale só para este rolo. O catálogo precifica pelo rolo mais novo (custo de repor) e a venda cobra o rolo em uso (custo real).`}
+      onClose={onClose}
+      footer={
+        <>
           <button
             className="btn primary"
             type="button"
@@ -141,8 +76,70 @@ export function StockRollModal({ color, onClose, onSave }: StockRollModalProps) 
           <button className="btn btn-secondary" type="button" onClick={onClose}>
             Cancelar
           </button>
+        </>
+      }
+    >
+      <div className="stock-form-grid">
+        {/* UX-16: os `aria-label` saíram junto — com um <label> de verdade
+            ligado ao campo, o aria-label VENCE e o leitor de tela passa a
+            anunciar um texto diferente do que está escrito na tela. */}
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-weight`}>
+            Peso do rolo (g)
+          </label>
+          <NumberInput
+            id={`${fieldId}-weight`}
+            className="field-input"
+            min={0}
+            value={initialG}
+            onChange={setInitialG}
+          />
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-price`}>
+            Preço pago (R$/kg)
+          </label>
+          <NumberInput
+            id={`${fieldId}-price`}
+            className="field-input"
+            min={0}
+            step="0.01"
+            value={pricePerKg}
+            onChange={setPricePerKg}
+          />
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-date`}>
+            Data da compra
+          </label>
+          <input
+            id={`${fieldId}-date`}
+            className="field-input"
+            type="date"
+            value={dateStr}
+            onChange={(event) => setDateStr(event.target.value)}
+          />
+          <div className="field-hint">define a ordem de consumo (FIFO)</div>
+        </div>
+
+        <div className="field-block stock-field-wide">
+          <label className="section-label" htmlFor={`${fieldId}-note`}>
+            Nota
+          </label>
+          <input
+            id={`${fieldId}-note`}
+            className="field-input"
+            type="text"
+            value={note}
+            placeholder="NF, fornecedor... (opcional)"
+            onChange={(event) => setNote(event.target.value)}
+          />
         </div>
       </div>
-    </div>
+
+      {error ? <div className="form-error">{error}</div> : null}
+    </Modal>
   );
 }

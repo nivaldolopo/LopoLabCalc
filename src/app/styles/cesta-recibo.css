@@ -29,10 +29,6 @@
   margin-bottom: var(--space-16);
 }
 
-.sale-modal .modal-sub {
-  margin-bottom: var(--space-20);
-}
-
 .cesta-list {
   display: flex;
   flex-direction: column;

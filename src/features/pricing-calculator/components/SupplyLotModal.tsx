@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { todayInputValue, toTimestamp } from "@/lib/formatting/date";
 import type { Supply, SupplyLot } from "../types";
+import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
 
 type SupplyLotModalProps = {
@@ -60,82 +61,12 @@ export function SupplyLotModal({ supply, onClose, onSave }: SupplyLotModalProps)
   }
 
   return (
-    <div className="modal-overlay open" onMouseDown={onClose}>
-      <div className="modal-box" onMouseDown={(event) => event.stopPropagation()}>
-        <h3 className="modal-title">Registrar compra</h3>
-        <p className="modal-sub">
-          {supply.name} — o preço vale só para este lote. O produto precifica
-          pelo lote mais novo (custo de repor) e a produção cobra o lote em uso
-          (custo real).
-        </p>
-
-        {/* UX-16: os `aria-label` saíram — com <label> ligado ao campo eles
-            venceriam o texto visível na leitura de tela. */}
-        <div className="stock-form-grid">
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-qty`}>
-              Quantidade ({supply.unit})
-            </label>
-            <NumberInput
-              id={`${fieldId}-qty`}
-              className="field-input"
-              min={0}
-              value={initialQty}
-              onChange={setInitialQty}
-            />
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-price`}>
-              Preço por {supply.unit} (R$)
-            </label>
-            <NumberInput
-              id={`${fieldId}-price`}
-              className="field-input"
-              min={0}
-              step="0.01"
-              value={unitPrice}
-              onChange={setUnitPrice}
-            />
-            {total > 0 ? (
-              <div className="field-hint">
-                total da compra: R$ {total.toFixed(2).replace(".", ",")}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="field-block">
-            <label className="section-label" htmlFor={`${fieldId}-date`}>
-              Data da compra
-            </label>
-            <input
-              id={`${fieldId}-date`}
-              className="field-input"
-              type="date"
-              value={dateStr}
-              onChange={(event) => setDateStr(event.target.value)}
-            />
-            <div className="field-hint">define a ordem de consumo (FIFO)</div>
-          </div>
-
-          <div className="field-block stock-field-wide">
-            <label className="section-label" htmlFor={`${fieldId}-note`}>
-              Nota
-            </label>
-            <input
-              id={`${fieldId}-note`}
-              className="field-input"
-              type="text"
-              value={note}
-              placeholder="NF, fornecedor... (opcional)"
-              onChange={(event) => setNote(event.target.value)}
-            />
-          </div>
-        </div>
-
-        {error ? <div className="form-error">{error}</div> : null}
-
-        <div className="modal-actions">
+    <Modal
+      title="Registrar compra"
+      sub={`${supply.name} — o preço vale só para este lote. O produto precifica pelo lote mais novo (custo de repor) e a produção cobra o lote em uso (custo real).`}
+      onClose={onClose}
+      footer={
+        <>
           <button
             className="btn primary"
             type="button"
@@ -147,8 +78,74 @@ export function SupplyLotModal({ supply, onClose, onSave }: SupplyLotModalProps)
           <button className="btn btn-secondary" type="button" onClick={onClose}>
             Cancelar
           </button>
+        </>
+      }
+    >
+      {/* UX-16: os `aria-label` saíram — com <label> ligado ao campo eles
+          venceriam o texto visível na leitura de tela. */}
+      <div className="stock-form-grid">
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-qty`}>
+            Quantidade ({supply.unit})
+          </label>
+          <NumberInput
+            id={`${fieldId}-qty`}
+            className="field-input"
+            min={0}
+            value={initialQty}
+            onChange={setInitialQty}
+          />
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-price`}>
+            Preço por {supply.unit} (R$)
+          </label>
+          <NumberInput
+            id={`${fieldId}-price`}
+            className="field-input"
+            min={0}
+            step="0.01"
+            value={unitPrice}
+            onChange={setUnitPrice}
+          />
+          {total > 0 ? (
+            <div className="field-hint">
+              total da compra: R$ {total.toFixed(2).replace(".", ",")}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="field-block">
+          <label className="section-label" htmlFor={`${fieldId}-date`}>
+            Data da compra
+          </label>
+          <input
+            id={`${fieldId}-date`}
+            className="field-input"
+            type="date"
+            value={dateStr}
+            onChange={(event) => setDateStr(event.target.value)}
+          />
+          <div className="field-hint">define a ordem de consumo (FIFO)</div>
+        </div>
+
+        <div className="field-block stock-field-wide">
+          <label className="section-label" htmlFor={`${fieldId}-note`}>
+            Nota
+          </label>
+          <input
+            id={`${fieldId}-note`}
+            className="field-input"
+            type="text"
+            value={note}
+            placeholder="NF, fornecedor... (opcional)"
+            onChange={(event) => setNote(event.target.value)}
+          />
         </div>
       </div>
-    </div>
+
+      {error ? <div className="form-error">{error}</div> : null}
+    </Modal>
   );
 }

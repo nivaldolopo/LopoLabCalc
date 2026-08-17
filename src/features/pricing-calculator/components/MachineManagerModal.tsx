@@ -3,6 +3,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Machine } from "../types";
+import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
 
 type MachineManagerModalProps = {
@@ -80,86 +81,84 @@ export function MachineManagerModal({
   }
 
   return (
-    <div className="modal-overlay open" onMouseDown={onClose}>
-      <div className="modal-box" onMouseDown={(event) => event.stopPropagation()}>
-        <h3 className="modal-title">Gerenciar Máquinas</h3>
-        <p className="modal-sub">
-          Adicione, edite ou remova impressoras. Preço e vida útil calculam a
-          depreciação; watts calcula a energia; manutenção/hora cobre bicos,
-          placa, correias e demais consumíveis.
-        </p>
-        <div className="machine-edit-header">
-          <span>Nome</span>
-          <span>Preço (R$)</span>
-          <span>Vida (h)</span>
-          <span>Watts</span>
-          <span>Manut. (R$/h)</span>
-          <span />
-        </div>
-        <div>
-          {draft.map((machine, index) => (
-            <div className="machine-edit-row" key={machine.id}>
-              <input
-                aria-label="Nome da máquina"
-                type="text"
-                value={machine.name}
-                onChange={(event) =>
-                  updateMachine(index, { name: event.target.value })
-                }
-                placeholder="Nome"
-              />
-              <NumberInput
-                aria-label="Preço da máquina"
-                min={0}
-                value={machine.price}
-                onChange={(price) => updateMachine(index, { price })}
-              />
-              <NumberInput
-                aria-label="Vida útil em horas"
-                min={1}
-                value={machine.lifeHours}
-                onChange={(lifeHours) => updateMachine(index, { lifeHours })}
-              />
-              <NumberInput
-                aria-label="Consumo em watts"
-                min={0}
-                value={machine.watts}
-                onChange={(watts) => updateMachine(index, { watts })}
-              />
-              <NumberInput
-                aria-label="Manutenção por hora"
-                min={0}
-                step="0.1"
-                value={machine.maintenancePerHour}
-                onChange={(maintenancePerHour) =>
-                  updateMachine(index, { maintenancePerHour })
-                }
-              />
-              <button
-                className="icon-button danger"
-                type="button"
-                onClick={() => removeMachine(index)}
-                title="Remover máquina"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
-        <button className="link-button add-line" type="button" onClick={addMachine}>
-          <Plus size={15} />
-          Adicionar máquina
-        </button>
-        {error ? <div className="form-error">{error}</div> : null}
-        <div className="modal-actions">
+    <Modal
+      title="Gerenciar Máquinas"
+      sub="Adicione, edite ou remova impressoras. Preço e vida útil calculam a depreciação; watts calcula a energia; manutenção/hora cobre bicos, placa, correias e demais consumíveis."
+      onClose={onClose}
+      footer={
+        <>
           <button className="btn primary" type="button" onClick={saveDraft}>
             Salvar
           </button>
           <button className="btn btn-secondary" type="button" onClick={onClose}>
             Cancelar
           </button>
-        </div>
+        </>
+      }
+    >
+      <div className="machine-edit-header">
+        <span>Nome</span>
+        <span>Preço (R$)</span>
+        <span>Vida (h)</span>
+        <span>Watts</span>
+        <span>Manut. (R$/h)</span>
+        <span />
       </div>
-    </div>
+      <div>
+        {draft.map((machine, index) => (
+          <div className="machine-edit-row" key={machine.id}>
+            <input
+              aria-label="Nome da máquina"
+              type="text"
+              value={machine.name}
+              onChange={(event) =>
+                updateMachine(index, { name: event.target.value })
+              }
+              placeholder="Nome"
+            />
+            <NumberInput
+              aria-label="Preço da máquina"
+              min={0}
+              value={machine.price}
+              onChange={(price) => updateMachine(index, { price })}
+            />
+            <NumberInput
+              aria-label="Vida útil em horas"
+              min={1}
+              value={machine.lifeHours}
+              onChange={(lifeHours) => updateMachine(index, { lifeHours })}
+            />
+            <NumberInput
+              aria-label="Consumo em watts"
+              min={0}
+              value={machine.watts}
+              onChange={(watts) => updateMachine(index, { watts })}
+            />
+            <NumberInput
+              aria-label="Manutenção por hora"
+              min={0}
+              step="0.1"
+              value={machine.maintenancePerHour}
+              onChange={(maintenancePerHour) =>
+                updateMachine(index, { maintenancePerHour })
+              }
+            />
+            <button
+              className="icon-button danger"
+              type="button"
+              onClick={() => removeMachine(index)}
+              title="Remover máquina"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button className="link-button add-line" type="button" onClick={addMachine}>
+        <Plus size={15} />
+        Adicionar máquina
+      </button>
+      {error ? <div className="form-error">{error}</div> : null}
+    </Modal>
   );
 }

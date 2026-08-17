@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
+import { Modal } from "./Modal";
 
 export type ConfirmRequest = {
   // Pergunta curta, já com o alvo pelo nome: `Excluir "Vaso Hexagonal"?`.
@@ -27,8 +28,12 @@ type ConfirmDialogProps = ConfirmRequest & {
  * importa (o que some, o que sobrevive), não responde ao tema e chega sem
  * hierarquia, com o botão perigoso no lugar do OK.
  *
- * Reusa a casca de modal que já existe (`modal.css`), a mesma do SaleModal e
+ * Reusa a casca de modal que já existe (`<Modal>`), a mesma do SaleModal e
  * dos modais do estoque — nada de um segundo sistema de diálogo.
+ *
+ * TD-015: o Escape, o `role="dialog"`, o `aria-modal` e a trava de rolagem que
+ * moravam AQUI viraram o `<Modal>`. Este arquivo ficou só com o que é decisão
+ * do UX-15: a ordem dos botões e o foco no Cancelar.
  */
 export function ConfirmDialog({
   title,
@@ -39,34 +44,19 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  // O foco nasce no CANCELAR: quem apertar Enter por reflexo não apaga nada.
+  // É por isso que o `<Modal>` aceita um alvo de foco — no resto do app ele
+  // usa o primeiro controle do corpo, que aqui seria o botão que APAGA.
   const cancelRef = useRef<HTMLButtonElement | null>(null);
 
-  // O foco nasce no CANCELAR: quem apertar Enter por reflexo não apaga nada.
-  useEffect(() => {
-    cancelRef.current?.focus();
-  }, []);
-
-  // Escape fecha, como na gaveta da nav (UX-14).
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onCancel]);
-
   return (
-    <div className="modal-overlay open" onMouseDown={onCancel}>
-      <div
-        aria-modal="true"
-        className="modal-box confirm-box"
-        role="dialog"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <h3 className="modal-title">{title}</h3>
-        {body ? <div className="confirm-body">{body}</div> : null}
-
-        <div className="modal-actions">
+    <Modal
+      className="confirm-box"
+      initialFocusRef={cancelRef}
+      title={title}
+      onClose={onCancel}
+      footer={
+        <>
           {/* O destrutivo NÃO é o primeiro: a leitura (e o Tab) chega no
               Cancelar antes. */}
           <button
@@ -84,9 +74,11 @@ export function ConfirmDialog({
           >
             {confirmLabel}
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      {body ? <div className="confirm-body">{body}</div> : null}
+    </Modal>
   );
 }
 
