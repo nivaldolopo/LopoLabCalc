@@ -10,6 +10,15 @@ const MONTH_MS = (365.25 / 12) * 24 * 60 * 60 * 1000;
 // uma fração ínfima de mês). Abaixo disso, mostramos o progresso mas sem projeção.
 const MIN_HISTORY_MS = 14 * 24 * 60 * 60 * 1000;
 
+// TD-016 — a janela do RITMO. O ritmo era `lucro ÷ (agora − 1ª venda)`, ou seja
+// média de vida inteira: um mês forte seguido de meses parados fazia a média
+// decair sozinha e a projeção afastar a data mesmo com ritmo recente bom. Ele
+// respondia "quanto rendeu até aqui", e a pergunta do payback é "quanto rende
+// AGORA". 90 dias (e não 60) porque, no volume de vendas de hoje, a janela
+// curta deixa um mês vazio zerar a projeção inteira.
+const RECENT_WINDOW_DAYS = 90;
+const RECENT_WINDOW_MS = RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
 export type MachineRoi = {
   machine: Machine;
   // DUAS fontes, de propósito (FEAT-04c):
@@ -35,6 +44,12 @@ export type MachineRoi = {
   firstSaleDate: number | null;
   lastSaleDate: number | null;
 
+  // TD-016: o lucro da JANELA recente (mesma repartição por máquina do
+  // `profit`). É a base do ritmo — o `profit` acima continua sendo o acumulado
+  // de vida inteira, e é ele que paga a máquina.
+  recentProfit: number;
+  recentWindowDays: number; // p/ a UI rotular sem cravar o número no JSX
+
   // Vida útil consumida (cruza com lifeHours). Horas físicas realmente impressas,
   // da PRODUÇÃO — mede desgaste, não recuperação de caixa.
   lifeUsedFraction: number; // printedHours / lifeHours (pode passar de 1)
@@ -46,7 +61,9 @@ export type MachineRoi = {
   remaining: number; // max(0, price − profit): quanto falta pagar
 
   // Projeção (null quando não há histórico/ritmo suficiente para estimar).
-  profitPerMonth: number | null; // ritmo médio de lucro desde a 1ª venda
+  // TD-016: `profitPerMonth` é o ritmo dos últimos `recentWindowDays` — não mais
+  // a média desde a 1ª venda. Pode ser 0 (máquina parada), e aí não há projeção.
+  profitPerMonth: number | null; // ritmo recente de lucro, por mês
   monthsToPayback: number | null; // remaining / profitPerMonth
   projectedPaybackDate: number | null; // now + monthsToPayback (timestamp ms)
 };
@@ -97,8 +114,10 @@ export function computeMachineRoi(
     let revenue = 0;
     let profit = 0;
     let depreciationRecovered = 0;
+    let recentProfit = 0;
     let firstSaleDate: number | null = null;
     let lastSaleDate: number | null = null;
+    const windowStart = now - RECENT_WINDOW_MS;
 
     for (const sale of sales) {
       const shares = saleShares(sale);
@@ -138,6 +157,11 @@ export function computeMachineRoi(
       profit += num(sale.profit) * fraction;
 
       const when = num(sale.saleDate);
+      // TD-016: a mesma fatia do lucro, restrita à janela. Venda sem data
+      // (`saleDate` 0) não entra no ritmo — não dá pra situá-la no tempo.
+      if (when > 0 && when >= windowStart) {
+        recentProfit += num(sale.profit) * fraction;
+      }
       if (when > 0) {
         firstSaleDate =
           firstSaleDate === null ? when : Math.min(firstSaleDate, when);
@@ -152,15 +176,19 @@ export function computeMachineRoi(
     const surplus = Math.max(0, profit - price);
     const remaining = Math.max(0, price - profit);
 
-    // Ritmo de lucro: lucro acumulado ÷ meses decorridos desde a 1ª venda, só se
-    // houver histórico mínimo e lucro positivo. Senão, não dá pra projetar.
+    // Ritmo de lucro (TD-016): lucro da JANELA ÷ meses da janela, só se houver
+    // histórico mínimo e lucro acumulado positivo. A janela ENCURTA quando o
+    // histórico é menor que ela — senão uma máquina com 30 dias de vida teria o
+    // ritmo diluído por 90. Ritmo 0 (nada vendido na janela) é resposta legítima
+    // e mata a projeção: máquina parada não tem data de payback.
     let profitPerMonth: number | null = null;
     let monthsToPayback: number | null = null;
     let projectedPaybackDate: number | null = null;
 
     const elapsedMs = firstSaleDate !== null ? now - firstSaleDate : 0;
     if (firstSaleDate !== null && elapsedMs >= MIN_HISTORY_MS && profit > 0) {
-      profitPerMonth = profit / (elapsedMs / MONTH_MS);
+      const windowMs = Math.min(elapsedMs, RECENT_WINDOW_MS);
+      profitPerMonth = recentProfit / (windowMs / MONTH_MS);
       if (!isPaidBack && profitPerMonth > 0) {
         monthsToPayback = remaining / profitPerMonth;
         projectedPaybackDate = now + monthsToPayback * MONTH_MS;
@@ -178,6 +206,8 @@ export function computeMachineRoi(
       depreciationRecovered,
       firstSaleDate,
       lastSaleDate,
+      recentProfit,
+      recentWindowDays: RECENT_WINDOW_DAYS,
       lifeUsedFraction,
       paybackFraction,
       isPaidBack,

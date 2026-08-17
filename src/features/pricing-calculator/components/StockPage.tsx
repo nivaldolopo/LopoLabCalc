@@ -76,6 +76,7 @@ import type {
   StockFilamentPayload,
 } from "../types";
 import { useConfirm } from "./ConfirmDialog";
+import { CostStack } from "./CostBars";
 import { CostBreakdownTable, CostDetail } from "./CostDetail";
 import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { NavBar } from "./NavBar";
@@ -608,42 +609,35 @@ export function StockPage() {
   // "conjunto + lacuna": o inteiro montável = min das partes, e a divergência
   // vira peças avulsas ("conjunto sem X"). Só leitura — a baixa é o passo 8.
   // FEAT-06: faixa de composição do valor parado — de que é feito o COGS que
-  // está na prateleira. CSS puro (flex-grow proporcional), sem biblioteca.
-  // Componentes zerados somem; valor negativo (D4) não vira barra (não há
-  // proporção que faça sentido num buraco) — o card já avisa do saldo negativo.
+  // está na prateleira. Componentes zerados somem; valor negativo (D4) não vira
+  // barra (não há proporção que faça sentido num buraco) — o card já avisa do
+  // saldo negativo.
+  // UX-26: o desenho saiu daqui e virou o `CostStack`, compartilhado com a
+  // calculadora e o catálogo. Sem `showValue`: aqui a legenda continua só com a
+  // %, como sempre foi (ligar o R$ é 1 prop). A % segue medida sobre o
+  // `sumFrozen`, não sobre o `total` que só guarda a porta de entrada.
   function renderCostBars(breakdown: FrozenCostBreakdown, total: number) {
     if (total <= 0) return null;
-    const parts = [
-      { key: "material", label: "Material", value: breakdown.material },
-      { key: "labor", label: "Mão de obra", value: breakdown.labor },
-      { key: "supplies", label: "Insumos", value: breakdown.supplies },
-      { key: "energy", label: "Energia", value: breakdown.energy },
-      { key: "depreciation", label: "Desgaste", value: breakdown.depreciation },
-      { key: "maintenance", label: "Manutenção", value: breakdown.maintenance },
-    ].filter((part) => part.value > 0);
-    if (parts.length === 0) return null;
-    const sum = sumFrozen(breakdown);
     return (
-      <div className="fg-comp">
-        <div className="fg-comp-bar">
-          {parts.map((part) => (
-            <span
-              key={part.key}
-              className={`fg-comp-seg ${part.key}`}
-              style={{ flexGrow: part.value }}
-              title={`${part.label}: ${formatCurrency(part.value)}`}
-            />
-          ))}
-        </div>
-        <div className="fg-comp-legend">
-          {parts.map((part) => (
-            <span className="fg-comp-item" key={part.key}>
-              <i className={`fg-comp-dot ${part.key}`} aria-hidden="true" />
-              {part.label} {Math.round((part.value / sum) * 100)}%
-            </span>
-          ))}
-        </div>
-      </div>
+      <CostStack
+        total={sumFrozen(breakdown)}
+        items={[
+          { key: "material", label: "Material", value: breakdown.material },
+          { key: "labor", label: "Mão de obra", value: breakdown.labor },
+          { key: "supplies", label: "Insumos", value: breakdown.supplies },
+          { key: "energy", label: "Energia", value: breakdown.energy },
+          {
+            key: "depreciation",
+            label: "Desgaste",
+            value: breakdown.depreciation,
+          },
+          {
+            key: "maintenance",
+            label: "Manutenção",
+            value: breakdown.maintenance,
+          },
+        ]}
+      />
     );
   }
 

@@ -9,6 +9,81 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Onda 5 do backlog — matemática e leitura (2026-08-17) — **a ÚLTIMA da fila**
+
+> **Os 3 itens:** `UX-26` (a matemática das barras de custo) · `TD-016` (o ritmo de lucro do ROI) ·
+> `UX-34` (a ressalva do payback). O fio comum: **número que engana o olho** — nos três, o dado
+> estava certo e a APRESENTAÇÃO dele respondia outra pergunta.
+> **Decisões do dono nesta rodada:** UX-26 vira **barra empilhada 100%** (o desenho do `/estoque`),
+> mas com a legenda mostrando **R$ e %** — não só a % · TD-016 usa janela de **90 dias** · UX-34
+> vira **`<details>` fechado**, não ícone com dica.
+
+### UX-26 — a barra mentia porque a régua era o maior item
+
+**O estado:** `maxValue = Math.max(...items)` — o MAIOR custo sempre desenhava barra inteira.
+Medido no cenário base (custo total R$ 12,48): mão de obra R$ 5,00 desenhava **100%** sendo **40%**;
+material R$ 4,40 desenhava **88%** sendo **35%**. Como o bloco termina em "Custo total", o olho lia
+fatia do total. A parte de COR já tinha saído na onda 2 (`--cost-*`); sobrou a régua.
+
+**O que mudou:** as 8 categorias somam **exatamente** `result.totalCost` (`stagesCost` é subtotal
+informativo, já dobrado dentro das categorias) — então empilhar sobre o total é exato, não
+aproximação. As 8 barras viraram **uma faixa empilhada** com legenda `● Material R$ 4,40 35%`.
+Medido no DOM depois: material **109,3px de 310** = 35,3% e mão de obra **124,2 de 310** = 40,1%.
+
+**A reutilização que o item destravou:** o `/estoque` já desenhava esse mesmo conceito
+(`.fg-comp`, faixa `flex-grow` proporcional) desde o FEAT-06 — o TD-014 tinha unificado a PALETA e
+deixado dois DESENHOS. O `.fg-comp` virou o componente **`CostStack`** (exportado do `CostBars.tsx`)
+e o CSS virou `.cost-stack*` no `sections.css`, com as duas chaves que faltavam (`failure`,
+`fixed`). O `StockPage` passou a consumi-lo **sem `showValue`** — a aba Produtos ficou pixel a pixel
+igual (conferido: legenda "Material 33% … Desgaste 50%", 6 segmentos, `.cost-stack-val` = 0).
+O bloco `.hbar-*` foi **removido**.
+
+**Altura (com margens, medida no DOM):** desktop **120px → 108px**; celular 375 **120px → 90px**.
+A economia é modesta porque o card do resultado é estreito e a legenda quebra em 3 linhas — o ganho
+do item é a **honestidade da largura**, não a tela.
+
+### TD-016 — o ritmo respondia "quanto rendeu", não "quanto rende"
+
+**O estado:** `profitPerMonth = lucro ÷ (agora − 1ª venda)` — média de vida inteira. Um mês forte
+seguido de período parado fazia a média **decair sozinha**, e a projeção de payback afastar a data.
+
+**O que mudou:** janela móvel de **90 dias** (e não 60: no volume de vendas de hoje, a janela curta
+deixa um mês vazio zerar a projeção). Só o RITMO usa a janela — `profit`, `revenue`,
+`paybackFraction`, `surplus` e `remaining` continuam acumulados de vida inteira, porque é o
+acumulado que paga a máquina. Dois detalhes que o desenho exigiu:
+- **A janela encurta quando o histórico é menor que ela** (`min(elapsed, 90d)`) — senão uma máquina
+  com 30 dias de vida teria o ritmo diluído por 3 meses que não existiram.
+- **Ritmo 0 é resposta legítima**, não ausência de dado: máquina lucrativa mas parada há mais de 90
+  dias mostra `R$ 0,00/mês` e **nenhuma data**. Isso criou uma 2ª causa para "sem projeção", e a
+  frase do cartão distingue as duas (histórico curto × parada) — dizer "junte 2 semanas" para quem
+  já tem 8 meses de histórico seria mentira.
+- O KPI virou **"Ritmo (90d)"**, com o número saindo de `recentWindowDays` (a UI não crava "90").
+
+**Nos dados de hoje o número não mudou** — e isso é o esperado: as vendas de teste têm ~36 dias de
+histórico, ou seja **tudo cabe dentro da janela** e ela encurta para o histórico. Quem prova o
+comportamento são os 3 testes novos (venda fora da janela ignorada · máquina parada → ritmo 0 sem
+projeção · histórico curto divide pelo histórico). **389/389.**
+
+### UX-34 — a ressalva ocupava mais tela que o dado
+
+O UX-09 pôs o aviso do payback em 3 pontos **de propósito**, e funcionou. O efeito colateral era o
+do topo: um parágrafo antes do 1º cartão. Virou `<details>` fechado, no mesmo padrão do
+`.result-advanced`/`.stock-spent` (marcador nativo fora, chevron lucide que gira). **`<details>` e
+não dica por hover** porque hover não existe no toque — e é justamente no celular que a caixa doía.
+Os outros 2 pontos (sub-linha do KPI e a linha italic por cartão) **não foram tocados**.
+
+**Medido no DOM:** desktop **36px → 18px**; celular 375 **108px → 36px** (6 linhas → 2). Aberto,
+60px. Foco por teclado confere: Tab chega no `summary` logo depois da navegação e ele casa
+`:focus-visible` com `outline: 2px solid rgb(255,107,53)` + offset 2px (UX-31, sem nada declarado).
+
+### Verificação
+
+`lint` ✅ · **389/389** ✅ (386 + 3 do TD-016) · `build` ✅. No navegador, com dado real e nos dois
+temas: `/` (soma das % fecha com o "Custo total" logo abaixo) · `/catalogo` (faixa dentro do
+`.cd-cost`, 423px de 423px — sem estouro; material 63% = R$ 7,04 de R$ 11,21) · `/estoque` aba
+Produtos (idêntica) · `/maquinas` (`<details>` abre/fecha por clique e por teclado; "Ritmo (90d)").
+375×812 sem rolagem horizontal.
+
 ## ✅ Onda 4 do backlog — sistema (2026-08-17)
 
 > **Os 5 itens + 1 de carona:** `TD-015` (casca de modal) · `UX-29` (semântica) · `UX-31` (foco) ·

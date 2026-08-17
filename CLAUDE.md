@@ -14,27 +14,26 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ ONDA 4 FECHADA — sistema (2026-08-17)**. **TD-015** (novo `Modal`: papel,
-  Escape, trava de rolagem, ✕; grade de 3 faixas tira o rodapé do `SaleModal` de baixo da dobra —
-  corpo pede 812px e mostra 580, rodapé em 745–832 de 900) · **UX-29** (`<header>`, skip-link e os
-  títulos viram `<h2>`: calculadora **0 → 5**, /orcamento **0 → 4**; reset de heading garante zero
-  pixel) · **UX-31** (token `--focus-ring` + `:focus-visible` global) · **UX-28** ("Gerenciar"
-  **79×15 → 79×32**, sem crescer a linha) · **UX-32** (contorno + o que falta; **4,43 → 5,61**) ·
-  **UX-35** (`--danger` escuro **4,47 → 5,10**). Varredura 7 rotas × 2 temas: **zero reprovação
-  AA**. `lint` ✅ · **386/386** ✅ · `build` ✅. Writeup: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ ONDA 5 FECHADA — matemática e leitura (2026-08-17)**, a **última da
+  fila**. **UX-26** (a régua das barras era o maior item: mão de obra desenhava 100% sendo 40%.
+  Virou **faixa empilhada 100%** sobre o custo total, com legenda `R$ + %` — e o desenho do
+  `/estoque` virou o componente `CostStack`, um só pros 3 consumidores) · **TD-016** (o ritmo do ROI
+  vira **janela móvel de 90 dias**, que encurta se o histórico for menor; máquina parada mostra
+  `R$ 0/mês` e nenhuma data; KPI "Ritmo (90d)") · **UX-34** (a ressalva do topo do `/maquinas` vira
+  `<details>` fechado: **108 → 36px** no celular, 36 → 18 no desktop). `lint` ✅ · **389/389** ✅ ·
+  `build` ✅. Writeup e medições: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **As CORES saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (o que a
   prévia já decide, e o token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — a onda 5, a ÚLTIMA da fila:** **`UX-26`** (só a matemática das barras: o
-  `maxValue` faz o maior custo desenhar barra inteira, e o bloco termina em "Custo total" — o olho
-  lê fatia do total, e não é) · **`TD-016`** (o ritmo de lucro do ROI é média de vida inteira) ·
-  **`UX-34`** (a ressalva do payback ocupa mais tela que o dado). Detalhe: `BACKLOG.md`.
-- **Ordem do backlog (dono, 2026-08-16): ondas 0–5**, com **0–4 fechadas** — resta só a **onda 5**
-  (3 itens). **Nada tem prazo** — a ordem é valor. `DEC-05` (lucide) segue fora da fila, junto do
-  rebrand. Porquês: `BACKLOG.md`/`HISTORICO.md`.
+- **▶ PRÓXIMA TAREFA — não há.** ⚠ **A fila de ondas ACABOU (0–5 fechadas).** Todo o backlog de
+  código que restava está **acoplado ao rebrand** (`DEC-05`+`G2`) ou **bloqueado por dado externo**
+  (`FEAT-03`, branding, `Dashboard`) — nada disso depende de decisão nossa. **Não invente tarefa:**
+  em chat novo, pergunte ao dono o que ele quer (item novo, auditoria nova, ou esperar a marca).
+  O `[micro]` do botão de 16px no celular segue à espera de decisão dele (1 linha). Fila e
+  bloqueios: `BACKLOG.md`.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
@@ -125,6 +124,10 @@ src/
   `tabular-nums` é global (`body`, UX-27): não redeclarar por componente. **Faixa de número tem
   PISO `max(rótulo, conteúdo)` medido no DOM; faixa de nome tem reticências** (UX-21) — número
   cortado vira outro número. Rolagem horizontal só como válvula (`min-width`).
+- **Composição de custo é UM desenho só** (UX-26): `CostStack` (em `CostBars.tsx`) — faixa
+  empilhada **100% sobre o total**, `flex-grow` proporcional, legenda com % (e R$ quando
+  `showValue`). Consumida pela calculadora, pelo catálogo e pelo `/estoque`. **Barra nova de
+  composição não se desenha na mão**; e a régua **nunca** é o maior item — é o total.
 - **Cabeçalho, introdução e MODAL são COMPONENTE** — `PageHeader`, `PageIntro` e `Modal`. Página
   nova não copia `.header` nem inventa `.subtitle`/`.stock-intro`/`.roi-note` próprios; **modal novo
   não escreve `.modal-overlay` na mão** — usa o `<Modal>` (título/sub/corpo/rodapé) e ganha papel,

@@ -461,45 +461,99 @@
   letter-spacing: 0.4px;
 }
 
-.hbar-chart {
-  margin: var(--space-4) 0 var(--space-20);
+/* UX-26 — composição de custo em faixa empilhada 100% (`CostStack`). Este
+   bloco veio do `.fg-comp` do `stock.css`: o desenho era o mesmo conceito em
+   dois lugares, e o que aqui era `.hbar-*` (uma barra por categoria, escalada
+   pelo MAIOR item) mentia a proporção. Agora há um desenho só, e o `--cost-*`
+   do `base.css` é lido direto — o apelido local `--c-*` do `.fg-comp` sumiu. */
+.cost-stack {
+  margin-top: var(--space-10);
+}
+
+/* Na calculadora a faixa é seguida do "Custo total" — o respiro que o bloco
+   antigo (8 barras) tinha embaixo continua sendo dele, não do componente. */
+.result-card .cost-stack {
+  margin-bottom: var(--space-16);
+}
+
+.cost-stack-bar {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-}
-
-.hbar-row {
-  display: grid;
-  grid-template-columns: 104px 1fr 70px;
-  gap: var(--space-8);
-  align-items: center;
-  font-size: var(--text-sm);
-}
-
-.hbar-label {
-  color: var(--muted);
-  text-align: right;
-  line-height: 1.2;
-}
-
-.hbar-track {
-  background: var(--border-soft);
+  height: 8px;
   border-radius: var(--radius-xs);
-  height: 14px;
   overflow: hidden;
+  background: var(--border-soft);
 }
 
-.hbar-fill {
-  height: 100%;
+/* `flex-grow` recebe o valor do componente (inline, no TSX): a largura sai
+   proporcional sozinha, sem calcular porcentagem nem depender de arredondamento. */
+.cost-stack-seg {
+  min-width: 2px;
+}
+
+.cost-stack-seg.material,
+.cost-stack-dot.material {
+  background: var(--cost-material);
+}
+.cost-stack-seg.labor,
+.cost-stack-dot.labor {
+  background: var(--cost-labor);
+}
+.cost-stack-seg.supplies,
+.cost-stack-dot.supplies {
+  background: var(--cost-supplies);
+}
+.cost-stack-seg.energy,
+.cost-stack-dot.energy {
+  background: var(--cost-energy);
+}
+.cost-stack-seg.depreciation,
+.cost-stack-dot.depreciation {
+  background: var(--cost-depreciation);
+}
+.cost-stack-seg.maintenance,
+.cost-stack-dot.maintenance {
+  background: var(--cost-maintenance);
+}
+.cost-stack-seg.failure,
+.cost-stack-dot.failure {
+  background: var(--cost-failure);
+}
+.cost-stack-seg.fixed,
+.cost-stack-dot.fixed {
+  background: var(--cost-fixed);
+}
+
+.cost-stack-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-12);
+  margin-top: var(--space-6);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.cost-stack-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  white-space: nowrap;
+}
+
+.cost-stack-dot {
+  width: 7px;
+  height: 7px;
   border-radius: var(--radius-xs);
-  transition: width 0.3s ease;
+  flex: 0 0 auto;
 }
 
-.hbar-val {
-  font-family: var(--font-jetbrains-mono), monospace;
+/* O R$ é o dado; a % é o companheiro. Quem manda no peso é o R$. */
+.cost-stack-val {
   color: var(--ink);
   font-weight: 500;
-  text-align: right;
+}
+
+.cost-stack-pct {
+  color: var(--muted2);
 }
 
 .breakdown {

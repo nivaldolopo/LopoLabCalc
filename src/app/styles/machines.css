@@ -117,11 +117,43 @@
 }
 
 /* UX-09: a nota longa do topo é um aviso, não texto corrido — o filete a
-   destaca sem virar caixa de erro. */
+   destaca sem virar caixa de erro.
+   UX-34: virou `<details>` — o filete fica no bloco todo (fechado ou aberto) e
+   o `summary` copia o padrão do `.result-advanced` (marcador nativo fora,
+   chevron lucide que gira). O foco é o `:focus-visible` global do UX-31. */
 .roi-note.roi-warn {
   border-left: 3px solid var(--accent);
   padding-left: var(--space-10);
   margin-top: -12px;
+}
+
+.roi-warn > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  cursor: pointer;
+  list-style: none;
+}
+
+.roi-warn > summary::-webkit-details-marker {
+  display: none;
+}
+
+.roi-warn > summary:hover {
+  color: var(--ink);
+}
+
+.roi-warn-caret {
+  flex: 0 0 auto;
+  transition: transform 0.15s;
+}
+
+.roi-warn[open] > summary .roi-warn-caret {
+  transform: rotate(90deg);
+}
+
+.roi-warn > p {
+  margin: var(--space-6) 0 0;
 }
 
 .roi-metrics {

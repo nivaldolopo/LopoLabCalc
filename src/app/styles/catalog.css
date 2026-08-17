@@ -309,8 +309,8 @@
   margin-bottom: 0;
 }
 
-.cd-cost .hbar-chart {
-  margin: var(--space-4) 0 0;
+.cd-cost .cost-stack {
+  margin: var(--space-4) 0 var(--space-8);
 }
 
 .result-label.green {

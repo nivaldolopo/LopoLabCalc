@@ -297,6 +297,63 @@ describe("computeMachineRoi", () => {
     expect(roi.monthsToPayback).toBeNull();
   });
 
+  describe("ritmo em janela móvel de 90 dias (TD-016)", () => {
+    it("ignora venda fora da janela: o ritmo é só o dos últimos 90 dias", () => {
+      const now = BASE + 300 * DAY;
+      const [roi] = computeMachineRoi(
+        [machine({ price: 10000 })],
+        [
+          // Mês forte, há ~10 meses — conta no acumulado, não no ritmo.
+          sale({ id: "s1", profit: 900, saleDate: BASE }),
+          // Venda recente: 100 em ~30 dias dentro da janela de 90.
+          sale({ id: "s2", profit: 100, saleDate: now - 30 * DAY }),
+        ],
+        [],
+        now,
+      );
+      // O acumulado (o que paga a máquina) continua de vida inteira.
+      expect(roi.profit).toBe(1000);
+      expect(roi.recentProfit).toBe(100);
+      expect(roi.recentWindowDays).toBe(90);
+      // Janela cheia (histórico > 90d): 100 em ~3 meses → ~33/mês.
+      // A média de vida inteira daria ~100/mês (1000 em ~10 meses) — 3× mais.
+      expect(roi.profitPerMonth!).toBeGreaterThan(30);
+      expect(roi.profitPerMonth!).toBeLessThan(36);
+    });
+
+    it("máquina parada há mais de 90 dias: ritmo 0 e sem projeção", () => {
+      const now = BASE + 200 * DAY;
+      const [roi] = computeMachineRoi(
+        [machine({ price: 1000 })],
+        [sale({ profit: 400, saleDate: BASE })],
+        [],
+        now,
+      );
+      // O que ela já pagou não some.
+      expect(roi.profit).toBe(400);
+      expect(roi.paybackFraction).toBeCloseTo(0.4, 6);
+      expect(roi.remaining).toBe(600);
+      // Mas não há ritmo recente para projetar data nenhuma.
+      expect(roi.recentProfit).toBe(0);
+      expect(roi.profitPerMonth).toBe(0);
+      expect(roi.monthsToPayback).toBeNull();
+      expect(roi.projectedPaybackDate).toBeNull();
+    });
+
+    it("histórico menor que a janela: divide pelo histórico, não pelos 90 dias", () => {
+      const now = BASE + 30 * DAY;
+      const [roi] = computeMachineRoi(
+        [machine({ price: 1000 })],
+        [sale({ profit: 100, saleDate: BASE })],
+        [],
+        now,
+      );
+      // 100 em ~1 mês → ~100/mês. Dividir pela janela cheia daria ~33.
+      expect(roi.profitPerMonth!).toBeGreaterThan(95);
+      expect(roi.profitPerMonth!).toBeLessThan(105);
+    });
+  });
+
   it("não projeta quando a máquina está no prejuízo", () => {
     const now = BASE + 60 * DAY;
     const [roi] = computeMachineRoi(

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { ChevronRight } from "lucide-react";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import { computeMachineRoi, type MachineRoi } from "../lib/machineRoi";
 import { useMachines } from "../hooks/useMachines";
@@ -54,6 +55,18 @@ function paybackStatus(roi: MachineRoi): { text: string; tone: "pos" | "neg" | "
       text: `Falta ${formatCurrency(roi.remaining)} · ${formatMonths(
         roi.monthsToPayback,
       )} no ritmo atual (por volta de ${formatMonthYear(roi.projectedPaybackDate)}).`,
+      tone: "muted",
+    };
+  }
+  // TD-016: com o ritmo em janela móvel, "sem projeção" passou a ter DUAS
+  // causas bem diferentes — histórico curto demais (`profitPerMonth` null) e
+  // máquina parada na janela (ritmo 0, mas com lucro acumulado). Dizer "junte
+  // 2 semanas" para a segunda seria mentira: ela já tem histórico de sobra.
+  if (roi.profitPerMonth !== null) {
+    return {
+      text: `Falta ${formatCurrency(roi.remaining)} · sem vendas nos últimos ${
+        roi.recentWindowDays
+      } dias, não há ritmo para projetar o prazo.`,
       tone: "muted",
     };
   }
@@ -140,14 +153,24 @@ export function MachinesPage() {
           lugar nenhum. Ou seja: a barra enche mais rápido do que o caixa. O
           número honesto só existe quando o Dashboard consolidar fixo + perdas —
           até lá, este aviso é o guarda-rail contra decidir comprar máquina nova
-          com base numa barra otimista. */}
-      <p className="roi-note roi-warn">
-        ⚠ O payback usa o <strong>lucro bruto das vendas</strong>: já desconta o
-        custo de produzir e a taxa de pagamento, mas <strong>não</strong> desconta
-        o custo fixo (aluguel, etc.) nem as impressões perdidas por falha. O
-        payback real é mais lento do que a barra mostra — trate-a como teto
-        otimista, não como caixa.
-      </p>
+          com base numa barra otimista.
+          UX-34: o aviso continua nos 3 pontos do UX-09, mas ESTE (o do topo)
+          custava ~5 linhas antes do 1º dado. Vira `<details>` fechado, no mesmo
+          padrão do `.result-advanced`/`.stock-spent`: a ressalva segue visível
+          em uma linha e o porquê fica a um clique — que funciona no toque, ao
+          contrário de dica por hover. Sem prop `open` (uncontrolled). */}
+      <details className="roi-note roi-warn">
+        <summary>
+          <ChevronRight className="roi-warn-caret" size={14} />⚠ O payback usa o{" "}
+          <strong>lucro bruto das vendas</strong> — por quê
+        </summary>
+        <p>
+          Já desconta o custo de produzir e a taxa de pagamento, mas{" "}
+          <strong>não</strong> desconta o custo fixo (aluguel, etc.) nem as
+          impressões perdidas por falha. O payback real é mais lento do que a
+          barra mostra — trate-a como teto otimista, não como caixa.
+        </p>
+      </details>
 
       <div className="roi-list">
         {rois.map((roi) => {
@@ -222,7 +245,10 @@ export function MachinesPage() {
                   </strong>
                 </div>
                 <div className="roi-metric">
-                  <span>Ritmo</span>
+                  {/* TD-016: o rótulo diz a janela porque o número mudou de
+                      sentido — é o ritmo dos últimos 90 dias, não a média de
+                      vida inteira (que decaía sozinha em mês parado). */}
+                  <span>Ritmo ({roi.recentWindowDays}d)</span>
                   <strong className="mono">
                     {roi.profitPerMonth !== null
                       ? `${formatCurrency(roi.profitPerMonth)}/mês`
