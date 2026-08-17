@@ -353,7 +353,7 @@ export function PricingCalculator() {
     // UX-13b: `has-price-bar` reserva o espaço da barra fixa do celular no
     // padding-bottom. Só a calculadora tem barra — por isso a classe, e não uma
     // regra no `.wrap` global.
-    <main className="wrap has-price-bar">
+    <main className="wrap has-price-bar" id="conteudo">
       <Header theme={theme} status={productsApi.status} onToggleTheme={toggleTheme} />
       {productsApi.error ? <div className="app-error">{productsApi.error}</div> : null}
 

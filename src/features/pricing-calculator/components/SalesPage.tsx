@@ -493,7 +493,7 @@ export function SalesPage() {
   }
 
   return (
-    <main className="wrap">
+    <main className="wrap" id="conteudo">
       <PageHeader
         title="Vendas"
         meta="Histórico de vendas — Lopo Lab"
@@ -558,7 +558,8 @@ export function SalesPage() {
       </div>
 
       <div className="catalog-header">
-        <div className="catalog-title">Histórico</div>
+        {/* UX-29 — `<h2>`, o par do que o `ProductCatalog` já fazia. */}
+        <h2 className="catalog-title">Histórico</h2>
         <div className="catalog-actions">
           <select
             value={sortMode}

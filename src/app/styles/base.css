@@ -173,6 +173,13 @@
      ele — ver o bloco `[data-theme="dark"]`. */
   --accent-text: var(--accent-strong);
 
+  /* UX-31 — o anel de foco do teclado. Token PRÓPRIO, e não `var(--accent)`
+     direto, justamente porque o rebrand pode precisar separá-los: o anel tem de
+     aparecer sobre QUALQUER superfície, e a marca não tem essa obrigação. Hoje
+     ele aponta pro accent porque é o que os dois focos que já existiam usavam
+     (`.back-to-top` e `.brand-reset`). */
+  --focus-ring: var(--accent);
+
   /* --- Semântica. Os três tons vêm do UX-19 (ver o cabeçalho). --- */
   /* Erro, prejuízo, falha, ação destrutiva. Medido: 5,38/5,62. */
   --danger-rgb: 198, 40, 40;
@@ -272,10 +279,16 @@
 
   /* Só a TINTA muda; `--danger`, `-soft`, `-tint` e `-line` derivam sozinhos
      porque `var()` resolve na hora do uso. É o motivo de a base ser `-rgb`.
-     Medidos sobre o card #1a1a2e: danger 4,47 · warn 7,69 · success 6,14. O
-     danger fica 0,03 abaixo do AA de propósito — herdado do UX-19: é o
-     vermelho que o app inteiro já usa pra prejuízo. */
-  --danger-rgb: 224, 82, 82;
+     Medidos sobre o card #1a1a2e: warn 7,69 · success 6,14.
+
+     UX-35 — o danger era `224, 82, 82` e media **4,47** contra o AA de 4,5.
+     A régua da DEC-04 (`.margin-bad`) o usa como TEXTO em cima do card sólido,
+     e ali 0,03 não é arredondamento: é o valor exato, em 10 linhas do
+     /catalogo. O tom subiu um passo e agora mede **5,09** no card — na mesma
+     faixa do claro (5,38/5,62), e ainda passa (4,57) sobre o próprio
+     `--danger-soft`, que é o pior fundo depois dele. Continua o vermelho de
+     prejuízo do UX-19; o que mudou foi só a claridade. */
+  --danger-rgb: 232, 96, 96;
   --warn-rgb: 224, 163, 58;
   --success-rgb: 76, 175, 80;
 
@@ -320,6 +333,63 @@ textarea {
 
 button {
   color: inherit;
+}
+
+/* UX-29 — os nomes de seção viraram `<h2>`/`<h3>` de verdade. O app tinha UM
+   heading (a marca) e saltava h1→h3; o documento não tinha sumário.
+   Esta regra é o que permite trocar `<div>` por `<h2>` sem mover um pixel:
+   desliga o tamanho e a margem que o navegador dá ao heading e devolve a
+   decisão pra classe — que é quem já mandava quando o elemento era `<div>`.
+   ⚠ Toda classe de título aqui declara `font-size` e `font-weight` própria; um
+   título novo que NÃO declare vai herdar o corpo do texto, de propósito. */
+h1,
+h2,
+h3,
+h4 {
+  font-size: inherit;
+  font-weight: inherit;
+  margin: 0;
+}
+
+/* UX-31 — o foco de teclado vira SISTEMA. Levantado nos 16 CSS: `:focus-visible`
+   existia 2× (`.back-to-top`, `.brand-reset`), `:focus` 6× (campos, todos com
+   `outline: none`) e NENHUM botão — ou seja, todo botão do app caía no anel
+   padrão do navegador, fora da identidade e diferente em cada plataforma.
+   `:focus-visible` (e não `:focus`) porque o anel é pra quem navega por teclado;
+   clicar num botão não deve deixá-lo marcado.
+   Sem `border-radius` aqui de propósito: cada controle já tem o seu, e forçar um
+   raio comum deformaria o anel do `.btn` (10px) e do `.icon-button` (8px). */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ⚠ Os campos apagam o `outline` no `:focus` e a devolução do anel NÃO mora
+   aqui: `.field-input:focus` e `.field-input:focus-visible` têm a MESMA
+   especificidade (0,2,0), então quem vence é a ordem dos arquivos — e o
+   `base.css` é o PRIMEIRO import. A correção fica colada em cada `outline:
+   none`, no arquivo dele (forms.css, fees.css, sections.css). Medido: sem isso
+   o campo focado por Tab lia `outline: none`. */
+
+/* UX-29 — pular a navegação. Só existe pro teclado: fica fora da tela até
+   receber foco, e aí desce pro canto. É o primeiro nó focável da página. */
+.skip-link {
+  position: absolute;
+  left: var(--space-8);
+  top: calc(-1 * var(--space-40));
+  z-index: 200;
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-md);
+  background: var(--accent-strong);
+  color: #fff;
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.15s;
+}
+
+.skip-link:focus-visible {
+  top: var(--space-8);
 }
 
 .sg {
@@ -424,7 +494,7 @@ button {
 }
 
 .back-to-top:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 

@@ -9,6 +9,109 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Onda 4 do backlog — sistema (2026-08-17)
+
+> **Os 5 itens + 1 de carona:** `TD-015` (casca de modal) · `UX-29` (semântica) · `UX-31` (foco) ·
+> `UX-28` (alvo de toque) · `UX-32` (primário desabilitado) · `UX-35` (contraste, que não estava
+> em onda nenhuma). O fio comum: **em todos, o padrão certo já existia em algum canto do app e
+> nunca tinha sido propagado.**
+> **Decisões do dono nesta rodada:** a onda inteira, em **2 pushes** (TD-015 sozinho, depois o
+> resto) · o UX-32 vira **contorno + linha do que falta** (e não só o conserto de contraste) · o
+> UX-35 **entra junto**, no mesmo trabalho de cor.
+
+### TD-015 — a casca de modal (push 1)
+
+**O estado:** 8 dos 9 modais eram `<div>` sobre `<div>` — sem `role="dialog"`, sem `aria-modal`,
+sem nome acessível, sem Escape, sem ✕, e nenhum travava a rolagem do fundo. O padrão certo estava
+escrito em dois lugares e nunca saiu de lá: o `ConfirmDialog` (UX-15) já fazia papel/Escape/foco,
+e a gaveta da nav (UX-14) já travava o fundo.
+
+**O que entrou:** `Modal.tsx`. Papel + `aria-modal` + `aria-labelledby` (id do `useId`), Escape,
+trava de rolagem **com salvar-e-restaurar** do `overflow` anterior (copiado da gaveta — zerar
+direto destravaria a página que ela quer travada), foco inicial no primeiro focável do **corpo**
+(não do box: o primeiro nó do box é o ✕) com o ✕ de reserva, armadilha de Tab consultada **no
+momento da tecla** (o corpo do SaleModal muda de tamanho conforme a cesta cresce), e o ✕.
+
+**A grade de 3 faixas.** O `overflow-y: auto` estava no `.modal-box` inteiro, então os botões
+rolavam junto do formulário. `grid-template-rows: auto 1fr auto` + `min-height: 0` no corpo:
+cabeçalho e rodapé param de rolar. **Medido no `SaleModal` em edição, a 1280×900:** o corpo pede
+**812px** e mostra **580** — rola por dentro — e o rodapé fica em **745–832** numa viewport de
+**900**. A 375×812, rodapé em **656–750**, sem rolagem horizontal.
+
+O `ConfirmDialog` virou consumidor e ficou só com o que é decisão do UX-15: a ordem dos botões e o
+foco no *Cancelar*. É por causa dele que o `Modal` aceita `initialFocusRef` — no resto do app o
+foco vai pro primeiro controle, que ali seria o botão que APAGA.
+
+**Verificado nos 9:** 1 `role="dialog"` por modal aberto, nome acessível igual ao título,
+`body.style.overflow` travado e **restaurado** no Escape, ✕ presente, rodapé acima da dobra.
+
+### UX-29 — o documento ganha sumário e marcos (push 2)
+
+⚠ **Duas correções ao achado da auditoria (F3):** o **`<nav>` JÁ EXISTIA** (`NavBar.tsx:55`, com
+`aria-label`) — o levantamento errou nesse ponto. E o `/catalogo` **já tinha** `h2` + 93 `h3`
+(`.cd-product-name`) corretamente aninhados; o "h3 10×, todos `.modal-title`" era a contagem com
+um modal aberto, não o estado da rota.
+
+**O que faltava de verdade e entrou:** `<header>` (o `div.header` do `PageHeader` — um arquivo só,
+porque o UX-33 já unificou as 7 cópias) · **skip-link** no `layout.tsx` apontando pro
+`<main id="conteudo">` das 7 rotas (medido: é o **primeiro focável** da página; sem ele o teclado
+atravessava as 7 abas + 2 utilitários em toda troca de rota) · e os títulos de seção viraram
+`<h2>`: **calculadora 0 → 5**, **/orcamento 0 → 4**, **/vendas 0 → 1**. O `.modal-title` desceu de
+`h3` para `h2` — era ele o salto h1→h3, e dentro de um `role="dialog"` é o heading do topo.
+
+**O mecanismo do "zero pixel":** um reset no `base.css` (`h1..h4 { font-size: inherit;
+font-weight: inherit; margin: 0 }`). Sem ele o `<h2>` traria a margem de `0.83em` do navegador.
+Quem manda no tamanho continua sendo a classe — que já mandava quando o elemento era `<div>`.
+**Medido:** todos os headings novos com `margin 0px/0px` e a fonte da classe (12px/600 etc.).
+Junto veio a higiene do TD-013: o `h1 { }` **cru** que morava no `header.css` (regra de elemento
+global no CSS de uma área) virou `.header h1`.
+
+**O que NÃO foi promovido, de propósito:** as linhas de lista (`.stock-title` do /estoque,
+`.roi-title` do /maquinas, `.prod-card` do /producao). São dezenas por página: virariam ruído no
+sumário em vez de estrutura. Essas 3 rotas ficam com `h1` só — o que é um documento plano, não um
+salto. E a **marca continua sendo o `<h1>` da calculadora**: trocá-la pelo nome da rota mudaria a
+identidade da home, e `<h1>` = nome do site é correto numa página inicial.
+
+### UX-31 — o foco vira sistema
+
+Token novo `--focus-ring` no `base.css` (próprio, e não `var(--accent)` direto: o anel tem de
+aparecer sobre qualquer superfície, e a marca não tem essa obrigação — o rebrand pode precisar
+separá-los). Regra `:focus-visible` global, **sem `border-radius`** (cada controle já tem o seu;
+um raio comum deformaria o anel do `.btn` e do `.icon-button`). Os dois focos que já existiam
+(`.back-to-top`, `.brand-reset`) passaram a consumir o token.
+
+⚠ **A armadilha que a verificação pegou:** a devolução do anel aos campos **não pode morar no
+`base.css`**. `.field-input:focus` e `.field-input:focus-visible` têm a MESMA especificidade
+(0,2,0) — quem vence é a ordem dos `@import`, e o `base.css` é o primeiro. Medido: com a regra lá,
+o campo focado por Tab lia `outline: none`. A correção ficou **colada em cada `outline: none`**,
+no arquivo dele (`forms.css`, `fees.css`, `sections.css`). Depois: campo focado por Tab lê
+`outline: rgb(255,107,53) solid 2px` **e** a borda laranja — os dois indicadores juntos.
+
+### UX-28 · UX-32 · UX-35
+
+**UX-28 (alvo).** `min-height: 32px` no `.link-button` + `margin-block: -8px` — o alvo cresce, a
+caixa no fluxo não. Sem a margem negativa o `.section-head` de cada seção subiria de ~16px para
+32px só porque o botão ao lado do título ficou mais alto. **Medido a 375×812:** "Gerenciar"
+`79×15 → 79×32`, "detalhar refugo" `286×15 → 287×32`, `.section-head` do "Máquina" segue em 16px.
+⚠ **O que mudou de verdade:** `.link-button.bordered`/`.add-line` **crescem 2px** (30 → 32) — eles
+são caixas visíveis e devem crescer mesmo.
+
+**UX-32 (desabilitado).** Contorno em vez de preenchimento. O contorno é `box-shadow: inset`, e
+**não** `border`: 1.5px de borda somaria 3px à altura e o botão **pularia** no instante em que o
+formulário fica válido. **Medido:** contraste `4,43 → 5,61` no tema claro, e altura **41 → 41** ao
+digitar o nome (não pula). A linha do que falta entrou nas 3 rotas: *"dê um nome ao produto para
+salvar"* · *"adicione ao menos um item para gerar o PDF"* · *"escolha o que foi impresso para
+registrar"* — só quando é FALTA; `saving` não conta, porque o próprio rótulo já diz "Gerando...".
+
+**UX-35 (contraste).** O `--danger-rgb` do tema escuro era `224, 82, 82` = **4,47** contra 4,5 —
+e o `base.css` documentava esse 0,03 como aceito de propósito, herdado do UX-19. Subiu para
+`232, 96, 96`: **5,10** no card sólido (na faixa do claro, 5,38/5,62) e **4,79** sobre o
+tingimento, que a auditoria não tinha medido e também passava raspando.
+
+**Varredura final:** 7 rotas × 2 temas, com `*{transition:none}` injetado e reflow forçado antes
+de ler (sem isso a leitura pega a cor no meio da transição do `body` e inventa reprovação) →
+**zero elemento reprovando AA**. `lint` ✅ · **386/386** ✅ · `build` ✅.
+
 ## ✅ Onda 3 do backlog — grade e alinhamento (2026-08-16)
 
 > **Os 4 itens:** `UX-21` (o resto — uma grade só nas listas) · `UX-22` (linha de base do

@@ -180,6 +180,13 @@ export function PricingResultCard({
           <Save size={16} />
           {saved ? "✓ Salvo!" : "Salvar"}
         </button>
+        {/* UX-32 — a linha só aparece quando o botão está apagado, e diz o que
+            falta. Cobre as 4 ações do bloco: todas dependem do mesmo `canSave`. */}
+        {!canSave ? (
+          <div className="disabled-why">
+            dê um nome ao produto para salvar
+          </div>
+        ) : null}
 
         <div className="result-actions-row">
           <button

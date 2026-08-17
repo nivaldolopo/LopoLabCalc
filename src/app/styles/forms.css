@@ -109,6 +109,23 @@ input[type="date"].field-input {
   border-color: var(--accent);
 }
 
+/* UX-31 — o anel volta pro TECLADO. A regra acima é do UX-16 e continua certa
+   pro mouse (clicar num campo não deve deixá-lo anelado); o que faltava era
+   distinguir os dois casos. Fica aqui, e não no `base.css` com o resto do
+   sistema de foco, porque `:focus` e `:focus-visible` empatam em especificidade
+   e quem decide é a ordem de import — a devolução tem de vir DEPOIS do
+   `outline: none` que ela corrige. A borda colorida acima continua valendo:
+   são os dois indicadores juntos. */
+.field-input:focus-visible,
+.fc-item input:focus-visible,
+.capacity-inputs input:focus-visible,
+.accessory-row input:focus-visible,
+.machine-edit-row input:focus-visible,
+.catalog-actions select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .product-name {
   font-size: var(--text-xl);
   font-weight: 500;
@@ -380,10 +397,28 @@ input[type="range"]::-webkit-slider-thumb {
   color: white;
 }
 
+/* UX-32 — o primário desabilitado parecia DEFEITO, não "ainda não". Preenchido
+   de cinza, largura inteira, 45px: na calculadora sem nome e na /producao sem
+   produto era o maior elemento da tela, e ainda reprovava o AA (4,43 contra 4,5
+   no tema claro). Contorno em vez de preenchimento resolve os dois — o botão
+   deixa de gritar e o par de cores muda.
+   ⚠ O contorno é `box-shadow: inset`, e não `border`: uma borda de 1.5px
+   somaria 3px à altura e o botão PULARIA no instante em que o formulário fica
+   válido. A sombra desenha por dentro e não ocupa espaço. */
 .btn.primary:disabled {
-  background: var(--border);
-  color: var(--muted2);
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--border);
+  color: var(--muted);
   cursor: not-allowed;
+}
+
+/* A outra metade do UX-32: dizer O QUE FALTA. O botão apagado sozinho não
+   informa — quem não sabe que o produto precisa de nome fica olhando pra ele. */
+.disabled-why {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: center;
+  margin-top: var(--space-6);
 }
 
 .btn.primary.saved {
@@ -528,6 +563,25 @@ input[type="range"]::-webkit-slider-thumb {
 
 .link-button.add-line {
   margin-top: var(--space-8);
+}
+
+/* UX-28 — o alvo de toque. Medido no celular: "Gerenciar" 79×15 e "detalhar
+   refugo" 286×15 — o UX-15 subiu o catálogo para 32px e deixou estes de fora.
+   O texto NÃO muda de tamanho (a densidade é decisão do dono): quem cresce é a
+   área clicável, via `min-height` no inline-flex que a classe já tem.
+   A margem negativa devolve o crescimento AO FLUXO: sem ela, o `.section-head`
+   de cada seção da calculadora subiria de ~16px para 32px só porque o botão ao
+   lado do título ficou mais alto. O alvo cresce, o layout não. */
+.link-button:not(.bordered):not(.add-line) {
+  min-height: 32px;
+  margin-block: -8px;
+}
+
+/* Estes dois já se parecem com botão e têm padding próprio (30px medidos): aqui
+   o alvo sobe de verdade, sem devolver nada — são eles as caixas visíveis. */
+.link-button.bordered,
+.link-button.add-line {
+  min-height: 32px;
 }
 
 .icon-button {

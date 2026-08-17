@@ -130,9 +130,12 @@ export function Modal({
       >
         <div className="modal-head">
           <div className="modal-head-text">
-            <h3 className="modal-title" id={titleId}>
+            {/* UX-29 — `<h2>`, não `<h3>`: era o `<h3>` sem `<h2>` acima que
+                fazia o salto h1→h3 do app (os 10 `h3` eram TODOS título de
+                modal). Dentro de um `role="dialog"` este é o heading do topo. */}
+            <h2 className="modal-title" id={titleId}>
               {title}
-            </h3>
+            </h2>
             {sub ? <p className="modal-sub">{sub}</p> : null}
           </div>
           <button

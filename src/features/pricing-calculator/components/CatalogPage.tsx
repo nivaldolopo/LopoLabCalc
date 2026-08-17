@@ -147,7 +147,7 @@ export function CatalogPage() {
   }
 
   return (
-    <main className="wrap">
+    <main className="wrap" id="conteudo">
       <PageHeader
         title="Catálogo"
         meta="Produtos cadastrados — Lopo Lab"

@@ -101,6 +101,13 @@
   border-color: var(--accent);
 }
 
+/* UX-31 — o anel volta pro teclado, colado no `outline: none` que ele corrige
+   (mesma especificidade: quem vence é a ordem). Ver o bloco no `forms.css`. */
+.fee-editor-item input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 /* Bloco de uma bandeira (Visa/Master, Amex/Elo) dentro do editor de taxas */
 .fee-editor-tier {
   margin-top: var(--space-12);

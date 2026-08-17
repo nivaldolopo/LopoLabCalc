@@ -36,6 +36,13 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthGate>
+          {/* UX-29 — primeiro nó focável da página: quem navega por teclado
+              pulava as 7 abas da nav + os 2 utilitários em TODA troca de rota
+              antes de chegar no primeiro campo. Some da tela até receber foco
+              (`.skip-link` no base.css). O alvo é o `<main>` das 8 rotas. */}
+          <a className="skip-link" href="#conteudo">
+            Pular para o conteúdo
+          </a>
           {children}
           <BackToTop />
         </AuthGate>

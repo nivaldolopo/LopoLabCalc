@@ -306,6 +306,12 @@
   border-color: var(--accent);
 }
 
+/* UX-31 — idem: o anel de teclado colado no `outline: none` dele. */
+.rounding-control select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 /* UX-11: bloco de ações do card de preço (salvar/vender/produzir/orçar). Fica
    no topo do card, logo abaixo do arredondamento — é o topo que o
    `position: sticky` do `.result-card` prende enquanto se rola o formulário.

@@ -351,7 +351,7 @@ export function QuotePage() {
   }
 
   return (
-    <main className="wrap">
+    <main className="wrap" id="conteudo">
       {/* Sem `status`: o /orcamento não assina coleção nenhuma em tempo real. */}
       <PageHeader
         title="Orçamento"
@@ -363,9 +363,10 @@ export function QuotePage() {
 
       <div className="quote-grid">
         <div className="card quote-card">
-          <div className="section-label">
+          {/* UX-29 — os 4 títulos de cartão desta rota são `<h2>`. */}
+          <h2 className="section-label">
             Dados do negócio <span className="label-hint">(saem no PDF)</span>
-          </div>
+          </h2>
           <div className="field-block compact">
             {/* UX-22 — este campo era o ÚNICO da tela sem rótulo visível (só um
                 `aria-label`), e era ele quem desalinhava os dois cartões: o da
@@ -436,7 +437,7 @@ export function QuotePage() {
         </div>
 
         <div className="card quote-card">
-          <div className="section-label">Dados do orçamento</div>
+          <h2 className="section-label">Dados do orçamento</h2>
           <div className="two-col">
             <div className="field-block compact">
               <label className="section-label" htmlFor={`${fieldId}-number`}>
@@ -497,7 +498,7 @@ export function QuotePage() {
       </div>
 
       <div className="card quote-items-card">
-        <div className="section-label">Itens do orçamento</div>
+        <h2 className="section-label">Itens do orçamento</h2>
 
         <div className="quote-list">
           {items.length === 0 ? (
@@ -635,14 +636,21 @@ export function QuotePage() {
             <FileText size={16} /> {saving ? "Gerando..." : "Gerar PDF"}
           </button>
         </div>
+        {/* UX-32 — o que falta. Só o carrinho vazio é "falta"; `saving` é
+            espera, e o próprio rótulo do botão já diz isso. */}
+        {items.length === 0 ? (
+          <div className="disabled-why">
+            adicione ao menos um item para gerar o PDF
+          </div>
+        ) : null}
         <FeedbackNote note={note} onClose={clear} />
       </div>
 
       {orderedQuotes.length > 0 ? (
         <div className="card quote-history">
-          <div className="section-label">
+          <h2 className="section-label">
             Histórico de orçamentos ({orderedQuotes.length})
-          </div>
+          </h2>
           <div className="quote-history-list">
             {orderedQuotes.map((quote) => {
               const isOpen = openQuoteId === quote.id;

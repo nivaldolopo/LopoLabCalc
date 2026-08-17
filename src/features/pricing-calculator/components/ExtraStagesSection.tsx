@@ -28,8 +28,8 @@ export function ExtraStagesSection({
   return (
     <div className="field-block">
       <div className="section-head">
-        {/* Título da seção, não rótulo de campo — ver UX-16. */}
-        <div className="section-label">🔗 Etapas de impressão extras</div>
+        {/* Título da seção, não rótulo de campo — ver UX-16; `<h2>` no UX-29. */}
+        <h2 className="section-label">🔗 Etapas de impressão extras</h2>
         <button className="link-button bordered" type="button" onClick={onAddStage}>
           <Plus size={15} />
           Adicionar etapa

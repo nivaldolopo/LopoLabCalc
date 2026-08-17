@@ -44,7 +44,10 @@ export function PageHeader({
   onToggleTheme,
 }: PageHeaderProps) {
   return (
-    <div className="header">
+    // UX-29 — `<header>` de verdade, não `<div>`: com o `<nav>` da NavBar e o
+    // `<main>` das 8 rotas, é o terceiro marco que faltava para a página ter
+    // regiões navegáveis. Um arquivo só, porque o UX-33 já unificou as 7 cópias.
+    <header className="header">
       <div className="brand">
         {icon ? (
           <div className="logo" aria-hidden="true">
@@ -85,6 +88,6 @@ export function PageHeader({
         </button>
         <LogoutButton />
       </div>
-    </div>
+    </header>
   );
 }

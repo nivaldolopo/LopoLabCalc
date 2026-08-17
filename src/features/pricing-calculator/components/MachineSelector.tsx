@@ -23,9 +23,11 @@ export function MachineSelector({
       <div className="section-head">
         {/* UX-16: rotula um grupo de BOTÕES (chips), não um campo — `role="group"`
             + `aria-labelledby` no lugar de um <label> que não aponta pra nada. */}
-        <div className="section-label" id={labelId}>
+        {/* UX-29: `<h2>` porque é seção da página, não rótulo de campo. Continua
+            servindo de `aria-labelledby` do grupo de chips. */}
+        <h2 className="section-label" id={labelId}>
           Máquina
-        </div>
+        </h2>
         <button className="link-button" type="button" onClick={onManage}>
           <Settings size={14} />
           Gerenciar

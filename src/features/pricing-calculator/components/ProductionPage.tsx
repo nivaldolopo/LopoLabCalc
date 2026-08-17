@@ -636,7 +636,7 @@ export function ProductionPage() {
   const canSave = rows.length > 0 && !saving;
 
   return (
-    <main className="wrap">
+    <main className="wrap" id="conteudo">
       <PageHeader
         icon={<Factory size={18} />}
         title="Produção"
@@ -1072,6 +1072,13 @@ export function ProductionPage() {
                 : "Registrar produção"}
           </button>
         </div>
+        {/* UX-32 — o que falta. `saving` também apaga o botão, mas aí o rótulo
+            já diz "Registrando...": aviso só quando não há o que registrar. */}
+        {rows.length === 0 ? (
+          <div className="disabled-why">
+            escolha o que foi impresso para registrar
+          </div>
+        ) : null}
       </div>
 
       <div className="section-label prod-recent-label">

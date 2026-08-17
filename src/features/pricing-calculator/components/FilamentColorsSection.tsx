@@ -130,8 +130,9 @@ export function FilamentColorsSection({
     <div className="field-block">
       <div className="section-head">
         {/* UX-16: título da seção — não é rótulo de campo nenhum, então NÃO é
-            <label> (um <label> sem controle só engana o leitor de tela). */}
-        <div className="section-label">{label}</div>
+            <label> (um <label> sem controle só engana o leitor de tela).
+            UX-29: e por ser título de seção, é `<h2>`. */}
+        <h2 className="section-label">{label}</h2>
         <button
           className="link-button bordered"
           type="button"

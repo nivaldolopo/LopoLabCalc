@@ -14,28 +14,27 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ TD-015 — a casca de modal (push 1 da onda 4, 2026-08-17)**. Novo
-  **`Modal`**: `role="dialog"` + `aria-modal` + nome acessível, **Escape**, **trava da rolagem do
-  fundo** e **✕** — os **8** modais não tinham nada disso. A caixa virou **grade de 3 faixas**
-  (cabeçalho/corpo rolável/rodapé fixos): no `SaleModal` em edição o corpo pede **812px** e mostra
-  **580**, e o rodapé fica em **745–832** numa viewport de **900** — antes rolava junto e nascia
-  abaixo da dobra. O `ConfirmDialog` virou consumidor e guardou só o UX-15 (foco no *Cancelar*).
-  Medido nos **9** modais, a 1280×900 e 375×812. `lint` ✅ · **386/386** ✅ · `build` ✅.
+- **Última mudança:** **✅ ONDA 4 FECHADA — sistema (2026-08-17)**. **TD-015** (novo `Modal`: papel,
+  Escape, trava de rolagem, ✕; grade de 3 faixas tira o rodapé do `SaleModal` de baixo da dobra —
+  corpo pede 812px e mostra 580, rodapé em 745–832 de 900) · **UX-29** (`<header>`, skip-link e os
+  títulos viram `<h2>`: calculadora **0 → 5**, /orcamento **0 → 4**; reset de heading garante zero
+  pixel) · **UX-31** (token `--focus-ring` + `:focus-visible` global) · **UX-28** ("Gerenciar"
+  **79×15 → 79×32**, sem crescer a linha) · **UX-32** (contorno + o que falta; **4,43 → 5,61**) ·
+  **UX-35** (`--danger` escuro **4,47 → 5,10**). Varredura 7 rotas × 2 temas: **zero reprovação
+  AA**. `lint` ✅ · **386/386** ✅ · `build` ✅. Writeup: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **As CORES saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (o que a
   prévia já decide, e o token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — o push 2 da onda 4** (o dono aprovou a onda inteira em 2 pushes):
-  **`UX-29`** (`<header>` + skip-link + os `div.section-head` viram `<h2>`; ⚠ o `<nav>` do achado F3
-  **já existe** — `NavBar.tsx:55`) · **`UX-31`** (token de foco + `:focus-visible` global) ·
-  **`UX-28`** (alvo dos `.link-button` a 32px, sem mudar o texto) · **`UX-32`** (primário
-  desabilitado vira **contorno + linha do que falta**, decisão do dono) · **`UX-35`** de carona
-  (o `--danger` do tema escuro, medido no card sólido).
-- **Ordem do backlog (dono, 2026-08-16): ondas 0–5**, com **0–3 fechadas** e a **4 pela metade** —
-  restam 5 itens (4 da onda 4 + o `UX-35`) e a onda 5. **Nada mais tem prazo** — a ordem é valor.
-  `DEC-05` (lucide) segue fora da fila, junto do rebrand. Porquês: `BACKLOG.md`/`HISTORICO.md`.
+- **▶ PRÓXIMA TAREFA — a onda 5, a ÚLTIMA da fila:** **`UX-26`** (só a matemática das barras: o
+  `maxValue` faz o maior custo desenhar barra inteira, e o bloco termina em "Custo total" — o olho
+  lê fatia do total, e não é) · **`TD-016`** (o ritmo de lucro do ROI é média de vida inteira) ·
+  **`UX-34`** (a ressalva do payback ocupa mais tela que o dado). Detalhe: `BACKLOG.md`.
+- **Ordem do backlog (dono, 2026-08-16): ondas 0–5**, com **0–4 fechadas** — resta só a **onda 5**
+  (3 itens). **Nada tem prazo** — a ordem é valor. `DEC-05` (lucide) segue fora da fila, junto do
+  rebrand. Porquês: `BACKLOG.md`/`HISTORICO.md`.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
@@ -71,59 +70,44 @@ src/
                             #   producao/page.tsx (registro de produção),
                             #   globals.css (só @import) + styles/*.css (CSS por área)
   features/pricing-calculator/
-    components/             # UI: PricingCalculator (raiz) + ProductForm + PricingResultCard +
-                            #     CapacityPanel/MachineSelector/MachineManagerModal/FixedCostsPanel/
-                            #     AccessoriesSection/ExtraStagesSection/SubitemsSection/LinksSection ·
-                            #   uma por rota: CatalogPage (+ProductCatalog), SalesPage, QuotePage,
-                            #     MachinesPage, ProductionPage, StockPage (abas Filamentos/Insumos/
-                            #     Produtos) + StockColor/Roll/AdjustModal + SuppliesTab (7e) +
-                            #     Supply/SupplyLot/SupplyAdjustModal ·
-                            #   SaleModal + SaleFlow (a fiação dele, usada pelas 2 páginas),
-                            #     Header, AuthGate, NavBar (no celular vira gaveta — UX-14),
-                            #     MobilePriceBar (UX-13b) ·
-                            #   PageHeader (o cabeçalho das 8 rotas: título+meta+status+ícone e
-                            #     os utilitários Escuro/Sair — UX-33) + PageIntro (o texto de
-                            #     introdução, ~70ch — UX-23) ·
-                            #   Modal (a casca dos 9 diálogos: papel/Escape/trava de rolagem/✕ —
-                            #     TD-015) ·
-                            #   compartilhados: NumberInput, ProfitSummary, SearchBox, CostBars,
-                            #     ConfirmDialog (+useConfirm), FeedbackNote (+useFeedback),
-                            #     NetMarginHint (UX-10), CostDetail (composição 1 ou 2 colunas —
-                            #       precificado × real; exporta CostBreakdownTable, reusada pelo
-                            #       popover E pelos dropdowns de /vendas · /producao · /estoque)
-    hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useSales,
-                            #     useSupplies (coleção insumos — 7e),
-                            #     useAuth, useQuoteConfig (negócio), useQuotes (histórico),
-                            #     useFees (taxas de pagamento), useStock (estoque de filamento),
-                            #     useProduction (coleção producao — FEAT-04),
-                            #     useFinishedGoods (coleção acabados — FEAT-05)
+    components/             # calculadora: PricingCalculator (raiz) + ProductForm +
+                            #   PricingResultCard + CapacityPanel/MachineSelector/FixedCostsPanel/
+                            #   Accessories/ExtraStages/Subitems/LinksSection ·
+                            # uma por rota: CatalogPage(+ProductCatalog) · SalesPage · QuotePage ·
+                            #   MachinesPage · ProductionPage · StockPage (abas Filamentos/Insumos/
+                            #   Produtos) + SuppliesTab ·
+                            # venda: SaleModal + SaleFlow (a fiação, usada pelas 2 páginas) ·
+                            # casca das páginas: PageHeader · PageIntro · NavBar (gaveta no
+                            #   celular) · MobilePriceBar · AuthGate ·
+                            # Modal (casca dos 9 diálogos) + os 8 que a consomem
+                            #   (MachineManager/StockColor/Roll/Adjust/Supply/SupplyLot/
+                            #   SupplyAdjust) + ConfirmDialog (+useConfirm) ·
+                            # compartilhados: NumberInput, ProfitSummary, SearchBox, CostBars,
+                            #   FeedbackNote, NetMarginHint, CostDetail (composição precificado ×
+                            #   real; exporta CostBreakdownTable, reusada por 3 rotas)
+    hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useAuth ·
+                            #   um por coleção: useSales, useSupplies, useStock, useProduction,
+                            #   useFinishedGoods, useQuotes, useQuoteConfig, useFees
     lib/                    # TODA a matemática, pura. calculatePricing, calculateCapacity,
-                            #   validateProduct, productCsv · fifo (núcleo: ordem + overdraft D4) →
-                            #   stock (filamento em g) + supplies (insumos em unidades, 7e) ·
-                            #   production (baixa por evento + custo congelado FEAT-06, em 3
-                            #     escalas: placa, unidade, unidade×qtd) ·
-                            #   finishedGoods (acabados FEAT-05: camadas FIFO, valor parado
-                            #     decomposto; SKU = subitem × COR no FEAT-11) ·
-                            #   productionPlan (produto/subitem→eventos; usado pela /producao E pela
-                            #     encomenda do passo 8) · saleReconciliation (passo 8 + reverse) ·
-                            #   marginTier (a régua da DEC-04) · saleContext · filaments ·
-                            #   generateQuotePdf · paymentFees (bandeira × parcela, gross-up,
-                            #     desconto FEAT-09, margem líquida UX-10)
+                            #   validateProduct, productCsv · fifo (ordem + overdraft D4) →
+                            #   stock (g) + supplies (unidades) · production (baixa por evento +
+                            #   custo congelado, em 3 escalas) · finishedGoods (camadas FIFO;
+                            #   SKU = subitem × cor) · productionPlan (produto/subitem→eventos) ·
+                            #   saleReconciliation (passo 8 + reverse) · marginTier (régua DEC-04) ·
+                            #   saleContext · filaments · generateQuotePdf ·
+                            #   paymentFees (bandeira × parcela, gross-up, desconto, margem líquida)
     constants.ts, types.ts
   lib/
-    firebase/               # client.ts (init + db) · frozenCost.ts (FEAT-06: o mesmo objeto vai p/
-                            #   3 coleções) · productsRepository · machinesRepository
-                            #   (config/machines) · quoteConfigRepository · quotesRepository ·
-                            #   feesRepository · salesRepository (`vendas`, snapshots congelados;
-                            #     reconcileRecibo = batch atômico das 4 coleções — passo 8) ·
-                            #   stockRepository (`estoque`: doc por COR) + suppliesRepository
-                            #     (`insumos`: doc por INSUMO) · productionRepository (`producao`:
-                            #     N eventos + baixa dos rolos no mesmo writeBatch) ·
-                            #   finishedGoodsRepository (`acabados`: doc por PRODUTO)
-    errors.ts               # guardOnline (offline trava a escrita) + errorMessage — UX-15
-    formatting/currency.ts  # formatCurrency / formatDecimal
-    formatting/date.ts      # ponte timestamp ↔ <input type="date"> (toDateInput, toTimestamp,
-                            #   todayInputValue, formatDate) — usada por venda/orçamento/estoque
+    firebase/               # client.ts (init + db) · frozenCost.ts (o mesmo objeto vai p/ 3
+                            #   coleções) · um repositório por coleção: products · machines
+                            #   (config/machines) · quoteConfig · quotes · fees ·
+                            #   sales (`vendas`; reconcileRecibo = batch atômico das 4 coleções) ·
+                            #   stock (`estoque`, doc por COR) · supplies (`insumos`, doc por
+                            #   INSUMO) · production (`producao`, N eventos + baixa no mesmo
+                            #   writeBatch) · finishedGoods (`acabados`, doc por PRODUTO)
+    errors.ts               # guardOnline (offline trava a escrita) + errorMessage
+    formatting/             # currency.ts (formatCurrency/formatDecimal) · date.ts (ponte
+                            #   timestamp ↔ <input type="date">)
 ```
 
 **Pontos-chave:**
@@ -145,12 +129,15 @@ src/
   nova não copia `.header` nem inventa `.subtitle`/`.stock-intro`/`.roi-note` próprios; **modal novo
   não escreve `.modal-overlay` na mão** — usa o `<Modal>` (título/sub/corpo/rodapé) e ganha papel,
   Escape, trava de rolagem e ✕ de graça.
-- `src/lib/firebase/client.ts` — init + `db`; lê `NEXT_PUBLIC_FIREBASE_*` com fallback embutido nos
-  valores reais (hoje as vars da Vercel são ignoradas).
+- **Título de seção é `<h2>`, não `<div>`** (UX-29). O `base.css` zera tamanho/margem de heading —
+  quem manda é a classe, então trocar a tag não move pixel. Linha de LISTA continua sem heading (o
+  sumário viraria ruído). **Foco é `:focus-visible` + `--focus-ring`** (UX-31): controle novo não
+  precisa declarar nada; ⚠ campo que apagar o `outline` no `:focus` tem de devolver o anel **no
+  mesmo arquivo** — `base.css` é o 1º import e perde o desempate de especificidade.
 - **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar
   watts/`lifeHours` recalcula energia e desgaste de TODOS os produtos, que guardam só o `machineId`.
   `useMachines` semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
-- Toda a lógica de cálculo vive em `features/pricing-calculator/lib/`.
+- Toda a lógica de cálculo vive em `features/pricing-calculator/lib/` — pura e coberta por teste.
 
 ## Diretrizes de trabalho
 
@@ -168,20 +155,15 @@ src/
 Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, execute
 **imediatamente**, sem esperar novo pedido:
 
-1. **Commit** das mudanças:
-   ```powershell
-   git add -A
-   git commit -m "<mensagem descritiva>"
-   ```
-2. **Push** — a integração Git nativa da Vercel deploya a produção automaticamente:
-   ```powershell
-   git push
-   ```
+```powershell
+git add -A
+git commit -m "<mensagem descritiva>"
+git push
+```
 
-> Observação: o deploy é feito pela **integração Git nativa da Vercel** (push na `main`
-> → deploy de produção automático, rodando na nuvem da Vercel). **Não** rode `vercel --prod`
-> no fluxo normal — isso criaria um deploy duplicado. Use o CLI só em casos pontuais
-> (ex.: deployar estado local sem commit). Para acompanhar: `vercel ls` ou o painel da Vercel.
+> O deploy é feito pela **integração Git nativa da Vercel** (push na `main` → deploy de produção
+> automático, na nuvem da Vercel). **Não** rode `vercel --prod` no fluxo normal — geraria deploy
+> duplicado. Para acompanhar: `vercel ls` ou o painel.
 
 ### 4. Verificação visual: pode abrir o site — o login é um handshake comigo
 - **Não** abra o navegador pra "confirmar" toda alteração — isso gasta tempo/tokens à toa. Pro
@@ -198,18 +180,13 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 ### 5. Manter o "Status atual" atualizado
 - Ao concluir uma mudança relevante (feature, correção, decisão de arquitetura/infra),
   **atualize a seção "Status atual"** no topo deste arquivo.
-- **Regras de tamanho (para não virar changelog):**
-  - Status atual **≤ ~40 linhas**. É a foto do AGORA, não histórico — o git já guarda o detalhe.
-  - Registre **apenas a mudança MAIS recente** em 1-2 frases. Ao concluir uma tarefa,
-    **substitua** a entrada anterior — **não** empilhe correntes `Antes: … Antes: …`.
-  - Prefira consolidar em bullets estáveis ("Concluído (macro)", "TO-DO", "Próximo passo")
-    a acumular parágrafos de implementação (isso mora no código e no `git log`).
-  - Contexto de **por que** uma decisão foi tomada (D1–D8, TD-*, FEAT-*) vai pro
-    [`.claude/HISTORICO.md`](.claude/HISTORICO.md); item aberto vai pro
-    [`.claude/BACKLOG.md`](.claude/BACKLOG.md) — não pro Status. **Ver a Diretriz 8** — a faxina de
-    tamanho vale pro arquivo INTEIRO, não só pra esta seção.
-- Objetivo: permitir abrir um **chat novo por tarefa** e continuar sem perder contexto,
-  evitando um único chat com contexto gigante.
+- **Regras de tamanho (para não virar changelog):** Status **≤ ~40 linhas** · registre **só a
+  mudança MAIS recente** e **substitua** a anterior (nada de correntes `Antes: … Antes: …`) ·
+  consolide em bullets estáveis, não em parágrafos de implementação (isso mora no código e no
+  `git log`) · o **porquê** de uma decisão vai pro [`HISTORICO.md`](.claude/HISTORICO.md) e o item
+  aberto pro [`BACKLOG.md`](.claude/BACKLOG.md) — **nunca** pro Status. **Ver a Diretriz 8:** a
+  faxina vale pro arquivo INTEIRO.
+- Objetivo: permitir abrir um **chat novo por tarefa** e continuar sem perder contexto.
 - **Quando atualizar o Status junto com uma alteração, faça tudo num único commit/push** —
   edite o código e o "Status atual" juntos e mande de uma vez (não dois pushes seguidos).
   Só vira commit separado quando a alteração já foi pushada e o ajuste do Status veio depois.
@@ -225,39 +202,31 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 
 ### 7. Dados atuais são descartáveis — priorize velocidade sobre compatibilidade
 - **O histórico de hoje (catálogo, vendas, orçamentos) NÃO é o dado real/final** — é teste. O dono
-  recadastra tudo (impressões já feitas e vendas) num **marco futuro que ele mesmo vai anunciar**,
-  e a partir daí a guarda de dados começa pra valer. Um CSV de produtos mockup é trivial de refazer.
-- **QUANDO é o marco (dono, jul/2026):** decisão **totalmente dele**, quando **ele** considerar a
-  ferramenta madura — **provavelmente só depois de fechar o backlog atual inteiro**. Recadastra
-  **tudo, inclusive os acessórios** (não só produtos/filamentos). **Consequência:** esta diretriz
-  cobre o **backlog inteiro**, não só o Tier 1 → **nenhum item do backlog precisa de migração**,
-  incluindo o **7e** (o `Accessory` texto→referência sai de graça: o dono cadastra acessório uma vez
-  só, já ligado ao estoque, no marco). Não reordenar nada por causa de migração. **Nunca presumir a
-  data do marco** — só o dono anuncia.
+  recadastra **tudo, inclusive os acessórios**, num **marco futuro que ele mesmo vai anunciar** —
+  decisão totalmente dele, provavelmente só depois de fechar o backlog inteiro. **Nunca presumir a
+  data.** Consequência: **nenhum item do backlog precisa de migração**, e não se reordena nada por
+  causa disso.
 - **Consequência prática:** quando compatibilidade retroativa custar trabalho extra ou complicar o
-  design, **não pague esse preço**. Prefira o modelo mais limpo. Vale abrir mão de: migração de
-  documentos antigos, campos legado só-leitura, fallbacks pra dado sem o campo novo, round-trip de
-  CSV velho, backfill.
+  design, **não pague esse preço**. Vale abrir mão de: migração de documentos antigos, campos legado
+  só-leitura, fallbacks pra dado sem o campo novo, round-trip de CSV velho, backfill.
 - **Como agir:** escolha o design certo primeiro; se ele quebrar o dado atual, **avise o dono no
-  chat** (o que quebra e o que ele precisa recadastrar) e siga — não peça permissão a cada campo.
-  Nada de `window.confirm` extra nem código defensivo pra dado que vai ser jogado fora.
-- **Ainda vale a pena:** o que protege o dado **futuro**. Escrita atômica, estorno correto
-  (`stockMoves`), snapshot congelado da venda, testes da matemática — isso é a fundação que o marco
-  vai usar, não é compatibilidade com o passado.
+  chat** (o que quebra e o que ele recadastra) e siga — não peça permissão a cada campo. Nada de
+  `window.confirm` extra nem código defensivo pra dado que vai ser jogado fora.
+- **Ainda vale a pena:** o que protege o dado **futuro** — escrita atômica, estorno correto,
+  snapshot congelado da venda, testes da matemática. Isso é fundação, não compatibilidade.
 - **Esta diretriz expira** quando o dono declarar a ferramenta madura e recadastrar. **Depois disso,
-  migração volta a ser obrigatória** — reler esta diretriz antes de assumir que ela ainda vale.
+  migração volta a ser obrigatória** — reler antes de assumir que ela ainda vale.
 
 ### 8. Manter o CLAUDE.md INTEIRO enxuto — e a doc dividida em 3 arquivos por custo de token
 - **Por que importa:** só o `CLAUDE.md` é **auto-carregado no início de todo chat e re-enviado a cada
   turno** — cada linha aqui é token multiplicado por toda conversa. Os outros dois só entram em contexto
-  **quando eu os leio** (`Read`), e só nos chats que precisam. Por isso a divisão abaixo. (Antes da
-  faxina, tudo isto estava num `CLAUDE.md` de ~960 linhas / ~20k tokens por turno.)
+  **quando eu os leio** (`Read`), e só nos chats que precisam. Por isso a divisão abaixo.
 - **Os 3 arquivos e seus papéis:**
   - **`CLAUDE.md`** (auto, todo turno · alvo **≤ ~270 linhas**): foto do AGORA (Status) + **a próxima
     tarefa sugerida**, stack/estrutura, as diretrizes, infra de deploy, comandos. O que o modelo precisa
     **em TODA conversa**.
   - **[`.claude/BACKLOG.md`](.claude/BACKLOG.md)** (a-fazer / roadmap · curto): só os itens **abertos** +
-    ordem de prioridade. É o que se lê pra **escolher/rever** a próxima tarefa e ver "o que mais falta".
+    ordem de prioridade. É o que se lê pra **escolher/rever** a próxima tarefa.
   - **[`.claude/HISTORICO.md`](.claude/HISTORICO.md)** (feito + decisões · pesado): D1–D8, auditoria
     (TD-*), e writeups do que já foi **concluído**. Lido **só** quando um item precisa do *porquê*.
 - **Ao concluir uma tarefa, confira o arquivo INTEIRO** (não só o "Status"): releia o `CLAUDE.md` como
@@ -275,10 +244,9 @@ Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, 
 - **Integração Git nativa:** **conectada** — push na `main` faz deploy de produção
   automático. Não use `vercel --prod` no fluxo normal (geraria deploy duplicado).
   Para desconectar: `vercel git disconnect`.
-- **Framework:** fixado em `vercel.json` (`"framework": "nextjs"`) — o projeto herdou uma config
-  estática antiga que quebrava o build (*"No Output Directory named public"*).
-- **Variáveis do Firebase** (`NEXT_PUBLIC_FIREBASE_*`): cadastradas na Vercel em **Production**, mas
-  **ignoradas** hoje (a config é FIXA no `client.ts`). Podem ser excluídas.
+- **Framework:** fixado em `vercel.json` (`"framework": "nextjs"`) — não mexer: sem isso o projeto
+  cai numa config estática herdada que quebra o build. As `NEXT_PUBLIC_FIREBASE_*` da Vercel são
+  **ignoradas** (a config é FIXA no `client.ts`).
 - **Domínio `lopolab.com.br`:** DNS é **só no Cloudflare** — **NÃO** gerenciar pelo registro.br (onde
   ele é registrado). O CNAME do `calculadora` fica **"DNS only" / nuvem cinza**, nunca proxied. Já está
   no ar com SSL. Detalhe (valores, motivo da migração): [`HISTORICO.md`](.claude/HISTORICO.md).

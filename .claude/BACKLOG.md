@@ -6,9 +6,9 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
-> **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15 e as ondas 0–3 ✅ FECHADOS.** O
+> **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15 e as ondas 0–4 ✅ FECHADOS.** O
 > registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e os
-> writeups das ondas 1, 2 e 3. **Este arquivo só tem o que está ABERTO.**
+> writeups das ondas 1 a 4. **Este arquivo só tem o que está ABERTO.**
 
 ## Ordem de prioridade — ondas (dono, 2026-08-16)
 
@@ -28,15 +28,15 @@
 > ⚠ Dentro de cada onda **não há ordem** — são do mesmo tamanho e do mesmo tipo. O que a onda fixa
 > é *quando o bloco entra*, não a sequência interna.
 
-> ✅ **Ondas 0, 1, 2 e 3 FECHADAS em 2026-08-16** (mesmo dia). A 0 eram as duas perguntas —
-> respondidas (ver abaixo); a 1 eram os 5 consertos; a 2 era o bloco COR, com o **prazo externo da
-> marca já neutralizado** (a cor virou token: o rebrand agora é troca de paleta); a 3 era grade e
-> alinhamento. Writeups: `HISTORICO.md`.
+> ✅ **Ondas 0, 1, 2 e 3 FECHADAS em 2026-08-16** (mesmo dia) e a **4 em 2026-08-17**. A 0 eram as
+> duas perguntas — respondidas (ver abaixo); a 1 eram os 5 consertos; a 2 era o bloco COR, com o
+> **prazo externo da marca já neutralizado** (a cor virou token: o rebrand agora é troca de
+> paleta); a 3 era grade e alinhamento; a 4 era sistema (modal, semântica, foco, alvo, estado
+> desabilitado) e levou o **[UX-35]** de carona. Writeups: `HISTORICO.md`.
 
 | Onda | Itens | Por que aqui |
 |---|---|---|
-| **▶ 4 — sistema** | **[TD-015]** (8 modais) · **[UX-29]** · **[UX-31]** · **[UX-28]** · **[UX-32]** | Caro, sem prazo, alto valor estrutural. O TD-015 apaga 8 cópias de `.modal-overlay`. **O `PageHeader` da onda 3 já barateou o UX-29** (as 7 cópias de `.header` viraram uma). |
-| **5 — matemática e leitura** | **[UX-26]** (só a MATEMÁTICA das barras) · **[TD-016]** · **[UX-34]** | ✅ Destravada — o **[DEC-06]** foi respondido. A parte de COR do UX-26 saiu na onda 2. |
+| **▶ 5 — matemática e leitura** | **[UX-26]** (só a MATEMÁTICA das barras) · **[TD-016]** · **[UX-34]** | ✅ Destravada — o **[DEC-06]** foi respondido. A parte de COR do UX-26 saiu na onda 2. É o que sobrou da fila. |
 | **fora da fila** | **[DEC-05]** (lucide) | Fazer **junto do rebrand**, não antes — ver o critério acima. |
 | **⏸ bloqueadas** | **[FEAT-03]** + **[branding/logo real]** (a marca não existe) · **[Dashboard]** (precisa de ~1-2 meses de venda real) | Sempre por último; nenhuma das duas depende de decisão nossa. |
 
@@ -62,7 +62,8 @@
 > (é alinhamento → foi pra **onda 3**, não pra 1), e o `DEC-06` subiu pra **onda 0** por ser
 > pergunta que travava a matemática de quem vier depois.
 >
-> ✅ **Ondas 0, 1, 2 e 3 fechadas no mesmo dia** — restam **6 itens** aqui.
+> ✅ **Ondas 0–3 fechadas em 2026-08-16 e a 4 em 2026-08-17** — restam **3 itens** aqui, todos da
+> onda 5.
 >
 > ⚠ **Continua valendo que o mérito de cada item é levantamento** — a ordem diz *quando* o bloco
 > entra, não que o desenho da solução já está aprovado. As "Sugestões" escritas em cada item
@@ -80,60 +81,8 @@
   e não há mais duas cores quase iguais em linhas vizinhas. Sobrou **só a matemática**.
   **Onde:** `CostBars.tsx` (o `maxValue`, que tem um comentário apontando pra cá).
 
-#### Celular
-
-- **[UX-28] Os links de ação inline têm 15px de altura** *(D2)*. O UX-15 subiu os alvos do
-  catálogo p/ 32px e deixou os `.link-button` de fora: "Gerenciar" `79×15`, "detalhar refugo"
-  `286×15`. **Sugestão:** padding vertical até 32px **sem** mudar o tamanho do texto (o alvo
-  cresce, a densidade não muda). **Onde:** `forms.css`.
-
-#### Modais
-
-- **[TD-015] Casca de modal compartilhada** *(E1 + E2 + E3)*. **O padrão certo já existe** — o
-  `ConfirmDialog` (UX-15) e a gaveta (UX-14) fazem tudo direito; nunca foi propagado. Levantado:
-  **8 dos 9** modais **sem** `role="dialog"`, **sem** `aria-modal`, **sem** nome acessível e
-  **sem** Escape (`SaleModal`, `MachineManagerModal`, `StockColorModal`, `StockRollModal`,
-  `StockAdjustModal`, `SupplyModal`, `SupplyLotModal`, `SupplyAdjustModal`). **Nenhum** trava a
-  rolagem do fundo (`document.body` segue `overflow: visible`; a gaveta **já** trava). E no
-  `SaleModal` (**774px** numa viewport de 910px, `overflow-y: auto`) o rodapé rola junto → os
-  botões ficam **abaixo da dobra**, e não há **✕** no cabeçalho. **Sugestão:** extrair a casca do
-  `ConfirmDialog` para um `<Modal>` com cabeçalho/rodapé fixos — resolve os três de uma vez e
-  apaga 8 cópias de `.modal-overlay`.
-
-#### Estrutura e semântica (a camada que o UX-16 não tocou)
-
-- **[UX-29] O documento não tem sumário nem marcos** *(F1 + F2 + F3)*. Na **calculadora** o único
-  título é a **MARCA** (`h1=1 "Lopo Lab", h2=0, h3=0`) — todos os nomes de seção são `<div>`; as
-  outras 6 rotas já têm `<h1>` de página. No app: `h1` 10× · `h2` **1×** · `h3` 10× (todos
-  `.modal-title`) → salto h1→h3. E **não existe `<nav>` nem `<header>`** (só `<main>`, esse
-  correto nas 8 rotas), nem link para pular ao conteúdo. **Sugestão:** a marca vira `<div>`, o
-  `<h1>` nomeia a página, e os títulos de seção que **já existem visualmente** viram `<h2>` —
-  **sem mudar um pixel**, porque o estilo já vem de classe.
-
 #### Formulários e controles
 
-- **[UX-31] O foco de teclado não é um sistema** *(G3)*. Nos 16 CSS: `:focus-visible` **2×**
-  (`.back-to-top`, `.brand-reset`) · `:focus` 6× (campos, **todos** com `outline: none`) ·
-  **botões: nenhum** → ficam com o anel padrão do navegador, fora da identidade. Os dois que têm
-  foco decente são recentes: a intenção existe, não virou sistema. **Sugestão:** token de foco +
-  uma regra `:focus-visible` global. É o par natural do UX-16.
-- **[UX-32] O primário desabilitado parece defeito, não "ainda não"** *(G4)*.
-  `background: var(--border)` + `color: var(--muted2)`, largura inteira, 45px — na calculadora
-  sem nome e em `/producao` sem produto é o **maior elemento da tela**. **Sugestão:** contorno em
-  vez de preenchimento + uma linha dizendo **o que falta** ("dê um nome ao produto para salvar").
-  ⚠ **Número novo (varredura da onda 3):** ele também **reprova AA** — **4,43** contra 4,5, no tema
-  **claro**, em 3 rotas ("Salvar", "Gerar PDF", "Registrar produção"). Quem resolver este item já
-  resolve o contraste de brinde; não vale abrir item separado.
-- **[UX-35 — achado NOVO da varredura da onda 3] A faixa de margem RUIM reprova AA no escuro.**
-  `.margin-bad` (a régua da DEC-04) é `rgb(224,82,82)` sobre o card sólido `rgb(26,26,46)` do tema
-  escuro = **4,47** contra 4,5. **Sem tingimento no meio** — 4,47 é o valor exato, não erro de
-  medida. Aparece em 10 linhas do /catalogo. É anterior à onda 3 (nenhuma linha de
-  `margin-bad`/`--danger` mudou nela) e **passou batido na varredura da onda 2**.
-  **Sugestão:** escurecer 1 passo o `--danger` do tema escuro, ou clarear o texto — medir no card
-  sólido, que aqui é o pior fundo. **Onde:** `base.css` (o token) + `marginTier`.
-  ⚠ **Armadilha ao remedir:** o `body` tem `transition: background 0.2s`. Ler contraste logo após
-  trocar de tema pega a cor NO MEIO da transição e gera reprovação fantasma (na 1ª passada deu 9
-  falsos positivos, um deles "1,02"). Injetar `*{transition:none}` e forçar reflow antes de ler.
 - **[G2 → anexado à [DEC-05]]** — os emoji dos rótulos **não seguem regra nenhuma**: no MESMO
   formulário, `🏷️ nome da etapa`/`🎨 filamento`/`⏱ tempo`/`⚡ tarifa`/`🔢 peças`/`🎲 taxa` têm, e
   `nome do produto`/`máquina`/`cor`/`filamento (R$/kg)`/`total (g)`/`mão de obra`/`valor-hora`

@@ -24,7 +24,10 @@ export function FixedCostsPanel({
       className={`fixed-costs-banner ${fixedCosts.enabled ? "" : "collapsed"}`}
     >
       <div className="fc-title">
-        <span>🏪 Custos fixos mensais do quiosque</span>
+        {/* UX-29: o `<h2>` é o TEXTO, não a faixa — a faixa também carrega o
+            botão de ligar/desligar, e botão dentro de heading é ruído no
+            sumário. Sem estilo próprio: herda da faixa, como o `<span>` herdava. */}
+        <h2>🏪 Custos fixos mensais do quiosque</h2>
         <button
           className="toggle-wrap"
           type="button"

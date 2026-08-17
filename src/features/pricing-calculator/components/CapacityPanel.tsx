@@ -40,9 +40,9 @@ export function CapacityPanel({
 
   return (
     <div className="capacity-box">
-      <div className="capacity-title">
+      <h2 className="capacity-title">
         📊 Capacidade produtiva deste produto
-      </div>
+      </h2>
       <div className="capacity-inputs">
         <div className="ci-item">
           <label htmlFor={`${fieldId}-hours-day`}>Horas de impressão/dia</label>
