@@ -31,8 +31,14 @@
     display: none;
   }
 
+  /* `minmax(0, …)` e não `1fr` puro: o mínimo implícito de `1fr` é `auto`, ou
+     seja, o MIN-CONTENT do conteúdo. O `<select>` de cor tem min-content de
+     200px (o texto da option não quebra), e isso empurrava a coluna para
+     374,9px dentro dos 347px disponíveis — a home rolava 14px de lado num
+     celular de 375px. O `forms.css` já declara a guarda na versão de desktop;
+     ela se perdia justamente aqui, onde o espaço é apertado. */
   .grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .result-card {
@@ -64,6 +70,15 @@
   .field-input {
     font-size: var(--text-xl);
     padding: var(--space-10);
+  }
+
+  /* A compensação do UX-22 (devolver 1px por lado ao controle nativo de data)
+     foi calibrada sobre o recuo base de 8px. Aqui o campo comum sobe para 10px
+     e o seletor do date, mais específico, continuava em 7px — o par
+     Cliente/Data do SaleModal ficava com 38px contra 42px. A conta é a mesma,
+     só que sobre o recuo desta faixa. */
+  input[type="date"].field-input {
+    padding-block: calc(var(--space-10) - 1px);
   }
 
   .btn {

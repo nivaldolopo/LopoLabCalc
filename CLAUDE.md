@@ -14,29 +14,32 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ [micro] o botão do celular volta a 14px (2026-08-17)** — resíduo do
-  UX-17b, decidido pelo dono. O `.btn` do `responsive.css` perdeu a linha `font-size` e herda o
-  `--text-lg` do `forms.css`; **só o CAMPO sobe pra 16px** (abaixo disso o iOS dá zoom ao focar).
-  Medido no DOM: botões **48 → 45px** e **50 → 47px**; páginas `/` −7px, `/producao` −6px,
-  `/vendas` −3px (bem menos que os +57/+70 do UX-17b — aquilo era quase todo do campo). Alvo de
-  toque preservado (mínimo 45 > 44px). `lint` ✅ · **389/389** ✅ · `build` ✅.
-  Writeup e medições: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ Auditoria de layout responsivo + 4 consertos (2026-08-17)** — pedida pelo
+  dono a partir de um print (nome de peça quebrado **letra a letra** no `/estoque`). Medição no DOM
+  nas 7 rotas, 375px e 1280px, acordeões um a um + passe de contraste WCAG nos dois temas.
+  **Causa raiz única: `1fr` sem `minmax(0, …)`** — o mínimo implícito é o min-content, e `<select>`
+  de option longa e `<input type="date">` não encolhem. Corrigido em `.fg-part`, `.grid` do celular
+  e `.two-col` (+ alinhamento). Medido: nome da peça **0 → 313px**; home **parou de rolar de lado**
+  (389 → 375px); par Cliente/Data do SaleModal **119+177 → 138+138px**. **Contraste: zero falhas.**
+  `lint` ✅ · **389/389** ✅ · `build` ✅. Levantamento: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **As CORES saíram
-  (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (o que a
-  prévia já decide, e o token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — não há.** ⚠ **A fila de ondas ACABOU (0–5 fechadas).** Todo o backlog de
-  código que restava está **acoplado ao rebrand** (`DEC-05`+`G2`) ou **bloqueado por dado externo**
-  (`FEAT-03`, branding, `Dashboard`) — nada disso depende de decisão nossa. **Não invente tarefa:**
-  em chat novo, pergunte ao dono o que ele quer (item novo, auditoria nova, ou esperar a marca).
-  O `[micro]` que restava (botão do celular) foi decidido e fechado. Fila e bloqueios: `BACKLOG.md`.
+- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
+  (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
+  token `--on-accent` que a troca exige): `BACKLOG.md`.
+- **▶ PRÓXIMA TAREFA — o backlog REABRIU.** A auditoria de 2026-08-17 deixou **5 itens novos, todos
+  escolhíveis já** (nada depende do rebrand nem de dado externo): **`UX-36`** (ações do catálogo em
+  ícones de 24px, *excluir* colado no *editar*) · **`UX-37`** (gatilho de composição, 15px de
+  altura) · **`UX-38`** (lucro do recibo fora da tela no celular) · **`A11Y-01`** (botão só-ícone
+  sem `aria-label`) · **`UX-39`** (produtos homônimos no seletor — *confirmar com o dono antes*).
+  Detalhe: `BACKLOG.md`. O resto segue no rebrand (`DEC-05`+`G2`) ou bloqueado (`FEAT-03`,
+  branding, `Dashboard`).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
   `/maquinas` usa lucro **bruto**, sem fixo nem perda (UX-09); e paginar resolveu a **lista**, não a
-  **análise** (TD-006). ROI: `lib/machineRoi.ts`.
+  **análise** (TD-006).
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).
@@ -118,6 +121,12 @@ src/
   Categorias de custo → `--cost-*`. Hex cru só para `#fff` sobre preenchimento e sombras.
   ⚠ **Ao escolher/alterar um tom, meça no DOM o PIOR fundo real** (o tingimento a 10% come ~0,3), e
   **mate `transition` antes de ler** — senão a medida pega a cor no meio da troca de tema.
+- **Coluna flexível de grade escreve `minmax(0, 1fr)`, nunca `1fr` puro** (auditoria 2026-08-17): o
+  mínimo implícito de `1fr` é o **min-content**, e `<select>` de option longa ou `<input
+  type="date">` **não encolhem** — a coluna estoura em vez de ceder (foi a causa das 3 quebras).
+  ⚠ **Ao sobrescrever `grid-template-columns` numa media query, reescreva a guarda junto** — não é
+  herdada. Idem para **compensação calibrada sobre token** (o `padding` do date, UX-22): token que
+  muda por faixa exige compensação que muda junto.
 - **Coluna de número usa `.num`** (direita) — `sales.css`, `cesta-recibo.css`, `catalog.css`.
   `tabular-nums` é global (`body`, UX-27): não redeclarar por componente. **Faixa de número tem
   PISO `max(rótulo, conteúdo)` medido no DOM; faixa de nome tem reticências** (UX-21) — número

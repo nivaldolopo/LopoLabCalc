@@ -97,6 +97,9 @@
    /estoque, /vendas, /producao e os 4 modais), todos em `.field-input`. */
 input[type="date"].field-input {
   padding-block: calc(var(--space-8) - 1px);
+  /* O widget nativo tem largura intrínseca fixa (~177px) e, sem isto, não
+     encolhe: dentro de um `.two-col` ele tomava a linha inteira para si. */
+  min-width: 0;
 }
 
 .field-input:focus,
@@ -131,9 +134,19 @@ input[type="date"].field-input {
   font-weight: 500;
 }
 
+/* Duas colunas de MESMA largura, sempre.
+   `minmax(0, …)` e não `1fr` puro: o mínimo implícito de `1fr` é o min-content
+   da célula, e o `<input type="date">` é um widget nativo de largura
+   intrínseca fixa (~177px) que NÃO encolhe. Sem a guarda ele tomava a linha
+   inteira para si: no SaleModal o par Cliente/Data virava 119px + 177px (o
+   placeholder "Nome do cliente" saía cortado) e a /producao rolava de lado.
+   `align-items: end` alinha os CONTROLES pela base em vez de esticar as duas
+   células: quando um rótulo tem duas linhas ("Forma de pagamento") e o vizinho
+   tem uma ("Canal"), os dois campos ficavam 15px fora de linha. */
 .two-col {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
   gap: var(--space-16);
   margin-bottom: var(--space-20);
 }

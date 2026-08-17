@@ -636,4 +636,29 @@
   .stock-form-grid {
     grid-template-columns: 1fr;
   }
+
+  /* A linha da peça (UX-08) é uma tabelinha de 4 colunas: nome | saldo |
+     custo/un | ação. As três últimas são `auto` e não encolhem — saldo, custo e
+     DOIS botões (Vender/Produzir) somam ~370px. Num celular de 375px não
+     sobrava nada para o nome: a coluna caía a 0px de largura e o
+     `overflow-wrap: anywhere` quebrava o nome LETRA POR LETRA, uma por linha
+     (linha de 80 a 294px de altura, medido no DOM).
+     Aqui a linha vira duas: o nome ocupa a faixa inteira em cima, e
+     saldo/custo/ação dividem a de baixo — cada um com a largura que já tinha.
+     Os números continuam alinhados entre as linhas porque as colunas 1 e 2
+     seguem `auto`; o `1fr` da terceira empurra os botões para a direita. */
+  .fg-part {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: var(--space-4) var(--space-10);
+  }
+
+  .fg-part-main {
+    grid-column: 1 / -1;
+  }
+
+  /* Fora da tabelinha o saldo não tem mais coluna à direita para se encostar —
+     na faixa de baixo ele é o primeiro item, e lê melhor alinhado à esquerda. */
+  .fg-part-bal {
+    text-align: left;
+  }
 }

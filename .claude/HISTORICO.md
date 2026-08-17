@@ -9,6 +9,74 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## 🔍 Auditoria de layout responsivo (2026-08-17) — o LEVANTAMENTO + os 4 consertos
+
+> **Gatilho:** o dono mandou um print do `/estoque` → aba Produtos, no celular: num produto com mais
+> de um subitem, o nome da peça aparecia **quebrado letra por letra, na vertical**. O pedido foi uma
+> auditoria nova do site inteiro — "tudo que dá pra abrir, interagir" — porque uma falha assim
+> sugeria outras iguais.
+
+**Método:** servidor local, dados reais, **medição no DOM** (não olhômetro). Um auditor injetado
+varreu cada rota classificando 5 sintomas — `W-ZERO` (elemento com texto e 0px de largura),
+`ESMAGADO` (largura < 40px e altura > 2,2× a largura), `ESTOURA` (borda direita além da viewport),
+`CORTADO` (`scrollWidth > clientWidth` sem `overflow` declarado) e `ALVO-MINI` (< 28px). Rodou nas
+**7 rotas**, em **375px e 1280px**, com os acordeões abertos **um a um** (o do `/estoque` é
+exclusivo: abrir o segundo fecha o primeiro, então varrer "tudo aberto" não enxerga nada).
+Depois, um segundo passe mediu **contraste WCAG** de todo texto folha, compondo o fundo real camada
+a camada (alfa incluído) e **matando `transition` antes de ler**, conforme a regra do `CLAUDE.md`.
+
+### A causa raiz — uma só, em três lugares: `1fr` sem `minmax(0, …)`
+
+O mínimo implícito de `1fr` é `auto`, ou seja, o **min-content** da célula. Quando a célula guarda
+algo que não quebra — um `<select>` cujas options são longas, um `<input type="date">` (widget
+nativo de largura fixa) — a coluna **cresce além do container** em vez de encolher.
+
+| # | Onde | Sintoma medido | Conserto |
+|---|---|---|---|
+| 1 | `stock.css` `.fg-part` | Coluna do nome a **0px**, linha de **80 a 294px** de altura | Media query < 620px: a linha vira **duas** (nome em cima; saldo/custo/ação embaixo) |
+| 2 | `responsive.css` `.grid` | Home **rolava 14px de lado** a 375px, no carregamento limpo. Trilha da grade a **374,9px** dentro de 347px — piso vindo do `<select>` de cor (min-content 200px) | `1fr` → `minmax(0, 1fr)` |
+| 3 | `forms.css` `.two-col` | `input[type=date]` (177px intrínsecos) tomava a linha: no SaleModal o par virava **119px + 177px** (placeholder "Nome do cliente" cortado); a `/producao` rolava de lado | `1fr 1fr` → `minmax(0,1fr) minmax(0,1fr)` + `min-width: 0` no date |
+| 4 | `forms.css` / `responsive.css` | Canal × Forma de pagamento **15px fora de linha** (rótulo de 2 linhas empurra o select); e o date a **38px** contra 42px do vizinho no celular | `align-items: end` no `.two-col`; e a compensação do UX-22 recalibrada sobre o recuo de 10px da faixa móvel |
+
+⚠ **O caso 2 é o mais instrutivo:** o `forms.css:3` **já declarava** `minmax(0, 1fr)` na versão de
+desktop. A guarda se perdia no override do `responsive.css`, ou seja, **exatamente onde o espaço é
+apertado e ela importa**. Ao sobrescrever `grid-template-columns` numa media query, reescreva a
+guarda junto — ela não é herdada.
+
+⚠ **O caso 4 tem a mesma forma:** o UX-22 devolvia 1px por lado ao controle de data assumindo o
+recuo base de **8px**; no celular o `.field-input` sobe pra 10px e o seletor do date, mais
+específico, continuava em 7px. **Compensação calibrada sobre um token tem de acompanhar o token.**
+
+### Medições — antes → depois
+
+| Item | Antes | Depois |
+|---|---|---|
+| `.fg-part-name` (largura / altura) | **0px / 80–294px** | **313px / 16px** |
+| Linha da peça (altura) | 80px | **62px** |
+| Home a 375px (`scrollWidth`) | **389px** (rola de lado) | **375px** |
+| Trilha da `.grid` no celular | 374,9px em 347px | **347px** |
+| SaleModal — par Cliente/Data | 119px + 177px | **138px + 138px** |
+| SaleModal — Canal × Pagamento (topo dos selects) | 318px × 333px | **333px × 333px** |
+| Campo de data no celular (altura) | 38px | **42px** (= o vizinho) |
+
+**Cards do `/estoque` varridos um a um: 15/15 sem achado.** `lint` ✅ · **389/389** ✅ · `build` ✅.
+Sem regressão em desktop: `/orcamento` manteve os dois cartões na mesma altura e no mesmo `y`
+(UX-22 intacto), e todos os `.two-col` da calculadora seguem em colunas iguais (307/307).
+
+### O que a auditoria descartou (para não voltar como achado novo)
+
+- **`mm/dd/yyyy` nos campos de data** — é o locale do NAVEGADOR de teste (`navigator.language` =
+  `en-US`), não do código: o `<html lang>` está correto em `pt-BR`. No Chrome pt-BR do dono sai
+  `dd/mm/aaaa`.
+- **Círculo escuro com "N" no canto inferior** — overlay de desenvolvimento do Next; não existe em
+  produção.
+- **Nomes com reticências no `/catalogo`** — é o UX-21 funcionando (faixa de nome trunca, faixa de
+  número tem piso).
+- **Rolagem horizontal da tabela de recibo em `/vendas`** — é a "válvula" `min-width` prevista no
+  `CLAUDE.md`. Continua **aberto como leitura ruim no celular** (ver `BACKLOG.md`), não como bug.
+- **Contraste** — **zero** falhas WCAG AA nos dois temas, em todas as telas medidas. O TD-014 e o
+  UX-19 se sustentaram sob medição independente.
+
 ## ✅ [micro] O botão do celular volta a 14px (2026-08-17)
 
 > Resíduo do UX-17b, fora de qualquer onda: lá, **campo e botão** subiram pra 16px no celular. O

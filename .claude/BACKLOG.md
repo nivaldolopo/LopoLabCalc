@@ -11,10 +11,10 @@
 > registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e os
 > writeups das ondas 1 a 5. **Este arquivo só tem o que está ABERTO.**
 >
-> ⚠ **A FILA DE ONDAS ACABOU (2026-08-17).** Não há próxima tarefa de código escolhível: o que
-> resta ou está **acoplado ao rebrand** (DEC-05) ou **bloqueado por dado externo** (FEAT-03,
-> branding, Dashboard) — nenhum dos dois depende de decisão nossa. Item novo aqui só entra por
-> pedido do dono ou por auditoria nova.
+> ⚠ **A fila de ondas acabou em 2026-08-17** — mas a **auditoria de layout responsivo do mesmo dia
+> reabriu o backlog**: 4 bugs consertados na hora e **5 itens novos** (UX-36…UX-39, A11Y-01), todos
+> **escolhíveis já** — nenhum depende do rebrand nem de dado externo. Ver o cluster logo abaixo.
+> O resto continua acoplado ao rebrand (DEC-05) ou bloqueado (FEAT-03, branding, Dashboard).
 
 ## Ordem de prioridade — ondas (dono, 2026-08-16)
 
@@ -51,6 +51,43 @@
 > migração**. Não reordenar por causa disso.
 
 ## Itens abertos
+
+### 🆕 Cluster da auditoria de layout responsivo (2026-08-17) — 4 fechados, 5 abertos
+
+> Auditoria pedida pelo dono a partir de um print (nome de peça quebrado letra a letra no
+> `/estoque`). Medição no DOM nas 7 rotas, em 375px e 1280px, acordeões abertos um a um, mais um
+> passe de contraste WCAG nos dois temas. **Os 4 bugs de layout já foram consertados** — causa raiz
+> única (`1fr` sem `minmax(0, …)`), writeup e medições no [`HISTORICO.md`](HISTORICO.md).
+> **Contraste passou sem nenhuma falha.** O que sobrou são itens de ALVO e LEITURA, abaixo.
+>
+> ⚠ **Nenhum destes está bloqueado por dado externo nem pelo rebrand** — são escolhíveis já.
+
+- **[UX-36] Ações do `/catalogo` são 5 ícones de 24×24px, sem rótulo.** Na linha expandida,
+  vender / produzir / orçar / **editar** / **excluir** ficam todos com o mesmo peso, tamanho e cor.
+  Medido: **24×24px**, contra o mínimo de **44px** que o UX-30 fixou. Dois problemas somados: é
+  difícil acertar no celular, e o **excluir fica colado no editar** com a mesma aparência — o erro
+  de toque é destrutivo. **Onde:** `.icon-button` em `catalog.css` + `ProductCatalog.tsx`.
+  Decidir também se o excluir merece separação visual (é o único irreversível do grupo).
+- **[UX-37] `.cost-detail-trigger` tem 15–17px de altura.** "ver composição ▾" (`/estoque`) e
+  "custo real gasto R$ … · composição ▾" (`/producao`) são o gatilho de um dropdown importante e
+  medem menos de metade do alvo mínimo. **Onde:** `cesta-recibo.css`.
+- **[UX-38] Recibo do `/vendas` no celular: o lucro fica fora da tela.** A tabela usa a válvula
+  `min-width` (por design), mas na prática **cada linha de venda exige rolagem horizontal própria**
+  para chegar na coluna de lucro — que é justamente o número que se quer conferir. Repensar a
+  linha no celular (empilhar? mostrar só receita/lucro e esconder as intermediárias?).
+  **Onde:** `.recibo-items` em `cesta-recibo.css` + `responsive.css`.
+- **[A11Y-01] Botões só-ícone do cabeçalho sem `aria-label`.** Tema e Sair têm apenas `title` — o
+  leitor de tela cai no fallback, e o de tema ainda usa o emoji ☀️ como conteúdo visível.
+  **Cruza com [DEC-05]** (emoji em controle), mas o `aria-label` é independente do rebrand e pode
+  sair antes. **Onde:** `Header.tsx` / `LogoutButton.tsx`.
+- **[UX-39] Produtos de mesmo nome são indistinguíveis nos seletores.** O `<select>` da
+  `/producao` lista "coffee prank coffee part" **4 vezes** e "Arraia Flexível" 2 vezes, sem nada
+  que os separe — não dá pra escolher o certo. Provavelmente some quando o dono recadastrar
+  (Diretriz 7), mas o seletor deveria desempatar sozinho (máquina? peso? data?).
+  ⚠ **Confirmar com o dono se são mesmo produtos distintos** antes de virar tarefa.
+- ℹ️ **Não vira item (registrado pra não voltar):** o range do markup transborda **2px** do
+  container (folga nativa do thumb); e os `.btn-sm` medem 31–33px — abaixo dos 44px, mas isso é
+  anterior à auditoria e já está registrado no writeup do `[micro]` de 14px.
 
 ### ✅ Cluster da auditoria de 2026-08-16 (UX-20…UX-34 · TD-014…TD-016) — ZERADO
 
