@@ -546,6 +546,46 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-md);
+  /* UX-21 — a grade única dos recibos. Mesma receita já usada logo acima pela
+     `.cost-detail-table`: `fixed` + largura declarada nas colunas de número.
+     O `min-width` é a soma das faixas fixas (636) + um piso de 164 para o nome;
+     abaixo disso o `.recibo-items-scroll` rola, em vez de espremer valor. */
+  table-layout: fixed;
+  min-width: 800px;
+}
+
+/* As faixas de número, medidas no DOM sobre as 47 vendas: maior valor 94,2px
+   (`R$ 294,36`) e maior custo 180px (`custo real R$ 124,94`). A folga até 116/184
+   é o que cabe um valor na casa dos milhares sem reescrever esta linha. */
+.ri-col-qty {
+  width: 48px;
+}
+
+.ri-col-money {
+  width: 116px;
+}
+
+.ri-col-cost {
+  width: 184px;
+}
+
+.ri-col-actions {
+  width: 56px;
+}
+
+/* No celular a comparação ENTRE recibos não acontece (cabe um por tela), e o
+   preço da grade fixa ali seria ~450px de rolagem horizontal contra os ~126px
+   de hoje. Abaixo de 640px o recibo volta ao layout automático — o mesmo ponto
+   em que o catálogo já vira cartão. */
+@media (max-width: 640px) {
+  .recibo-items {
+    table-layout: auto;
+    min-width: 0;
+  }
+
+  .recibo-items col {
+    width: auto;
+  }
 }
 
 .recibo-items td {
@@ -566,7 +606,18 @@
 }
 
 .recibo-items .ri-name {
-  width: 100%;
+  /* UX-21 — era `width: 100%` (o truque de "empurra o resto"), que em
+     `table-layout: fixed` brigaria com o colgroup. Agora o nome é simplesmente
+     a faixa que sobra, e é ele quem recebe as reticências. */
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A linha do desconto mora DENTRO da célula de preço, que agora tem largura
+   fixa — sem isto o `nowrap` herdado de `.recibo-items td` a faria vazar por
+   cima da coluna vizinha. */
+.ri-discount {
   white-space: normal;
 }
 

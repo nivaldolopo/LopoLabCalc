@@ -21,8 +21,13 @@
 
   /* UX-14 (decisão do dono, 2026-08-15): no celular o parágrafo explicativo
      sai — são ~60px de texto decorativo no topo de uma tela em que o 1º campo
-     começava aos 421px. Marca, h1 e status de nuvem continuam. */
-  .subtitle {
+     começava aos 421px. Marca, h1 e status de nuvem continuam.
+     ⚠ UX-23: a regra valia só para a calculadora porque só ela tinha
+     `.subtitle`. Com o `PageIntro` unificando os quatro tratamentos, ela passa
+     a valer para /estoque, /producao e /maquinas também — que é o MESMO
+     conteúdo pelo mesmo motivo (o texto do /estoque tinha 4 linhas). Se o dono
+     quiser algum de volta no celular, é reverter esta regra sozinha. */
+  .page-intro {
     display: none;
   }
 

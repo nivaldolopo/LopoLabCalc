@@ -30,7 +30,11 @@ export function LogoutButton() {
         onClick={handleSignOut}
         title={email ? `Sair (${email})` : "Sair"}
       >
-        <LogOut size={15} /> Sair
+        {/* UX-33: o rótulo vai num `<span>` próprio porque no celular ele sai
+            (o botão vira ícone puro ao lado do ☰) — ver `.header-utils-label`
+            no responsive.css. O `title` acima segue nomeando o botão. */}
+        <LogOut size={15} aria-hidden="true" />{" "}
+        <span className="header-utils-label">Sair</span>
       </button>
       {dialog}
     </>

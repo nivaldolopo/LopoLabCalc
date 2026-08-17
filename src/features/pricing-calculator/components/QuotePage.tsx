@@ -24,6 +24,7 @@ import type { QuoteBusiness, QuoteRecord, QuoteRecordPayload } from "../types";
 import { useConfirm } from "./ConfirmDialog";
 import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { NavBar } from "./NavBar";
+import { PageHeader } from "./PageHeader";
 import { NumberInput } from "./NumberInput";
 
 type QuoteItem = {
@@ -351,17 +352,14 @@ export function QuotePage() {
 
   return (
     <main className="wrap">
-      <div className="header">
-        <div className="brand">
-          <div>
-            <h1 className="sg">Orçamento</h1>
-            <div className="brand-meta">
-              <span>Gerar orçamento em PDF — Lopo Lab</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <NavBar theme={theme} onToggleTheme={toggleTheme} />
+      {/* Sem `status`: o /orcamento não assina coleção nenhuma em tempo real. */}
+      <PageHeader
+        title="Orçamento"
+        meta="Gerar orçamento em PDF — Lopo Lab"
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+      <NavBar />
 
       <div className="quote-grid">
         <div className="card quote-card">
@@ -369,12 +367,18 @@ export function QuotePage() {
             Dados do negócio <span className="label-hint">(saem no PDF)</span>
           </div>
           <div className="field-block compact">
-            {/* Sem rótulo visível (o título da seção serve de contexto) — o
-                placeholder some ao digitar, então o nome acessível é o aria. */}
+            {/* UX-22 — este campo era o ÚNICO da tela sem rótulo visível (só um
+                `aria-label`), e era ele quem desalinhava os dois cartões: o da
+                direita começa com rótulo, este não, e os 15px de diferença
+                desciam por todas as linhas seguintes. O rótulo também resolve o
+                nome acessível de verdade — o placeholder some ao digitar. */}
+            <label className="section-label" htmlFor={`${fieldId}-business`}>
+              Nome do negócio
+            </label>
             <input
+              id={`${fieldId}-business`}
               className="field-input"
               type="text"
-              aria-label="Nome do negócio"
               value={business.name}
               onChange={(event) => updateBusiness({ name: event.target.value })}
               onBlur={() => void saveBusiness(business)}

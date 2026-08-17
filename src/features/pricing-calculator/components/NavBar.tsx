@@ -4,11 +4,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { LogoutButton } from "./LogoutButton";
 
 type NavBarProps = {
-  theme: "dark" | "light";
-  onToggleTheme: () => void;
   // Ações específicas da página (ex.: "Nova venda"). Entram numa linha PRÓPRIA
   // abaixo da barra — nunca no meio das abas, que ficam fixas em toda página.
   children?: ReactNode;
@@ -35,7 +32,7 @@ const NAV_ITEMS = [
 // flutua no canto do `.header` da página, ao lado do título/status. Medido
 // antes: os 7 destinos quebravam em 4 linhas de 2 + tema/sair numa quinta,
 // 227px de barra, e o 1º campo do formulário só começava aos 421px = 50,2%.
-export function NavBar({ theme, onToggleTheme, children }: NavBarProps) {
+export function NavBar({ children }: NavBarProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -115,17 +112,10 @@ export function NavBar({ theme, onToggleTheme, children }: NavBarProps) {
             );
           })}
         </div>
-        <div className="navbar-utils">
-          <button
-            className="icon-label-button"
-            type="button"
-            onClick={onToggleTheme}
-          >
-            <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
-            {theme === "dark" ? "Claro" : "Escuro"}
-          </button>
-          <LogoutButton />
-        </div>
+        {/* UX-33 — a `.navbar-utils` (Escuro + Sair) saiu daqui para o
+            `PageHeader`. Ela obrigava a barra a quebrar numa SEGUNDA linha de
+            ~40px em toda página, ocupada por dois botões, enquanto a linha do
+            título tinha espaço vazio à direita em todas as rotas. */}
       </div>
       {children ? <div className="navbar-page-actions">{children}</div> : null}
     </nav>

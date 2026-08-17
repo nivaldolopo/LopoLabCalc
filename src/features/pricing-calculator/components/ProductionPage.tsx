@@ -47,7 +47,6 @@ import { useStock } from "../hooks/useStock";
 import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
 import type {
-  CloudStatus,
   FixedCostSettings,
   ProductionEvent,
   ProductionMode,
@@ -58,15 +57,10 @@ import { CostBreakdownTable, CostDetail } from "./CostDetail";
 import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { NavBar } from "./NavBar";
+import { PageHeader } from "./PageHeader";
+import { PageIntro } from "./PageIntro";
 import { NumberInput } from "./NumberInput";
 import { PrintTimeField } from "./ProductForm";
-
-const statusLabel: Record<CloudStatus, string> = {
-  connecting: "Conectando nuvem...",
-  synced: "Sincronizado",
-  importing: "Importando...",
-  error: "Erro de Conexão",
-};
 
 const OUTCOMES: { value: ProductionOutcome; label: string }[] = [
   { value: "estoque", label: "Peça pro estoque" },
@@ -643,30 +637,22 @@ export function ProductionPage() {
 
   return (
     <main className="wrap">
-      <div className="header">
-        <div className="brand">
-          <div className="logo" aria-hidden="true">
-            <Factory size={18} />
-          </div>
-          <div>
-            <h1 className="sg">Produção</h1>
-            <div className="brand-meta">
-              <span>Registro de impressão — Lopo Lab</span>
-              <span className={`cloud-status ${status}`}>
-                {statusLabel[status]}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <NavBar theme={theme} onToggleTheme={toggleTheme} />
+      <PageHeader
+        icon={<Factory size={18} />}
+        title="Produção"
+        meta="Registro de impressão — Lopo Lab"
+        status={status}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+      <NavBar />
 
       {error ? <div className="app-error">{error}</div> : null}
 
-      <p className="subtitle prod-intro">
+      <PageIntro>
         Registre TODA impressão — vire venda ou não. É daqui que sai a baixa de
         filamento e as horas de máquina. Teste, falha e brinde também contam.
-      </p>
+      </PageIntro>
 
       <div className="prod-form">
         <div className="field-block">

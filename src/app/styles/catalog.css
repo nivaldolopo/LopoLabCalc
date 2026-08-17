@@ -636,8 +636,16 @@ th.col-price {
   overflow: visible;
 }
 
+/* UX-21 — a rolagem horizontal VOLTA, mas só como válvula. Com os pisos da
+   grade (logo abaixo), a soma das faixas + folgas + recuo da linha dá 740px:
+   acima disso nada rola e o desktop segue idêntico. Abaixo, a linha rolaria
+   para dentro dos pisos e voltaria a cortar número — aí a lista rola em vez de
+   mentir. A faixa onde isso acontece é estreita (761…827px de viewport: em 760
+   o layout já vira cartão). Mesma receita do `.recibo-items-scroll` de
+   /vendas (BUG-06). */
 .table-scroll {
-  overflow-x: visible;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .catalog-card table,
@@ -645,7 +653,7 @@ th.col-price {
 .catalog-card tbody {
   display: block;
   width: 100%;
-  min-width: 0;
+  min-width: 740px;
 }
 
 .catalog-card thead tr,
@@ -657,13 +665,33 @@ th.col-price {
      UX-15: 146 → 196px porque o alvo virou 32px e o Excluir ganhou um divisor
      com folga (conta em `td.col-actions`, abaixo). Os 50px saem do nome, que é
      `minmax(0, 2.4fr)` — a maior faixa flexível da linha. */
-  grid-template-columns: minmax(0, 2.4fr) 1.1fr 0.6fr 1fr 0.7fr 1.2fr 196px;
+  /* UX-21 — TODA faixa flexível ganhou piso. Sem ele, a 826px de viewport
+     (737px de largura útil) o `overflow: hidden` do `.main-row td` cortava:
+     Margem 93/93 linhas · Máquina 13 · Preço 9 · Custo 1. Um número cortado
+     vira OUTRO número ("R$ 617,90" → "R$ 617,9"), então nas colunas de valor o
+     piso é obrigatório; nome e máquina é que continuam com reticências, porque
+     nome cortado continua sendo o nome.
+     Os pisos são `max(rótulo, conteúdo)` MEDIDO no DOM com os 93 produtos —
+     e em 4 colunas quem manda é o RÓTULO, não o dado (Custo/peça: 93px de
+     cabeçalho contra 88,4px do maior valor). O `th` não tem `overflow: hidden`:
+     sem piso ele não cortava, invadia o vizinho.
+     O nome fica no piso do próprio rótulo (64px) de propósito — é ele quem
+     absorve a folga quando há espaço, e o `min-width` do bloco abaixo é que
+     impede a linha de espremer além do legível. */
+  grid-template-columns:
+    minmax(64px, 2.4fr) minmax(92px, 1.1fr) minmax(50px, 0.6fr)
+    minmax(93px, 1fr) minmax(67px, 0.7fr) minmax(70px, 1.2fr) 196px;
   align-items: center;
   column-gap: var(--space-12);
 }
 
+/* UX-21 — cabeçalho e linhas eram DUAS grades: aqui o recuo era 20px, e na
+   `.main-row` ele é 16px + 1px de borda = 17px efetivos. Os 3px de cada lado
+   viravam 6px de largura útil a mais no cabeçalho e, como as faixas são `fr`,
+   a diferença se redistribuía e acumulava até "AÇÕES". O `+ 1px` não é número
+   mágico: é a borda da linha, que o cabeçalho não tem. */
 .catalog-card thead tr {
-  padding: 0 var(--space-20) var(--space-8);
+  padding: 0 calc(var(--space-16) + 1px) var(--space-8);
 }
 
 .catalog-card th {

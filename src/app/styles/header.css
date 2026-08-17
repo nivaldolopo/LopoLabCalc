@@ -70,11 +70,19 @@ h1 span {
   flex-wrap: wrap;
 }
 
-.subtitle {
+/* UX-23 — o texto de introdução de página, um tratamento só (componente
+   `PageIntro`). Substitui `.subtitle` (calculadora), `.subtitle .prod-intro`
+   (/producao), `.stock-intro` (/estoque) e o 1º `.roi-note` (/maquinas), que
+   eram quatro medidas de linha, quatro espaçamentos e quatro posições.
+   A medida é em `ch` porque o que importa é o número de CARACTERES por linha
+   (~70 é onde o olho ainda acha o começo da linha seguinte), não uma largura
+   em pixels que muda de significado quando a fonte muda. */
+.page-intro {
   color: var(--muted);
   font-size: var(--text-lg);
-  margin: var(--space-10) 0 var(--space-20);
-  max-width: 560px;
+  line-height: 1.5;
+  margin: 0 0 var(--space-20);
+  max-width: 70ch;
 }
 
 /* Barra de navegação unificada (NavBar): linha própria, independente do brand,
@@ -95,17 +103,23 @@ h1 span {
   background: var(--card-bg);
 }
 
-.navbar-tabs,
-.navbar-utils {
+.navbar-tabs {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-8);
 }
 
-/* Tema + sair encostam à direita; os destinos ficam fixos à esquerda. */
-.navbar-utils {
-  margin-left: auto;
+/* UX-33 — "Escuro" e "Sair" saíram da `.navbar-utils` (que morava aqui dentro,
+   com `margin-left: auto`) e vieram para a linha do título. A barra tinha 7
+   destinos + 2 utilitários no mesmo `flex-wrap`: os dois sobravam para uma
+   SEGUNDA linha de ~40px, em toda página, enquanto o lado direito do cabeçalho
+   ficava vazio. Agora eles ocupam esse vazio. */
+.header-utils {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-shrink: 0;
 }
 
 .navbar-page-actions {
@@ -153,10 +167,12 @@ h1 span {
 
   /* Garante que a faixa do cabeçalho seja ao menos a altura do botão, para ele
      nunca invadir o primeiro card em páginas de título curto. */
+  /* UX-33: a reserva subiu de 52px (só o ☰) para 144px — o canto agora tem
+     TRÊS controles de 40px: tema, sair e o ☰. */
   .header {
     min-height: 40px;
     margin-bottom: var(--space-12);
-    padding-right: 52px;
+    padding-right: 144px;
   }
 
   .navbar-toggle,
@@ -228,8 +244,7 @@ h1 span {
     transform: translateX(0);
   }
 
-  .navbar-tabs,
-  .navbar-utils {
+  .navbar-tabs {
     flex-direction: column;
     flex-wrap: nowrap;
     align-items: stretch;
@@ -242,12 +257,28 @@ h1 span {
     padding: var(--space-12);
   }
 
-  /* Tema e Sair no PÉ do painel, separados dos destinos. */
-  .navbar-utils {
-    margin-left: 0;
-    margin-top: auto;
-    padding-top: var(--space-12);
-    border-top: 1px solid var(--border-soft);
+  /* UX-33 — no celular os dois utilitários viram ÍCONE PURO e se juntam ao ☰ no
+     canto do cabeçalho: o rótulo sai por CSS, não por renderização condicional,
+     para não existirem dois nós disputando a mesma ordem de tabulação. O `title`
+     de cada botão continua sendo o nome acessível.
+     (Antes eles ficavam no pé da gaveta, com `margin-top: auto` e um filete
+     acima — some junto com a `.navbar-utils`.) */
+  .header-utils {
+    position: absolute;
+    top: var(--wrap-pad-top);
+    right: calc(var(--wrap-pad-x) + 48px);
+    gap: var(--space-6);
+  }
+
+  .header-utils .icon-label-button {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .header-utils-label {
+    display: none;
   }
 
   /* Ações da página (ex.: "Nova venda" em /vendas) ficam FORA da gaveta e

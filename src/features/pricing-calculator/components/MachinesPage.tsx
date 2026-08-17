@@ -7,15 +7,9 @@ import { useMachines } from "../hooks/useMachines";
 import { useProduction } from "../hooks/useProduction";
 import { useSales } from "../hooks/useSales";
 import { useTheme } from "../hooks/useTheme";
-import type { CloudStatus } from "../types";
 import { NavBar } from "./NavBar";
-
-const statusLabel: Record<CloudStatus, string> = {
-  connecting: "Conectando nuvem...",
-  synced: "Sincronizado",
-  importing: "Importando...",
-  error: "Erro de Conexão",
-};
+import { PageHeader } from "./PageHeader";
+import { PageIntro } from "./PageIntro";
 
 function pct(fraction: number): string {
   return `${Math.round(fraction * 100)}%`;
@@ -89,20 +83,14 @@ export function MachinesPage() {
 
   return (
     <main className="wrap">
-      <div className="header">
-        <div className="brand">
-          <div>
-            <h1 className="sg">Impressoras</h1>
-            <div className="brand-meta">
-              <span>ROI e payback — Lopo Lab</span>
-              <span className={`cloud-status ${status}`}>
-                {statusLabel[status]}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <NavBar theme={theme} onToggleTheme={toggleTheme} />
+      <PageHeader
+        title="Impressoras"
+        meta="ROI e payback — Lopo Lab"
+        status={status}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+      <NavBar />
 
       {error ? <div className="app-error">{error}</div> : null}
 
@@ -135,13 +123,17 @@ export function MachinesPage() {
         </div>
       </div>
 
-      <p className="roi-note">
+      {/* UX-23 — este era o 1º de DOIS parágrafos empilhados antes do 1º dado
+          (~120px de texto). Ele é a introdução da página e vira `PageIntro`; o
+          segundo é a ressalva do payback (UX-09) e continua `.roi-note`, porque
+          é aviso, não introdução. Encolher a ressalva é assunto do UX-34. */}
+      <PageIntro>
         O <strong>payback</strong> cruza o preço de compra de cada máquina com o
         lucro que ela já gerou nas vendas (o lucro/receita/depreciação são
         repartidos pela máquina certa quando o produto usa mais de uma). A{" "}
         <strong>vida útil</strong> vem do registro de produção: toda impressão
         desgasta a máquina, inclusive teste, falha e brinde que nunca viram venda.
-      </p>
+      </PageIntro>
       {/* UX-09: o payback soma `sale.profit` — receita menos COGS real menos
           taxa. Ele NÃO desconta custo fixo (aluguel etc.) nem as impressões com
           `outcome: "falha"`, que queimam filamento e horas sem abater nada em

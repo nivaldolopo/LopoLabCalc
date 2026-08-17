@@ -9,6 +9,133 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Onda 3 do backlog — grade e alinhamento (2026-08-16)
+
+> **Os 4 itens:** `UX-21` (o resto — uma grade só nas listas) · `UX-22` (linha de base do
+> /orcamento) · `UX-23` (`PageIntro`) · `UX-33` (hierarquia de navegação + `PageHeader`).
+> É o bloco que o dono viu com os próprios olhos — *"textos descentralizados"*.
+> **Decisões dele nesta rodada:** o UX-33 vai **completo** (inclui extrair o `PageHeader` e subir
+> Escuro/Sair) · o UX-23 **não inventa texto** para /catalogo e /vendas · o UX-22 resolve com
+> **rótulo visível**, não com compensação de CSS.
+
+### UX-21 — as listas não tinham UMA grade só
+
+**(a) Catálogo, a deriva.** Cabeçalho e linhas eram duas grades independentes: o `thead tr` tinha
+recuo de **20px**, a `.main-row` tem **16px + 1px de borda = 17px efetivos**. Os 3px de cada lado
+viravam 6px de largura útil a mais no cabeçalho e, como as faixas são `fr`, a diferença se
+redistribuía e acumulava até "AÇÕES". O cabeçalho passou a `calc(var(--space-16) + 1px)`.
+**Medido depois, a 1280 e a 826:** `left` de cada `th` contra o `td` correspondente → **deriva 0
+nas 7 colunas** (não "1px": zero).
+
+**(b) Catálogo, o número cortado — pior do que a auditoria tinha visto.** A auditoria registrou a
+coluna de preço transbordando. Medido no DOM com os 93 produtos a **826px de viewport (737px de
+largura útil)**, o `overflow: hidden` do `.main-row td` cortava:
+
+| Coluna | Faixa | Linhas cortadas |
+|---|---|---|
+| Margem | 52,78px | **93 de 93** |
+| Máquina | 77px | 13 |
+| Preço/peça | 70,58px | 9 |
+| Custo/peça | 75,98px | 1 |
+
+**A descoberta que mudou o conserto:** em 4 colunas quem define a largura mínima é o **RÓTULO**, não
+o dado — "Custo/peça" mede **93px** de cabeçalho contra 88,4px do maior valor. E o `th` **não** tem
+`overflow: hidden`: sem piso ele não cortava, **invadia o vizinho**. Por isso os pisos são
+`max(rótulo, conteúdo)` medidos, e não "o maior número + folga".
+
+O critério do que ganha piso: **um número cortado vira outro número** (`R$ 617,90` → `R$ 617,9`),
+então coluna de valor tem piso obrigatório; **nome e máquina continuam com reticências**, porque
+nome cortado continua sendo o nome. A rolagem horizontal voltou ao `.table-scroll` como *válvula*:
+`min-width: 740px` = a soma das faixas + folgas + recuo. Acima disso nada rola e o desktop é
+idêntico ao de antes (medido a 1280: as 7 faixas com os MESMOS valores de antes da mudança).
+**Depois: zero número cortado nas duas larguras.**
+
+**(c) /vendas, cada recibo com colunas próprias.** Cada recibo é uma `<table>` independente em
+layout automático → as colunas se dimensionavam pelo nome mais longo *daquele* recibo. A auditoria
+mediu 8px entre dois vizinhos; **medido com os 23 recibos na tela, o desalinhamento chega a 39px**.
+Conserto: `table-layout: fixed` + `<colgroup>` — a mesma receita que a `.cost-detail-table` já usava
+no próprio arquivo. **Depois: spread 0,00 nas 7 colunas.** No celular (≤640px) o recibo volta ao
+layout automático: ali a comparação entre recibos não acontece (cabe um por tela) e a grade fixa
+custaria ~450px de rolagem contra os ~126px de hoje.
+
+### UX-22 — os dois cartões do /orcamento
+
+Duas causas, não uma. **(1)** O 1º campo da esquerda ("Nome do negócio") era o único da tela **sem
+rótulo visível** — só `aria-label` — enquanto o da direita começa com rótulo: daí o Δ15. **(2)** Os
+dois cartões tinham **duas réguas verticais** para o mesmo tipo de conteúdo: `.field-block.compact`
+= 12px contra `.two-col` = 20px. Corrigido na régua (um valor para os dois seletores, escopado ao
+/orcamento porque `.two-col` é compartilhado com a calculadora, o SaleModal e a /producao), e não
+empurrando um cartão com número fixo.
+
+**(3) O campo de data.** Media 37px contra 35px do vizinho: o Chrome dá 18px de conteúdo ao
+`::-webkit-datetime-edit` onde o texto recebe 16. `line-height` **não resolve** (testado: 36 contra
+34 — a diferença sobrevive). Como o `box-sizing` é `border-box`, devolver 1px em cada lado do recuo
+vertical dá os 35px exatos. Vale para os **9** `type="date"` do app, todos em `.field-input`.
+
+**Medido depois:** topo dos campos — esquerda `[67, 133, 199]`, direita `[67, 133]` → **Δ0** nas
+duas linhas compartilhadas (era Δ15 e Δ35). Alturas: `text`, `number` e `date` **todas 35px**.
+
+### UX-23 — `PageIntro`
+
+Eram **seis** introduções (a auditoria contou 4 tratamentos; a 5ª e a 6ª estavam nas abas do
+estoque) com três CSS diferentes: `.subtitle` (14px/560px), `.stock-intro` (**12px**/640px, e
+espremido ao lado do botão dentro da `.stock-bar`), `.roi-note`. Viraram um componente com **uma**
+medida de linha (`70ch`), uma posição e um espaçamento. **Medido: `max-width` computada de
+618,2px, idêntica nas 6.**
+
+Duas consequências registradas: no /estoque a `.stock-bar` ficou só com a ação (numa das duas
+ocorrências ela não tinha nem botão — era invólucro só para carregar o parágrafo); e a regra do
+UX-14 que escondia o texto no celular valia só para a calculadora porque só ela tinha `.subtitle`
+— com o componente, ela passa a valer para as 6. É o mesmo conteúdo pelo mesmo motivo (o texto do
+/estoque tinha 4 linhas), e reverter é uma regra só.
+**/catalogo e /vendas seguem sem introdução** — decisão do dono: texto de produto é a voz dele.
+
+### UX-33 — os dois níveis de navegação
+
+**(a) Hierarquia.** O UX-17b deixou as abas do estoque byte a byte iguais às da NavBar: resolveu o
+*estilo* e criou um problema de *hierarquia*. A resposta não foi voltar a dois estilos, e sim
+**mesma família com pesos diferentes** — a NavBar mantém o chip **preenchido**
+(`--chip-active-bg`), a aba interna fica só com contorno e letra em accent. O terceiro paradigma (o
+segmentado de desconto do `SaleModal`) **não entrou**: é controle de formulário, não navegação —
+fica registrado em comentário para não voltar como achado novo.
+
+**(b) `PageHeader`.** O bloco `.header` estava **copiado em 7 arquivos**, junto com o mapa
+`statusLabel`, variando só em título, meta, ícone e presença do chip de status. Virou um componente
+com `{title, meta, status?, icon?, theme, onToggleTheme}`. O `Header.tsx` da calculadora virou
+invólucro fino (o que sobrou de próprio é o título ser o botão da marca).
+
+**(c) A faixa de utilitários.** "Escuro" e "Sair" saíram da `.navbar-utils` para a linha do título.
+**Medido:** a 1024 de viewport a `.navbar-bar` tinha **98px** e passou a **53px** — **45px** de
+faixa devolvidos em toda página (a auditoria estimou "~40px"). ⚠ **A 1280 a economia é 0** — ali os
+7 destinos + 2 utilitários já cabiam numa linha; o ganho é da faixa 761–1100, e a 1280 o que muda é
+só a hierarquia. No celular os dois viram ícone puro de 40px e se juntam ao ☰ no canto (o rótulo
+sai por CSS, não por renderização condicional, para não haver dois nós disputando a ordem de
+tabulação); a reserva do `.header` subiu de 52px para 144px. **Medido a 375×812 com o título mais
+longo:** sem colisão brand↔utils, sem sobreposição utils↔☰, 8px entre eles, 43px de folga abaixo,
+rolagem horizontal 0.
+
+### Verificação e as duas ressalvas honestas
+
+`pnpm lint` ✅ · `pnpm test` **386/386** ✅ · `pnpm build` ✅.
+
+**Varredura de contraste (não-regressão da onda 2): 3.610 textos, 7 rotas × 2 temas.** Duas
+reprovações sobreviveram, **ambas anteriores a esta onda e em cores que ela não tocou** (conferido
+no `git diff`: nenhuma linha de `margin-bad`/`--danger` mudou):
+- **escuro, /catalogo:** `.margin-bad` a **4,47** contra 4,5 — `rgb(224,82,82)` sobre o card sólido
+  `rgb(26,26,46)`, **sem tingimento no meio**, então 4,47 é o valor exato, não erro de medida. É a
+  cor da régua da DEC-04.
+- **claro, 3 rotas:** o `.btn.primary` **desabilitado** a **4,43** — que é exatamente o
+  **[UX-32]** da onda 4.
+
+⚠ **Armadilha de medição, para a próxima varredura:** o `body` tem `transition: background 0.2s`.
+Medir contraste logo após trocar de tema lê a cor **no meio da transição** e produz reprovação
+fantasma — na primeira passada apareceram 9 falsos positivos, incluindo um texto a "1,02". A
+varredura precisa injetar `*{transition:none}` e forçar um reflow antes de ler.
+
+⚠ **O ambiente ficou sem memória** (7,7 GB de RAM, ~1,2 GB livres): `lint`, `test` e `build`
+abortaram com OOM várias vezes antes de passarem, e o renderizador de screenshot travou no fim. Não
+tem relação com o código — o primeiro `pnpm lint` já abortava assim antes das mudanças.
+
 ## ✅ Onda 2 do backlog — o bloco COR (2026-08-16)
 
 > **Os 5 itens:** `TD-014` (tokenizar a cor) · `UX-20` (a cor do lucro) · `UX-24` (contraste AA) ·

@@ -88,6 +88,17 @@
   color: var(--ink);
 }
 
+/* UX-22 — o controle nativo de data media 37px contra os 35px de todo o resto,
+   e no /orcamento ele fica lado a lado com um campo comum na MESMA linha. A
+   causa é do navegador: o `::-webkit-datetime-edit` recebe 18px de conteúdo
+   onde o texto recebe 16. Como o `box-sizing` é `border-box`, devolver 1px em
+   cada lado do recuo vertical dá os 35px exatos — sem mexer na fonte nem na
+   caixa dos outros campos. Vale para os 9 `type="date"` do app (/orcamento,
+   /estoque, /vendas, /producao e os 4 modais), todos em `.field-input`. */
+input[type="date"].field-input {
+  padding-block: calc(var(--space-8) - 1px);
+}
+
 .field-input:focus,
 .fc-item input:focus,
 .capacity-inputs input:focus,

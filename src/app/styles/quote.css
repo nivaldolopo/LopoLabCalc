@@ -12,6 +12,27 @@
   margin-bottom: var(--space-12);
 }
 
+/* UX-22 — a segunda causa do desalinhamento entre os dois cartões: eles têm o
+   mesmo TIPO de conteúdo (linhas de campo), mas duas réguas verticais. O
+   cartão da esquerda alterna campo solto e par (`.field-block.compact` = 12px)
+   com o par (`.two-col` = 20px); o da direita é só par. Medido antes: 2ª linha
+   a 129px na esquerda contra 149px na direita.
+   Uma linha de campo é uma linha de campo — aqui as duas usam a MESMA régua, e
+   é por isso que a regra vale para os dois seletores de uma vez, em vez de
+   empurrar um cartão com número fixo. Escopado ao /orcamento: `.two-col` é
+   compartilhado com a calculadora, o SaleModal e a /producao, que têm o próprio
+   ritmo. */
+.quote-card .field-block.compact,
+.quote-card .two-col {
+  margin-bottom: var(--space-16);
+}
+
+/* Dentro do par, o campo é CÉLULA da grade — quem carrega o ritmo da linha é o
+   `.two-col`. A margem aqui só empilhava espaço morto no fim das duas colunas. */
+.quote-card .two-col .field-block.compact {
+  margin-bottom: 0;
+}
+
 .quote-list {
   display: flex;
   flex-direction: column;

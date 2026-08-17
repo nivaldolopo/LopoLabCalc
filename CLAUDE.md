@@ -14,33 +14,31 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ ONDA 2 FECHADA — o bloco COR (2026-08-16)**. **TD-014** (a cor virou
-  token: `--danger`/`--warn`/`--success`/`--accent-*`/`--cost-*`, a tinta num `-rgb` e o resto
-  derivando — ~80 literais convertidos) · **UX-20** (a cor mora na %, com 5 exceções escritas no
-  código) · **UX-24** (AA) · **UX-25** (as 5 ações) · a parte de cor do **UX-26**. Medido no DOM:
-  **4.561 textos em 7 rotas × 2 temas, zero reprovações**; **386 testes intactos**. Writeup e as 3
-  descobertas da passada: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ ONDA 3 FECHADA — grade e alinhamento (2026-08-16)**. **UX-21** (deriva do
+  catálogo **1–3px → 0** e **zero número cortado** a 826px, onde 93/93 margens eram cortadas;
+  `/vendas` com `fixed`+colgroup, spread **39px → 0**) · **UX-22** (**Δ0** entre os cartões; o
+  `type="date"` dos 9 campos passa a medir 35px) · **UX-23** (`PageIntro`: 6 introduções, 3 CSS →
+  **618,2px idênticos**) · **UX-33** (`PageHeader` apaga as 7 cópias do cabeçalho; Escuro/Sair sobem
+  pro título = **−45px** a 1024; aba interna vira contorno). `lint` ✅ · **386/386** ✅ · `build` ✅.
+  Writeup + as 2 ressalvas de contraste: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo — o PDF antes da
-  logo obriga a refazer o cabeçalho. **As CORES saíram (2026-08-16): amarelo + preto**; a **logo
-  não** (2 opções em prévia com o designer). Destrava quando o dono avisar.
-- **▶ PRÓXIMA TAREFA — a onda 3 do [`BACKLOG.md`](.claude/BACKLOG.md): grade e alinhamento**
-  (`UX-21` restante · `UX-22` · `UX-23` · `UX-33`). É o que o dono viu com os próprios olhos
-  ("textos descentralizados"). ⚠ O `UX-21` carrega um achado novo da onda 1: a 826px de largura
-  útil a coluna de preço do catálogo **transborda e é cortada** — é defeito de GRADE, não de
-  alinhamento.
-- **Ordem do backlog (dono, 2026-08-16): ondas 0–5**, com **0, 1 e 2 fechadas** — restam 10 itens.
-  **⚠ O prazo externo acabou:** ele existia só pelo `TD-014`, e com a cor tokenizada o rebrand virou
-  troca de paleta **+ 1 token** (o amarelo carrega texto PRETO, não branco — o `--accent-strong`
-  inverte; detalhe no `BACKLOG.md`). Da onda 3 em diante nada tem prazo — a ordem é valor, não
-  urgência. `DEC-05` (lucide) segue fora da fila, junto do rebrand. Porquês: `HISTORICO.md`.
+- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **As CORES saíram
+  (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (o que a
+  prévia já decide, e o token `--on-accent` que a troca exige): `BACKLOG.md`.
+- **▶ PRÓXIMA TAREFA — a onda 4 do [`BACKLOG.md`](.claude/BACKLOG.md): sistema**
+  (`TD-015` os 8 modais · `UX-29` · `UX-31` · `UX-28` · `UX-32`). Cara, sem prazo, alto valor
+  estrutural. ⚠ O `PageHeader` da onda 3 **já barateou o `UX-29`**: as 7 cópias de `.header`
+  viraram uma, então trocar `<div>`→`<header>` e acertar a hierarquia de títulos é um lugar só.
+- **Ordem do backlog (dono, 2026-08-16): ondas 0–5**, com **0, 1, 2 e 3 fechadas** — restam 6 itens
+  (+ o `UX-35`, achado novo de contraste). **Nada mais tem prazo** — a ordem é valor. `DEC-05`
+  (lucide) segue fora da fila, junto do rebrand. Detalhe e porquês: `BACKLOG.md`/`HISTORICO.md`.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
-- ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do `/maquinas`
-  usa lucro **bruto** de vendas, sem fixo nem perda (UX-09); e paginar resolveu a **lista**, não a
-  **análise** — ROI e Dashboard agregam o histórico inteiro (TD-006). ROI: ver `lib/machineRoi.ts`.
+- ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
+  `/maquinas` usa lucro **bruto**, sem fixo nem perda (UX-09); e paginar resolveu a **lista**, não a
+  **análise** (TD-006). ROI: `lib/machineRoi.ts`.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).
@@ -81,6 +79,9 @@ src/
                             #   SaleModal + SaleFlow (a fiação dele, usada pelas 2 páginas),
                             #     Header, AuthGate, NavBar (no celular vira gaveta — UX-14),
                             #     MobilePriceBar (UX-13b) ·
+                            #   PageHeader (o cabeçalho das 8 rotas: título+meta+status+ícone e
+                            #     os utilitários Escuro/Sair — UX-33) + PageIntro (o texto de
+                            #     introdução, ~70ch — UX-23) ·
                             #   compartilhados: NumberInput, ProfitSummary, SearchBox, CostBars,
                             #     ConfirmDialog (+useConfirm), FeedbackNote (+useFeedback),
                             #     NetMarginHint (UX-10), CostDetail (composição 1 ou 2 colunas —
@@ -130,10 +131,14 @@ src/
   `-tint`, borda → `-line`. **Três papéis do laranja:** `--accent` só onde NÃO carrega letra ·
   `--accent-text` quando É texto · `--accent-strong` quando carrega texto **branco** em cima.
   Categorias de custo → `--cost-*`. Hex cru só para `#fff` sobre preenchimento e sombras.
-  ⚠ **Ao escolher/alterar um tom, meça no DOM o PIOR fundo real** — não o card: a cor costuma pousar
-  sobre o seu próprio tingimento a 10%, e ali ela perde ~0,3 de contraste.
-- **Coluna de número usa `.num`** (alinha à direita) — `sales.css`, `cesta-recibo.css` e, desde o
-  UX-21, `catalog.css`. `tabular-nums` é global (`body`, UX-27): não redeclarar por componente.
+  ⚠ **Ao escolher/alterar um tom, meça no DOM o PIOR fundo real** (o tingimento a 10% come ~0,3), e
+  **mate `transition` antes de ler** — senão a medida pega a cor no meio da troca de tema.
+- **Coluna de número usa `.num`** (direita) — `sales.css`, `cesta-recibo.css`, `catalog.css`.
+  `tabular-nums` é global (`body`, UX-27): não redeclarar por componente. **Faixa de número tem
+  PISO `max(rótulo, conteúdo)` medido no DOM; faixa de nome tem reticências** (UX-21) — número
+  cortado vira outro número. Rolagem horizontal só como válvula (`min-width`).
+- **Cabeçalho e introdução de página são COMPONENTE** — `PageHeader` e `PageIntro`. Página nova não
+  copia `.header` nem inventa `.subtitle`/`.stock-intro`/`.roi-note` próprios.
 - `src/lib/firebase/client.ts` — init + `db`; lê `NEXT_PUBLIC_FIREBASE_*` com fallback embutido nos
   valores reais (hoje as vars da Vercel são ignoradas).
 - **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar

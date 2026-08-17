@@ -22,7 +22,7 @@ import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
 import { marginTierClass, marginTierTitle } from "../lib/marginTier";
 import { reverseReciboReconciliation } from "../lib/saleReconciliation";
-import type { CloudStatus, ProductionEvent, RoundingMode, Sale } from "../types";
+import type { ProductionEvent, RoundingMode, Sale } from "../types";
 import {
   fetchAllSales,
   reconcileRecibo,
@@ -36,6 +36,7 @@ import { CostBreakdownTable } from "./CostDetail";
 import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { NavBar } from "./NavBar";
+import { PageHeader } from "./PageHeader";
 import { SaleModal, type EditReciboSeed } from "./SaleModal";
 import {
   productPrintHours,
@@ -43,13 +44,6 @@ import {
   saleContextFromSubitem,
   type SaleModalContext,
 } from "../lib/saleContext";
-
-const statusLabel: Record<CloudStatus, string> = {
-  connecting: "Conectando nuvem...",
-  synced: "Sincronizado",
-  importing: "Importando...",
-  error: "Erro de Conexão",
-};
 
 const paymentLabel = new Map(PAYMENT_METHODS.map((p) => [p.value, p.label]));
 const channelLabel = new Map(SALE_CHANNELS.map((c) => [c.value, c.label]));
@@ -500,20 +494,14 @@ export function SalesPage() {
 
   return (
     <main className="wrap">
-      <div className="header">
-        <div className="brand">
-          <div>
-            <h1 className="sg">Vendas</h1>
-            <div className="brand-meta">
-              <span>Histórico de vendas — Lopo Lab</span>
-              <span className={`cloud-status ${status}`}>
-                {statusLabel[status]}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <NavBar theme={theme} onToggleTheme={toggleTheme}>
+      <PageHeader
+        title="Vendas"
+        meta="Histórico de vendas — Lopo Lab"
+        status={status}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+      <NavBar>
         <button
           className="icon-label-button"
           type="button"
@@ -720,6 +708,23 @@ export function SalesPage() {
                   do cartão fica. */}
               <div className="recibo-items-scroll">
               <table className="recibo-items">
+                {/* UX-21 — cada recibo era uma <table> PRÓPRIA em layout
+                    automático, então as colunas se dimensionavam pelo nome mais
+                    longo DAQUELE recibo. Medido a 1280 com 23 recibos na tela:
+                    até 39px de deslocamento entre a mesma coluna de recibos
+                    diferentes (a auditoria tinha visto 8px entre dois vizinhos).
+                    Este colgroup + o `table-layout: fixed` do CSS dão a TODOS a
+                    mesma grade. As faixas de número são fixas (largura medida no
+                    DOM); o nome é o resto, e é ele quem absorve a variação. */}
+                <colgroup>
+                  <col />
+                  <col className="ri-col-qty" />
+                  <col className="ri-col-money" />
+                  <col className="ri-col-money" />
+                  <col className="ri-col-cost" />
+                  <col className="ri-col-money" />
+                  <col className="ri-col-actions" />
+                </colgroup>
                 <tbody>
                   {recibo.items.map((sale) => {
                     const isOpen = openSaleId === sale.id;

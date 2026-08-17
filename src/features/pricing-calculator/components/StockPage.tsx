@@ -65,7 +65,6 @@ import { useSales } from "../hooks/useSales";
 import { useStock } from "../hooks/useStock";
 import { useTheme } from "../hooks/useTheme";
 import type {
-  CloudStatus,
   FilamentRoll,
   FinishedGood,
   FixedCostSettings,
@@ -80,19 +79,14 @@ import { useConfirm } from "./ConfirmDialog";
 import { CostBreakdownTable, CostDetail } from "./CostDetail";
 import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { NavBar } from "./NavBar";
+import { PageHeader } from "./PageHeader";
+import { PageIntro } from "./PageIntro";
 import { SaleFlow } from "./SaleFlow";
 import { SearchBox } from "./SearchBox";
 import { StockAdjustModal } from "./StockAdjustModal";
 import { StockColorModal, type StockColorDraft } from "./StockColorModal";
 import { StockRollModal } from "./StockRollModal";
 import { SuppliesTab } from "./SuppliesTab";
-
-const statusLabel: Record<CloudStatus, string> = {
-  connecting: "Conectando nuvem...",
-  synced: "Sincronizado",
-  importing: "Importando...",
-  error: "Erro de Conexão",
-};
 
 function grams(value: number): string {
   return `${Math.round(num(value))} g`;
@@ -1174,20 +1168,14 @@ export function StockPage() {
 
   return (
     <main className="wrap">
-      <div className="header">
-        <div className="brand">
-          <div>
-            <h1 className="sg">Estoque</h1>
-            <div className="brand-meta">
-              <span>Filamento, insumos e produtos — Lopo Lab</span>
-              <span className={`cloud-status ${status}`}>
-                {statusLabel[status]}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <NavBar theme={theme} onToggleTheme={toggleTheme} />
+      <PageHeader
+        title="Estoque"
+        meta="Filamento, insumos e produtos — Lopo Lab"
+        status={status}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+      <NavBar />
 
       {error ? <div className="app-error">{error}</div> : null}
 
@@ -1247,13 +1235,17 @@ export function StockPage() {
         </div>
       </div>
 
+      {/* UX-23 — a introdução saiu de DENTRO da `.stock-bar`, onde dividia a
+          linha com o botão e ficava espremida numa medida própria. Agora ela é
+          `PageIntro` (mesma largura de leitura das outras páginas) e a barra
+          fica só com a ação. */}
+      <PageIntro>
+        Cada cor guarda os rolos que você comprou, com o preço real de cada um. O
+        consumo é do rolo mais antigo para o mais novo. Já dá para escolher a cor
+        no produto (o preço/kg sai daqui, do rolo mais novo); a baixa automática
+        na venda vem no próximo passo.
+      </PageIntro>
       <div className="stock-bar">
-        <p className="stock-intro">
-          Cada cor guarda os rolos que você comprou, com o preço real de cada um.
-          O consumo é do rolo mais antigo para o mais novo. Já dá para escolher a
-          cor no produto (o preço/kg sai daqui, do rolo mais novo); a baixa
-          automática na venda vem no próximo passo.
-        </p>
         <button
           className="btn primary"
           type="button"
@@ -1350,17 +1342,17 @@ export function StockPage() {
             </div>
           </div>
 
-          <div className="stock-bar">
-            <p className="stock-intro">
-              Peças já impressas e ainda não vendidas, com o custo congelado no
-              momento da produção. A produção enche este estoque; a venda vai
-              esvaziá-lo no próximo passo. Para produtos com subitens, o número em
-              destaque é quantos conjuntos completos dá para montar (o menor saldo
-              entre as partes). Ao <strong>Produzir</strong>, cada impressão rende
-              a quantidade definida em &ldquo;peças por impressão&rdquo; do produto
-              (mesa de N) — ajuste a tiragem na tela de Produção.
-            </p>
-          </div>
+          {/* UX-23 — aqui a `.stock-bar` não tinha nem botão: era um invólucro
+              só para carregar o parágrafo. Sai junto com o `.stock-intro`. */}
+          <PageIntro>
+            Peças já impressas e ainda não vendidas, com o custo congelado no
+            momento da produção. A produção enche este estoque; a venda vai
+            esvaziá-lo no próximo passo. Para produtos com subitens, o número em
+            destaque é quantos conjuntos completos dá para montar (o menor saldo
+            entre as partes). Ao <strong>Produzir</strong>, cada impressão rende a
+            quantidade definida em &ldquo;peças por impressão&rdquo; do produto
+            (mesa de N) — ajuste a tiragem na tela de Produção.
+          </PageIntro>
 
           {stockedGoods.length === 0 ? (
             <div className="sales-empty">

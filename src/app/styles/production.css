@@ -1,9 +1,8 @@
 /* Registro de produção (/producao) — FEAT-04b. Form de impressão + lista dos
    eventos recentes. Reusa .field-input/.btn/.two-col de forms.css. */
 
-.prod-intro {
-  margin-bottom: var(--space-16);
-}
+/* UX-23 — `.prod-intro` saiu: o texto de introdução virou `PageIntro`, com o
+   espaçamento vindo do componente e não de um ajuste por página. */
 
 .prod-form {
   display: flex;

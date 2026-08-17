@@ -12,16 +12,14 @@
   margin: 0 0 var(--space-16);
 }
 
-.stock-intro {
-  font-size: var(--text-sm);
-  color: var(--muted);
-  line-height: 1.5;
-  margin: 0;
-  max-width: 640px;
-}
+/* UX-23 — `.stock-intro` saiu: o texto virou `PageIntro` e subiu para cima da
+   barra. Tinha `--text-sm` e `max-width: 640px` só dele, contra o `--text-lg` e
+   os 560px do `.subtitle` da calculadora — dois tratamentos para o mesmo papel.
+   A `.stock-bar` continua: agora carrega só a ação. */
 
 /* .btn.primary é flex:1 por padrão (nasceu no formulário) — aqui ele é um botão
-   solto ao lado do texto, não uma barra. */
+   solto, não uma barra. Sem o texto ao lado isto vira o único freio contra ele
+   esticar na largura inteira. */
 .stock-bar .btn.primary {
   flex: 0 0 auto;
 }
@@ -366,11 +364,26 @@
   border-color: var(--muted);
 }
 
+/* UX-33 — os dois níveis de navegação tinham a MESMA aparência. O UX-17b
+   unificou o estilo (havia dois paradigmas de aba: chip na NavBar, sublinhado
+   aqui) e, ao fazer isso, criou um problema de HIERARQUIA: "em que página
+   estou" e "em que aba estou" ficavam idênticos, a poucos pixels de distância.
+   A resposta não é voltar a dois estilos, é MESMA FAMÍLIA com pesos
+   diferentes: o nível de cima (NavBar) fica com o chip PREENCHIDO
+   (`--chip-active-bg`, em `forms.css`); o de baixo fica só com o contorno em
+   accent e a letra em accent, sem preenchimento.
+   ⚠ Nada de `color: white` aqui: seria o 6º branco cravado sobre accent, e a
+   marca amarela inverte esse par (o amarelo carrega letra PRETA). O
+   `--accent-text` já resolve nos dois temas — ver [branding/rebrand]. */
 .stock-tab.active {
   border-color: var(--accent);
   color: var(--accent-text);
-  background: var(--chip-active-bg);
 }
+
+/* O terceiro paradigma de "escolher 1 de N" — o segmentado de desconto do
+   SaleModal (`cesta-recibo.css`) — NÃO entra aqui: é controle de formulário
+   dentro de um modal, não navegação. Fica registrado para não voltar como
+   achado novo. */
 
 /* Cards do Estoque de Produtos (acabados) */
 .fg-icon {

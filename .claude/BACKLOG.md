@@ -6,9 +6,9 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
-> **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15 e as ondas 0–2 ✅ FECHADOS.** O
+> **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15 e as ondas 0–3 ✅ FECHADOS.** O
 > registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e os
-> writeups das ondas 1 e 2. **Este arquivo só tem o que está ABERTO.**
+> writeups das ondas 1, 2 e 3. **Este arquivo só tem o que está ABERTO.**
 
 ## Ordem de prioridade — ondas (dono, 2026-08-16)
 
@@ -28,15 +28,14 @@
 > ⚠ Dentro de cada onda **não há ordem** — são do mesmo tamanho e do mesmo tipo. O que a onda fixa
 > é *quando o bloco entra*, não a sequência interna.
 
-> ✅ **Ondas 0, 1 e 2 FECHADAS em 2026-08-16** (mesmo dia). A 0 eram as duas perguntas —
+> ✅ **Ondas 0, 1, 2 e 3 FECHADAS em 2026-08-16** (mesmo dia). A 0 eram as duas perguntas —
 > respondidas (ver abaixo); a 1 eram os 5 consertos; a 2 era o bloco COR, com o **prazo externo da
-> marca já neutralizado** (a cor virou token: o rebrand agora é troca de paleta). Writeups:
-> `HISTORICO.md`.
+> marca já neutralizado** (a cor virou token: o rebrand agora é troca de paleta); a 3 era grade e
+> alinhamento. Writeups: `HISTORICO.md`.
 
 | Onda | Itens | Por que aqui |
 |---|---|---|
-| **▶ 3 — grade e alinhamento** | resto do **[UX-21]** · **[UX-22]** · **[UX-23]** · **[UX-33]** | É literalmente o que o dono viu com os próprios olhos ("textos descentralizados"). |
-| **4 — sistema** | **[TD-015]** (8 modais) · **[UX-29]** · **[UX-31]** · **[UX-28]** · **[UX-32]** | Caro, sem prazo, alto valor estrutural. O TD-015 apaga 8 cópias de `.modal-overlay`. |
+| **▶ 4 — sistema** | **[TD-015]** (8 modais) · **[UX-29]** · **[UX-31]** · **[UX-28]** · **[UX-32]** | Caro, sem prazo, alto valor estrutural. O TD-015 apaga 8 cópias de `.modal-overlay`. **O `PageHeader` da onda 3 já barateou o UX-29** (as 7 cópias de `.header` viraram uma). |
 | **5 — matemática e leitura** | **[UX-26]** (só a MATEMÁTICA das barras) · **[TD-016]** · **[UX-34]** | ✅ Destravada — o **[DEC-06]** foi respondido. A parte de COR do UX-26 saiu na onda 2. |
 | **fora da fila** | **[DEC-05]** (lucide) | Fazer **junto do rebrand**, não antes — ver o critério acima. |
 | **⏸ bloqueadas** | **[FEAT-03]** + **[branding/logo real]** (a marca não existe) · **[Dashboard]** (precisa de ~1-2 meses de venda real) | Sempre por último; nenhuma das duas depende de decisão nossa. |
@@ -63,36 +62,11 @@
 > (é alinhamento → foi pra **onda 3**, não pra 1), e o `DEC-06` subiu pra **onda 0** por ser
 > pergunta que travava a matemática de quem vier depois.
 >
-> ✅ **Ondas 0, 1 e 2 fechadas no mesmo dia** — restam **10 itens** aqui.
+> ✅ **Ondas 0, 1, 2 e 3 fechadas no mesmo dia** — restam **6 itens** aqui.
 >
 > ⚠ **Continua valendo que o mérito de cada item é levantamento** — a ordem diz *quando* o bloco
 > entra, não que o desenho da solução já está aprovado. As "Sugestões" escritas em cada item
 > seguem sendo sugestão da auditoria, não martelo.
-
-#### Alinhamento — o que o dono viu como "textos descentralizados"
-
-- **[UX-21 — o que SOBROU] As listas não têm UMA grade só** *(A1 + A3; o A2 foi fechado na onda 1)*.
-  Dois defeitos com a mesma raiz: no **catálogo**, cabeçalho (`padding 0 20px`, sem borda, conteúdo
-  **906px**) e linhas (`padding 14px 16px` + borda 1px, conteúdo **904px**) são grades
-  independentes → deriva de **1–3px que acumula** até "AÇÕES"; e em **`/vendas` cada recibo é uma
-  `<table>` própria em layout automático**, então as colunas se dimensionam pelo nome mais longo
-  *daquele* recibo (**8px de deslocamento** medido entre recibos vizinhos).
-  ✅ A parte do `text-align` **saiu na onda 1** — `.num` chegou ao catálogo e a vírgula alinha
-  (medido a 1280: um único x, `485.28`, entre `R$ 33,64` e `R$ 617,90`).
-  ⚠ **Achado NOVO da verificação da onda 1, e é desta onda:** a 1280 a coluna de preço cabe, mas a
-  **826px de largura útil ela não cabe** — `R$ 617,90` mede **75,61px** numa faixa de **73,7px**
-  (`1.1fr` do `grid-template-columns` do `catalog.css:655`), o texto **transborda e é cortado** pelo
-  `overflow: hidden` do `.main-row td`. É defeito de GRADE, não de alinhamento — existia antes,
-  escondido pelo alinhamento à esquerda. Consertar junto da deriva de 1–3px.
-  **Onde:** `catalog.css` · `cesta-recibo.css` · `SalesPage.tsx`.
-- **[UX-22] No `/orcamento`, os dois cartões nunca compartilham linha de base** *(A4)*. Topo dos
-  campos: esquerda `235·297·379`, direita `250·250·332·332` (**Δ15** e **Δ35**). Junto: o campo
-  `type="date"` mede **37px** contra 35px do vizinho na mesma linha. **Onde:** `QuotePage.tsx` +
-  `quote.css` + `forms.css`.
-- **[UX-23] O texto de introdução de página tem 4 tratamentos** *(A5)*. `/estoque` espremido ao
-  lado do botão · `/producao` largura inteira · `/maquinas` **dois** parágrafos (~120px antes do
-  1º dado) · `/catalogo` e `/vendas` nenhum. Nunca virou componente. **Sugestão:** um
-  `PageIntro` com medida de linha limitada (~70 caracteres).
 
 #### Gráficos e números
 
@@ -147,23 +121,24 @@
   `background: var(--border)` + `color: var(--muted2)`, largura inteira, 45px — na calculadora
   sem nome e em `/producao` sem produto é o **maior elemento da tela**. **Sugestão:** contorno em
   vez de preenchimento + uma linha dizendo **o que falta** ("dê um nome ao produto para salvar").
+  ⚠ **Número novo (varredura da onda 3):** ele também **reprova AA** — **4,43** contra 4,5, no tema
+  **claro**, em 3 rotas ("Salvar", "Gerar PDF", "Registrar produção"). Quem resolver este item já
+  resolve o contraste de brinde; não vale abrir item separado.
+- **[UX-35 — achado NOVO da varredura da onda 3] A faixa de margem RUIM reprova AA no escuro.**
+  `.margin-bad` (a régua da DEC-04) é `rgb(224,82,82)` sobre o card sólido `rgb(26,26,46)` do tema
+  escuro = **4,47** contra 4,5. **Sem tingimento no meio** — 4,47 é o valor exato, não erro de
+  medida. Aparece em 10 linhas do /catalogo. É anterior à onda 3 (nenhuma linha de
+  `margin-bad`/`--danger` mudou nela) e **passou batido na varredura da onda 2**.
+  **Sugestão:** escurecer 1 passo o `--danger` do tema escuro, ou clarear o texto — medir no card
+  sólido, que aqui é o pior fundo. **Onde:** `base.css` (o token) + `marginTier`.
+  ⚠ **Armadilha ao remedir:** o `body` tem `transition: background 0.2s`. Ler contraste logo após
+  trocar de tema pega a cor NO MEIO da transição e gera reprovação fantasma (na 1ª passada deu 9
+  falsos positivos, um deles "1,02"). Injetar `*{transition:none}` e forçar reflow antes de ler.
 - **[G2 → anexado à [DEC-05]]** — os emoji dos rótulos **não seguem regra nenhuma**: no MESMO
   formulário, `🏷️ nome da etapa`/`🎨 filamento`/`⏱ tempo`/`⚡ tarifa`/`🔢 peças`/`🎲 taxa` têm, e
   `nome do produto`/`máquina`/`cor`/`filamento (R$/kg)`/`total (g)`/`mão de obra`/`valor-hora`
   não têm. **Não é decoração deliberada, é acaso.** Ao executar a DEC-05, decidir também o
   **critério** (ou todo rótulo de seção tem ícone, ou nenhum tem).
-
-#### Hierarquia de navegação
-
-- **[UX-33] Dois níveis de navegação com a MESMA aparência** *(H1 + H2 + H3)*. O UX-17b deixou as
-  abas do estoque "byte a byte iguais" às da NavBar — resolveu o **estilo** e criou um problema de
-  **hierarquia**: "em que página estou" e "em que aba estou" ficam idênticos, a poucos pixels de
-  distância. E existe um **terceiro** paradigma (o segmentado de desconto no `SaleModal`).
-  Junto: "Escuro"/"Sair" ocupam uma **faixa inteira sozinhos** (~40px em toda página, p/ 2
-  botões). **Sugestão:** mesma família, pesos diferentes — chip preenchido p/ página, sublinhado
-  ou contorno leve p/ aba interna; e os 2 utilitários sobem para a linha do título.
-  ⚠ **Se o chip preenchido usar accent, NÃO escrever `color: white`** — seria o 6º branco cravado
-  sobre accent, e a marca amarela inverte esse par. Ver **[branding/rebrand]**.
 
 #### Matemática
 

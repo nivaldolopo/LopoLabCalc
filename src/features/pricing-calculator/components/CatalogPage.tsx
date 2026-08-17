@@ -19,22 +19,15 @@ import {
 } from "../lib/saleContext";
 import type {
   CapacitySettings,
-  CloudStatus,
   FixedCostSettings,
   PricingResult,
   SavedProduct,
   SortMode,
 } from "../types";
 import { NavBar } from "./NavBar";
+import { PageHeader } from "./PageHeader";
 import { ProductCatalog } from "./ProductCatalog";
 import { SaleFlow } from "./SaleFlow";
-
-const statusLabel: Record<CloudStatus, string> = {
-  connecting: "Conectando nuvem...",
-  synced: "Sincronizado",
-  importing: "Importando...",
-  error: "Erro de Conexão",
-};
 
 // FEAT-07: o catálogo saiu da página principal pra rota própria. A principal
 // ficou só calculadora/cadastro; aqui o catálogo tem a página inteira.
@@ -155,20 +148,14 @@ export function CatalogPage() {
 
   return (
     <main className="wrap">
-      <div className="header">
-        <div className="brand">
-          <div>
-            <h1 className="sg">Catálogo</h1>
-            <div className="brand-meta">
-              <span>Produtos cadastrados — Lopo Lab</span>
-              <span className={`cloud-status ${productsApi.status}`}>
-                {statusLabel[productsApi.status]}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <NavBar theme={theme} onToggleTheme={toggleTheme} />
+      <PageHeader
+        title="Catálogo"
+        meta="Produtos cadastrados — Lopo Lab"
+        status={productsApi.status}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+      <NavBar />
 
       {productsApi.error ? (
         <div className="app-error">{productsApi.error}</div>

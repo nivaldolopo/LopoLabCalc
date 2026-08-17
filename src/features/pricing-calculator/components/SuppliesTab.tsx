@@ -36,6 +36,7 @@ import type {
 } from "../types";
 import { useConfirm } from "./ConfirmDialog";
 import { FeedbackNote, useFeedback } from "./FeedbackNote";
+import { PageIntro } from "./PageIntro";
 import { SearchBox } from "./SearchBox";
 import { SupplyAdjustModal } from "./SupplyAdjustModal";
 import { SupplyLotModal } from "./SupplyLotModal";
@@ -479,14 +480,15 @@ export function SuppliesTab({
         </div>
       </div>
 
+      {/* UX-23 — 6ª e última introdução do app a sair do tratamento próprio. */}
+      <PageIntro>
+        Ímã, argola, parafuso, embalagem — o que entra na peça sem ser filamento.
+        Cada insumo guarda as compras (lotes) com o preço real de cada uma, e o
+        consumo é do lote mais antigo para o mais novo. Ligue o insumo ao
+        acessório do produto na calculadora: a produção passa a dar baixa por
+        unidade.
+      </PageIntro>
       <div className="stock-bar">
-        <p className="stock-intro">
-          Ímã, argola, parafuso, embalagem — o que entra na peça sem ser
-          filamento. Cada insumo guarda as compras (lotes) com o preço real de
-          cada uma, e o consumo é do lote mais antigo para o mais novo. Ligue o
-          insumo ao acessório do produto na calculadora: a produção passa a dar
-          baixa por unidade.
-        </p>
         <button
           className="btn primary"
           type="button"
