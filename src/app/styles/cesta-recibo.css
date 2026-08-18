@@ -580,20 +580,11 @@
   width: 56px;
 }
 
-/* No celular a comparação ENTRE recibos não acontece (cabe um por tela), e o
-   preço da grade fixa ali seria ~450px de rolagem horizontal contra os ~126px
-   de hoje. Abaixo de 640px o recibo volta ao layout automático — o mesmo ponto
-   em que o catálogo já vira cartão. */
-@media (max-width: 640px) {
-  .recibo-items {
-    table-layout: auto;
-    min-width: 0;
-  }
-
-  .recibo-items col {
-    width: auto;
-  }
-}
+/* ⚠ UX-38 — o bloco `@media` do celular MORAVA AQUI e foi para o FIM do arquivo.
+   Ele reescreve `padding` e `border` de `.recibo-items td`, que é a regra logo
+   abaixo: mesma especificidade (0,1,1), e `@media` não soma nada — quem vencia
+   era a ordem, ou seja, a regra de desktop. Medido: o recuo de 10/12px seguia
+   valendo dentro da grade e cada faixa ia a 38px de altura. */
 
 .recibo-items td {
   padding: var(--space-10) var(--space-12);
@@ -703,5 +694,139 @@
   color: var(--muted);
   border-top: 1px solid var(--border-soft);
   background: var(--details-bg);
+}
+
+/* ---------------------------------------------------------------------------
+   UX-38 — no celular a linha do recibo DEIXA DE SER LINHA.
+
+   O que existia antes era a válvula do BUG-06 (rolagem horizontal) + layout
+   automático, e não resolvia: medido a 375×812, a tabela saía com 453px dentro
+   de 345px de cartão. O excedente de 108px é exatamente onde moram o LUCRO
+   (visível só até a 30ª das suas 86px) e o botão de excluir (401…453px, fora da
+   tela inteiro) — conferir o lucro de uma venda exigia rolar cada recibo para o
+   lado, um por um. E a coluna do custo real não estava espremida, como a
+   auditoria supôs: estava ESCONDIDA (a regra morava no `quote.css`, ver lá).
+
+   Sete colunas não cabem em 375px — nenhuma repartição faz caber. Então a linha
+   vira CARTÃO de 3 faixas, a mesma saída do `.fg-part` (estoque) e do
+   `.main-row` (catálogo), com o par que se quer conferir encostado na direita,
+   um sob o outro:
+
+     ▼ Nome do produto                            [excluir]
+       material
+     2×  R$ 33,50                                 R$ 33,50
+     custo real R$ 8,04                           R$ 25,46
+
+   A grade tem 4 pistas porque `qtd` e `preço unitário` precisam ficar COLADOS —
+   é o "2× R$ 33,50" que se lê como uma coisa só e dispensa rótulo. As faixas que
+   atravessam a linha (nome, custo) cruzam a pista flexível e por isso NÃO entram
+   no dimensionamento intrínseco das pistas `auto`: é o que impede um nome
+   comprido de empurrar a coluna do preço.
+
+   ⚠ MORA NO FIM DO ARQUIVO de propósito. O bloco reescreve `padding` e `border`
+   de `.recibo-items td` — mesma especificidade (0,1,1), e `@media` não soma
+   nada. Escrito antes daquela regra, perdia o desempate pela ordem e cada faixa
+   ficava com o recuo de tabela (38px de altura em vez de 21px).
+   --------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  /* Sem tabela não há o que rolar: a válvula do BUG-06 se aposenta aqui. */
+  .recibo-items-scroll {
+    overflow-x: visible;
+  }
+
+  /* ⚠ TODO seletor de elemento aqui usa combinador de FILHO. Dentro do dropdown
+     do UX-06 mora outra tabela inteira — a `CostBreakdownTable` de precificado ×
+     real —, e `.recibo-items tbody` casava com o `<tbody>` DELA: virava bloco,
+     cada linha remontava uma tabela anônima própria e as colunas paravam de se
+     alinhar entre si (medido: cabeçalho em 121/96/96px, corpo em 76/63/62). */
+  .recibo-items,
+  .recibo-items > tbody {
+    display: block;
+    width: auto;
+    min-width: 0;
+  }
+
+  /* O colgroup do UX-21 é a grade ÚNICA do desktop; fora da tabela ele não tem
+     sentido e os `<col>` ainda ocupariam lugar no fluxo. */
+  .recibo-items > colgroup {
+    display: none;
+  }
+
+  .recibo-items > tbody > tr.ri-row {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: var(--space-10);
+    row-gap: var(--space-2);
+    padding: var(--space-10) var(--space-12);
+    border-top: 1px solid var(--border-soft);
+  }
+
+  /* A borda de separação sobe para a `tr`: fora da tabela não há
+     `border-collapse`, e manter as duas do `td` desenharia uma moldura em volta
+     de cada célula. A 1ª linha dispensa a sua — o cabeçalho do recibo já fecha
+     ali em cima. */
+  .recibo-items > tbody > tr > td {
+    padding: 0;
+    border: 0;
+  }
+
+  .recibo-items > tbody > tr:first-child {
+    border-top: 0;
+  }
+
+  /* O ▼ é `inline` e o nome é um `inline-flex` ao lado: quando o nome ocupa duas
+     linhas — e no celular ele ocupa —, a seta sobrava sozinha numa linha só
+     dela. Aqui os dois viram itens de flex, então o ▼ fica ancorado à ESQUERDA
+     do bloco de nome, que quebra dentro da faixa que lhe resta. */
+  .recibo-items .ri-name {
+    grid-area: 1 / 1 / 2 / 4;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-6);
+  }
+
+  .recibo-items .ri-name .ri-name-text {
+    min-width: 0;
+  }
+
+  .recibo-items .ri-actions {
+    grid-area: 1 / 4 / 2 / 5;
+    width: auto;
+  }
+
+  /* UX-36 — 44px é a regra do dedo, e aqui não custa largura nenhuma: a pista da
+     direita já é dimensionada pelo lucro (~86px), não pelo botão. */
+  .recibo-items .ri-actions .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .recibo-items .ri-qty {
+    grid-area: 2 / 1 / 3 / 2;
+  }
+
+  .recibo-items .ri-price {
+    grid-area: 2 / 2 / 3 / 3;
+  }
+
+  .recibo-items .ri-rev {
+    grid-area: 2 / 3 / 3 / 5;
+  }
+
+  .recibo-items .ri-cost {
+    grid-area: 3 / 1 / 4 / 4;
+  }
+
+  .recibo-items .ri-profit {
+    grid-area: 3 / 4 / 4 / 5;
+  }
+
+  /* O dropdown do UX-06 (meta + composição) segue inteiro — só deixa de ser
+     linha de tabela. O `colSpan={7}` do JSX vira inócuo. */
+  .recibo-items > tbody > tr.ri-details-row,
+  .recibo-items > tbody > tr.ri-details-row > td {
+    display: block;
+  }
 }
 

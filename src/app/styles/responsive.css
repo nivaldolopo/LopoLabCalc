@@ -222,5 +222,56 @@
     grid-template-columns: 1fr;
     gap: var(--space-16);
   }
+
+  /* UX-40 — as 3 ações por SUBITEM (vender/produzir/orçar só esta parte) mediam
+     24×24px, e crescer sozinhas era impossível: medido a 375, a linha tem 297px
+     úteis e as 4 faixas já os consomem inteiros (nome 32 · meta 101 · preço 58 ·
+     ações 76 + 3 folgas de 10). Ir a 44px pedia 136px de ações — o nome, que já
+     estava ESPREMIDO em 32px, ia a zero.
+     É alvo E grade ao mesmo tempo, então a saída é a mesma do `.fg-part` do
+     estoque: a linha vira DUAS. Em cima o nome (agora com ~151px) e as ações,
+     que é o par que se lê junto — o botão fica ao lado do que ele opera; embaixo
+     a meta e o preço, alinhado à direita sob os botões.
+     ⚠ Reescrevemos `grid-template-columns` inteiro, com a guarda `minmax(0, …)`
+     junto: dentro de media query ela não é herdada do `catalog.css`. */
+  .subitem-price-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--space-4);
+  }
+
+  .subitem-price-row .sp-name {
+    grid-area: 1 / 1;
+  }
+
+  .subitem-price-row .sp-actions {
+    grid-area: 1 / 2;
+    justify-content: flex-end;
+  }
+
+  .subitem-price-row .sp-meta {
+    grid-area: 2 / 1;
+  }
+
+  .subitem-price-row .sp-price {
+    grid-area: 2 / 2;
+    text-align: right;
+  }
+
+  /* UX-36 — 44px é a regra do DEDO, e aqui ela cabe porque a linha se abriu:
+     3×44 + 2 folgas = 136px numa faixa de 297. */
+  .subitem-price-row .sp-actions .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* A linha do total ("Produto inteiro") não tem ação nem meta — sem isto ela
+     gastaria duas linhas para dizer nome + preço. O preço sobe para a 1ª. */
+  .subitem-price-row.total .sp-price {
+    grid-area: 1 / 2;
+  }
+
+  .subitem-price-row.total .sp-meta {
+    display: none;
+  }
 }
 

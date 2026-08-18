@@ -481,8 +481,13 @@
 
 .subitem-price-row {
   display: grid;
-  /* FEAT-08: 4ª coluna = vender/produzir/orçar só esta parte */
-  grid-template-columns: 1fr auto auto auto;
+  /* FEAT-08: 4ª coluna = vender/produzir/orçar só esta parte.
+     `minmax(0, …)` e não `1fr` puro (auditoria 2026-08-17): o mínimo implícito
+     de `1fr` é o min-content, e aqui a faixa do nome é justamente a que precisa
+     CEDER — sem a guarda ela vira o piso da linha. ⚠ A versão do celular
+     (UX-40, `responsive.css`) reescreve esta linha inteira: guarda não se
+     herda dentro de media query. */
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: var(--space-10);
   font-size: var(--text-sm);
@@ -519,6 +524,9 @@
   gap: var(--space-2);
 }
 
+/* ⚠ UX-40 — os 24px valem só no DESKTOP, e pela mesma conta do UX-36: aqui a
+   linha é uma só e o painel expandido do catálogo não tem faixa sobrando. No
+   celular a linha VIRA DUAS e os botões vão a 44px — ver `responsive.css`. */
 .subitem-price-row .sp-actions .icon-button {
   width: 24px;
   height: 24px;

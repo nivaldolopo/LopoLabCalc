@@ -322,8 +322,12 @@
     justify-content: space-between;
   }
 
-  .recibo-items .ri-cost {
-    display: none;
-  }
+  /* UX-38 — `.recibo-items .ri-cost { display: none }` morava aqui: CSS da
+     /vendas no arquivo do /orcamento (o mesmo defeito de escopo do TD-013), e
+     por isso a auditoria mediu a coluna do custo real como "espremida a zero"
+     no celular — ela estava ESCONDIDA desde sempre, não espremida. Escondia
+     porque não cabia; agora a linha virou cartão de 3 faixas e o custo real
+     volta, encostado no lucro que ele explica. A regra não migrou de arquivo:
+     deixou de existir. */
 }
 

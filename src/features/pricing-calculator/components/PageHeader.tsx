@@ -71,10 +71,20 @@ export function PageHeader({
           renderização condicional, para não haver dois nós disputando a mesma
           ordem de tabulação. */}
       <div className="header-utils">
+        {/* A11Y-01 — o `title` NÃO é rótulo: ele é só o último recurso do
+            cálculo do nome acessível, não sai em toque nenhum e alguns leitores
+            de tela o ignoram por configuração. E aqui o botão fica REALMENTE sem
+            texto no celular, onde o `.header-utils-label` some por CSS: sobrava
+            um emoji `aria-hidden` e mais nada. O `aria-label` nomeia a AÇÃO
+            ("mudar para…"), não o estado, e contém a palavra do rótulo visível
+            do desktop — WCAG 2.5.3. */}
         <button
           className="icon-label-button"
           type="button"
           onClick={onToggleTheme}
+          aria-label={
+            theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"
+          }
           title={
             theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"
           }

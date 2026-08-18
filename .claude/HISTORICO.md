@@ -9,6 +9,98 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ UX-38 + UX-40 + A11Y-01 — a linha do celular vira cartão (2026-08-18)
+
+> **Os 3 últimos itens do cluster da auditoria de layout.** Os dois primeiros são **a mesma forma de
+> problema em telas diferentes**: uma fileira horizontal com mais colunas do que cabem em 375px, em
+> que o dado que se quer conferir (ou o alvo que se quer tocar) fica do lado de fora. O terceiro é
+> independente e saiu de carona por ser barato.
+
+### UX-38 — o lucro do recibo estava atrás de uma rolagem por venda
+
+**Medido antes (375×812):** tabela de **453px** dentro de um cartão de **345px**. O excedente de
+**108px** é exatamente onde moram o **lucro** (faixa de 86px, visível só até a 30ª) e o **excluir**
+(401→453px, fora da tela inteiro). Como cada recibo é uma `<table>` própria com o seu scroller
+(BUG-06), conferir o lucro exigia **rolar cada venda para o lado, uma por uma** — e o lucro é o
+número que se abre a página para ver.
+
+**O achado que corrigiu o próprio item:** a auditoria anotou que a coluna do *custo real* estava
+"espremida a zero". Não estava — estava **escondida**. A regra `.recibo-items .ri-cost {display:
+none}` morava no **`quote.css`**, o CSS da página de **orçamento** (o mesmo defeito de escopo do
+TD-013), e por isso nenhuma busca no arquivo do recibo a encontrava. Escondia porque não cabia.
+
+**A saída:** sete colunas não cabem em 375px — nenhuma repartição faz caber. Então a linha **deixa
+de ser linha** e vira cartão de 3 faixas, a mesma receita do `.fg-part` (estoque) e do `.main-row`
+(catálogo), com o par que se confere encostado na direita, um sob o outro:
+
+```
+▼ Nome do produto                  [excluir 44px]
+  material
+2×  R$ 33,50                               R$ 33,50
+custo real R$ 8,04                         R$ 25,46
+```
+
+A grade tem **4 pistas** porque `qtd` e `preço unitário` precisam ficar **colados** — é o
+"2× R$ 33,50" que se lê como uma coisa só e dispensa rótulo. As faixas que atravessam a linha (nome,
+custo) **cruzam a pista flexível** e por isso não entram no dimensionamento intrínseco das pistas
+`auto`: é o que impede um nome comprido de empurrar a coluna do preço. O custo real **volta** (a
+regra do `quote.css` não migrou de arquivo: deixou de existir).
+
+**Depois:** rolagem horizontal **108 → 0** (página e cartão), 7 de 7 células visíveis, altura da
+linha **102px**, excluir a **44px** (UX-36 — e sem custo de largura: a pista da direita já é
+dimensionada pelo lucro, ~86px).
+
+**Três armadilhas de cascata/escopo, todas medidas, nenhuma óbvia:**
+1. **Ordem, não especificidade.** O bloco `@media` escrito ANTES de `.recibo-items td` perdia o
+   desempate (0,1,1 contra 0,1,1 — `@media` não soma nada) e o recuo de tabela seguia valendo: cada
+   faixa ia a **38px** em vez de 21. → o bloco mora no **FIM do arquivo**, com o aviso escrito lá.
+2. **`> td`, não `td`.** Dentro do dropdown do UX-06 mora **outra tabela** (a `CostBreakdownTable`
+   de precificado × real). O `display: block` descia até as células dela e as duas colunas de número
+   viravam uma pilha.
+3. **`> tbody`, não `tbody`** — a mesma armadilha, mais sutil: o `<tbody>` da tabela de dentro
+   também virava bloco, cada linha remontava uma tabela anônima própria e as colunas paravam de se
+   alinhar **entre si** (medido: cabeçalho em 121/96/96px contra corpo em 76/63/62). → **todo**
+   seletor de elemento do bloco usa combinador de filho.
+
+De quebra: o ▼ é `inline` e o nome é um `inline-flex` ao lado — com o nome em duas linhas (e no
+celular ele fica em duas), a seta sobrava **sozinha numa linha só dela**. Os dois viraram itens de
+flex.
+
+### UX-40 — alvo E grade ao mesmo tempo
+
+As 3 ações por **subitem** (vender/produzir/orçar só esta parte) mediam **24×24px**. Crescer sozinhas
+era impossível, e a conta é o motivo: medido a 375, a linha tem **297px úteis** e as 4 faixas já os
+consomem inteiros — **nome 32 · meta 101 · preço 58 · ações 76**, mais 3 folgas de 10. Ir a 44px pedia
+136px de ações: o nome, **já espremido em 32px**, ia a zero.
+
+Por ser alvo **e** grade, a saída é a mesma do UX-38: **a linha vira duas**. Em cima o nome (agora
+**151px**, quase 5× o que tinha) e as ações — que é o par que se lê junto, o botão ao lado do que ele
+opera; embaixo a meta e o preço, alinhado à direita sob os botões. Botões a **44px** (3×44 + 2 folgas
+= 136 numa faixa de 297). A linha do total ("Produto inteiro") não tem ação nem meta, então o preço
+**sobe para a 1ª faixa** — sem isso ela gastaria duas linhas para dizer nome + preço.
+
+**No desktop nada muda** (24px, uma linha só) — mesma lógica do UX-36: o painel expandido não tem
+faixa sobrando ali. E o `1fr` puro do `catalog.css` ganhou a guarda `minmax(0, …)` que a auditoria de
+2026-08-17 tornou regra; a versão do celular **reescreve a linha inteira com a guarda junto**, porque
+dentro de `@media` ela não se herda.
+
+### A11Y-01 — `title` não é rótulo
+
+Tema e Sair, no cabeçalho, tinham **só** `title`. Ele é o **último recurso** do cálculo do nome
+acessível, não sai em toque nenhum e alguns leitores de tela o ignoram por configuração. E aqui o
+caso é pior que o genérico: no celular o `.header-utils-label` **some por CSS** (UX-33), então
+sobrava um emoji `aria-hidden` e mais nada. Os dois ganharam `aria-label` — nomeando a **ação**
+("mudar para tema claro"), não o estado, e contendo a palavra do rótulo visível do desktop (WCAG
+2.5.3). Os botões da `NavBar` (☰, ✕) já tinham o seu; o emoji ☀️/🌙 continua sendo **[DEC-05]**, que
+sai junto do rebrand.
+
+### Verificação
+
+Medição no DOM em 375, 700 e 961px, nas duas telas, com o dropdown do recibo aberto. `lint` ✅ ·
+**389/389** ✅ · `build` ✅. Efeito colateral registrado: entre **641 e 760px** o custo real volta a
+aparecer no recibo (o `col` de 184px já estava reservado, então a rolagem da faixa não mudou — só
+deixou de haver uma coluna vazia).
+
 ## ✅ UX-36 + UX-37 — alvo de toque e o peso do destrutivo (2026-08-17)
 
 > **Os 2 itens** saíram do cluster da auditoria de layout do mesmo dia. O fio comum: **controle

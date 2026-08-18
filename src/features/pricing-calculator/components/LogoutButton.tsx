@@ -22,17 +22,24 @@ export function LogoutButton() {
     await signOut(auth);
   }
 
+  const label = email ? `Sair (${email})` : "Sair";
+
   return (
     <>
       <button
         className="icon-label-button"
         type="button"
         onClick={handleSignOut}
-        title={email ? `Sair (${email})` : "Sair"}
+        aria-label={label}
+        title={label}
       >
         {/* UX-33: o rótulo vai num `<span>` próprio porque no celular ele sai
             (o botão vira ícone puro ao lado do ☰) — ver `.header-utils-label`
-            no responsive.css. O `title` acima segue nomeando o botão. */}
+            no responsive.css.
+            A11Y-01: e é exatamente por isso que o `aria-label` acima precisa
+            existir. Sem ele, no celular o botão fica com o ícone `aria-hidden` e
+            nada mais, e o nome acessível cai no `title` — que é o último recurso
+            do algoritmo, não um rótulo. */}
         <LogOut size={15} aria-hidden="true" />{" "}
         <span className="header-utils-label">Sair</span>
       </button>

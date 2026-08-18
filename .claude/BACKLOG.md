@@ -11,11 +11,12 @@
 > registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e os
 > writeups das ondas 1 a 5. **Este arquivo só tem o que está ABERTO.**
 >
-> ⚠ **A fila de ondas acabou em 2026-08-17** — mas a **auditoria de layout responsivo do mesmo dia
-> reabriu o backlog**. Já saíram dela: os 4 bugs de layout, o **UX-36** e o **UX-37** (alvo de toque
-> + peso do destrutivo) e o **UX-39** (fechado sem código — lixo de teste). **Sobram 3, todos
-> escolhíveis já**: **UX-38**, **A11Y-01** e o novo **UX-40**. Ver o cluster logo abaixo.
-> O resto continua acoplado ao rebrand (DEC-05) ou bloqueado (FEAT-03, branding, Dashboard).
+> ⚠ **A fila de ondas acabou em 2026-08-17** e a **auditoria de layout responsivo do mesmo dia**, que
+> tinha reaberto o backlog, **também FECHOU em 2026-08-18** (UX-38 + UX-40 + A11Y-01 na última
+> rodada). **Não há mais item de código escolhível:** o que sobra está acoplado ao rebrand
+> (**DEC-05** + **G2**) ou bloqueado por dado externo (**FEAT-03**, **branding/logo**, **Dashboard**).
+> → **A próxima decisão é do dono**, não uma tarefa a pegar: destravar o rebrand (a logo) ou abrir
+> uma frente nova.
 
 ## Ordem de prioridade — ondas (dono, 2026-08-16)
 
@@ -45,45 +46,30 @@
 | Onda | Itens | Por que aqui |
 |---|---|---|
 | ~~5 — matemática e leitura~~ | ~~[UX-26] · [TD-016] · [UX-34]~~ | ✅ **Fechada em 2026-08-17.** Era a última da fila. |
-| **fora da fila** | **[DEC-05]** (lucide) | Fazer **junto do rebrand**, não antes — ver o critério acima. |
+| **fora da fila** | **[DEC-05]** (lucide) + **[G2]** | Fazer **junto do rebrand**, não antes — ver o critério acima. |
 | **⏸ bloqueadas** | **[FEAT-03]** + **[branding/logo real]** (a marca não existe) · **[Dashboard]** (precisa de ~1-2 meses de venda real) | Sempre por último; nenhuma das duas depende de decisão nossa. |
+
+> ⚠ **Com o cluster da auditoria zerado (2026-08-18), esta tabela é o backlog INTEIRO** — e as três
+> linhas dependem de algo de fora: a logo (dono/designer) ou ~1-2 meses de venda real no banco.
 
 > Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
 
 ## Itens abertos
 
-### 🆕 Cluster da auditoria de layout responsivo (2026-08-17) — 7 fechados, 3 abertos
+### ✅ Cluster da auditoria de layout responsivo (2026-08-17) — ZERADO
 
 > Auditoria pedida pelo dono a partir de um print (nome de peça quebrado letra a letra no
 > `/estoque`). Medição no DOM nas 7 rotas, em 375px e 1280px, acordeões abertos um a um, mais um
-> passe de contraste WCAG nos dois temas. **Os 4 bugs de layout foram consertados na hora** — causa
-> raiz única (`1fr` sem `minmax(0, …)`); depois saíram **[UX-36]** e **[UX-37]** (alvo de toque +
-> peso do destrutivo) e o **[UX-39]** fechou sem código. Writeups e medições no
-> [`HISTORICO.md`](HISTORICO.md). **Contraste passou sem nenhuma falha.**
+> passe de contraste WCAG nos dois temas — que **passou sem nenhuma falha**.
+> **10 achados, 10 fechados:** os 4 bugs de layout na hora (causa raiz única, `1fr` sem
+> `minmax(0, …)`) · **[UX-36]** + **[UX-37]** (alvo de toque + peso do destrutivo) · **[UX-39]** sem
+> código · e **[UX-38]** + **[UX-40]** + **[A11Y-01]** em **2026-08-18**. Writeups e medições no
+> [`HISTORICO.md`](HISTORICO.md).
 >
-> ⚠ **Nenhum dos que sobrou está bloqueado por dado externo nem pelo rebrand** — são escolhíveis já.
-
-- **[UX-40] As 3 ações por SUBITEM medem 24×24px, e a linha não tem de onde tirar espaço.**
-  São os `.sp-actions` do painel expandido do `/catalogo` (vender/produzir/orçar **desta parte**) —
-  o grupo que a auditoria mediu e atribuiu por engano às 5 ações do produto (essas o **[UX-36]**
-  já resolveu). Crescer sozinho não dá: **a 375px o nome do subitem já ocupa 37,6px** de 297px
-  úteis, e ir de 76 para 136px de ações o zera. É **alvo + grade ao mesmo tempo** — a saída é
-  repensar a linha no celular (empilhar nome em cima, meta/preço/ações embaixo, como o `.fg-part`
-  do estoque já faz). **Onde:** `.subitem-price-row` / `.sp-actions` em `catalog.css` +
-  `responsive.css`. **Cruza com o [UX-38]** — mesma forma de problema, outra tela.
-- **[UX-38] Recibo do `/vendas` no celular: o lucro fica fora da tela.** A tabela usa a válvula
-  `min-width` (por design), mas na prática **cada linha de venda exige rolagem horizontal própria**
-  para chegar na coluna de lucro — que é justamente o número que se quer conferir. Repensar a
-  linha no celular (empilhar? mostrar só receita/lucro e esconder as intermediárias?).
-  **Onde:** `.recibo-items` em `cesta-recibo.css` + `responsive.css`.
-- **[A11Y-01] Botões só-ícone do cabeçalho sem `aria-label`.** Tema e Sair têm apenas `title` — o
-  leitor de tela cai no fallback, e o de tema ainda usa o emoji ☀️ como conteúdo visível.
-  **Cruza com [DEC-05]** (emoji em controle), mas o `aria-label` é independente do rebrand e pode
-  sair antes. **Onde:** `Header.tsx` / `LogoutButton.tsx`.
-- ℹ️ **Não vira item (registrado pra não voltar):** o range do markup transborda **2px** do
-  container (folga nativa do thumb); e os `.btn-sm` medem 31–33px — abaixo dos 44px, mas isso é
-  anterior à auditoria e já está registrado no writeup do `[micro]` de 14px.
+> ℹ️ **Os 2 achados que NÃO viraram item** (registrados pra não voltarem como achado novo): o range
+> do markup transborda **2px** do container (folga nativa do thumb); e os `.btn-sm` medem 31–33px —
+> abaixo dos 44px, mas isso é anterior à auditoria e já está no writeup do `[micro]` de 14px.
 
 ### ✅ Cluster da auditoria de 2026-08-16 (UX-20…UX-34 · TD-014…TD-016) — ZERADO
 

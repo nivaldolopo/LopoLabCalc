@@ -14,27 +14,24 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ UX-36 + UX-37 — alvo de toque e o peso do destrutivo (2026-08-17)**.
-  O alvo cresce **onde é dedo**: no celular as 5 ações do `/catalogo` vão a **44px** (cabem: 265px
-  numa faixa de 317px); **no desktop os 32px ficam**, porque "Ações" é pista fixa de 196px e a
-  grade a 826px já está no piso — crescer reabriria o corte do UX-21. O **Excluir sai do repouso
-  neutro** e passa a usar o vocabulário do `.btn.danger` (`--danger` + `-soft` + `-line`, contorno
-  em `box-shadow: inset` pra caixa não pular) — vale no app inteiro; os outros 4 seguem neutros.
-  O gatilho de composição (UX-37) cresce pela receita do UX-28 (`padding` + margem negativa):
-  **15–17 → 32/33px**, com a linha-mãe intacta. Contraste do Excluir **4,81** (claro) / **4,53**
-  (escuro). `lint` ✅ · **389/389** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ UX-38 + UX-40 + A11Y-01 — a linha do celular vira cartão (2026-08-18)**.
+  Mesma forma de problema em duas telas: fileira com mais colunas do que cabe em 375px — no recibo
+  do `/vendas`, **453px de tabela em 345px de cartão** (lucro e excluir moravam nos 108px de fora);
+  no subitem do `/catalogo`, as 4 faixas comiam os 297px úteis e o nome ficava em **32px**. Nos dois
+  a **linha vira cartão** (receita do `.fg-part`), os alvos vão a **44px** e a rolagem horizontal
+  some (**108 → 0**). O custo real do recibo **volta**: não estava espremido, estava escondido por
+  regra da `/vendas` morando no `quote.css`. A11Y-01: `aria-label` no Tema e no Sair.
+  `lint` ✅ · **389/389** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — sobraram 3 do cluster da auditoria, todos escolhíveis já** (nada depende do
-  rebrand nem de dado externo): **`UX-38`** (lucro do recibo fora da tela no celular) ·
-  **`A11Y-01`** (botão só-ícone sem `aria-label`) · **`UX-40`** (as 3 ações por subitem em 24px —
-  a linha do celular não tem de onde tirar espaço; **cruza com o `UX-38`**, mesma forma de
-  problema). Detalhe: `BACKLOG.md`. O resto segue no rebrand (`DEC-05`+`G2`) ou bloqueado
-  (`FEAT-03`, branding, `Dashboard`).
+- **▶ PRÓXIMA TAREFA — não há.** Cluster da auditoria **zerado (2026-08-18)**: o backlog de código
+  **acabou**. O resto está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado externo (`FEAT-03`,
+  `branding/logo`, `Dashboard`). **A próxima decisão é do dono** — ler o `BACKLOG.md` antes de
+  sugerir tarefa.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
@@ -130,6 +127,13 @@ src/
   ⚠ **Ao sobrescrever `grid-template-columns` numa media query, reescreva a guarda junto** — não é
   herdada. Idem para **compensação calibrada sobre token** (o `padding` do date, UX-22): token que
   muda por faixa exige compensação que muda junto.
+- **Fileira que não cabe no celular VIRA CARTÃO, não rolagem** (UX-38/UX-40): quando as colunas
+  passam dos ~300px úteis de 375, a linha quebra em faixas (nome + ação em cima, números embaixo,
+  encostados à direita) — receita do `.fg-part`; hoje em 4 lugares. Rolar de lado esconde justamente
+  a coluna que se quer ler. ⚠ Ao desmontar uma `<table>` em grade, **todo seletor de elemento usa
+  combinador de FILHO** (`> tbody`, `> td`): há tabela dentro de dropdown, e `tbody` solto quebra o
+  alinhamento dela. E **`@media` não soma especificidade** — bloco que reescreve regra-base vai
+  DEPOIS dela no arquivo.
 - **Coluna de número usa `.num`** (direita) — `sales.css`, `cesta-recibo.css`, `catalog.css`.
   `tabular-nums` é global (`body`, UX-27): não redeclarar por componente. **Faixa de número tem
   PISO `max(rótulo, conteúdo)` medido no DOM; faixa de nome tem reticências** (UX-21) — número
@@ -150,6 +154,8 @@ src/
   **Alvo pequeno cresce por `padding`/`min-height` + margem negativa de igual valor** (UX-28/UX-37):
   o alvo sobe, a caixa no fluxo não. **Meça a faixa antes de engordar botão em fileira** — no
   desktop o alvo maior pode não caber, e 44px é regra do DEDO (UX-36: 44 no celular, 32 no desktop).
+  **Botão só-ícone precisa de `aria-label`** (A11Y-01) — `title` é o último recurso do nome
+  acessível, e rótulo escondido por CSS no celular não conta como texto.
 - **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar
   watts/`lifeHours` recalcula energia e desgaste de TODOS os produtos, que guardam só o `machineId`.
   `useMachines` semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
