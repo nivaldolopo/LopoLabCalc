@@ -9,6 +9,7 @@ import type {
   RoundingMode,
   SavedProduct,
   StockFilament,
+  Subitem,
 } from "../types";
 import { calculatePricing } from "./calculatePricing";
 import {
@@ -24,7 +25,12 @@ const VALID_ROUNDING_MODES = new Set(
 );
 
 function parseRoundingMode(value: string | undefined): RoundingMode {
-  const normalized = String(value ?? "").trim();
+  // Os modos são tokens numéricos ("0.90", "0.5") escritos com PONTO. Num CSV
+  // feito à mão — ou salvo pelo Excel em pt-BR — eles chegam com vírgula, e sem
+  // esta troca "0,90" cairia calado em "exact", mudando o preço de tabela.
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(",", ".");
   return VALID_ROUNDING_MODES.has(normalized as RoundingMode)
     ? (normalized as RoundingMode)
     : "exact";
@@ -63,6 +69,11 @@ const CSV_HEADERS = [
   "Etapas JSON",
   "Acessorios JSON",
   "Filamentos JSON",
+  // FEAT-01 no CSV: as colunas novas vão no FIM. O `findColumn` casa por nome,
+  // não por posição, então um CSV exportado antes disto continua importando —
+  // sem estas duas o produto entra como só-inteiro, que é o default de sempre.
+  "Vende por Subitens",
+  "Subitens JSON",
 ];
 
 function csvCell(value: unknown): string {
@@ -142,13 +153,22 @@ function parseJsonArray(value: string | undefined): unknown[] {
 function parseStages(value: string | undefined, fallbackMachineId: string): PrintStage[] {
   return parseJsonArray(value).map((stage) => {
     const item = stage as Partial<PrintStage>;
+    const energyTariff = Number(item.energyTariff);
+    const laborRate = Number(item.laborRate);
     const base: PrintStage = {
+      // FEAT-01: o id é a IDENTIDADE da etapa — os `stageKeys` dos subitens
+      // referenciam-no. Descartá-lo aqui faria todo subitem importado nascer
+      // apontando para o vazio, então ele vem antes de qualquer outra coisa.
+      ...(item.id ? { id: String(item.id) } : {}),
       name: item.name ?? "",
       machineId: item.machineId ?? fallbackMachineId,
       printHours: Number(item.printHours) || 0,
-      energyTariff: Number(item.energyTariff) || undefined,
+      // Chave AUSENTE, não `undefined`: os dois campos são overrides opcionais,
+      // e o Firestore recusa a gravação inteira se um `undefined` chegar nele —
+      // um CSV à mão que omita a tarifa derrubaria o lote todo.
+      ...(energyTariff > 0 ? { energyTariff } : {}),
       laborMinutes: Number(item.laborMinutes) || 0,
-      laborRate: Number(item.laborRate) || undefined,
+      ...(laborRate > 0 ? { laborRate } : {}),
     };
     // FEAT-02: usa as cores quando presentes; senão mantém os escalares legados
     // (migrados no cálculo por `normalizeFilaments`).
@@ -170,14 +190,47 @@ function parseAccessories(value: string | undefined): Accessory[] {
       qty: Number(item.qty) || 0,
       unitPrice: Number(item.unitPrice) || 0,
       // 7e: o vínculo com o insumo sobrevive ao round-trip do CSV (o export é
-      // JSON puro). `subitemId` segue descartado de propósito.
+      // JSON puro).
       supplyId: item.supplyId ?? null,
+      // FEAT-01: a atribuição a um subitem viaja junto com os subitens — sem
+      // ela o custo do acessório volta rateado entre as partes em vez de ir
+      // 100% para a que o consome.
+      subitemId: item.subitemId ?? null,
     };
   });
 }
 
-function machineNameToId(name: string | undefined, machines: Machine[]): string {
-  if (!name) return machines[0]?.id ?? "a1";
+// FEAT-01: subitens vendáveis. `markup` é OMITIDO quando ausente (herda o do
+// produto) — gravar `undefined` faria o Firestore recusar o lote.
+function parseSubitems(value: string | undefined): Subitem[] {
+  return parseJsonArray(value).flatMap((subitem, index) => {
+    const item = subitem as Partial<Subitem>;
+    const id = item.id ? String(item.id) : `sub_${index}`;
+    const markup = Number(item.markup);
+    return [
+      {
+        id,
+        name: item.name ?? "",
+        stageKeys: Array.isArray(item.stageKeys)
+          ? item.stageKeys.map((key) => String(key))
+          : [],
+        ...(item.markup !== undefined && markup > 0 ? { markup } : {}),
+      },
+    ];
+  });
+}
+
+// Nome da máquina → id. Casa por nome exato e, falhando, pelo id contido no
+// nome ("Bambu Lab A1" → `a1`). Quando NADA casa, cai na primeira máquina — e
+// avisa: um nome errado no CSV punha o produto na impressora errada em
+// silêncio, e energia/desgaste saem de lá (mesma disciplina do TD-009).
+function machineNameToId(
+  name: string | undefined,
+  machines: Machine[],
+  onFallback?: (usada: Machine | undefined) => void,
+): string {
+  const fallback = machines[0];
+  if (!name?.trim()) return fallback?.id ?? "a1";
   const normalized = name.toLowerCase().trim();
   const exact = machines.find(
     (machine) => machine.name.toLowerCase() === normalized,
@@ -186,7 +239,9 @@ function machineNameToId(name: string | undefined, machines: Machine[]): string 
   const fuzzy = machines.find((machine) =>
     normalized.includes(machine.id.toLowerCase()),
   );
-  return fuzzy?.id ?? machines[0]?.id ?? "a1";
+  if (fuzzy) return fuzzy.id;
+  onFallback?.(fallback);
+  return fallback?.id ?? "a1";
 }
 
 export function exportProductsCsv(
@@ -235,22 +290,35 @@ export function exportProductsCsv(
       csvCell(JSON.stringify(product.stages || [])),
       csvCell(JSON.stringify(product.accessories || [])),
       csvCell(JSON.stringify(mainFilaments)),
+      // FEAT-01: a flag vai SEPARADA do array de propósito — desligar a venda
+      // por subitens não apaga os subitens salvos, então "desligado com partes
+      // guardadas" é um estado real que inferir de `subitems.length` perderia.
+      product.sellBySubitems ? "sim" : "nao",
+      csvCell(JSON.stringify(product.subitems || [])),
     ].join(";");
   });
 
   return `\uFEFF${[CSV_HEADERS.join(";"), ...rows].join("\n")}`;
 }
 
+// O que a importação devolve: os produtos e o que ela teve de ADIVINHAR. Os
+// avisos não bloqueiam — aparecem na confirmação, para o dono decidir antes de
+// gravar (TD-009: sinalizar o dado órfão em vez de mascarar).
+export type CsvImportResult = {
+  products: ProductPayload[];
+  warnings: string[];
+};
+
 export function parseProductsCsv(
   content: string,
   machines: Machine[],
-): ProductPayload[] {
+): CsvImportResult {
   const normalizedContent = content.replace(/^\uFEFF/, "");
   const rawLines = normalizedContent
     .split(/\r?\n/)
     .filter((line) => line.trim().length > 0);
 
-  if (rawLines.length < 2) return [];
+  if (rawLines.length < 2) return { products: [], warnings: [] };
 
   const separator = rawLines[0].includes(";") ? ";" : ",";
   const headers = parseLine(rawLines[0], separator);
@@ -275,20 +343,32 @@ export function parseProductsCsv(
   const indexStages = findColumn(headers, "etapas json");
   const indexAccessories = findColumn(headers, "acessorios json");
   const indexFilaments = findColumn(headers, "filamentos json");
+  const indexSellBySubitems = findColumn(headers, "vende por subitens");
+  const indexSubitems = findColumn(headers, "subitens json");
 
   if (indexName < 0) {
     throw new Error('Coluna "Produto" não encontrada.');
   }
 
-  return rawLines.slice(1).flatMap((line) => {
+  const warnings: string[] = [];
+
+  const products = rawLines.slice(1).flatMap((line, offset) => {
     const columns = parseLine(line, separator);
     const name = columns[indexName]?.trim();
     if (!name) return [];
 
     const markupRaw = columns[indexMarkup]?.replace("x", "").trim() ?? "3";
-    const machineId = machineNameToId(columns[indexMachine], machines);
+    const machineName = columns[indexMachine];
+    const machineId = machineNameToId(machineName, machines, (usada) => {
+      warnings.push(
+        `Linha ${offset + 2} ("${name}"): máquina "${machineName?.trim()}" ` +
+          `não encontrada — usando "${usada?.name ?? "a primeira máquina"}".`,
+      );
+    });
     const stages = parseStages(columns[indexStages], machineId);
     const accessories = parseAccessories(columns[indexAccessories]);
+    const subitems =
+      indexSubitems >= 0 ? parseSubitems(columns[indexSubitems]) : [];
     // FEAT-02: cores da etapa principal quando o CSV as traz; senão os escalares
     // "Peso (g)"/"Filamento (R$/kg)" migram no cálculo (`normalizeFilaments`).
     const filaments =
@@ -313,7 +393,10 @@ export function parseProductsCsv(
         laborMinutes:
           indexLaborMinutes >= 0 ? parseNumber(columns[indexLaborMinutes]) : 15,
         laborRate: indexLaborRate >= 0 ? parseNumber(columns[indexLaborRate]) : 30,
-        markup: Number.parseFloat(markupRaw) || 3,
+        // `parseNumber`, não `parseFloat`: este é o único número do CSV que
+        // vinha por parseFloat, e ele PARA na vírgula — "2,8" virava 2, um
+        // catálogo inteiro precificado abaixo do devido, sem um aviso.
+        markup: parseNumber(markupRaw) || 3,
         failureRate:
           indexFailure >= 0
             ? Math.min(95, Math.max(0, parseNumber(columns[indexFailure])))
@@ -332,10 +415,14 @@ export function parseProductsCsv(
         linkFile: indexLinkFile >= 0 ? columns[indexLinkFile]?.trim() ?? "" : "",
         stages,
         accessories,
-        // FEAT-01: o CSV velho não descreve subitens — importa como produto só-
-        // inteiro (Diretriz 7: round-trip do formato antigo é descartável).
-        sellBySubitems: false,
-        subitems: [],
+        // FEAT-01: o CSV que não traz as colunas de subitem (export antigo, ou
+        // carga escrita à mão que só quer o produto inteiro) entra como só-
+        // inteiro — o default de sempre.
+        sellBySubitems:
+          indexSellBySubitems >= 0
+            ? parseBool(columns[indexSellBySubitems])
+            : false,
+        subitems,
         ...(filaments.length > 0 ? { filaments } : {}),
         createdAt: Date.now(),
         fixedCostPerHour: null,
@@ -344,6 +431,8 @@ export function parseProductsCsv(
       },
     ];
   });
+
+  return { products, warnings };
 }
 
 export function downloadCsv(filename: string, content: string): void {

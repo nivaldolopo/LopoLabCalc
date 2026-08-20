@@ -9,6 +9,74 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ CSV-01 — o round-trip do catálogo virou exato (2026-08-20)
+
+> **Pedido como diagnóstico, não como tarefa.** O dono vai recadastrar o catálogo do zero a partir
+> de um CSV **gerado fora do app**, e quis provar antes que `exportar → importar` devolve o produto
+> íntegro. O momento foi escolhido de propósito: o dado de hoje é descartável (Diretriz 7), então um
+> import ruim agora não custa nada — depois do recadastro, custaria.
+
+### O que o diagnóstico achou (round-trip em produção, 2 produtos reais)
+
+**O que JÁ funcionava** — e era a pergunta principal: o **`filamentId` sobrevive**. Confirmado por
+três caminhos independentes: a coluna `Filamentos JSON` saiu byte-idêntica; as colunas de custo
+recalcularam iguais (cor órfã cairia no preço congelado e mudaria o número); e o form carregou a
+cópia com os selects em `PLA · Bege · Bambu` / `PLA · Laranja · Bambu`, na etapa principal **e** na
+extra. O `supplyId` idem. **Armadilha de leitura:** `stripFilamentIds` **não** tira o `filamentId` —
+tira o `id` de estado do formulário. O nome faz concluir o contrário de quem só lê a chamada.
+
+**O achado que mudou o escopo:** perder os subitens **muda o PREÇO**, não só o modo de venda. No
+"Teste 4b produção", custo idêntico (R$ 32,66) e preço **R$ 72,58 → 74,92** (+3,2%), porque as partes
+tinham override de markup (`3.2x · 3.0x · 1.9x`) e a cópia caiu no 3,0x liso. "Subitens somem" soa
+como perda de *modo de venda*; era perda de *dinheiro*. Foi isso que fez o dono pedir a correção.
+
+### A ordem de dependência que não dá para furar
+
+`subitems[].stageKeys` referencia as etapas por `"main"` (sentinela) + `PrintStage.id`. Se o
+`stages[].id` não voltar, **todo subitem importado nasce apontando para o vazio** — pior que não
+importar. Por isso o `id` da etapa não é um extra do item: é pré-requisito dele.
+
+E o que **simplificou** a implementação: o export **já escrevia** `stages[].id` e
+`accessories[].subitemId` (o JSON é `JSON.stringify` cru do documento). Quem jogava fora era o
+**parser**. Então só os subitens precisaram de coluna nova — o resto foi parar de descartar.
+
+### Os 3 defeitos que só o CSV escrito à mão dispara
+
+Nenhum aparecia no round-trip do próprio app, e é exatamente por isso que nunca tinham surgido: o
+export escreve número de JS (com **ponto**) e sempre preenche os campos opcionais da etapa.
+
+| # | defeito | como falha |
+|---|---|---|
+| A | `markup` era o **único** número por `parseFloat`, que **para na vírgula** | `2,8` → **2**. Silencioso: grava o catálogo inteiro precificado abaixo |
+| B | `roundingMode` são tokens com ponto (`0.90`) comparados por igualdade | `0,90` → `exact`. Silencioso |
+| C | `Number(ausente) \|\| undefined` gravava `undefined` literal | Firestore recusa, `batch.set` é atômico → **o lote inteiro morre**. Barulhento |
+
+Os três são a **mesma causa de fundo**: formato decimal pt-BR. Basta abrir o CSV uma vez no Excel
+para ele reescrever as vírgulas — e dois dos três falham calados.
+
+### Decisões de design
+
+- **Colunas novas vão no FIM** (`Vende por Subitens`, `Subitens JSON`). O `findColumn` casa por
+  **nome**, não por posição, então CSV exportado antes disto continua importando — sem as colunas o
+  produto entra como só-inteiro, o default de sempre. Nenhuma migração.
+- **A flag vai SEPARADA do array.** Desligar a venda por subitens não apaga os subitens salvos, então
+  "desligado com partes guardadas" é um estado real que inferir de `subitems.length` perderia.
+- **Campo opcional ausente é CHAVE AUSENTE, nunca `undefined`** (`...(x > 0 ? { x } : {})`) — o
+  mesmo padrão que o `buildPayload` já usava para o markup do subitem. É a lição do defeito C.
+- **Máquina que não casa AVISA** em vez de escolher calada (`CsvImportResult.warnings`, mostrado na
+  confirmação antes de gravar). Cair na 1ª máquina em silêncio põe o produto na impressora errada, e
+  energia/desgaste saem de lá. Mesma disciplina do TD-009/`filamentMissing`.
+
+### Verificação
+
+`productCsv.ts` era o **único parser sem arquivo de teste** (16 `.test.ts` em `lib/`, nenhum para
+ele) — e os 3 defeitos são justamente o que um teste de round-trip pega sozinho. Ganhou **19
+testes**: round-trip campo a campo de um produto rico (multicolor com cor do estoque + avulsa, 2
+etapas extras em máquinas diferentes, acessório com `supplyId` + `subitemId`, subitens com override
+de markup, `;` e aspas no texto), um caso por defeito corrigido, o CSV antigo sem as colunas novas, e
+uma varredura que **falha se qualquer `undefined` sobrar** no payload. `lint` ✅ · **408/408** ✅ ·
+`build` ✅.
+
 ## ✅ UX-38 + UX-40 + A11Y-01 — a linha do celular vira cartão (2026-08-18)
 
 > **Os 3 últimos itens do cluster da auditoria de layout.** Os dois primeiros são **a mesma forma de

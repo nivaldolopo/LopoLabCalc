@@ -804,3 +804,27 @@ td.col-actions {
   color: var(--accent-text);
 }
 
+
+/* Aviso da importação de CSV: as linhas cuja máquina não casou por nome e
+   caíram na primeira. Aparece DENTRO da confirmação, antes de gravar — é
+   `--warn` e não `--danger` porque o import segue válido; o dono é que decide
+   se prefere corrigir o CSV e reimportar. */
+.import-warnings {
+  margin-top: var(--space-10);
+  padding: var(--space-8) var(--space-10);
+  border: 1px solid var(--warn-line);
+  border-radius: var(--radius-md);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.import-warnings ul {
+  margin: var(--space-6) 0 0;
+  padding-left: var(--space-16);
+}
+
+.import-warnings p {
+  margin: var(--space-6) 0 0;
+}

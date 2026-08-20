@@ -19,6 +19,7 @@ import type {
   Machine,
   PaymentFeeSettings,
   PricingResult,
+  ProductPayload,
   SavedProduct,
   SortMode,
   StockFilament,
@@ -101,7 +102,7 @@ type ProductCatalogProps = {
   onSortModeChange: (sortMode: SortMode) => void;
   onLoadProduct: (product: SavedProduct) => void;
   onDeleteProduct: (productId: string) => Promise<void>;
-  onImportProducts: (products: ReturnType<typeof parseProductsCsv>) => Promise<void>;
+  onImportProducts: (products: ProductPayload[]) => Promise<void>;
   // FEAT-08: as 3 ações operam sobre o produto INTEIRO ou sobre um subitem
   // vendável (`subitemId`) — a mesma unidade que a produção e o orçamento já
   // sabem receber. Ausente = produto inteiro.
@@ -244,7 +245,10 @@ export function ProductCatalog({
       clear();
       try {
         const content = String(event.target?.result ?? "");
-        const importedProducts = parseProductsCsv(content, machines);
+        const { products: importedProducts, warnings } = parseProductsCsv(
+          content,
+          machines,
+        );
         if (importedProducts.length === 0) {
           fail("Nenhum produto válido encontrado no CSV.");
           return;
@@ -253,10 +257,31 @@ export function ProductCatalog({
         const confirmed = await ask({
           title: `Importar ${importedProducts.length} produtos do CSV?`,
           body: (
-            <p>
-              Eles entram como produtos <strong>novos</strong> no catálogo — o
-              que já está salvo continua onde está.
-            </p>
+            <>
+              <p>
+                Eles entram como produtos <strong>novos</strong> no catálogo — o
+                que já está salvo continua onde está.
+              </p>
+              {/* O aviso vem ANTES de gravar: máquina que não casou muda
+                  energia e desgaste, e o dono ainda pode corrigir o CSV. */}
+              {warnings.length > 0 && (
+                <div className="import-warnings">
+                  <strong>
+                    ⚠️ {warnings.length}{" "}
+                    {warnings.length === 1 ? "linha" : "linhas"} com máquina não
+                    reconhecida:
+                  </strong>
+                  <ul>
+                    {warnings.slice(0, 5).map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                  {warnings.length > 5 && (
+                    <p>e mais {warnings.length - 5}…</p>
+                  )}
+                </div>
+              )}
+            </>
           ),
           confirmLabel: "Importar",
         });

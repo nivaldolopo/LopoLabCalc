@@ -14,22 +14,27 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ UX-38 + UX-40 + A11Y-01 — a linha do celular vira cartão (2026-08-18)**.
-  Mesma forma de problema em duas telas: fileira com mais colunas do que cabe em 375px — no recibo
-  do `/vendas`, **453px de tabela em 345px de cartão** (lucro e excluir moravam nos 108px de fora);
-  no subitem do `/catalogo`, as 4 faixas comiam os 297px úteis e o nome ficava em **32px**. Nos dois
-  a **linha vira cartão** (receita do `.fg-part`), os alvos vão a **44px** e a rolagem horizontal
-  some (**108 → 0**). O custo real do recibo **volta**: não estava espremido, estava escondido por
-  regra da `/vendas` morando no `quote.css`. A11Y-01: `aria-label` no Tema e no Sair.
-  `lint` ✅ · **389/389** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ CSV-01 — o round-trip do catálogo virou exato (2026-08-20)**.
+  Diagnóstico pedido pelo dono antes de uma carga em massa: `exportar → importar` preservava o
+  `filamentId` e o `supplyId` (confirmado em produção), mas **perdia os subitens** — e com eles o
+  **preço**, porque o override de markup por parte ia junto (R$ 72,58 → **74,92** com custo
+  idêntico). Agora viajam `sellBySubitems` + `Subitens JSON` (2 colunas no FIM; CSV antigo segue
+  importando) e o parser **para de descartar** `stages[].id` (identidade que os `stageKeys`
+  referenciam) e `accessories[].subitemId`. Mais 3 defeitos que só o CSV escrito à mão dispara:
+  markup com vírgula **truncava** (`2,8` → 2, silencioso), arredondamento com vírgula caía em
+  `exact` (silencioso), e etapa sem `energyTariff`/`laborRate` gravava `undefined` — que o Firestore
+  recusa, **matando o lote inteiro**. Máquina que não casa agora **avisa** em vez de escolher calada.
+  `productCsv.ts` era o único parser **sem teste**: ganhou 19. `lint` ✅ · **408/408** ✅ · `build` ✅.
+  Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — não há.** Cluster da auditoria **zerado (2026-08-18)**: o backlog de código
-  **acabou**. O resto está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado externo (`FEAT-03`,
+- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono.** O CSV do catálogo está pronto para receber o
+  recadastro (CSV-01). O resto do backlog de código **acabou** (auditoria zerada em 2026-08-18); o
+  que sobra está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado externo (`FEAT-03`,
   `branding/logo`, `Dashboard`). **A próxima decisão é do dono** — ler o `BACKLOG.md` antes de
   sugerir tarefa.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
