@@ -14,24 +14,22 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ FORM-01 — o formulário parou de comer campo ao salvar (2026-08-20)**.
-  Achado pelo **dono**: o CSV estava são, o vazamento era o outro caminho (`loadProduct →
-  buildPayload`). **(1)** `createAccessory` esquecia o `supplyId` — e como o save grava
-  `supplyId ?? null`, **abrir e salvar sem tocar em nada apagava o vínculo** e a produção parava de
-  dar baixa. **(2)** Tarifa/valor-hora **por etapa** eram achatados no save (R$ 92,38 → 82,96), e 4
-  módulos discordavam do campo; o dono decidiu que **não deve existir** (não há input) → removido do
-  tipo, parser, cálculo, validação e produção — neutro no preço (0 de 29 produtos divergiam).
-  Varredura dos outros round-trips (venda, produção, acabados, orçamento): **limpos**.
-  `lint` ✅ · **414/414** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ RT-01 — round-trip auditado campo a campo (2026-08-20)**. Os DOIS ciclos
+  (CSV e formulário) no app real contra o Firestore, **sem canário**: **83 valores por linha**,
+  **zero divergências**. Saíram 3 mudanças: `buildPayload` parou de gravar `id` dentro do doc; o
+  export escreve as etapas **normalizadas** (levava lixo de 47 das 51 etapas); e o par virou
+  `buildLoadedProduct` + `buildProductPayload`, **puros e exportados**, com teste de diff do
+  documento. `lint` ✅ · **431/431** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono.** O CSV está pronto (CSV-01) e o formulário parou
-  de comer campo (FORM-01). Abertos: `AUD-01` (auditar estorno/reedição de recibo) e `CSV-02`
-  (`findColumn` por substring). O resto está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado
+- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono.** O round-trip está **provado exato** nos dois
+  ciclos (RT-01). Abertos: `AUD-01` (auditar estorno/reedição de recibo), `CSV-02` (`findColumn` por
+  substring) e `CSV-03` (12 das 34 colunas são só-leitura — editar preço/custo no Excel é
+  **ignorado calado**). O resto está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado
   externo (`FEAT-03`, `branding/logo`, `Dashboard`). **A decisão é do dono** — ler o `BACKLOG.md`
   antes de sugerir tarefa.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
@@ -161,11 +159,15 @@ src/
 - **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar
   watts/`lifeHours` recalcula energia e desgaste de TODOS os produtos, que guardam só o `machineId`.
   `useMachines` semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
-- **Função que REMONTA objeto salvo copia TODO campo — ou come dado calado** (FORM-01):
-  `createStage`/`createAccessory` e os pares `to*`/`*ToDocument`; o que falta vira `null` no save
-  seguinte (`buildPayload` grava `?? null`). Campo novo entra nos **dois** lados no mesmo commit.
+- **Função que REMONTA objeto salvo copia TODO campo — ou come dado calado** (FORM-01/RT-01): o par
+  `buildLoadedProduct` ⇄ `buildProductPayload` (puros e exportados, `usePricingForm.ts` /
+  `lib/productPayload.ts`), o `toSavedProduct` e o `parseProductsCsv`; o que falta vira `null` no
+  save seguinte. Campo novo entra em **todos** os lados no mesmo commit.
   ⚠ **Preço não é canário** (o `supplyId` sumia sem mover um centavo): o teste é **diff campo a
-  campo do documento**. **Tarifa e valor-hora são do PRODUTO**, nunca da etapa — não devolver.
+  campo do documento** — `productPayload.test.ts` (form) e `productCsvRoundTrip.test.ts` (CSV); e
+  diff de célula JSON exige **stringify canônico** (o Firestore não preserva ordem de chave em mapa,
+  e comparar o texto dá falso positivo). **Tarifa e valor-hora são do PRODUTO**, nunca da etapa. O
+  **`id` não é campo do documento** — é o caminho. O export escreve etapa **normalizada**, não crua.
 - Toda a lógica de cálculo vive em `features/pricing-calculator/lib/` — pura e coberta por teste.
 
 ## Diretrizes de trabalho

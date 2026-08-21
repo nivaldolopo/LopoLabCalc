@@ -253,6 +253,19 @@ export function exportProductsCsv(
     // FEAT-02: cores da etapa principal (mono = 1). Os escalares "Peso (g)" e
     // "Filamento (R$/kg)" viram resumo humano; o round-trip exato vai no JSON.
     const mainFilaments = stripFilamentIds(normalizeFilaments(product));
+    // As etapas saem NORMALIZADAS, não cruas. Dumpar `product.stages` direto
+    // fazia o CSV carregar o lixo inerte dos documentos antigos — 47 das 51
+    // etapas ainda trazem `energyTariff`/`laborRate`, que o `parseStages`
+    // descarta na volta. Exportar a mesma forma que a importação produz deixa
+    // o arquivo da carga em massa autoconsistente: o que sai é o que entra.
+    const exportedStages = (product.stages ?? []).map((stage, index) => ({
+      id: stage.id ?? `stage_${index}`,
+      name: stage.name ?? "",
+      machineId: stage.machineId,
+      printHours: stage.printHours,
+      laborMinutes: stage.laborMinutes,
+      filaments: stripFilamentIds(normalizeFilaments(stage)),
+    }));
 
     return [
       csvCell(product.name),
@@ -284,7 +297,7 @@ export function exportProductsCsv(
       csvCell(product.linkModel || ""),
       csvCell(product.linkCompetitor || ""),
       csvCell(product.linkFile || ""),
-      csvCell(JSON.stringify(product.stages || [])),
+      csvCell(JSON.stringify(exportedStages)),
       csvCell(JSON.stringify(product.accessories || [])),
       csvCell(JSON.stringify(mainFilaments)),
       // FEAT-01: a flag vai SEPARADA do array de propósito — desligar a venda

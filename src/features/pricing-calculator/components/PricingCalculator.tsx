@@ -23,7 +23,7 @@ import {
   calculatePricing,
 } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
-import { stripFilamentIds } from "../lib/filaments";
+import { buildProductPayload } from "../lib/productPayload";
 import { validateProduct } from "../lib/validateProduct";
 import { FixedCostsPanel } from "./FixedCostsPanel";
 import { Header } from "./Header";
@@ -172,57 +172,11 @@ export function PricingCalculator() {
   }
 
   function buildPayload(includeCreatedAt: boolean): ProductPayload {
-    // Produtos novos gravam `filaments` (FEAT-02) e não persistem os escalares
-    // legados `weightG`/`filamentPricePerKg` — removidos aqui do spread.
-    const base = { ...form.product };
-    delete base.weightG;
-    delete base.filamentPricePerKg;
-    return {
-      ...base,
-      name: form.product.name.trim(),
-      mainStageName: form.product.mainStageName.trim(),
-      includeFixed: fixedCosts.enabled,
-      filaments: stripFilamentIds(form.product.filaments),
-      stages: form.product.stages.map((stage, index) => ({
-        // FEAT-01: persiste o id (chave estável dos subitens); sempre presente
-        // no estado do form, com fallback por posição por segurança.
-        id: stage.id ?? `stage_${index}`,
-        name: stage.name ?? "",
-        machineId: stage.machineId,
-        printHours: stage.printHours,
-        laborMinutes: stage.laborMinutes,
-        // Tarifa e valor-hora NÃO se repetem aqui: são do produto. Copiá-los
-        // para dentro da etapa criava um override que o formulário não sabia
-        // editar e que a produção ignorava.
-        filaments: stripFilamentIds(stage.filaments),
-      })),
-      accessories: form.product.accessories.map((accessory) => ({
-        desc: accessory.desc ?? "",
-        qty: accessory.qty || 0,
-        unitPrice: accessory.unitPrice || 0,
-        // FEAT-01: atribuição a subitem (null = produto, rateado). Firestore não
-        // aceita undefined, por isso o ?? null.
-        subitemId: accessory.subitemId ?? null,
-        // 7e: insumo do estoque (null = avulso, sem baixa na produção).
-        supplyId: accessory.supplyId ?? null,
-      })),
-      // FEAT-01: modo de venda por subitens + os grupos. Limpa `markup` ausente
-      // (Firestore rejeita undefined) — ausente = herda o markup do produto.
-      sellBySubitems: form.product.sellBySubitems ?? false,
-      subitems: (form.product.subitems ?? []).map((subitem) => ({
-        id: subitem.id,
-        name: subitem.name ?? "",
-        stageKeys: subitem.stageKeys ?? [],
-        ...(subitem.markup !== undefined ? { markup: subitem.markup } : {}),
-      })),
-      linkModel: form.product.linkModel.trim(),
-      linkCompetitor: form.product.linkCompetitor.trim(),
-      linkFile: form.product.linkFile.trim(),
-      fixedCostPerHour: null,
-      combineEnabled: null,
-      stage2: null,
-      ...(includeCreatedAt ? { createdAt: Date.now() } : {}),
-    };
+    return buildProductPayload(
+      form.product,
+      fixedCosts.enabled,
+      includeCreatedAt,
+    );
   }
 
   async function saveCurrentProduct() {

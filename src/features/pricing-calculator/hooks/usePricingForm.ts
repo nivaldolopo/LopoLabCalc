@@ -36,7 +36,9 @@ function cloneDefaultProduct(): ProductInput {
   };
 }
 
-function createStage(index: number, data?: Partial<PrintStage>): PrintStage {
+// Exportada só para teste, mesmo motivo do `createAccessory`: é ela que
+// reconstrói a etapa ao CARREGAR um produto salvo.
+export function createStage(index: number, data?: Partial<PrintStage>): PrintStage {
   return {
     // FEAT-01: preserva o id salvo (os `stageKeys` dos subitens referenciam-no);
     // só gera um novo quando a etapa nasce sem id.
@@ -70,6 +72,33 @@ export function createAccessory(
     // gravava `supplyId: null` no save seguinte — a baixa na produção morria
     // sem que o preço se mexesse (o `unitPrice` sobrevive), então nada avisava.
     supplyId: data?.supplyId ?? null,
+  };
+}
+
+// O DOCUMENTO salvo → o estado do formulário. Pura e exportada: é o par do
+// `buildProductPayload`, e juntos formam o round-trip "abrir e salvar sem tocar
+// em nada". Campo que esta função esquecer some no save seguinte (FORM-01), e o
+// preço não denuncia — por isso o teste é diff campo a campo do documento.
+export function buildLoadedProduct(savedProduct: SavedProduct): ProductInput {
+  const loadedStages =
+    savedProduct.stages?.length || !savedProduct.stage2
+      ? savedProduct.stages
+      : [savedProduct.stage2];
+
+  return {
+    ...cloneDefaultProduct(),
+    ...savedProduct,
+    filaments: withFilamentIds(normalizeFilaments(savedProduct)),
+    stages: (loadedStages ?? []).map((stage, index) =>
+      createStage(index, stage),
+    ),
+    accessories: (savedProduct.accessories ?? []).map((accessory, index) =>
+      createAccessory(index, accessory),
+    ),
+    includeFixed: savedProduct.includeFixed,
+    fixedCostPerHour: null,
+    combineEnabled: null,
+    stage2: null,
   };
 }
 
@@ -220,27 +249,8 @@ export function usePricingForm() {
     savedProduct: SavedProduct,
     setFixedCosts: (patch: Partial<FixedCostSettings>) => void,
   ) {
-    const loadedStages =
-      savedProduct.stages?.length || !savedProduct.stage2
-        ? savedProduct.stages
-        : [savedProduct.stage2];
-
     setEditingProductId(savedProduct.id);
-    setProduct({
-      ...cloneDefaultProduct(),
-      ...savedProduct,
-      filaments: withFilamentIds(normalizeFilaments(savedProduct)),
-      stages: (loadedStages ?? []).map((stage, index) =>
-        createStage(index, stage),
-      ),
-      accessories: (savedProduct.accessories ?? []).map((accessory, index) =>
-        createAccessory(index, accessory),
-      ),
-      includeFixed: savedProduct.includeFixed,
-      fixedCostPerHour: null,
-      combineEnabled: null,
-      stage2: null,
-    });
+    setProduct(buildLoadedProduct(savedProduct));
     setFixedCosts({
       enabled: savedProduct.includeFixed,
     });

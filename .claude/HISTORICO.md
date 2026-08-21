@@ -9,6 +9,68 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ RT-01 — round-trip auditado campo a campo, e o par virou função pura (2026-08-20)
+
+> **Pedido do dono antes da carga em massa**, com uma regra explícita: **nada de canário**. O teste
+> anterior usara o preço sugerido como prova de igualdade e deixara passar o FORM-01 — o `supplyId`
+> sumia sem mover um centavo.
+
+**Dois ciclos, porque são caminhos de código diferentes.** Ciclo A = `exportProductsCsv →
+parseProductsCsv` (nunca passa pelo formulário). Ciclo B = `loadProduct → buildPayload` (abrir e
+salvar sem tocar em nada) — o que produziu o FORM-01.
+
+**Como foi medido.** Uma cobaia exercitando todo campo ao mesmo tempo (2 cores ligadas ao Estoque com
+detalhamento model/suporte/purga/torre · 2 etapas extras, uma em outra máquina · 3 acessórios:
+ligado a insumo, avulso e atribuído a subitem · `sellBySubitems` on com override de markup em 1 de 2
+subitens · todos os escalares fora do padrão · os 3 links · `;` e `"` no nome e em 2 cores), rodada
+**no app real contra o Firestore**: export A → import → export B → abrir a cópia e salvar → export C.
+Comparação por código, **83 valores por linha** (30 células escalares + 53 folhas dentro das 4
+colunas JSON, em profundidade). **Zero divergências em A×B e em B×C.**
+
+**⚠ A armadilha de método.** A primeira rodada acusou 3 colunas divergentes que **não eram perda de
+dado** — era **ordem de chave**: o Firestore não preserva ordem de inserção em mapa, então a cópia
+volta com as chaves embaralhadas. Comparar o **texto** da célula JSON dá falso positivo; o diff
+precisa de **stringify canônico** (chaves ordenadas, arrays na ordem). Quem repetir este teste
+precisa disso.
+
+**O quase-defeito que não era.** Ao carregar, o form exibe o preço/kg **vivo** do Estoque (R$ 85,00)
+enquanto o documento guarda o salvo (R$ 118,90) — D3/7c. A suspeita era que o save escrevesse o
+exibido por cima. **Não escreve.** Teria sido o molde exato do FORM-01: tela ≠ documento, sem aviso.
+
+**As 3 mudanças que saíram:**
+
+1. **`buildPayload` gravava `id` DENTRO do documento.** Ele fazia `{...form.product}`, e depois do
+   `loadProduct` esse estado carrega o `id` do `SavedProduct`. O id de um doc é o **caminho** no
+   Firestore — `toSavedProduct(item.id, item.data())` nunca lê `data.id` —, então era uma cópia que
+   ninguém consulta. Inerte, **exceto em "salvar como novo"**: o doc novo nascia com o `id` do
+   produto **ORIGINAL** (o `createdAt` era corrigido pelo spread final, o `id` não). Errado e
+   silencioso — qualquer script/migração futura que confiasse em `data.id` mapearia a cópia no
+   original. → `delete base.id`. O `createdAt` fica: vem de carona com o **mesmo valor**, no-op.
+
+2. **O export dumpava `product.stages` cru.** Medido no catálogo real: **47 das 51 etapas**, em 24
+   produtos, ainda carregam `energyTariff`/`laborRate` legados (0,8/0,9 e 30/31) — lixo inerte que
+   o `parseStages` descarta na volta, mas que **saía no CSV**. Passa a exportar **normalizado** (a
+   mesma forma que a importação produz), pra planilha da carga em massa ser autoconsistente.
+   Varredura confirmou que acessórios, subitens e cores estão **limpos** nos 99 produtos — só as
+   etapas tinham lixo.
+
+3. **O par virou função pura e exportada.** `buildLoadedProduct` (em `usePricingForm.ts`) e
+   `buildProductPayload` (em `lib/productPayload.ts`). Antes o `buildPayload` era closure dentro do
+   componente, e **não dava pra testar sem React** (o projeto não tem testing-library) — o que
+   obrigava a testar uma **cópia** do literal, que apodrece calada no dia em que o original ganha um
+   campo. Que é exatamente a falha que o teste existe pra pegar. Cobertura nova:
+   `productPayload.test.ts` (diff do documento) + `productCsvRoundTrip.test.ts` (34 colunas + bordas).
+   **414 → 431 testes.**
+
+**Bordas confirmadas:** `sellBySubitems` on com zero subitens volta ligado · máquina inexistente
+**avisa** na tela antes de gravar, não engole · arrays vazios voltam vazios (não ausentes) · escape
+de `;` e `"` sobrevive · `energyTariff`/`laborRate` escritos à mão dentro de uma etapa **não** viram
+override.
+
+**Não é perda de dado:** `material`/`brand` sumirem de uma cor do produto. Nada nunca os escreveu
+lá — só o `StockColorModal` (na COR) e o `freezeFilaments` (no snapshot da VENDA, D7). O produto
+guarda só o `filamentId`; guardar cópia criaria uma 2ª fonte da verdade que envelhece.
+
 ## ✅ FORM-01 — o formulário parou de comer campo ao salvar (2026-08-20)
 
 > **Continuação do CSV-01, e achado pelo DONO**, não pelo diagnóstico: ao abrir o produto-cobaia na
