@@ -204,10 +204,42 @@ describe("DIAG — bordas", () => {
     const csv = exportProductsCsv([sujo], machines, fixedCosts, stock);
     const back = reimport(csv)[0];
     const etapa = back.stages[0] as Record<string, unknown>;
-    console.log(`[BORDA legado] CSV exportou as chaves? ${csv.includes("9.99")} - etapa importada: ${JSON.stringify(etapa)}`);
     expect(etapa.energyTariff).toBeUndefined();
     expect(etapa.laborRate).toBeUndefined();
     expect(back.energyTariff).toBe(1.07);
     expect(back.laborRate).toBe(55.5);
+  });
+
+  it("o EXPORT nao carrega o lixo legado pra fora — etapa sai normalizada", () => {
+    // Antes o export dumpava `product.stages` cru, e 47 das 51 etapas do
+    // catalogo real levavam `energyTariff`/`laborRate` inertes pro CSV.
+    const sujo: SavedProduct = {
+      ...cobaia,
+      stages: [{ ...cobaia.stages[0], energyTariff: 9.99, laborRate: 999 } as never],
+    };
+    const csv = exportProductsCsv([sujo], machines, fixedCosts, stock);
+    expect(csv).not.toContain("energyTariff");
+    expect(csv).not.toContain("laborRate");
+    expect(csv).not.toContain("9.99");
+  });
+
+  it("etapa LEGADA (escalares, sem filaments) sai como array de cores", () => {
+    const legado: SavedProduct = {
+      ...cobaia,
+      stages: [
+        { id: "s_legado", name: "Antiga", machineId: "a1", printHours: 1,
+          laborMinutes: 0, weightG: 30, filamentPricePerKg: 110 },
+      ],
+    };
+    const csv = exportProductsCsv([legado], machines, fixedCosts, stock);
+    const back = reimport(csv)[0];
+    expect(back.stages[0].filaments).toEqual([
+      { filamentId: null, colorName: "", pricePerKg: 110, totalG: 30 },
+    ]);
+    // E o round-trip segue estavel: reexportar da o mesmo CSV.
+    const csv2 = exportProductsCsv(
+      [asSaved(back, "x")], machines, fixedCosts, stock,
+    );
+    expect(csv2).toBe(csv);
   });
 });

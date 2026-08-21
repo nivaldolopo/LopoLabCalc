@@ -60,7 +60,7 @@ exibido por cima. **Não escreve.** Teria sido o molde exato do FORM-01: tela �
    obrigava a testar uma **cópia** do literal, que apodrece calada no dia em que o original ganha um
    campo. Que é exatamente a falha que o teste existe pra pegar. Cobertura nova:
    `productPayload.test.ts` (diff do documento) + `productCsvRoundTrip.test.ts` (34 colunas + bordas).
-   **414 → 431 testes.**
+   **414 → 433 testes.**
 
 **Bordas confirmadas:** `sellBySubitems` on com zero subitens volta ligado · máquina inexistente
 **avisa** na tela antes de gravar, não engole · arrays vazios voltam vazios (não ausentes) · escape

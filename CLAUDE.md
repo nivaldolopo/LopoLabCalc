@@ -19,7 +19,7 @@
   **zero divergências**. Saíram 3 mudanças: `buildPayload` parou de gravar `id` dentro do doc; o
   export escreve as etapas **normalizadas** (levava lixo de 47 das 51 etapas); e o par virou
   `buildLoadedProduct` + `buildProductPayload`, **puros e exportados**, com teste de diff do
-  documento. `lint` ✅ · **431/431** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
+  documento. `lint` ✅ · **433/433** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
