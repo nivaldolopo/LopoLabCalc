@@ -81,9 +81,7 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
         name: "ETAPA2",
         machineId: "a1",
         printHours: 0.9,
-        energyTariff: 0.92,
         laborMinutes: 5,
-        laborRate: 30,
         filaments: [
           {
             filamentId: "US6B9aheebWtn9NMXhUQ",
@@ -98,9 +96,7 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
         name: "Etapa 3",
         machineId: "x2d",
         printHours: 1.5,
-        energyTariff: 0.92,
         laborMinutes: 3,
-        laborRate: 30,
         filaments: [
           {
             filamentId: null,
@@ -322,13 +318,33 @@ describe("productCsv — CSV escrito à mão (números em pt-BR)", () => {
     );
   });
 
-  it("aceita etapa sem energyTariff/laborRate, sem gravar undefined", () => {
+  it("importa etapa sem energyTariff/laborRate, sem gravar undefined", () => {
     const etapas = JSON.stringify([
       { name: "Tampa", machineId: "x2d", printHours: 1.25, laborMinutes: 10 },
     ]);
     const stage = importar(linha({ etapas })).stages[0];
 
     expect(stage.machineId).toBe("x2d");
+    expect("energyTariff" in stage).toBe(false);
+    expect("laborRate" in stage).toBe(false);
+  });
+
+  // Tarifa e valor-hora são do PRODUTO, não da etapa: não há campo para
+  // informá-los por etapa no formulário, e produção e preço só concordam se a
+  // fonte for uma só. Um CSV que os traga é ignorado — não vira override.
+  it("ignora energyTariff/laborRate escritos na etapa", () => {
+    const etapas = JSON.stringify([
+      {
+        name: "Tampa",
+        machineId: "x2d",
+        printHours: 1.25,
+        laborMinutes: 10,
+        energyTariff: 2,
+        laborRate: 90,
+      },
+    ]);
+    const stage = importar(linha({ etapas })).stages[0];
+
     expect("energyTariff" in stage).toBe(false);
     expect("laborRate" in stage).toBe(false);
   });

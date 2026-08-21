@@ -9,6 +9,55 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ FORM-01 — o formulário parou de comer campo ao salvar (2026-08-20)
+
+> **Continuação do CSV-01, e achado pelo DONO**, não pelo diagnóstico: ao abrir o produto-cobaia na
+> calculadora, o acessório aparecia como **avulso**. O CSV estava são; o vazamento era outro.
+
+**Dois caminhos, não um.** O CSV vai `Firestore → export → parser → createProductsBatch → Firestore`
+e **nunca passa pelo formulário**. O form é `Firestore → loadProduct → estado → buildPayload →
+Firestore`. Por isso o round-trip do CSV passou limpo e ainda assim havia perda.
+
+### Defeito 1 — `supplyId` morria no carregar+salvar
+`createAccessory` (`usePricingForm.ts`) remontava o acessório campo a campo e **esquecia o
+`supplyId`**. Não era só exibição: `buildPayload` grava `supplyId: accessory.supplyId ?? null`, então
+**abrir um produto e salvar sem tocar em nada apagava o vínculo** — provado em produção (o export
+saiu com `"supplyId":null`). A produção parava de dar baixa do insumo. Atinge também **Vender /
+Produzir / Orçar** do form, que passam pelo `ensureSavedProductId` → mesmo `buildPayload`; ou seja,
+"Produzir" destruía justamente o que dá baixa.
+
+**Por que passou despercebido no CSV-01:** a checagem-mestra era o **preço**, e o `supplyId` não move
+preço — o `unitPrice` sobrevive. R$ 55,80 continuava R$ 55,80. **Lição: o teste de integridade de um
+snapshot é diff CAMPO A CAMPO do documento, não comparação de preço.**
+
+### Defeito 2 (virou remoção) — tarifa/valor-hora por ETAPA
+`buildPayload` escrevia o valor do produto em toda etapa, achatando qualquer override. Provado:
+produto importado com `energyTariff 2,0`/`laborRate 90` entrou a **R$ 92,38** e virou **R$ 82,96** só
+por carregar e salvar.
+
+Mas a auditoria mostrou **quatro módulos discordando** do mesmo campo: o parser do CSV preservava, o
+`calculatePricing` honrava (`stage.energyTariff ?? product`), o form destruía, e a **produção
+ignorava** (`wholeEventRows` congela a tarifa do produto). Preço e custo real divergiriam por
+construção — na comparação que o `CostDetail` existe para mostrar.
+
+**Decisão do dono:** o campo **não deve existir** — não há input para ele. Então em vez de consertar o
+achatamento, o override foi **removido** de `PrintStage`, do parser, do cálculo, da validação e do
+`stageLabor`. **Medido antes:** dos 29 produtos com etapa extra, **zero** divergiam do valor do
+produto → remoção neutra no preço do catálogo inteiro. Docs antigos seguem com as chaves: lixo
+inerte, ignorado (Diretriz 7, sem migração). Import que traga tarifa na etapa a **ignora calado**
+(decisão do dono — o aviso não pagava o código).
+
+### O que a auditoria NÃO achou (varredura dos outros round-trips)
+`toSale`/`saleToDocument` cobrem todos os campos de `Sale` e leem `filaments` crus;
+`productionToDocument`↔`toProduction`, `usageToDocument`↔`usageFromDocument`,
+`supplyUsageToDocument`↔`...FromDocument` e `moveToDocument`↔`moveFromDocument` são **pares
+simétricos** com `filamentId`/`material`/`brand`/`supplyId` preservados; `finishedGoods` idem;
+`QuoteItemSnapshot` é `{descrição, qtd, preço}` por design. O `createAccessory` era o fora-da-curva.
+
+Testes: `usePricingForm.test.ts` (novo, 4 casos — a função virou `export` só para isso) + o caso do
+`productCsv` que agora exige que a tarifa da etapa seja ignorada + um do `calculatePricing` que fixa
+que doc antigo com a chave repetida **não** muda preço. `lint` ✅ · **414/414** ✅ · `build` ✅.
+
 ## ✅ CSV-01 — o round-trip do catálogo virou exato (2026-08-20)
 
 > **Pedido como diagnóstico, não como tarefa.** O dono vai recadastrar o catálogo do zero a partir

@@ -45,9 +45,13 @@ export type PrintStage = {
   name?: string;
   machineId: string;
   printHours: number;
-  energyTariff?: number;
   laborMinutes: number;
-  laborRate?: number;
+  // ⚠ NÃO devolver `energyTariff`/`laborRate` para cá. Os dois são do PRODUTO:
+  // não há campo para informá-los por etapa, o save sempre escreveu o valor do
+  // produto em toda etapa, e a produção nunca leu o da etapa. Enquanto o tipo
+  // os aceitava, o preço podia divergir do custo real por um dado que ninguém
+  // conseguia digitar. Documentos antigos ainda trazem as chaves — são lixo
+  // inerte, ignorado na leitura (Diretriz 7: sem migração).
   // FEAT-02: filamentos por cor (mono = array de 1). Fonte da verdade do custo
   // de material. Ausente em etapas legadas → migrado a partir dos escalares
   // abaixo por `normalizeFilaments`.

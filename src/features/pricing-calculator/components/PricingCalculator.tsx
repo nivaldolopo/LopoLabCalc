@@ -190,9 +190,10 @@ export function PricingCalculator() {
         name: stage.name ?? "",
         machineId: stage.machineId,
         printHours: stage.printHours,
-        energyTariff: form.product.energyTariff,
         laborMinutes: stage.laborMinutes,
-        laborRate: form.product.laborRate,
+        // Tarifa e valor-hora NÃO se repetem aqui: são do produto. Copiá-los
+        // para dentro da etapa criava um override que o formulário não sabia
+        // editar e que a produção ignorava.
         filaments: stripFilamentIds(stage.filaments),
       })),
       accessories: form.product.accessories.map((accessory) => ({

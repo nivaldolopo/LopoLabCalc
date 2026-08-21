@@ -52,17 +52,13 @@ export function validateProduct(product: ProductInput): string | null {
 
   if (product.markup < 1) return "⚠️ O markup deve ser no mínimo 1x.";
 
-  // Etapas extras: nenhum campo pode ser negativo (tempo/mão de obra/energia/
-  // valor-hora e o peso/preço de cada cor).
+  // Etapas extras: nenhum campo pode ser negativo (tempo/mão de obra e o
+  // peso/preço de cada cor). Tarifa e valor-hora não entram: são do produto e
+  // já foram checados acima.
   const stages = product.stages ?? [];
   for (let index = 0; index < stages.length; index += 1) {
     const stage = stages[index];
-    if (
-      num(stage.printHours) < 0 ||
-      num(stage.laborMinutes) < 0 ||
-      num(stage.energyTariff ?? 0) < 0 ||
-      num(stage.laborRate ?? 0) < 0
-    ) {
+    if (num(stage.printHours) < 0 || num(stage.laborMinutes) < 0) {
       return `⚠️ A etapa ${index + 2} contém valores negativos.`;
     }
     const stageError = filamentError(

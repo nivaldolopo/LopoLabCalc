@@ -184,6 +184,40 @@ describe("calculatePricing — componentes de custo", () => {
 });
 
 describe("calculatePricing — múltiplas etapas / máquinas", () => {
+  // Todo produto gravado antes desta limpeza tem `energyTariff`/`laborRate`
+  // repetidos dentro de cada etapa (o save escrevia o valor do produto ali).
+  // Essas chaves ficaram nos documentos e são LIXO INERTE: a tarifa e o
+  // valor-hora saem do produto. Se o cálculo voltasse a lê-las, um documento
+  // antigo — ou um CSV escrito à mão — mudaria o preço por um campo que não tem
+  // onde ser digitado, e a produção (que sempre usou a do produto) discordaria.
+  it("ignora tarifa/valor-hora repetidos na etapa por documento antigo", () => {
+    const stage = {
+      machineId: "x2d",
+      weightG: 20,
+      printHours: 1,
+      filamentPricePerKg: 110,
+      laborMinutes: 30,
+    };
+    const comLixo = calculatePricing(
+      // O cast é o ponto do teste: o tipo não tem mais estes campos, mas o
+      // documento no Firestore tem.
+      makeProduct({
+        stages: [{ ...stage, energyTariff: 2, laborRate: 90 }],
+      } as Partial<ProductInput>),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+    const limpo = calculatePricing(
+      makeProduct({ stages: [stage] }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+    );
+
+    expect(comLixo.energyCost).toBeCloseTo(limpo.energyCost, 6);
+    expect(comLixo.laborCost).toBeCloseTo(limpo.laborCost, 6);
+    expect(comLixo.suggestedPrice).toBeCloseTo(limpo.suggestedPrice, 6);
+  });
+
   it("soma etapa extra nas mesmas categorias e reparte uso por máquina", () => {
     const r = calculatePricing(
       makeProduct({

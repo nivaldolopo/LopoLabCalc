@@ -150,6 +150,22 @@
   [TD-014] — fazer antes da marca **custa** retrabalho. → **fazer junto do rebrand.**
   Detalhe da decisão: `HISTORICO.md`.
 
+## Aberto — resíduo da auditoria FORM-01 (2026-08-20)
+
+> Os dois defeitos do FORM-01 foram corrigidos. Sobrou o que ficou **fora** daquela varredura.
+
+- **[AUD-01] Auditar o estorno/reedição de recibo** — `reconcileRecibo` + o caminho reverso, e os
+  ramos internos do `SaleModal`. No FORM-01 foi conferida a **montagem do payload** da venda (que
+  está completa), não cada caminho da tela. É a última área que remonta objeto a partir de dado
+  salvo sem ter passado pelo diff campo a campo. **Como auditar:** o defeito tem assinatura —
+  função que reconstrói um objeto campo a campo e esquece um; e o teste é **diff do documento**,
+  nunca comparação de preço (o `supplyId` não movia preço, e foi assim que escapou).
+- **[CSV-02] `findColumn` casa por substring, e a primeira vitória vence** — `"Filamento (R$/kg)"`
+  só é encontrado corretamente porque vem **antes** de `"Filamentos JSON"` no cabeçalho exportado.
+  Reordenar as colunas num CSV escrito à mão faria a busca por `"filamento"` acertar a coluna JSON.
+  Hoje é inofensivo (o preço/kg real vem do JSON), mas vira armadilha num CSV sem a coluna JSON.
+  Correção de uma linha: casar por **nome exato** primeiro e só então cair no `includes`.
+
 ## Fechado
 
 Nada aqui. Todo item concluído — com writeup e medições — vive no

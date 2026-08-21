@@ -181,13 +181,10 @@ export function accessoryRows(
     .filter((usage) => usage.qty > 0);
 }
 
-// Labor congelado de uma etapa: min/60 × taxa (a da etapa, ou a do produto).
-function stageLabor(
-  laborMinutes: number,
-  laborRate: number | undefined,
-  productRate: number,
-): number {
-  return (num(laborMinutes) / 60) * num(laborRate ?? productRate);
+// Labor congelado de uma etapa: min/60 × o valor-hora do PRODUTO (a etapa não
+// tem taxa própria — ver `PrintStage`).
+function stageLabor(laborMinutes: number, productRate: number): number {
+  return (num(laborMinutes) / 60) * num(productRate);
 }
 
 const productEnergyTariff = (product: SavedProduct): number =>
@@ -212,14 +209,14 @@ export function wholeEventRows(
       machineId: product.machineId,
       printHours: num(product.printHours),
       filaments: normalizeFilaments(product),
-      labor: stageLabor(product.laborMinutes, undefined, product.laborRate),
+      labor: stageLabor(product.laborMinutes, product.laborRate),
     },
     ...normalizeStages(product).map((stage, index) => ({
       key: stageKeyFor(stage, index),
       machineId: stage.machineId,
       printHours: num(stage.printHours),
       filaments: normalizeFilaments(stage),
-      labor: stageLabor(stage.laborMinutes, stage.laborRate, product.laborRate),
+      labor: stageLabor(stage.laborMinutes, product.laborRate),
     })),
   ];
 

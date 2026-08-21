@@ -14,29 +14,26 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ CSV-01 — o round-trip do catálogo virou exato (2026-08-20)**.
-  Diagnóstico pedido pelo dono antes de uma carga em massa: `exportar → importar` preservava o
-  `filamentId` e o `supplyId` (confirmado em produção), mas **perdia os subitens** — e com eles o
-  **preço**, porque o override de markup por parte ia junto (R$ 72,58 → **74,92** com custo
-  idêntico). Agora viajam `sellBySubitems` + `Subitens JSON` (2 colunas no FIM; CSV antigo segue
-  importando) e o parser **para de descartar** `stages[].id` (identidade que os `stageKeys`
-  referenciam) e `accessories[].subitemId`. Mais 3 defeitos que só o CSV escrito à mão dispara:
-  markup com vírgula **truncava** (`2,8` → 2, silencioso), arredondamento com vírgula caía em
-  `exact` (silencioso), e etapa sem `energyTariff`/`laborRate` gravava `undefined` — que o Firestore
-  recusa, **matando o lote inteiro**. Máquina que não casa agora **avisa** em vez de escolher calada.
-  `productCsv.ts` era o único parser **sem teste**: ganhou 19. `lint` ✅ · **408/408** ✅ · `build` ✅.
-  Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ FORM-01 — o formulário parou de comer campo ao salvar (2026-08-20)**.
+  Achado pelo **dono**: o CSV estava são, o vazamento era o outro caminho (`loadProduct →
+  buildPayload`). **(1)** `createAccessory` esquecia o `supplyId` — e como o save grava
+  `supplyId ?? null`, **abrir e salvar sem tocar em nada apagava o vínculo** e a produção parava de
+  dar baixa. **(2)** Tarifa/valor-hora **por etapa** eram achatados no save (R$ 92,38 → 82,96), e 4
+  módulos discordavam do campo; o dono decidiu que **não deve existir** (não há input) → removido do
+  tipo, parser, cálculo, validação e produção — neutro no preço (0 de 29 produtos divergiam).
+  Varredura dos outros round-trips (venda, produção, acabados, orçamento): **limpos**.
+  `lint` ✅ · **414/414** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono.** O CSV do catálogo está pronto para receber o
-  recadastro (CSV-01). O resto do backlog de código **acabou** (auditoria zerada em 2026-08-18); o
-  que sobra está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado externo (`FEAT-03`,
-  `branding/logo`, `Dashboard`). **A próxima decisão é do dono** — ler o `BACKLOG.md` antes de
-  sugerir tarefa.
+- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono.** O CSV está pronto (CSV-01) e o formulário parou
+  de comer campo (FORM-01). Abertos: `AUD-01` (auditar estorno/reedição de recibo) e `CSV-02`
+  (`findColumn` por substring). O resto está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado
+  externo (`FEAT-03`, `branding/logo`, `Dashboard`). **A decisão é do dono** — ler o `BACKLOG.md`
+  antes de sugerir tarefa.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
@@ -164,6 +161,11 @@ src/
 - **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar
   watts/`lifeHours` recalcula energia e desgaste de TODOS os produtos, que guardam só o `machineId`.
   `useMachines` semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
+- **Função que REMONTA objeto salvo copia TODO campo — ou come dado calado** (FORM-01):
+  `createStage`/`createAccessory` e os pares `to*`/`*ToDocument`; o que falta vira `null` no save
+  seguinte (`buildPayload` grava `?? null`). Campo novo entra nos **dois** lados no mesmo commit.
+  ⚠ **Preço não é canário** (o `supplyId` sumia sem mover um centavo): o teste é **diff campo a
+  campo do documento**. **Tarifa e valor-hora são do PRODUTO**, nunca da etapa — não devolver.
 - Toda a lógica de cálculo vive em `features/pricing-calculator/lib/` — pura e coberta por teste.
 
 ## Diretrizes de trabalho

@@ -37,7 +37,7 @@ describe("validateProduct", () => {
     expect(validateProduct(makeProduct({ markup: 1 }))).toBeNull();
   });
 
-  it("pega valores negativos em etapas extras (incluindo campos opcionais)", () => {
+  it("pega valores negativos em etapas extras", () => {
     const erro = validateProduct(
       makeProduct({
         stages: [
@@ -46,8 +46,7 @@ describe("validateProduct", () => {
             weightG: 10,
             printHours: 1,
             filamentPricePerKg: 100,
-            laborMinutes: 0,
-            energyTariff: -0.5,
+            laborMinutes: -5,
           },
         ],
       }),

@@ -153,8 +153,6 @@ function parseJsonArray(value: string | undefined): unknown[] {
 function parseStages(value: string | undefined, fallbackMachineId: string): PrintStage[] {
   return parseJsonArray(value).map((stage) => {
     const item = stage as Partial<PrintStage>;
-    const energyTariff = Number(item.energyTariff);
-    const laborRate = Number(item.laborRate);
     const base: PrintStage = {
       // FEAT-01: o id é a IDENTIDADE da etapa — os `stageKeys` dos subitens
       // referenciam-no. Descartá-lo aqui faria todo subitem importado nascer
@@ -163,12 +161,11 @@ function parseStages(value: string | undefined, fallbackMachineId: string): Prin
       name: item.name ?? "",
       machineId: item.machineId ?? fallbackMachineId,
       printHours: Number(item.printHours) || 0,
-      // Chave AUSENTE, não `undefined`: os dois campos são overrides opcionais,
-      // e o Firestore recusa a gravação inteira se um `undefined` chegar nele —
-      // um CSV à mão que omita a tarifa derrubaria o lote todo.
-      ...(energyTariff > 0 ? { energyTariff } : {}),
       laborMinutes: Number(item.laborMinutes) || 0,
-      ...(laborRate > 0 ? { laborRate } : {}),
+      // `energyTariff`/`laborRate` da etapa são IGNORADOS de propósito: valem os
+      // do produto (colunas "Tarifa Energia" e "Valor-hora"). Um CSV que os
+      // traga na etapa não vira override — não há onde editá-los depois, e a
+      // produção sempre usou o do produto.
     };
     // FEAT-02: usa as cores quando presentes; senão mantém os escalares legados
     // (migrados no cálculo por `normalizeFilaments`).

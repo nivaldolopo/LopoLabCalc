@@ -129,11 +129,15 @@ export function calculateFixedCostSummary(
   };
 }
 
+// `energyTariff` e `laborRate` chegam do PRODUTO e valem para todas as etapas —
+// não são fallback de um override por etapa. A etapa que os trouxesse (doc
+// antigo, CSV à mão) seria a única fonte de divergência entre o preço e o custo
+// real da produção, que sempre usou o do produto.
 export function calculateStageCost(
   stage: PrintStage,
   machines: Machine[],
-  fallbackEnergyTariff: number,
-  fallbackLaborRate: number,
+  energyTariff: number,
+  laborRate: number,
   stockById: Map<string, StockFilament> = new Map(),
 ): StageCost {
   const { machine, found } = findMachine(machines, stage.machineId);
@@ -148,7 +152,7 @@ export function calculateStageCost(
   const energyCost =
     num(stage.printHours) *
     (num(machine.watts) / 1000) *
-    num(stage.energyTariff ?? fallbackEnergyTariff);
+    num(energyTariff);
   const depreciationCost =
     machine.lifeHours > 0
       ? (num(machine.price) / machine.lifeHours) *
@@ -158,7 +162,7 @@ export function calculateStageCost(
     num(stage.printHours) * num(machine.maintenancePerHour);
   const laborCost =
     (num(stage.laborMinutes) / 60) *
-    num(stage.laborRate ?? fallbackLaborRate);
+    num(laborRate);
 
   return {
     machine,
@@ -190,9 +194,7 @@ export function calculatePricing(
       weightG: product.weightG,
       printHours: product.printHours,
       filamentPricePerKg: product.filamentPricePerKg,
-      energyTariff: product.energyTariff,
       laborMinutes: product.laborMinutes,
-      laborRate: product.laborRate,
     },
     machines,
     product.energyTariff,

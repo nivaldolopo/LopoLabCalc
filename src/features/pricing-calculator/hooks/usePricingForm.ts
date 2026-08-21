@@ -45,15 +45,19 @@ function createStage(index: number, data?: Partial<PrintStage>): PrintStage {
     machineId: data?.machineId ?? "a1",
     printHours: data?.printHours ?? 0,
     laborMinutes: data?.laborMinutes ?? 0,
-    energyTariff: data?.energyTariff,
-    laborRate: data?.laborRate,
     filaments: withFilamentIds(
       normalizeFilaments(data ?? { filamentPricePerKg: 110 }),
     ),
   };
 }
 
-function createAccessory(index: number, data?: Partial<Accessory>): Accessory {
+// Exportada só para teste: é ela que reconstrói o acessório ao CARREGAR um
+// produto salvo, e um campo esquecido aqui vira gravação com `null` no save
+// seguinte (foi o que aconteceu com o `supplyId`).
+export function createAccessory(
+  index: number,
+  data?: Partial<Accessory>,
+): Accessory {
   return {
     id: `acc_${Date.now()}_${index}`,
     desc: data?.desc ?? "",
@@ -61,6 +65,11 @@ function createAccessory(index: number, data?: Partial<Accessory>): Accessory {
     unitPrice: data?.unitPrice ?? 0,
     // FEAT-01: atribuição a um subitem (null = nível do produto, rateado).
     subitemId: data?.subitemId ?? null,
+    // 7e: o insumo ligado é DADO SALVO, não estado novo. Sem esta linha,
+    // carregar um produto devolvia o acessório como avulso e o `buildPayload`
+    // gravava `supplyId: null` no save seguinte — a baixa na produção morria
+    // sem que o preço se mexesse (o `unitPrice` sobrevive), então nada avisava.
+    supplyId: data?.supplyId ?? null,
   };
 }
 
