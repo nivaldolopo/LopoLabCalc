@@ -9,6 +9,51 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ CSV-03 — a importação parou de ignorar preço/custo em silêncio (2026-08-21)
+
+> Achado na auditoria RT-01, na pergunta do dono: *"por que o import/export trabalha com valores que
+> serão recalculados de qualquer forma?"*
+
+**O CSV tem dois públicos.** Para o dono é um relatório (abre no Excel e mostra onde o dinheiro do
+produto está); para o app, 12 das 34 colunas — material, energia, desgaste, manutenção, mão de obra,
+etapas, acessórios, reserva de falha, fixo, custo total, preço sugerido e margem — são **calculadas**
+e não têm `findColumn`.
+
+**Recalcular é o comportamento certo, e continua.** O preço não é dado do produto: é consequência de
+markup, peso, horas, arredondamento e da config da MÁQUINA, que vive num doc compartilhado
+(`config/machines`) e pode mudar depois do export. Se a importação confiasse no preço exportado,
+bastaria ajustar os watts da A1 para o catálogo voltar com preço velho discordando das próprias
+entradas — e sem nada indicando qual dos dois números vale.
+
+**O defeito era o SILÊNCIO.** Quem abrisse o CSV, corrigisse o "Preço Sugerido" e reimportasse não
+recebia aviso nenhum: a edição sumia e a pessoa achava que tinha definido o preço. Armadilha real na
+carga em massa.
+
+**A correção.** `parseProductsCsv` ganhou um 3º parâmetro OPCIONAL (`{ fixedCosts, stock }`) e, quando
+ele vem, recalcula cada linha com a **mesma chamada do export** (`calculatePricing` com as mesmas
+máquinas/taxa/estoque) e compara contra o que o arquivo afirma. Divergiu → conta e devolve em
+`recalc: { divergentes, comparadas, exemplos }`, que a confirmação da importação mostra antes de
+gravar. **Não bloqueia** — mesmo molde do aviso de máquina não reconhecida (TD-009).
+
+**Decisões de escopo:**
+- **Só `Preço Sugerido` e `Custo Total`.** São as duas que alguém tentaria editar para "definir" o
+  preço; as outras 10 são detalhamento (ninguém mexe no "Desgaste (R$)" esperando mudar o resultado),
+  e avisar sobre 12 colunas × N linhas viraria parede de texto.
+- **Tolerância de R$ 0,02** — o export grava com 2 casas (`formatDecimal`), então centavo é ruído do
+  próprio arredondamento, não edição.
+- **Célula vazia/ausente não conta.** Um CSV enxuto escrito à mão não tem essas colunas, e isso é uso
+  legítimo — não é divergência.
+- **Máximo 3 exemplos**, mas o total conta todas ("6 de 6 linhas").
+- **Parâmetro opcional** porque sem a taxa de custo fixo o número literalmente não é comparável.
+  Sem ele a checagem não roda (é o caso dos testes de parsing puro).
+- `Peso (g)` e `Filamento (R$/kg)` ficaram **de fora**: são inertes quando o `Filamentos JSON` está
+  presente, mas ESSENCIAIS num CSV enxuto mono-cor. Avisar sobre elas puniria o uso legítimo.
+
+**Efeito colateral útil:** o aviso também acende quando a configuração (máquina/tarifa/taxa do fixo)
+mudou entre o export e o import — que é a outra coisa que o dono quer saber antes de gravar.
+
+**433 → 439 testes.**
+
 ## ✅ RT-01 — round-trip auditado campo a campo, e o par virou função pura (2026-08-20)
 
 > **Pedido do dono antes da carga em massa**, com uma regra explícita: **nada de canário**. O teste

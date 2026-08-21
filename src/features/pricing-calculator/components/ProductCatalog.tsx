@@ -245,10 +245,11 @@ export function ProductCatalog({
       clear();
       try {
         const content = String(event.target?.result ?? "");
-        const { products: importedProducts, warnings } = parseProductsCsv(
-          content,
-          machines,
-        );
+        const {
+          products: importedProducts,
+          warnings,
+          recalc,
+        } = parseProductsCsv(content, machines, { fixedCosts, stock });
         if (importedProducts.length === 0) {
           fail("Nenhum produto válido encontrado no CSV.");
           return;
@@ -279,6 +280,31 @@ export function ProductCatalog({
                   {warnings.length > 5 && (
                     <p>e mais {warnings.length - 5}…</p>
                   )}
+                </div>
+              )}
+              {/* CSV-03: preço e custo são sempre RECALCULADOS a partir das
+                  entradas — editar essas colunas na planilha não muda nada.
+                  Antes isso acontecia calado; agora o dono vê o que foi
+                  ignorado antes de gravar. Não bloqueia. */}
+              {recalc && (
+                <div className="import-warnings">
+                  <strong>
+                    ⚠️ {recalc.divergentes} de {recalc.comparadas}{" "}
+                    {recalc.comparadas === 1 ? "linha" : "linhas"} com preço/custo
+                    diferente do recalculado:
+                  </strong>
+                  <ul>
+                    {recalc.exemplos.map((exemplo) => (
+                      <li key={exemplo}>{exemplo}</li>
+                    ))}
+                  </ul>
+                  <p>
+                    Essas colunas <strong>não são importadas</strong> — o preço
+                    sai sempre das entradas (peso, horas, markup, máquina,
+                    arredondamento). Vale conferir se a diferença é uma edição
+                    sua na planilha ou uma mudança de configuração desde o
+                    export.
+                  </p>
                 </div>
               )}
             </>

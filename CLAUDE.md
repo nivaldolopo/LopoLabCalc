@@ -14,12 +14,14 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ RT-01 — round-trip auditado campo a campo (2026-08-20)**. Os DOIS ciclos
-  (CSV e formulário) no app real contra o Firestore, **sem canário**: **83 valores por linha**,
-  **zero divergências**. Saíram 3 mudanças: `buildPayload` parou de gravar `id` dentro do doc; o
-  export escreve as etapas **normalizadas** (levava lixo de 47 das 51 etapas); e o par virou
-  `buildLoadedProduct` + `buildProductPayload`, **puros e exportados**, com teste de diff do
-  documento. `lint` ✅ · **433/433** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ RT-01 + CSV-03 — o round-trip provado, e a importação parou de ignorar
+  calada (2026-08-21)**. RT-01: os DOIS ciclos (CSV e formulário) no app real contra o Firestore,
+  **sem canário** — 83 valores por linha, **zero divergências**; `buildPayload` parou de gravar `id`
+  dentro do doc, o export escreve as etapas **normalizadas** (levava lixo de 47 das 51 etapas), e o
+  par virou `buildLoadedProduct` + `buildProductPayload`, **puros e exportados**. CSV-03: preço/custo
+  do arquivo **são sempre recalculados** (é o certo — a config de máquina muda depois do export), mas
+  agora a confirmação **avisa** o que foi ignorado, em vez de sumir. `lint` ✅ · **439/439** ✅ ·
+  `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
@@ -27,9 +29,8 @@
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
 - **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono.** O round-trip está **provado exato** nos dois
-  ciclos (RT-01). Abertos: `AUD-01` (auditar estorno/reedição de recibo), `CSV-02` (`findColumn` por
-  substring) e `CSV-03` (12 das 34 colunas são só-leitura — editar preço/custo no Excel é
-  **ignorado calado**). O resto está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado
+  ciclos (RT-01) e a importação já avisa o que ignora (CSV-03). Abertos: `AUD-01` (auditar
+  estorno/reedição de recibo) e `CSV-02` (`findColumn` por substring). O resto está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado
   externo (`FEAT-03`, `branding/logo`, `Dashboard`). **A decisão é do dono** — ler o `BACKLOG.md`
   antes de sugerir tarefa.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —

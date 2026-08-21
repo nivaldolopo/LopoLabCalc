@@ -311,17 +311,61 @@ export function exportProductsCsv(
   return `\uFEFF${[CSV_HEADERS.join(";"), ...rows].join("\n")}`;
 }
 
-// O que a importação devolve: os produtos e o que ela teve de ADIVINHAR. Os
-// avisos não bloqueiam — aparecem na confirmação, para o dono decidir antes de
-// gravar (TD-009: sinalizar o dado órfão em vez de mascarar).
+// CSV-03: 12 das 34 colunas são CALCULADAS (material, energia, desgaste,
+// manutenção, mão de obra, etapas, acessórios, reserva de falha, fixo, custo
+// total, preço sugerido, margem) e a importação as ignora — recalcular é a
+// única opção correta, porque o preço é consequência das ENTRADAS e da config
+// de máquina, que vive num doc compartilhado e pode mudar depois do export.
+// Confiar no número exportado deixaria o catálogo com preço velho discordando
+// das próprias entradas.
+//
+// O problema nunca foi recalcular: era o SILÊNCIO. Quem abrisse o CSV no Excel,
+// corrigisse o "Preço Sugerido" e reimportasse não recebia aviso nenhum — a
+// edição sumia. Isto conta o que foi ignorado, sem bloquear.
+export type CsvRecalcNotice = {
+  // Linhas cujo preço/custo do arquivo não bate com o recálculo.
+  divergentes: number;
+  // Linhas que traziam a coluna preenchida (a base da comparação).
+  comparadas: number;
+  // Até 3 casos concretos, para o dono reconhecer o que aconteceu.
+  exemplos: string[];
+};
+
+// O que a importação devolve: os produtos e o que ela teve de ADIVINHAR ou
+// IGNORAR. Nada disso bloqueia — aparece na confirmação, para o dono decidir
+// antes de gravar (TD-009: sinalizar o dado órfão em vez de mascarar).
 export type CsvImportResult = {
   products: ProductPayload[];
+  // Máquina que não casou: por linha, e ACIONÁVEL (dá pra corrigir o CSV).
   warnings: string[];
+  // CSV-03: presente só quando há divergência a contar.
+  recalc?: CsvRecalcNotice;
 };
+
+// Recalcular exige a taxa de custo fixo e as cores do Estoque — sem elas o
+// número não é comparável, e a checagem simplesmente não roda (é o caso dos
+// testes de parsing puro, que não têm negócio configurado).
+export type CsvParseOptions = {
+  fixedCosts: FixedCostSettings;
+  stock?: StockFilament[];
+};
+
+// Tolerância: o export grava com 2 casas (`formatDecimal`), então até 2 centavos
+// é ruído do próprio arredondamento, não edição do dono.
+const RECALC_TOLERANCE = 0.02;
+
+function moneyCell(value: string | undefined): number | null {
+  const raw = String(value ?? "").trim();
+  // Célula ausente/vazia não é divergência — é um CSV enxuto, escrito à mão.
+  if (!raw) return null;
+  const parsed = parseNumber(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 export function parseProductsCsv(
   content: string,
   machines: Machine[],
+  options?: CsvParseOptions,
 ): CsvImportResult {
   const normalizedContent = content.replace(/^\uFEFF/, "");
   const rawLines = normalizedContent
@@ -355,12 +399,21 @@ export function parseProductsCsv(
   const indexFilaments = findColumn(headers, "filamentos json");
   const indexSellBySubitems = findColumn(headers, "vende por subitens");
   const indexSubitems = findColumn(headers, "subitens json");
+  // CSV-03: as duas colunas calculadas que alguém de fato tentaria editar para
+  // "definir" o preço. As outras 10 são detalhamento — ninguém mexe no
+  // "Desgaste (R$)" esperando mudar o resultado, e avisar sobre 12 colunas ×
+  // N linhas viraria parede de texto.
+  const indexPrice = findColumn(headers, "preco sugerido");
+  const indexTotalCost = findColumn(headers, "custo total");
 
   if (indexName < 0) {
     throw new Error('Coluna "Produto" não encontrada.');
   }
 
   const warnings: string[] = [];
+  const recalcExemplos: string[] = [];
+  let recalcComparadas = 0;
+  let recalcDivergentes = 0;
 
   const products = rawLines.slice(1).flatMap((line, offset) => {
     const columns = parseLine(line, separator);
@@ -386,8 +439,7 @@ export function parseProductsCsv(
         ? (parseJsonArray(columns[indexFilaments]) as FilamentUsage[])
         : [];
 
-    return [
-      {
+    const product: ProductPayload = {
         name,
         mainStageName:
           indexMainName >= 0 ? columns[indexMainName]?.trim() ?? "" : "",
@@ -438,11 +490,74 @@ export function parseProductsCsv(
         fixedCostPerHour: null,
         combineEnabled: null,
         stage2: null,
-      },
-    ];
+    };
+
+    // CSV-03: o que o arquivo AFIRMA × o que o app recalcula. Simétrico ao
+    // export (mesma chamada, mesmas máquinas/taxa/estoque), então numa
+    // reimportação sem nada ter mudado no meio isto fica em zero — e acende
+    // exatamente quando alguém editou a coluna à mão, ou quando a config mudou
+    // desde o export (que é a outra coisa que o dono quer saber).
+    if (options) {
+      const arquivoPreco =
+        indexPrice >= 0 ? moneyCell(columns[indexPrice]) : null;
+      const arquivoCusto =
+        indexTotalCost >= 0 ? moneyCell(columns[indexTotalCost]) : null;
+
+      if (arquivoPreco !== null || arquivoCusto !== null) {
+        recalcComparadas += 1;
+        const recalculado = calculatePricing(
+          product,
+          machines,
+          options.fixedCosts,
+          options.stock ?? [],
+        );
+        const divergePreco =
+          arquivoPreco !== null &&
+          Math.abs(arquivoPreco - recalculado.suggestedPrice) > RECALC_TOLERANCE;
+        const divergeCusto =
+          arquivoCusto !== null &&
+          Math.abs(arquivoCusto - recalculado.totalCost) > RECALC_TOLERANCE;
+
+        if (divergePreco || divergeCusto) {
+          recalcDivergentes += 1;
+          if (recalcExemplos.length < 3) {
+            const partes: string[] = [];
+            if (divergePreco) {
+              partes.push(
+                `preço ${formatDecimal(arquivoPreco as number)} → ` +
+                  `${formatDecimal(recalculado.suggestedPrice)}`,
+              );
+            }
+            if (divergeCusto) {
+              partes.push(
+                `custo ${formatDecimal(arquivoCusto as number)} → ` +
+                  `${formatDecimal(recalculado.totalCost)}`,
+              );
+            }
+            recalcExemplos.push(
+              `Linha ${offset + 2} ("${name}"): ${partes.join(" · ")}`,
+            );
+          }
+        }
+      }
+    }
+
+    return [product];
   });
 
-  return { products, warnings };
+  return {
+    products,
+    warnings,
+    ...(recalcDivergentes > 0
+      ? {
+          recalc: {
+            divergentes: recalcDivergentes,
+            comparadas: recalcComparadas,
+            exemplos: recalcExemplos,
+          },
+        }
+      : {}),
+  };
 }
 
 export function downloadCsv(filename: string, content: string): void {

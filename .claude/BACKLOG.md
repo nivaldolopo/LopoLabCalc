@@ -165,20 +165,6 @@
   Reordenar as colunas num CSV escrito à mão faria a busca por `"filamento"` acertar a coluna JSON.
   Hoje é inofensivo (o preço/kg real vem do JSON), mas vira armadilha num CSV sem a coluna JSON.
   Correção de uma linha: casar por **nome exato** primeiro e só então cair no `includes`.
-- **[CSV-03] 12 das 34 colunas do CSV são só-leitura, e a importação as ignora CALADA** — Material,
-  Energia, Desgaste, Manutenção, Mão de obra (R$), Etapas (R$), Acessórios (R$), Reserva Falha,
-  Custo Fixo, Custo Total, **Preço Sugerido** e Margem (%) não têm `findColumn`: são todas
-  recalculadas. Recalcular é o comportamento **certo** — as entradas (markup, peso, horas, watts da
-  máquina, tarifa, taxa do fixo) são a verdade, e a config de máquina vive num doc compartilhado que
-  pode mudar depois do export; confiar no preço exportado deixaria o catálogo com preço velho
-  discordando das próprias entradas. **O problema é o silêncio:** quem abrir o CSV no Excel, corrigir
-  o "Preço Sugerido" e reimportar não recebe aviso nenhum — a edição some. Vira armadilha na carga
-  em massa. **Correção proposta:** o import compara a coluna calculada com o que ele recalculou e
-  **avisa** na confirmação quando divergem (mesmo molde do aviso de máquina não reconhecida, TD-009),
-  sem bloquear. Medido em RT-01. Bônus barato: `Peso (g)` e `Filamento (R$/kg)` também são inertes
-  quando o `Filamentos JSON` está presente — mas essenciais quando não está (CSV enxuto, mono-cor),
-  então esses **não** entram no aviso.
-
 ## Fechado
 
 Nada aqui. Todo item concluído — com writeup e medições — vive no
