@@ -444,13 +444,11 @@ export function parseProductsCsv(
         mainStageName:
           indexMainName >= 0 ? columns[indexMainName]?.trim() ?? "" : "",
         machineId,
-        weightG: parseNumber(columns[indexWeight]),
         printHours: parseNumber(columns[indexTime]),
         piecesCount:
           indexPieces >= 0
             ? Math.max(1, parseNumber(columns[indexPieces]) || 1)
             : 1,
-        filamentPricePerKg: parseNumber(columns[indexFilament]),
         energyTariff: indexEnergy >= 0 ? parseNumber(columns[indexEnergy]) : 0.8,
         laborMinutes:
           indexLaborMinutes >= 0 ? parseNumber(columns[indexLaborMinutes]) : 15,
@@ -485,7 +483,19 @@ export function parseProductsCsv(
             ? parseBool(columns[indexSellBySubitems])
             : false,
         subitems,
-        ...(filaments.length > 0 ? { filaments } : {}),
+        // FEAT-02: com as cores na linha, elas são a fonte da verdade — e os
+        // escalares "Peso (g)"/"Filamento (R$/kg)" NÃO entram no documento.
+        // Gravá-los junto fazia o produto da carga em massa nascer com os dois
+        // campos legados que o formulário parou de persistir (RT-01): inertes
+        // no custo, mas uma forma que só sumia ao abrir e salvar o produto.
+        // Sem as cores eles são o peso/preço de verdade (CSV escrito à mão) e
+        // seguem entrando — é deles que `normalizeFilaments` migra.
+        ...(filaments.length > 0
+          ? { filaments }
+          : {
+              weightG: parseNumber(columns[indexWeight]),
+              filamentPricePerKg: parseNumber(columns[indexFilament]),
+            }),
         createdAt: Date.now(),
         fixedCostPerHour: null,
         combineEnabled: null,

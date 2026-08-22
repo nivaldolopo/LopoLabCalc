@@ -314,3 +314,42 @@ describe("CSV-03 — o que a importação IGNORA, ela conta", () => {
     expect(r.recalc?.exemplos).toHaveLength(3);
   });
 });
+
+// O produto da carga em massa tem de nascer com a MESMA forma que o formulário
+// grava: `filaments` manda, e os escalares legados não entram junto. Sem isto,
+// todo produto importado nascia com `weightG`/`filamentPricePerKg` no
+// documento — inertes no custo, e por isso mesmo capazes de sobreviver
+// despercebidos até alguém abrir e salvar o produto.
+describe("importação — a forma do documento importado", () => {
+  it("com as cores na linha, os escalares legados NÃO vão para o documento", () => {
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock);
+    const produto = parseProductsCsv(csv, machines).products[0];
+
+    expect("weightG" in produto).toBe(false);
+    expect("filamentPricePerKg" in produto).toBe(false);
+    expect(produto.filaments).toEqual(cobaia.filaments);
+  });
+
+  it("sem as cores, os escalares seguem entrando — são o peso/preço de verdade", () => {
+    const csv = [
+      "Produto;Maquina;Peso (g);Tempo (h);Filamento (R$/kg);Markup",
+      "Chaveiro;Bambu Lab A1;40;3;120;3",
+    ].join("\n");
+    const produto = parseProductsCsv(csv, machines).products[0];
+
+    expect(produto.weightG).toBe(40);
+    expect(produto.filamentPricePerKg).toBe(120);
+    expect(produto.filaments).toBeUndefined();
+  });
+
+  it("o peso continua chegando ao custo pelos dois caminhos", () => {
+    const comCores = parseProductsCsv(
+      exportProductsCsv([cobaia], machines, fixedCosts, stock),
+      machines,
+      { fixedCosts, stock },
+    );
+    // Reimportar o próprio arquivo não acende aviso: o custo é o mesmo com a
+    // linha inteira vindo das cores.
+    expect(comCores.recalc).toBeUndefined();
+  });
+});

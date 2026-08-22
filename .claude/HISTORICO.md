@@ -9,6 +9,62 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ RT-01b — re-auditoria independente, e a semente da planilha ficou limpa (2026-08-21)
+
+> Pedido do dono: refazer a auditoria do RT-01 **do zero, por outra cabeça**, tratando cada
+> afirmação anterior como hipótese a derrubar — "quem escreveu a mudança é a pior pessoa para julgar
+> se ela está certa". Harness próprio, sem reaproveitar `productCsvRoundTrip.test.ts` nem
+> `productPayload.test.ts`.
+
+**As 3 mudanças do RT-01/CSV-03 se sustentaram** (`delete base.id`, export normalizado, aviso do
+recálculo) — mas **uma afirmação caiu**: reimportar um arquivo recém-exportado **não** dava zero
+avisos. Dava 2 em 97 linhas, e o aviso estava certo.
+
+**O defeito que ele apontava era anterior aos 3 commits:** o export montava as etapas de
+`product.stages ?? []`, enquanto o preço da MESMA linha vinha de `calculatePricing` →
+`normalizeStages`, que migra o `stage2` legado quando `stages` está vazio. Resultado: a linha
+afirmava `Etapas (R$) 16,64` ao lado de `Etapas JSON []`. Reimportar derrubava o custo de 35,85 para
+10,63 (**3,4×**) — em silêncio, se o CSV-03 não existisse.
+
+**Corrigido no DADO, não no código** (decisão do dono, Diretriz 7): os 2 produtos legados
+(`Caixa uno`, `livro torre dados`) foram abertos e salvos no formulário, que migra `stage2 → stages`
+e zera `combineEnabled`/`fixedCostPerHour`. Custo idêntico antes/depois. **Zero produto legado
+no catálogo** — e, com isso, o export do catálogo (a semente da planilha do recadastro) reimporta
+com **nenhum aviso**.
+
+**Uma mudança de código saiu daqui, e é sobre a forma do dado NOVO:** `parseProductsCsv` gravava
+`weightG`/`filamentPricePerKg` no produto **mesmo com o `Filamentos JSON` presente**. Todo produto
+da carga em massa nasceria com os dois escalares que o formulário parou de persistir — inertes no
+custo (por isso ninguém veria) até alguém abrir e salvar. Agora eles entram **só** quando a linha
+não traz as cores, que é quando são o peso/preço de verdade (CSV escrito à mão).
+
+**O que foi medido no catálogo real** (97 produtos, via estado do React + export capturado):
+- export real: 39.699 bytes, 98 linhas, 34 colunas, **0 ocorrências** de
+  `energyTariff`/`laborRate`/`weightG`/`filamentPricePerKg` (A4 confirmada);
+- inventário de chaves das 47 etapas: nenhuma chave desconhecida sendo descartada pelo export;
+- **P1 (o risco nunca medido):** 85 filamentos, 4 com detalhamento, **todos coerentes**
+  (`totalG` == soma) — o recálculo do `makeFilament` não altera nada hoje, e nunca alterou custo
+  (o `calculateStageCost` já normalizava antes);
+- 15 etapas legadas só com escalares: custo **exatamente** igual depois do export normalizado;
+- 26 etapas sem `id` em 14 produtos, nenhum com subitens → RT-02 no BACKLOG;
+- 97 linhas pelo fluxo real de importação: parse de poucos ms; o recálculo do CSV-03 não pesa.
+
+**Ciclos A e B provados em dado real**, sem canário e sem depender de preço: 4 documentos reais de
+classes diferentes + 1 produto **criado à mão no formulário** (P3, o buraco que a auditoria anterior
+admitia) → 0 campos divergentes, custo idêntico com 6–9 casas. Um produto real foi aberto e salvo no
+app (`Insert Hitster`): saíram só `energyTariff`/`laborRate` da etapa; todo o resto intacto.
+
+**Duas armadilhas de método que ficaram registradas:** (1) o CSV **não** é byte-a-byte igual na 1ª
+volta — mapa do Firestore não preserva ordem de chave, e a comparação exige stringify canônico
+(estável a partir da 2ª volta); (2) `saveProduct` usa `updateDoc`, que **mescla** — parar de gravar
+um campo não o apaga dos documentos que já o têm (vale para o `id` do RT-01).
+
+**O que continua no escuro:** ninguém leu o **documento cru** do Firestore. Tentei patch de
+XHR/fetch, `offline`/`online` para forçar re-listen e o registro de módulos do Turbopack — o cliente
+usa cache em memória e nada trafegou. O caminho por token de auth foi recusado.
+
+`lint` ✅ · **442/442** ✅ · `build` ✅
+
 ## ✅ CSV-03 — a importação parou de ignorar preço/custo em silêncio (2026-08-21)
 
 > Achado na auditoria RT-01, na pergunta do dono: *"por que o import/export trabalha com valores que

@@ -14,25 +14,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ RT-01 + CSV-03 — o round-trip provado, e a importação parou de ignorar
-  calada (2026-08-21)**. RT-01: os DOIS ciclos (CSV e formulário) no app real contra o Firestore,
-  **sem canário** — 83 valores por linha, **zero divergências**; `buildPayload` parou de gravar `id`
-  dentro do doc, o export escreve as etapas **normalizadas** (levava lixo de 47 das 51 etapas), e o
-  par virou `buildLoadedProduct` + `buildProductPayload`, **puros e exportados**. CSV-03: preço/custo
-  do arquivo **são sempre recalculados** (é o certo — a config de máquina muda depois do export), mas
-  agora a confirmação **avisa** o que foi ignorado, em vez de sumir. `lint` ✅ · **439/439** ✅ ·
-  `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ RT-01b — a re-auditoria independente, e a semente da planilha ficou limpa
+  (2026-08-21)**. O RT-01/CSV-03 se sustentou, mas a re-auditoria **derrubou** o "reimportar não
+  avisa": 2 de 97 linhas acendiam — e o aviso estava certo. Causa (anterior aos commits): o export
+  montava as etapas de `product.stages`, enquanto o preço da mesma linha vinha de `normalizeStages`
+  — produto legado `combineEnabled`/`stage2` saía com `Etapas JSON []` e custo 3,4× menor na volta.
+  **Corrigido no DADO** (Diretriz 7): os 2 produtos foram abertos e salvos, migrando `stage2 →
+  stages`; **zero produto legado no catálogo**, e o export reimporta **sem nenhum aviso**. Único
+  código tocado: a importação **não grava mais** `weightG`/`filamentPricePerKg` quando a linha traz
+  `Filamentos JSON` — o produto da carga em massa nasce na mesma forma que o formulário grava.
+  `lint` ✅ · **442/442** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono.** O round-trip está **provado exato** nos dois
-  ciclos (RT-01) e a importação já avisa o que ignora (CSV-03). Abertos: `AUD-01` (auditar
-  estorno/reedição de recibo) e `CSV-02` (`findColumn` por substring). O resto está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado
-  externo (`FEAT-03`, `branding/logo`, `Dashboard`). **A decisão é do dono** — ler o `BACKLOG.md`
-  antes de sugerir tarefa.
+- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono.** O plano do dono: **exportar o catálogo de hoje
+  como semente da planilha do recadastro**. A semente está limpa (RT-01b) — reimportar o export não
+  acende aviso nenhum. Abertos: `AUD-01` (estorno/reedição de recibo), `CSV-02` (`findColumn` por
+  substring), `RT-02` (id de etapa regerado no form) e `CSV-04` (nome com `\n` quebra o CSV) — os
+  dois últimos com **exposição zero hoje**. O resto está no rebrand (`DEC-05` + `G2`) ou bloqueado
+  por dado externo (`FEAT-03`, `branding/logo`, `Dashboard`). **A decisão é do dono** — ler o
+  `BACKLOG.md` antes de sugerir tarefa.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
