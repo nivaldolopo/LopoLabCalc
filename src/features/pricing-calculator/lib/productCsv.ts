@@ -167,18 +167,34 @@ function splitRecords(content: string): string[] {
   return records.filter((record) => record.trim().length > 0);
 }
 
+// Célula numérica escrita à mão — ou formatada pelo Excel. `parseFloat` PARA no
+// primeiro caractere que não é número, então "R$ 118,90" virava 0 e "1 234,56"
+// virava 1: o preço sumia sem um pio. Tudo que não é dígito, sinal ou separador
+// cai fora ANTES da conversão — símbolo de moeda, espaço comum e os espaços
+// não-separáveis (U+00A0 / U+202F) que o Excel usa como separador de milhar.
 function parseNumber(value: string | undefined): number {
   if (!value) return 0;
-  let normalized = value.trim();
+  let normalized = value.replace(/[^\d.,-]/g, "").trim();
+  if (!normalized) return 0;
   const hasComma = normalized.includes(",");
   const hasDot = normalized.includes(".");
 
   if (hasComma && hasDot) normalized = normalized.replace(/\./g, "").replace(",", ".");
   else if (hasComma) normalized = normalized.replace(",", ".");
+  // Só-ponto continua sendo DECIMAL: é a forma que o próprio export escreve
+  // (`printHours`, `markup`, `energyTariff`…), e reinterpretá-la como milhar
+  // quebraria o round-trip do arquivo do app. O caso ambíguo de verdade —
+  // "1.234", que no Excel pt-BR é mil duzentos e trinta e quatro — não é
+  // adivinhado aqui: é APONTADO na importação (`milhar-ambiguo`).
 
   const parsed = Number.parseFloat(normalized);
   return Number.isNaN(parsed) ? 0 : parsed;
 }
+
+// "1.234" — um ponto, com exatamente 3 dígitos depois e nada mais. Escrito à
+// mão em pt-BR quase sempre é milhar; vindo do export é decimal. Como as duas
+// leituras são plausíveis e diferem por 1000×, a importação não escolhe calada.
+const MILHAR_AMBIGUO = /^-?\d{1,3}\.\d{3}$/;
 
 function parseBool(value: string | undefined): boolean {
   return String(value ?? "").toLowerCase().trim() === "sim";
@@ -570,6 +586,21 @@ export function parseProductsCsv(
   }
 
   const warnings: string[] = [];
+
+  // Arquivo salvo em ANSI/Windows-1252 e lido como UTF-8: cada acento vira
+  // U+FFFD e o nome entra corrompido ("Coração" → "Cora??o"), sem nada quebrar.
+  // No Excel pt-BR é o default — "CSV (separado por vírgulas)" grava ANSI; só
+  // "CSV UTF-8" grava certo. Reinterpretar os bytes aqui é impossível (eles já
+  // se perderam na decodificação), então o que dá para fazer é não deixar
+  // passar calado.
+  const corrompidos = (content.match(/�/g) ?? []).length;
+  if (corrompidos > 0) {
+    warnings.push(
+      `Acentos corrompidos (${corrompidos} caractere(s) ilegível(is)) — o arquivo ` +
+        `parece ter sido salvo em ANSI. Salve de novo como "CSV UTF-8" e reimporte.`,
+    );
+  }
+
   const recalcExemplos: string[] = [];
   let recalcComparadas = 0;
   let recalcDivergentes = 0;
@@ -743,6 +774,52 @@ export function parseProductsCsv(
         `${ondeEstou}: "${markupRaw}"`,
       );
     }
+
+    // 3b) A célula que o Excel formatou como MILHAR. "1.234" é lido como 1,234
+    // (decimal, que é como o export escreve) — se o dono quis mil duzentos e
+    // trinta e quatro, o número entra 1000× menor. Não dá para adivinhar qual
+    // das duas leituras é a certa, então a linha é apontada.
+    ([
+      [indexWeight, "Peso (g)"],
+      [indexTime, "Tempo (h)"],
+      [indexFilament, "Filamento (R$/kg)"],
+      [indexLaborRate, "Valor-hora (R$)"],
+      [indexLaborMinutes, "Mao de obra (min)"],
+      [indexEnergy, "Tarifa Energia"],
+    ] as const).forEach(([index, coluna]) => {
+      if (index < 0) return;
+      const bruto = columns[index]?.trim();
+      if (bruto && MILHAR_AMBIGUO.test(bruto)) {
+        addIssue(
+          "milhar-ambiguo",
+          'Número com ponto e 3 casas foi lido como DECIMAL — se era separador de milhar, use vírgula decimal ("1234,00")',
+          `${ondeEstou}: coluna "${coluna}" = "${bruto}" → ${parseNumber(bruto)}`,
+        );
+      }
+    });
+
+    // 3c) Lista de cores que existe mas não pesa NADA. É o erro mais caro da
+    // planilha escrita à mão — `"totalG":"143,53"` (vírgula dentro do JSON) ou
+    // a chave trocada (`weightG`) viram `NaN` → 0, o material zera e o produto
+    // nasce a uma fração do preço, sem nada na tela denunciando. O
+    // `validateProduct` não pega: lá o peso zero só reprova junto com tempo
+    // zero, e toda linha importada tem tempo.
+    ([
+      [filaments, "Filamentos JSON"] as const,
+      ...stages.map(
+        (stage, i) =>
+          [stage.filaments ?? [], `Etapas JSON — etapa ${i + 2}`] as const,
+      ),
+    ]).forEach(([lista, onde]) => {
+      if (lista.length > 0 && filamentsTotalG(lista) === 0) {
+        addIssue(
+          "cor-sem-peso",
+          "Cor declarada com 0 g — o material fica ZERADO e o preço sai muito abaixo " +
+            '(dentro do JSON o número vai com PONTO decimal e a chave do peso é "totalG")',
+          `${ondeEstou}: ${onde}`,
+        );
+      }
+    });
 
     // 4) O vínculo com o Estoque. Cor SEM `filamentId` é avulsa: legítima, mas
     // não dá baixa na produção nem segue o preço vivo do rolo — e é o erro

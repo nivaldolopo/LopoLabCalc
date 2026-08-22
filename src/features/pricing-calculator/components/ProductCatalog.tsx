@@ -25,7 +25,7 @@ import type {
   StockFilament,
   Supply,
 } from "../types";
-import { errorMessage } from "@/lib/errors";
+import { errorMessage, guardOnline } from "@/lib/errors";
 import { matchesQuery } from "@/lib/text";
 import { calculatePricing } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
@@ -345,6 +345,10 @@ export function ProductCatalog({
         });
         if (!confirmed) return;
 
+        // UX-15: a checagem vem ANTES do await. Offline, o lote de 100 produtos
+        // ficaria enfileirado e a Promise nunca resolveria — o botão preso em
+        // "Importando…" sem o dono saber se algo entrou.
+        guardOnline();
         await onImportProducts(importedProducts);
         ok(`${importedProducts.length} produtos importados com sucesso.`);
       } catch (error) {

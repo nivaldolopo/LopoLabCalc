@@ -398,8 +398,13 @@ export type ReciboWrite = {
   productionCreates: { id: string; payload: ProductionPayload }[];
   productionDeleteIds: string[];
   colorUpdates: StockFilament[];
-  // 7e: insumos afetados pelas encomendas (só o campo `lots`).
-  supplyUpdates?: Supply[];
+  // 7e: insumos afetados pelas encomendas (só o campo `lots`). OBRIGATÓRIO de
+  // propósito: enquanto era opcional, o `SaleModal` montava o objeto sem ele e
+  // o TypeScript não dizia nada — a venda por encomenda debitava filamento e
+  // deixava o insumo intacto, e apagar o evento de produção depois devolvia ao
+  // saldo unidades que nunca tinham saído. Lista vazia é a forma de dizer
+  // "nenhum insumo", e ela precisa ser escrita.
+  supplyUpdates: Supply[];
   finishedUpdates: FinishedGoodPayload[];
 };
 
@@ -427,7 +432,7 @@ export async function reconcileRecibo(write: ReciboWrite): Promise<void> {
     });
   }
   // Estoque de insumos: só o campo `lots` dos insumos afetados.
-  for (const supply of write.supplyUpdates ?? []) {
+  for (const supply of write.supplyUpdates) {
     batch.update(doc(db, "insumos", supply.id), {
       lots: serializeLots(supply.lots),
     });

@@ -223,3 +223,144 @@ describe("CSV-05 — a importação conta o que engoliu", () => {
     expect(achar(r.issues, "insumo-inexistente")).toBeUndefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Auditoria da entrada de dados (2026-08-22) — as três formas de a planilha
+// escrita à mão errar SEM fazer barulho, medidas antes de existir a checagem.
+// ---------------------------------------------------------------------------
+describe("auditoria — número da célula", () => {
+  const casos: Array<[string, string, number]> = [
+    ["ponto decimal (o que o export escreve)", "118.90", 118.9],
+    ["vírgula decimal", "118,90", 118.9],
+    ["milhar pt-BR completo", "1.234,56", 1234.56],
+    ["moeda colada", "R$ 118,90", 118.9],
+    ["moeda sem espaço", "R$118,90", 118.9],
+    ["espaço como milhar", "1 234,56", 1234.56],
+    ["espaço não-separável como milhar", "1 234,56", 1234.56],
+    ["percentual colado", "7%", 7],
+    ["sobra só lixo", "R$ --", 0],
+  ];
+  casos.forEach(([nome, celula, esperado]) => {
+    it(`"${celula}" (${nome}) → ${esperado}`, () => {
+      const r = parseProductsCsv(
+        csv({ ...LINHA_BOA, "Filamento (R$/kg)": celula, "Filamentos JSON": "" }),
+        machines,
+        opcoes,
+      );
+      expect(r.products[0].filamentPricePerKg).toBe(esperado);
+    });
+  });
+
+  it('"1.234" segue DECIMAL (round-trip do export) mas é apontado', () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Peso (g)": "1.234", "Filamentos JSON": "" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].weightG).toBe(1.234);
+    const issue = achar(r.issues, "milhar-ambiguo");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain("Peso (g)");
+  });
+
+  it("número comum não vira apontamento de milhar", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Peso (g)": "40", "Tempo (h)": "2.5" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "milhar-ambiguo")).toBeUndefined();
+  });
+});
+
+describe("auditoria — cor declarada que não pesa nada", () => {
+  const semPeso: Array<[string, unknown]> = [
+    ["decimal com vírgula dentro do JSON", { filamentId: "cor_laranja", colorName: "L", pricePerKg: 110, totalG: "50,5" }],
+    ["chave errada (weightG)", { filamentId: "cor_laranja", colorName: "L", pricePerKg: 110, weightG: 50 }],
+    ["sem o peso", { filamentId: "cor_laranja", colorName: "L", pricePerKg: 110 }],
+    ["peso zero explícito", { filamentId: "cor_laranja", colorName: "L", pricePerKg: 110, totalG: 0 }],
+  ];
+  semPeso.forEach(([nome, entrada]) => {
+    it(nome, () => {
+      const r = parseProductsCsv(
+        csv({ ...LINHA_BOA, "Filamentos JSON": JSON.stringify([entrada]) }),
+        machines,
+        opcoes,
+      );
+      const issue = achar(r.issues, "cor-sem-peso");
+      expect(issue?.linhas).toBe(1);
+      expect(issue?.exemplos[0]).toContain("Filamentos JSON");
+    });
+  });
+
+  it("número como STRING com ponto é válido e não aponta", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: "cor_laranja", colorName: "L", pricePerKg: 110, totalG: "50.5" },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-sem-peso")).toBeUndefined();
+  });
+
+  it("etapa com cor sem peso também é apontada, pela etapa certa", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Etapas JSON": JSON.stringify([
+          {
+            id: "s1", name: "Tampa", machineId: "a1", printHours: 1, laborMinutes: 5,
+            filaments: [{ filamentId: null, colorName: "X", pricePerKg: 90, totalG: "1,5" }],
+          },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-sem-peso")?.exemplos[0]).toContain("etapa 2");
+  });
+
+  it("etapa SEM cor nenhuma (só mão de obra) não é apontada", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Etapas JSON": JSON.stringify([
+          { id: "s1", name: "Montagem", machineId: "a1", printHours: 0, laborMinutes: 20, filaments: [] },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-sem-peso")).toBeUndefined();
+  });
+});
+
+describe("auditoria — arquivo salvo em ANSI", () => {
+  it("acento corrompido vira aviso de arquivo, não passa calado", () => {
+    const texto = csv({ ...LINHA_BOA, Produto: "Coração de Mãe" });
+    // O que o navegador entrega quando o Excel gravou em Windows-1252 e o app
+    // lê como UTF-8 (`readAsText(file, "UTF-8")`).
+    const comoOAppLe = new TextDecoder("utf-8").decode(
+      Uint8Array.from(texto, (c) => c.charCodeAt(0) & 0xff),
+    );
+    const r = parseProductsCsv(comoOAppLe, machines, opcoes);
+    expect(r.warnings.some((w) => /ANSI/.test(w))).toBe(true);
+    expect(r.warnings.some((w) => /CSV UTF-8/.test(w))).toBe(true);
+    // Não bloqueia: a linha entra do mesmo jeito.
+    expect(r.products).toHaveLength(1);
+  });
+
+  it("arquivo UTF-8 com acento não gera o aviso", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Produto: "Coração de Mãe" }),
+      machines,
+      opcoes,
+    );
+    expect(r.warnings).toEqual([]);
+    expect(r.products[0].name).toBe("Coração de Mãe");
+  });
+});

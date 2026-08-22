@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Boxes, Plus, Trash2 } from "lucide-react";
+import { guardOnline } from "@/lib/errors";
 import { formatCurrency } from "@/lib/formatting/currency";
 import {
   toDateInput,
@@ -847,10 +848,20 @@ export function SaleModal({
       productionCreates: write.productionCreates,
       productionDeleteIds: write.productionDeleteIds,
       colorUpdates: write.colorUpdates,
+      // 7e: os insumos das ENCOMENDAS. O plano já os calculava e o repositório
+      // já sabia gravá-los, mas o campo (opcional no tipo, então o TypeScript
+      // não reclamava) não vinha até aqui: a venda debitava filamento e deixava
+      // o insumo intacto. Pior que ficar parado — apagar depois aquele evento de
+      // produção CREDITA os `stockMoves` de volta, inflando o saldo com unidades
+      // que nunca saíram.
+      supplyUpdates: write.supplyUpdates,
       finishedUpdates: write.finishedUpdates,
     };
 
     try {
+      // UX-15: offline a Promise do lote nunca resolve e o botão fica preso em
+      // "Salvando…". Dentro do try para o aviso sair pelo canal já existente.
+      guardOnline();
       await onConfirm(reciboWrite);
       onClose();
     } catch (err) {

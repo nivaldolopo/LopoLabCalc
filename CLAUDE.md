@@ -14,15 +14,16 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ O bloco "CSV escrito à mão" FECHADO (2026-08-21)** — CSV-05 (a
-  importação **avisa**: 9 classes agrupadas, com contagem e 3 exemplos, sem bloquear — JSON quebrado,
-  filamento avulso, cor/insumo/subitem/etapa inexistente, nome repetido, arredondamento e markup
-  ilegíveis, e a linha que o `validateProduct` recusaria) + CSV-02 (coluna resolvida em **duas
-  passadas sem reaproveitar**, sem acento e sem caixa — a ordem do cabeçalho deixou de importar) +
-  CSV-04 (`splitRecords`: quebra de linha dentro de célula não parte mais a linha) + RT-02 (etapa
-  salva sem `id` recebe a chave **posicional** ao carregar, e o subitem não fica órfão).
-  Prova no app real: catálogo inteiro reimportado a seco com as **34 colunas invertidas** → 97
-  produtos, idêntico. `lint` ✅ · **463/463** ✅ · `build` ✅. Detalhe:
+- **Última mudança:** **✅ AUD-02 — varredura da ENTRADA DE DADOS (2026-08-22)**, pedida pelo dono
+  antes da carga em massa e com a regra "nada na doc é fato, só medição própria". Fechou o
+  **AUD-01** (estorno exato nos dois caminhos) e achou **5 defeitos, todos corrigidos**: cor com
+  0 g no JSON subprecificava ~5× calada (`"totalG":"143,53"`, ou a chave `weightG`) → classe
+  `cor-sem-peso`; `"R$ 118,90"` virava 0 e `"1 234,56"` virava 1 → `parseNumber` limpa antes de
+  converter, e `"1.234"` (ambíguo) vira aviso; arquivo salvo em **ANSI** virava mojibake sem um pio
+  → aviso para salvar como CSV UTF-8; a **venda por encomenda não debitava insumo** (o `SaleModal`
+  montava o `ReciboWrite` sem `supplyUpdates`, campo **opcional** no tipo — agora obrigatório); e
+  faltava `guardOnline` em 3 caminhos de escrita. Bônus: a suíte era **flaky** (6 falhas em 10) e
+  agora não é. `lint` ✅ · **483/483** ✅ · `build` ✅. Detalhe:
   [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
@@ -30,15 +31,13 @@
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono.** Plano dele (2026-08-21): o export serve **só
-  para ver quais são os campos** — a planilha vai ser **gerada do zero** e importada. Esse caminho
-  está blindado (CSV-02/04/05 + RT-02). **Pré-requisito que é dele:** cadastrar no Estoque as cores
-  definitivas ANTES — a importação **não cria** cor nem insumo, e `filamentId` ausente/inexistente
-  entra avulso (agora avisado). Pedidos em aberto do dono, ainda não feitos: **tabela de-para**
-  (cor → id) + **modelo de planilha**, e **não existe "limpar catálogo"** (são 97 exclusões uma a
-  uma). Único item de código aberto: `AUD-01` (estorno/reedição de recibo), independente disto. O
-  resto está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado externo (`FEAT-03`,
-  `branding/logo`, `Dashboard`). **A decisão é do dono** — ler o `BACKLOG.md` antes de sugerir tarefa.
+- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono**, agora com o caminho auditado e corrigido. A
+  planilha é **gerada do zero** por ele (o export serve só para ver os campos). **Pré-requisito
+  dele:** cadastrar as cores definitivas no Estoque ANTES — a importação **não cria** cor nem
+  insumo. Pedidos em aberto, ainda não feitos: **tabela de-para** (cor → id; os 2 ids atuais estão
+  no `HISTORICO.md`) + **modelo de planilha**. **Não existe "limpar catálogo"** (verificado: são 97
+  exclusões uma a uma). O que a AUD-02 **não** cobriu virou `AUD-03..06` no `BACKLOG.md` — nada
+  disso bloqueia a carga. **A decisão é do dono** — ler o `BACKLOG.md` antes de sugerir tarefa.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
@@ -78,17 +77,13 @@ src/
                             #   PricingResultCard + CapacityPanel/MachineSelector/FixedCostsPanel/
                             #   Accessories/ExtraStages/Subitems/LinksSection ·
                             # uma por rota: CatalogPage(+ProductCatalog) · SalesPage · QuotePage ·
-                            #   MachinesPage · ProductionPage · StockPage (abas Filamentos/Insumos/
-                            #   Produtos) + SuppliesTab ·
+                            #   MachinesPage · ProductionPage · StockPage (abas) + SuppliesTab ·
                             # venda: SaleModal + SaleFlow (a fiação, usada pelas 2 páginas) ·
-                            # casca das páginas: PageHeader · PageIntro · NavBar (gaveta no
-                            #   celular) · MobilePriceBar · AuthGate ·
-                            # Modal (casca dos 9 diálogos) + os 8 que a consomem
-                            #   (MachineManager/StockColor/Roll/Adjust/Supply/SupplyLot/
-                            #   SupplyAdjust) + ConfirmDialog (+useConfirm) ·
+                            # casca: PageHeader · PageIntro · NavBar · MobilePriceBar · AuthGate ·
+                            # Modal (casca dos 9 diálogos) + os 8 que a consomem + ConfirmDialog ·
                             # compartilhados: NumberInput, ProfitSummary, SearchBox, CostBars,
-                            #   FeedbackNote, NetMarginHint, CostDetail (composição precificado ×
-                            #   real; exporta CostBreakdownTable, reusada por 3 rotas)
+                            #   FeedbackNote, NetMarginHint, CostDetail (exporta
+                            #   CostBreakdownTable, reusada por 3 rotas)
     hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useAuth ·
                             #   um por coleção: useSales, useSupplies, useStock, useProduction,
                             #   useFinishedGoods, useQuotes, useQuoteConfig, useFees
@@ -115,54 +110,32 @@ src/
 ```
 
 **Pontos-chave:**
-- **CSS novo escreve TOKEN, não px** (UX-17a/b): a escala de espaço/raio/tipografia vive em `:root` no
-  `base.css` e os 16 arquivos já a consomem. Valor cru só para o que **não é escala** (largura de
-  grade, espessura de borda, margem negativa de ajuste, reserva de espaço).
-- **CSS novo escreve TOKEN, não hex** (TD-014): idem para COR. Significado →
-  `--danger`/`--warn`/`--success`/`--accent`; fundo tênue → `-soft`, fundo forte/hover/borda sutil →
-  `-tint`, borda → `-line`. **Três papéis do laranja:** `--accent` só onde NÃO carrega letra ·
-  `--accent-text` quando É texto · `--accent-strong` quando carrega texto **branco** em cima.
-  Categorias de custo → `--cost-*`. Hex cru só para `#fff` sobre preenchimento e sombras.
-  **Ação destrutiva se anuncia em repouso** (UX-36): `.btn.danger` e `.icon-button.danger` usam o
-  mesmo trio `--danger` + `-soft` + `-line` (`-tint` no hover). Contorno de ícone é
-  `box-shadow: inset`, nunca `border` — borda muda a caixa e o controle pula.
-  ⚠ **Ao escolher/alterar um tom, meça no DOM o PIOR fundo real** (o tingimento a 10% come ~0,3), e
-  **mate `transition` antes de ler** — senão a medida pega a cor no meio da troca de tema.
-- **Coluna flexível de grade escreve `minmax(0, 1fr)`, nunca `1fr` puro** (auditoria 2026-08-17): o
-  mínimo implícito de `1fr` é o **min-content**, e `<select>` de option longa ou `<input
-  type="date">` **não encolhem** — a coluna estoura em vez de ceder (foi a causa das 3 quebras).
-  ⚠ **Ao sobrescrever `grid-template-columns` numa media query, reescreva a guarda junto** — não é
-  herdada. Idem para **compensação calibrada sobre token** (o `padding` do date, UX-22): token que
-  muda por faixa exige compensação que muda junto.
-- **Fileira que não cabe no celular VIRA CARTÃO, não rolagem** (UX-38/UX-40): quando as colunas
-  passam dos ~300px úteis de 375, a linha quebra em faixas (nome + ação em cima, números embaixo,
-  encostados à direita) — receita do `.fg-part`; hoje em 4 lugares. Rolar de lado esconde justamente
-  a coluna que se quer ler. ⚠ Ao desmontar uma `<table>` em grade, **todo seletor de elemento usa
-  combinador de FILHO** (`> tbody`, `> td`): há tabela dentro de dropdown, e `tbody` solto quebra o
-  alinhamento dela. E **`@media` não soma especificidade** — bloco que reescreve regra-base vai
-  DEPOIS dela no arquivo.
-- **Coluna de número usa `.num`** (direita) — `sales.css`, `cesta-recibo.css`, `catalog.css`.
-  `tabular-nums` é global (`body`, UX-27): não redeclarar por componente. **Faixa de número tem
-  PISO `max(rótulo, conteúdo)` medido no DOM; faixa de nome tem reticências** (UX-21) — número
-  cortado vira outro número. Rolagem horizontal só como válvula (`min-width`).
-- **Composição de custo é UM desenho só** (UX-26): `CostStack` (em `CostBars.tsx`) — faixa
-  empilhada **100% sobre o total**, `flex-grow` proporcional, legenda com % (e R$ quando
-  `showValue`). Consumida pela calculadora, pelo catálogo e pelo `/estoque`. **Barra nova de
-  composição não se desenha na mão**; e a régua **nunca** é o maior item — é o total.
-- **Cabeçalho, introdução e MODAL são COMPONENTE** — `PageHeader`, `PageIntro` e `Modal`. Página
-  nova não copia `.header` nem inventa `.subtitle`/`.stock-intro`/`.roi-note` próprios; **modal novo
-  não escreve `.modal-overlay` na mão** — usa o `<Modal>` (título/sub/corpo/rodapé) e ganha papel,
-  Escape, trava de rolagem e ✕ de graça.
-- **Título de seção é `<h2>`, não `<div>`** (UX-29). O `base.css` zera tamanho/margem de heading —
-  quem manda é a classe, então trocar a tag não move pixel. Linha de LISTA continua sem heading (o
-  sumário viraria ruído). **Foco é `:focus-visible` + `--focus-ring`** (UX-31): controle novo não
-  precisa declarar nada; ⚠ campo que apagar o `outline` no `:focus` tem de devolver o anel **no
-  mesmo arquivo** — `base.css` é o 1º import e perde o desempate de especificidade.
-  **Alvo pequeno cresce por `padding`/`min-height` + margem negativa de igual valor** (UX-28/UX-37):
-  o alvo sobe, a caixa no fluxo não. **Meça a faixa antes de engordar botão em fileira** — no
-  desktop o alvo maior pode não caber, e 44px é regra do DEDO (UX-36: 44 no celular, 32 no desktop).
-  **Botão só-ícone precisa de `aria-label`** (A11Y-01) — `title` é o último recurso do nome
-  acessível, e rótulo escondido por CSS no celular não conta como texto.
+- **CSS novo escreve TOKEN, não px nem hex** (UX-17a/b, TD-014): espaço/raio/tipografia e COR vivem
+  em `:root` no `base.css`. Significado → `--danger`/`--warn`/`--success`/`--accent`; fundo tênue →
+  `-soft`, fundo forte/hover → `-tint`, borda → `-line`. **Três papéis do laranja:** `--accent` só
+  onde NÃO carrega letra · `--accent-text` quando É texto · `--accent-strong` sob texto branco.
+  Custo → `--cost-*`. Cru só para o que não é escala (largura de grade, espessura de borda) e para
+  `#fff` sobre preenchimento. Ação destrutiva se anuncia **em repouso** (UX-36); contorno de ícone é
+  `box-shadow: inset`, nunca `border`.
+- **Coluna flexível de grade escreve `minmax(0, 1fr)`, nunca `1fr` puro**: o mínimo implícito é o
+  min-content, e `<select>`/`<input type="date">` não encolhem — a coluna estoura em vez de ceder.
+- **Fileira que não cabe no celular VIRA CARTÃO, não rolagem** (UX-38/UX-40): abaixo dos ~300px
+  úteis a linha quebra em faixas (receita do `.fg-part`, hoje em 4 lugares). Rolar de lado esconde
+  justamente a coluna que se quer ler.
+- **Coluna de número usa `.num`** (direita). `tabular-nums` é global (UX-27), não redeclarar. Faixa
+  de número tem **piso `max(rótulo, conteúdo)` medido no DOM**; faixa de nome tem reticências
+  (UX-21) — número cortado vira outro número.
+- **Composição de custo é UM desenho só** (UX-26): `CostStack` (em `CostBars.tsx`), consumido por 3
+  rotas. Barra nova não se desenha na mão; e a régua **nunca** é o maior item — é o total.
+- **Cabeçalho, introdução e MODAL são COMPONENTE** — `PageHeader`, `PageIntro`, `Modal`. Modal novo
+  não escreve `.modal-overlay` na mão: usa o `<Modal>` e ganha papel, Escape, trava de rolagem e ✕.
+- **Título de seção é `<h2>`, não `<div>`** (UX-29) — o `base.css` zera heading, trocar a tag não
+  move pixel. **Foco é `:focus-visible` + `--focus-ring`** (UX-31), de graça. **Alvo pequeno cresce
+  por `padding`/`min-height` + margem negativa igual** (UX-28/UX-37): 44px no celular, 32 no
+  desktop. **Botão só-ícone precisa de `aria-label`** (A11Y-01).
+  ⚠ As armadilhas medidas dessas 7 regras (tingimento a 10%, `transition` na leitura de cor, guarda
+  de `grid-template-columns` em media query, `> tbody` ao desmontar tabela, especificidade do
+  `@media`) estão no [`HISTORICO.md`](.claude/HISTORICO.md), em "Regras de CSS/UI".
 - **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar
   watts/`lifeHours` recalcula energia e desgaste de TODOS os produtos, que guardam só o `machineId`.
   `useMachines` semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
@@ -175,9 +148,11 @@ src/
   diff de célula JSON exige **stringify canônico** (o Firestore não preserva ordem de chave em mapa,
   e comparar o texto dá falso positivo). **Tarifa e valor-hora são do PRODUTO**, nunca da etapa. O
   **`id` não é campo do documento** — é o caminho. O export escreve etapa **normalizada**, não crua.
-  ⚠ **A importação de CSV AVISA, não engole** (CSV-05): a planilha da carga em massa é escrita fora
-  do app, então `parseProductsCsv` conta o que ignorou (`issues`, agrupado por classe) — coluna nova
-  que possa falhar calada entra com a checagem dela no mesmo commit.
+  ⚠ **A importação de CSV AVISA, não engole** (CSV-05): coluna nova que possa falhar calada entra
+  com a checagem dela no mesmo commit. ⚠ **Campo OPCIONAL num tipo de escrita é omissão silenciosa
+  esperando acontecer** (AUD-02): o `SaleModal` montava o `ReciboWrite` sem `supplyUpdates` e o
+  TypeScript não reclamava — a venda não debitava insumo. Campo que o repositório grava é
+  **obrigatório**; lista vazia é a forma de dizer "nada".
 - Toda a lógica de cálculo vive em `features/pricing-calculator/lib/` — pura e coberta por teste.
 
 ## Diretrizes de trabalho
@@ -218,19 +193,15 @@ git push
   aí que eu continuo"); eu logo na aba e te devolvo — aí você retoma de onde parou.
 - Terminada a verificação, **me mostre a prova** (screenshot/medição/console), não só o "funcionou".
 
-### 5. Manter o "Status atual" atualizado
+### 5. Manter o "Status atual" atualizado (regra irmã da 8)
 - Ao concluir uma mudança relevante (feature, correção, decisão de arquitetura/infra),
-  **atualize a seção "Status atual"** no topo deste arquivo.
-- **Regras de tamanho (para não virar changelog):** Status **≤ ~40 linhas** · registre **só a
-  mudança MAIS recente** e **substitua** a anterior (nada de correntes `Antes: … Antes: …`) ·
-  consolide em bullets estáveis, não em parágrafos de implementação (isso mora no código e no
-  `git log`) · o **porquê** de uma decisão vai pro [`HISTORICO.md`](.claude/HISTORICO.md) e o item
-  aberto pro [`BACKLOG.md`](.claude/BACKLOG.md) — **nunca** pro Status. **Ver a Diretriz 8:** a
-  faxina vale pro arquivo INTEIRO.
-- Objetivo: permitir abrir um **chat novo por tarefa** e continuar sem perder contexto.
-- **Quando atualizar o Status junto com uma alteração, faça tudo num único commit/push** —
-  edite o código e o "Status atual" juntos e mande de uma vez (não dois pushes seguidos).
-  Só vira commit separado quando a alteração já foi pushada e o ajuste do Status veio depois.
+  **atualize a seção "Status atual"** no topo — é ela que permite abrir um **chat novo por tarefa**.
+- **Para não virar changelog:** Status **≤ ~40 linhas** · registre **só a mudança MAIS recente** e
+  **substitua** a anterior (nada de correntes `Antes: … Antes: …`) · bullets estáveis, não parágrafos
+  de implementação (isso mora no código e no `git log`) · o **porquê** vai pro `HISTORICO.md` e o
+  item aberto pro `BACKLOG.md` — **nunca** pro Status.
+- **Status + código no MESMO commit/push** (não dois pushes seguidos). Só vira commit separado
+  quando a alteração já foi pushada e o ajuste do Status veio depois.
 
 ### 6. Sinalizar hora de trocar de chat
 - Ao **concluir uma tarefa** (feature/correção fechada, commitada e pushada),
@@ -258,24 +229,18 @@ git push
 - **Esta diretriz expira** quando o dono declarar a ferramenta madura e recadastrar. **Depois disso,
   migração volta a ser obrigatória** — reler antes de assumir que ela ainda vale.
 
-### 8. Manter o CLAUDE.md INTEIRO enxuto — e a doc dividida em 3 arquivos por custo de token
-- **Por que importa:** só o `CLAUDE.md` é **auto-carregado no início de todo chat e re-enviado a cada
-  turno** — cada linha aqui é token multiplicado por toda conversa. Os outros dois só entram em contexto
-  **quando eu os leio** (`Read`), e só nos chats que precisam. Por isso a divisão abaixo.
-- **Os 3 arquivos e seus papéis:**
-  - **`CLAUDE.md`** (auto, todo turno · alvo **≤ ~270 linhas**): foto do AGORA (Status) + **a próxima
-    tarefa sugerida**, stack/estrutura, as diretrizes, infra de deploy, comandos. O que o modelo precisa
-    **em TODA conversa**.
-  - **[`.claude/BACKLOG.md`](.claude/BACKLOG.md)** (a-fazer / roadmap · curto): só os itens **abertos** +
-    ordem de prioridade. É o que se lê pra **escolher/rever** a próxima tarefa.
-  - **[`.claude/HISTORICO.md`](.claude/HISTORICO.md)** (feito + decisões · pesado): D1–D8, auditoria
-    (TD-*), e writeups do que já foi **concluído**. Lido **só** quando um item precisa do *porquê*.
-- **Ao concluir uma tarefa, confira o arquivo INTEIRO** (não só o "Status"): releia o `CLAUDE.md` como
-  um todo e, para cada bloco, pergunte *isto é preciso em TODA conversa?* Se for detalhe de um item ou
-  histórico, move: o **porquê** de decisão/o item concluído → `HISTORICO.md`; um item que **virou a-fazer**
-  → `BACKLOG.md`; e atualize a **próxima tarefa** no Status. Nunca copiar de volta pro `CLAUDE.md`.
-- **Item concluído:** some do Status, vira `✅` de UMA linha no `HISTORICO.md` (o writeup detalhado, se
-  útil, também vai pra lá). Não empilhar parágrafos nem correntes `Antes: … Antes: …` — código + `git log`.
+### 8. Manter o CLAUDE.md INTEIRO enxuto — a doc é 3 arquivos por custo de token
+- **Por que:** só o `CLAUDE.md` é **auto-carregado e re-enviado a cada turno** — cada linha aqui é
+  token multiplicado por toda a conversa. Os outros dois só entram em contexto **quando eu os leio**.
+- **Os 3 papéis:** `CLAUDE.md` (auto, todo turno · alvo **≤ ~270 linhas**) = foto do AGORA + próxima
+  tarefa + stack/estrutura + diretrizes + infra + comandos, ou seja o que é preciso em TODA conversa ·
+  [`BACKLOG.md`](.claude/BACKLOG.md) (curto) = só os itens **abertos** + prioridade, é o que se lê pra
+  escolher tarefa · [`HISTORICO.md`](.claude/HISTORICO.md) (pesado) = D1–D8, auditoria (TD-*) e
+  writeups do que foi **concluído**, lido só quando um item precisa do *porquê*.
+- **Ao concluir uma tarefa, releia o arquivo INTEIRO** (não só o Status) e, bloco a bloco, pergunte
+  *isto é preciso em TODA conversa?* Se for detalhe de item ou histórico, move: o **porquê**/o item
+  concluído → `HISTORICO.md`; o que **virou a-fazer** → `BACKLOG.md`. Nunca copiar de volta pra cá.
+- **Item concluído** some do Status e vira `✅` no `HISTORICO.md` (com o writeup, se útil).
 - Esta verificação de tamanho/divisão é parte de "concluir a tarefa", igual ao `lint`/`build`.
 
 ## Infra / referência de deploy
@@ -293,13 +258,11 @@ git push
   no ar com SSL. Detalhe (valores, motivo da migração): [`HISTORICO.md`](.claude/HISTORICO.md).
 
 ### Ambiente Windows (evita retrabalho de PATH)
-- **Node:** `C:\Program Files\nodejs` (v24). **pnpm** e **vercel** instalados globalmente.
-- Em um PowerShell recém-aberto, `node`, `pnpm` e `vercel` já devem estar no PATH.
-  Se algum não for reconhecido, prepende o Node à sessão:
+- **Node:** `C:\Program Files\nodejs` (v24). **pnpm** e **vercel** instalados globalmente — num
+  PowerShell recém-aberto os três já devem estar no PATH. Se algum não for reconhecido:
   ```powershell
   $env:Path = 'C:\Program Files\nodejs;C:\Users\nival\AppData\Roaming\npm;' + $env:Path
   ```
-- O `vercel.cmd` (via npm) fica em `C:\Users\nival\AppData\Roaming\npm\vercel.cmd`.
 
 ## Comandos úteis
 ```powershell

@@ -9,6 +9,107 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## Regras de CSS/UI — as armadilhas medidas
+
+> Os *porquês* das regras resumidas no `CLAUDE.md` ("Pontos-chave"). Cada uma custou uma medição.
+
+- **Cor:** ao escolher/alterar um tom, meça no DOM o **pior fundo real** — o tingimento a 10% come
+  ~0,3 de contraste — e **mate `transition` antes de ler**, senão a medida pega a cor no meio da
+  troca de tema.
+- **Grade:** ao sobrescrever `grid-template-columns` numa media query, **reescreva a guarda
+  `minmax(0, 1fr)` junto** — ela não é herdada. Idem para compensação calibrada sobre token (o
+  `padding` do `<input type="date">`, UX-22): token que muda por faixa exige compensação que muda
+  junto. O `1fr` puro foi a causa das 3 quebras da auditoria de 2026-08-17.
+- **Tabela → cartão:** ao desmontar uma `<table>` em grade, **todo seletor de elemento usa
+  combinador de FILHO** (`> tbody`, `> td`) — há tabela dentro de dropdown, e `tbody` solto quebra o
+  alinhamento dela. E **`@media` não soma especificidade**: bloco que reescreve regra-base vai
+  DEPOIS dela no arquivo.
+- **Foco:** campo que apagar o `outline` no `:focus` tem de devolver o anel **no mesmo arquivo** —
+  `base.css` é o 1º import e perde o desempate de especificidade.
+- **Alvo de toque:** meça a faixa antes de engordar botão em fileira — no desktop o alvo maior pode
+  não caber, e 44px é regra do DEDO.
+- **Rolagem horizontal** só como válvula (`min-width`), nunca como solução de layout.
+
+## ✅ AUD-02 — varredura da ENTRADA DE DADOS antes da carga em massa (2026-08-22)
+
+> Pedido do dono: *"o import/export foi muito mexido e eu perdi a noção do todo"*. Varredura de
+> **tudo que ele toca ao cadastrar** — Estoque → produto → produção → venda → orçamento — com a
+> regra de que **nada na doc conta como fato**: só medição própria. Fecha o **AUD-01** de quebra.
+
+**Método.** Teste temporário (apagado) com **diff campo a campo em stringify canônico** (chaves
+ordenadas, arrays sensíveis à ordem — o Firestore não preserva ordem de chave em mapa); leitura de
+código para as causas; e o **app real em produção**, injetando um CSV escrito à mão no `input[type=
+file]` e **cancelando** antes de gravar. Nada foi escrito no Firestore.
+
+**O que passou (medido, não conferido).** Preço de catálogo usa o rolo **mais novo**, custo real usa
+**FIFO do mais antigo** — ambos batendo com a conta à mão. Saldo negativo é permitido **e exibido**
+(dado real: rolo #1 = −370 g, #5 = 613 g, cabeçalho 243 g). Insumo em unidades: 6 un de lotes
+(4@0,40 + 100@0,55) = **R$2,7000** exato. Round-trip do formulário num produto MÁXIMO: **0 campos
+perdidos, 0 surgidos, 0 alterados**. Desfecho `falha` consome material e não credita acabado.
+100 linhas parseiam em **2 ms** e entram num `writeBatch` **atômico**. E o **AUD-01**: estorno
+exato nos DOIS caminhos — `encomenda` (cor + insumo voltam idênticos; 3→2 == vender 2 direto;
+3→2→5 sem resíduo) e `acabado` (camada a camada, COGS (2×10+1×14)/3 = R$11,3333, e o overdraft D4
+indo a −3 e voltando). 12 de 14 classes de erro de CSV já eram apontadas.
+
+**Os 5 defeitos reais, e o que mudou.**
+
+1. **Cor declarada com 0 g subprecificava ~5× em silêncio** (o pior para a carga). Medido: a mesma
+   linha dava R$66,31 com `"totalG":143.53` e **R$13,53** com `"totalG":"143,53"` (vírgula dentro
+   do JSON), com `weightG` no lugar de `totalG`, ou sem a chave — `Number` devolve `NaN` → 0. E a
+   rede de segurança não pegava: o `validateProduct` só reprova peso zero **junto com** tempo zero
+   (`&&`), e toda linha importada tem tempo. Confirmado na UI real: das 6 linhas injetadas, as duas
+   com esse defeito **não apareciam** no diálogo. → nova classe `cor-sem-peso`, aplicada à etapa
+   principal e a cada etapa extra (lista de cores NÃO-vazia que soma 0 g). Etapa só de mão de obra,
+   sem cores, não é apontada.
+2. **`R$` e espaço de milhar viravam 0 e 1.** `parseFloat` PARA no primeiro caractere não-numérico:
+   `"R$ 118,90"` → **0**, `"1 234,56"` → **1**. Basta uma coluna formatada como moeda no Excel para
+   o arquivo inteiro entrar com material zerado. → o `parseNumber` limpa tudo que não é dígito,
+   sinal ou separador antes de converter (moeda, espaço comum, U+00A0 e U+202F).
+3. **`"1.234"` é ambíguo** — milhar no Excel pt-BR, decimal no export do próprio app. Continua
+   **decimal** (senão o round-trip do arquivo do app quebraria) mas deixou de ser calado: classe
+   `milhar-ambiguo`, que mostra a leitura escolhida.
+4. **Arquivo salvo em ANSI virava mojibake sem um pio.** Medido: `"Coração de Mãe"` →
+   `"Cora??o de M?e"`, com `issues=[]` e `warnings=0`. No Excel pt-BR é o **default** — "CSV
+   (separado por vírgulas)" grava Windows-1252; só "CSV UTF-8" grava certo. Os bytes já se perderam
+   na decodificação (`readAsText(file,"UTF-8")`), então não dá para reinterpretar — dá para **não
+   deixar passar**: conta os U+FFFD e manda salvar de novo como CSV UTF-8.
+5. **A venda por encomenda não debitava insumo** — e apagar o evento depois **criava estoque do
+   nada**. O `reconcileReciboWrite` calculava `supplyUpdates`, o `reconcileRecibo` sabia gravá-lo, o
+   tipo o declarava — mas o `SaleModal` montava o `ReciboWrite` **sem o campo**, e como ele era
+   **opcional** o TypeScript não dizia nada. Filamento saía, insumo ficava intacto; e o
+   `removeProduction` credita os `stockMoves` de volta, devolvendo ao saldo unidades que nunca
+   tinham saído. → campo passado, e **`supplyUpdates` virou obrigatório no tipo**: a correção real é
+   essa, porque transforma a próxima omissão em erro de compilação. É exatamente a assinatura que o
+   AUD-01 previa — *"função que reconstrói um objeto campo a campo e esquece um"*.
+
+**Mais duas coisas.** O **`guardOnline` faltava em 3 caminhos de escrita** (importação de CSV, save
+da calculadora, confirmação do recibo) — offline o Firestore enfileira e a Promise **nunca resolve**,
+travando o botão para sempre; agora os três barram antes do `await`. E a **suíte era flaky**: o
+`parseProductsCsv` carimba `createdAt: Date.now()` e o teste do CSV-02 comparava **dois parses**
+pelo JSON inteiro — medido **6 falhas em 10 execuções**, ou seja o "463/463 ✅" não se reproduzia.
+Relógio congelado (`vi.setSystemTime`) em vez de tirar `createdAt` do diff, que esconderia
+justamente o tipo de campo que o RT-01 existe para vigiar. **8/8** depois.
+
+**Um falso positivo, registrado de propósito.** A auditoria reportou "cor excluída muda o preço sem
+aviso" — **errado**: o `filamentMissing` já existe, é populado (`calculatePricing.ts:428`) e vira
+badge em três telas. O preço mudar (R$103,52 → R$84,96, caindo no `pricePerKg` salvo) é o fallback
+D3 **intencional**, e ele é sinalizado. A conclusão veio de um `grep` estreito, não de olhar a UI —
+fica aqui como lembrete de que "não achei" não é "não existe".
+
+**Ids reais das cores no Estoque** (lidos do app em 2026-08-22 — a semente da tabela de-para que o
+dono pediu): `PLA · Bege · Bambu` = `sc9LAy9TUcbslnZpEZLb` · `PLA · Laranja · Bambu` =
+`US6B9aheebWtn9NMXhUQ`. São eles que vão na chave `filamentId` do JSON de cada linha da planilha.
+
+**No escuro (a auditoria não cobriu).** Nada foi escrito no Firestore, então produção/venda/estorno
+foram medidos como **funções puras + leitura de código**, nunca ponta a ponta contra o banco. O
+offline é evidência de código (não deu para cortar a rede). **Orçamento/PDF: zero cobertura.**
+Taxas de pagamento não foram recalculadas à mão. Tempo real com duas abas, e "editar máquina
+recalcula todos", não testados. O ANSI foi **simulado** (decodificação de bytes), não um arquivo de
+verdade pelo diálogo.
+
+`lint` ✅ · **483/483** ✅ (eram 463; +20 testes novos) · `build` ✅. O erro de `tsc` em
+`calculatePricing.test.ts:205` é **anterior** (verificado no HEAD) e não foi tocado.
+
 ## ✅ CSV-02 + CSV-04 + RT-02 — a mecânica do arquivo escrito à mão (2026-08-21)
 
 > O CSV-05 fez a importação **avisar**. Estes três fazem ela **aguentar** — são a mesma frente
@@ -23,7 +124,8 @@ primeiro (o arquivo do app cai todo aqui), depois o pedaço, pulando o que já f
 a comparação é **sem acento e sem caixa** — "Preço Sugerido" à mão passou a casar com o "Preco
 Sugerido" do export, o que antes falhava calado.
 
-**CSV-04 — quebra de linha dentro da célula.** `parseProductsCsv` fazia `split(/?
+**CSV-04 — quebra de linha dentro da célula.** `parseProductsCsv` fazia `split(/
+?
 /)` ANTES de
 respeitar aspas: um nome com `
 ` (colado de outro lugar) virava dois produtos-lixo. Entrou

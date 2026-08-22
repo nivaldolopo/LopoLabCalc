@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { errorMessage, guardOnline } from "@/lib/errors";
 import { DEFAULT_FIXED_COSTS, DEFAULT_MACHINES } from "../constants";
 import type {
   CapacitySettings,
@@ -179,6 +180,20 @@ export function PricingCalculator() {
     );
   }
 
+  // UX-15: offline o Firestore ENFILEIRA a escrita e a Promise nunca resolve
+  // (ver `guardOnline`) — o botão ficaria preso em "Salvando…" para sempre. As
+  // telas de estoque/produção/venda já barravam isso; a calculadora não. O
+  // aviso sai pelo mesmo canal das outras recusas do formulário.
+  function blockedOffline(): boolean {
+    try {
+      guardOnline();
+      return false;
+    } catch (err) {
+      setSaveError(errorMessage(err));
+      return true;
+    }
+  }
+
   async function saveCurrentProduct() {
     const error = validateProduct({
       ...form.product,
@@ -189,6 +204,7 @@ export function PricingCalculator() {
       return;
     }
     setSaveError(null);
+    if (blockedOffline()) return;
 
     if (form.editingProductId) {
       await productsApi.updateProduct(form.editingProductId, buildPayload(false));
@@ -208,6 +224,7 @@ export function PricingCalculator() {
       return;
     }
     setSaveError(null);
+    if (blockedOffline()) return;
     await productsApi.addProduct(buildPayload(true));
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1200);
@@ -267,6 +284,7 @@ export function PricingCalculator() {
       return null;
     }
     setSaveError(null);
+    if (blockedOffline()) return null;
 
     if (form.editingProductId) {
       await productsApi.updateProduct(form.editingProductId, buildPayload(false));

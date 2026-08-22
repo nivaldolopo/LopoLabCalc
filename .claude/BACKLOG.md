@@ -154,12 +154,25 @@
 
 > Os dois defeitos do FORM-01 foram corrigidos. Sobrou o que ficou **fora** daquela varredura.
 
-- **[AUD-01] Auditar o estorno/reedição de recibo** — `reconcileRecibo` + o caminho reverso, e os
-  ramos internos do `SaleModal`. No FORM-01 foi conferida a **montagem do payload** da venda (que
-  está completa), não cada caminho da tela. É a última área que remonta objeto a partir de dado
-  salvo sem ter passado pelo diff campo a campo. **Como auditar:** o defeito tem assinatura —
-  função que reconstrói um objeto campo a campo e esquece um; e o teste é **diff do documento**,
-  nunca comparação de preço (o `supplyId` não movia preço, e foi assim que escapou).
+- ~~**[AUD-01] Auditar o estorno/reedição de recibo**~~ — **FEITO na varredura AUD-02
+  (2026-08-22)**, e a previsão estava certa: o defeito era mesmo *"função que reconstrói um objeto
+  campo a campo e esquece um"* — o `SaleModal` montava o `ReciboWrite` sem `supplyUpdates`. A
+  matemática do estorno passou exata nos dois caminhos (`encomenda` e `acabado`, incluindo o
+  overdraft D4). Detalhe: [`HISTORICO.md`](HISTORICO.md).
+
+### Sobrou da varredura AUD-02 (2026-08-22) — o que ela NÃO cobriu
+
+Ordenado por risco. Nada aqui bloqueia a carga em massa.
+
+- **[AUD-03] Ponta a ponta contra o Firestore.** A varredura mediu funções puras e leu código, mas
+  **não escreveu nada no banco**: produção, venda e estorno nunca foram exercitados de verdade.
+  O defeito do `supplyUpdates` é a prova de que a fiação erra onde a matemática acerta — e ele só
+  apareceu por leitura, não por teste. Precisa de dado descartável e do aval do dono para gravar.
+- **[AUD-04] Offline de verdade.** Os 3 `guardOnline` que faltavam foram postos, mas a verificação é
+  de **código**: não deu para cortar a rede no navegador embutido. Falta ver o aviso aparecer.
+- **[AUD-05] Orçamento/PDF: zero cobertura.** Nenhum número do PDF foi conferido contra a tela.
+- **[AUD-06] Taxas de pagamento não recalculadas à mão** (bandeira × parcela → margem líquida), e
+  **tempo real** (duas abas; máquina editada recalculando todos os produtos) não testado.
 ## Fechado
 
 Nada aqui. Todo item concluído — com writeup e medições — vive no

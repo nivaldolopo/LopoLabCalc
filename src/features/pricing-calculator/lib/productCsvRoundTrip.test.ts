@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { exportProductsCsv, parseProductsCsv } from "./productCsv";
 import type {
   FixedCostSettings,
@@ -358,6 +358,20 @@ describe("importação — a forma do documento importado", () => {
 // escreve, e célula pode ter quebra de linha. Os dois casos partiam a leitura
 // em silêncio.
 describe("importação — arquivo escrito à mão", () => {
+  // O `parseProductsCsv` carimba `createdAt: Date.now()` em cada linha. Dois
+  // parses do MESMO arquivo em milissegundos diferentes geravam documentos
+  // diferentes, e o diff campo a campo abaixo falhava sozinho (medido: 6 de 10
+  // execuções). Congelar o relógio mantém a comparação INTEIRA — tirar
+  // `createdAt` do diff esconderia justamente o tipo de campo que o RT-01
+  // existe para vigiar.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-22T12:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   // Divide preservando as aspas cruas (para remontar o arquivo sem reescapar).
   function splitRaw(line: string): string[] {
     const out: string[] = [];
