@@ -89,8 +89,16 @@ export function buildLoadedProduct(savedProduct: SavedProduct): ProductInput {
     ...cloneDefaultProduct(),
     ...savedProduct,
     filaments: withFilamentIds(normalizeFilaments(savedProduct)),
+    // RT-02: etapa salva SEM `id` recebe a chave POSICIONAL — a mesma que o
+    // `stageKeyFor` e o export já usam (`stage_${index}`). Deixar o
+    // `createStage` inventar um id por timestamp aqui reescrevia a identidade
+    // da etapa ao abrir o produto, e todo `stageKey` de subitem que apontava
+    // para ela virava órfão no save seguinte: o custo daquela parte caía sem
+    // um aviso. Etapa NOVA (criada no formulário) continua nascendo com o id
+    // por timestamp — ali o índice não serve, porque remover uma etapa faria a
+    // seguinte reusar um id vivo.
     stages: (loadedStages ?? []).map((stage, index) =>
-      createStage(index, stage),
+      createStage(index, { ...stage, id: stage.id ?? `stage_${index}` }),
     ),
     accessories: (savedProduct.accessories ?? []).map((accessory, index) =>
       createAccessory(index, accessory),

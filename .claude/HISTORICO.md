@@ -9,6 +9,42 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ CSV-02 + CSV-04 + RT-02 — a mecânica do arquivo escrito à mão (2026-08-21)
+
+> O CSV-05 fez a importação **avisar**. Estes três fazem ela **aguentar** — são a mesma frente
+> (planilha gerada fora do app) e fecharam juntos, no mesmo dia.
+
+**CSV-02 — a coluna certa em qualquer ordem.** `findColumn` casava só por `includes`, e a PRIMEIRA
+vitória vencia: `"filamento"` achava `"Filamentos JSON"` se ela viesse antes de
+`"Filamento (R$/kg)"`. Com o export fixando a ordem isso nunca acontecia com o arquivo do próprio
+app — mas na planilha da carga a ordem é de quem escreve. Virou `COLUMN_SPECS` (nome exato + pedaço
+que ainda reconhece) e `resolveColumns`, em **duas passadas sem reaproveitar coluna**: exato
+primeiro (o arquivo do app cai todo aqui), depois o pedaço, pulando o que já foi reclamado. Bônus:
+a comparação é **sem acento e sem caixa** — "Preço Sugerido" à mão passou a casar com o "Preco
+Sugerido" do export, o que antes falhava calado.
+
+**CSV-04 — quebra de linha dentro da célula.** `parseProductsCsv` fazia `split(/?
+/)` ANTES de
+respeitar aspas: um nome com `
+` (colado de outro lugar) virava dois produtos-lixo. Entrou
+`splitRecords`, que varre o texto e só fecha o registro fora das aspas — o `parseLine` segue
+desfazendo o escape. CRLF continua funcionando.
+
+**RT-02 — a identidade da etapa salva sem `id`.** `stageKeyFor` e o export chamam essa etapa de
+`stage_${index}`; o formulário inventava `stage_${Date.now()}_${index}` ao ABRIR o produto, e todo
+`stageKey` de subitem que apontasse para ela virava órfão no save seguinte — o custo daquela parte
+sumia sem mover o preço do produto inteiro. O `buildLoadedProduct` passa a dar a chave **posicional**
+para etapa salva sem id. ⚠ **Não é o one-liner que o backlog previa:** mudar o fallback dentro do
+`createStage` criaria COLISÃO no formulário (apagar a 1ª de duas etapas e adicionar outra faria o
+índice reusar um id vivo) — por isso o posicional vale só no CARREGAMENTO, e etapa nova continua
+nascendo com id por timestamp.
+
+**Prova no app real:** o catálogo inteiro exportado e reimportado a seco com as **34 colunas em
+ordem invertida** — 97 produtos, os mesmos dois apontamentos do CSV-05 (84 avulsos, 97 nomes
+repetidos), nenhum aviso de coluna ignorada. Nada gravado.
+
+`lint` ✅ · **463/463** ✅ · `build` ✅
+
 ## ✅ CSV-05 — a importação parou de engolir erro em silêncio (2026-08-21)
 
 > Nasceu de uma correção de rumo do dono: ele **não** vai exportar-editar-reimportar. Vai exportar

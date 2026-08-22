@@ -171,3 +171,56 @@ describe("round-trip do formulário — abrir e salvar sem tocar em nada", () =>
     expect(p.laborRate).toBe(55.5);
   });
 });
+
+// RT-02 — a IDENTIDADE de uma etapa salva sem `id`. O `stageKeyFor` (e o export)
+// chamam essa etapa de `stage_${index}`; o formulário inventava um id por
+// timestamp ao abrir o produto, e o `stageKey` do subitem que apontava para ela
+// virava órfão no save seguinte — o custo daquela parte sumia calado, sem mexer
+// no preço do produto inteiro (por isso só um diff pega).
+describe("RT-02 — etapa salva sem id", () => {
+  const semId: SavedProduct = {
+    ...salvo,
+    id: "prod_legado",
+    stages: [
+      {
+        name: "Etapa antiga", machineId: "a1", printHours: 1, laborMinutes: 5,
+        filaments: [{ filamentId: null, colorName: "Cinza", pricePerKg: 100, totalG: 20 }],
+      },
+    ],
+    subitems: [
+      { id: "sub_corpo", name: "Corpo", stageKeys: ["main"] },
+      { id: "sub_parte", name: "Parte", stageKeys: ["stage_0"] },
+    ],
+  };
+
+  it("recebe a chave POSICIONAL, não um id novo", () => {
+    const payload = abrirESalvar(semId);
+    expect(payload.stages?.[0]?.id).toBe("stage_0");
+  });
+
+  it("o subitem que apontava para ela continua apontando", () => {
+    const payload = abrirESalvar(semId);
+    const chaves = new Set([
+      "main",
+      ...(payload.stages ?? []).map((stage, index) => stage.id ?? `stage_${index}`),
+    ]);
+    const orfaos = (payload.subitems ?? []).flatMap((subitem) =>
+      subitem.stageKeys.filter((key) => !chaves.has(key)),
+    );
+    expect(orfaos).toEqual([]);
+  });
+
+  it("etapa que JÁ tem id mantém o dela", () => {
+    const payload = abrirESalvar(salvo);
+    expect(payload.stages?.map((stage) => stage.id)).toEqual([
+      "stage_extra_1",
+      "stage_extra_2",
+    ]);
+  });
+
+  it("abrir e salvar duas vezes é estável", () => {
+    const um = abrirESalvar(semId);
+    const dois = abrirESalvar({ ...um, id: "prod_legado" } as SavedProduct);
+    expect(JSON.stringify(dois)).toBe(JSON.stringify(um));
+  });
+});

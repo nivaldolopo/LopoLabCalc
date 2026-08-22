@@ -120,6 +120,53 @@ function parseLine(line: string, separator: string): string[] {
   return output.map((value) => value.trim());
 }
 
+/**
+ * CSV-04 — texto → REGISTROS, respeitando aspas.
+ *
+ * Quebrar por `\n` antes de olhar as aspas partia ao meio a linha de um produto
+ * cuja célula tivesse quebra de linha (nome colado de outro lugar, observação):
+ * nasciam dois produtos-lixo, em silêncio. O export já escapa esses valores com
+ * aspas — faltava a volta saber disso. As aspas seguem no texto do registro: é
+ * o `parseLine` quem as desfaz.
+ */
+function splitRecords(content: string): string[] {
+  const records: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (content[index + 1] === '"') {
+          current += '""';
+          index += 1;
+        } else {
+          inQuotes = false;
+          current += char;
+        }
+      } else if (char !== "\r") {
+        current += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+      current += char;
+    } else if (char === "\n") {
+      records.push(current);
+      current = "";
+    } else if (char !== "\r") {
+      current += char;
+    }
+  }
+
+  records.push(current);
+  return records.filter((record) => record.trim().length > 0);
+}
+
 function parseNumber(value: string | undefined): number {
   if (!value) return 0;
   let normalized = value.trim();
@@ -137,10 +184,89 @@ function parseBool(value: string | undefined): boolean {
   return String(value ?? "").toLowerCase().trim() === "sim";
 }
 
-function findColumn(headers: string[], name: string): number {
-  return headers.findIndex((header) =>
-    header.toLowerCase().includes(name.toLowerCase()),
-  );
+// CSV-02 — cada coluna que a importação LÊ, com o nome exato que o export
+// escreve e o pedaço que ainda a reconhece num arquivo escrito à mão.
+//
+// ⚠ Casar só por `includes` fazia a PRIMEIRA vitória vencer: `"filamento"`
+// achava `"Filamentos JSON"` se ela viesse antes de `"Filamento (R$/kg)"` no
+// cabeçalho. Como o export fixa a ordem, isso nunca acontecia com o arquivo
+// dele mesmo — mas a planilha da carga em massa é escrita fora, e lá a ordem é
+// de quem escreve.
+const COLUMN_SPECS = {
+  name: { exact: "Produto", needle: "produto" },
+  mainName: { exact: "Nome Etapa Principal", needle: "nome etapa principal" },
+  machine: { exact: "Maquina", needle: "maquina" },
+  weight: { exact: "Peso (g)", needle: "peso" },
+  time: { exact: "Tempo (h)", needle: "tempo" },
+  pieces: { exact: "Pecas", needle: "pecas" },
+  filamentPrice: { exact: "Filamento (R$/kg)", needle: "filamento" },
+  markup: { exact: "Markup", needle: "markup" },
+  failure: { exact: "Taxa Falha (%)", needle: "taxa falha" },
+  laborMinutes: { exact: "Mao de obra (min)", needle: "mao de obra (min)" },
+  laborRate: { exact: "Valor-hora (R$)", needle: "valor-hora" },
+  energy: { exact: "Tarifa Energia", needle: "tarifa energia" },
+  includeFixed: { exact: "Inclui Fixo", needle: "inclui fixo" },
+  rounding: { exact: "Arredondamento", needle: "arredondamento" },
+  linkModel: { exact: "Link Modelo", needle: "link modelo" },
+  linkCompetitor: { exact: "Link Concorrente", needle: "link concorrente" },
+  linkFile: { exact: "Link Arquivo", needle: "link arquivo" },
+  stages: { exact: "Etapas JSON", needle: "etapas json" },
+  accessories: { exact: "Acessorios JSON", needle: "acessorios json" },
+  filaments: { exact: "Filamentos JSON", needle: "filamentos json" },
+  sellBySubitems: { exact: "Vende por Subitens", needle: "vende por subitens" },
+  subitems: { exact: "Subitens JSON", needle: "subitens json" },
+  // CSV-03: as duas colunas calculadas que alguém de fato tentaria editar para
+  // "definir" o preço. As outras 10 são detalhamento — ninguém mexe no
+  // "Desgaste (R$)" esperando mudar o resultado, e avisar sobre 12 colunas ×
+  // N linhas viraria parede de texto.
+  price: { exact: "Preco Sugerido (R$)", needle: "preco sugerido" },
+  totalCost: { exact: "Custo Total (R$)", needle: "custo total" },
+} as const;
+
+type ColumnKey = keyof typeof COLUMN_SPECS;
+
+/**
+ * Cabeçalho → índice de cada coluna, em DUAS passadas e sem reaproveitar
+ * coluna: primeiro o nome exato (o arquivo do próprio app cai todo aqui),
+ * depois o pedaço — pulando o que já foi reclamado. Assim `"Filamentos JSON"`
+ * fica com a coluna dela antes de `"filamento"` procurar a sua, em qualquer
+ * ordem de cabeçalho. Comparação sem acento e sem caixa: uma planilha à mão
+ * escreve "Preço Sugerido", o export escreve "Preco Sugerido".
+ */
+function resolveColumns(headers: string[]): {
+  index: Record<ColumnKey, number>;
+  claimed: Set<number>;
+} {
+  const normalized = headers.map((header) => normalizeText(header).trim());
+  const claimed = new Set<number>();
+  const index = {} as Record<ColumnKey, number>;
+  const keys = Object.keys(COLUMN_SPECS) as ColumnKey[];
+
+  const take = (found: number, key: ColumnKey) => {
+    index[key] = found;
+    if (found >= 0) claimed.add(found);
+  };
+
+  keys.forEach((key) => {
+    const alvo = normalizeText(COLUMN_SPECS[key].exact).trim();
+    take(
+      normalized.findIndex((header, i) => !claimed.has(i) && header === alvo),
+      key,
+    );
+  });
+  keys
+    .filter((key) => index[key] < 0)
+    .forEach((key) => {
+      const needle = normalizeText(COLUMN_SPECS[key].needle).trim();
+      take(
+        normalized.findIndex(
+          (header, i) => !claimed.has(i) && header.includes(needle),
+        ),
+        key,
+      );
+    });
+
+  return { index, claimed };
 }
 
 // A célula JSON que não parseia vira lista VAZIA — e é justamente esse silêncio
@@ -406,44 +532,38 @@ export function parseProductsCsv(
   machines: Machine[],
   options?: CsvParseOptions,
 ): CsvImportResult {
-  const normalizedContent = content.replace(/^\uFEFF/, "");
-  const rawLines = normalizedContent
-    .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0);
+  const rawLines = splitRecords(content.replace(/^\uFEFF/, ""));
 
   if (rawLines.length < 2) return { products: [], warnings: [] };
 
   const separator = rawLines[0].includes(";") ? ";" : ",";
   const headers = parseLine(rawLines[0], separator);
 
-  const indexName = findColumn(headers, "produto");
-  const indexMainName = findColumn(headers, "nome etapa principal");
-  const indexMachine = findColumn(headers, "maquina");
-  const indexWeight = findColumn(headers, "peso");
-  const indexTime = findColumn(headers, "tempo");
-  const indexPieces = findColumn(headers, "pecas");
-  const indexFilament = findColumn(headers, "filamento");
-  const indexMarkup = findColumn(headers, "markup");
-  const indexFailure = findColumn(headers, "taxa falha");
-  const indexLaborMinutes = findColumn(headers, "mao de obra (min)");
-  const indexLaborRate = findColumn(headers, "valor-hora");
-  const indexEnergy = findColumn(headers, "tarifa energia");
-  const indexIncludeFixed = findColumn(headers, "inclui fixo");
-  const indexRounding = findColumn(headers, "arredondamento");
-  const indexLinkModel = findColumn(headers, "link modelo");
-  const indexLinkCompetitor = findColumn(headers, "link concorrente");
-  const indexLinkFile = findColumn(headers, "link arquivo");
-  const indexStages = findColumn(headers, "etapas json");
-  const indexAccessories = findColumn(headers, "acessorios json");
-  const indexFilaments = findColumn(headers, "filamentos json");
-  const indexSellBySubitems = findColumn(headers, "vende por subitens");
-  const indexSubitems = findColumn(headers, "subitens json");
-  // CSV-03: as duas colunas calculadas que alguém de fato tentaria editar para
-  // "definir" o preço. As outras 10 são detalhamento — ninguém mexe no
-  // "Desgaste (R$)" esperando mudar o resultado, e avisar sobre 12 colunas ×
-  // N linhas viraria parede de texto.
-  const indexPrice = findColumn(headers, "preco sugerido");
-  const indexTotalCost = findColumn(headers, "custo total");
+  const { index: col, claimed } = resolveColumns(headers);
+  const indexName = col.name;
+  const indexMainName = col.mainName;
+  const indexMachine = col.machine;
+  const indexWeight = col.weight;
+  const indexTime = col.time;
+  const indexPieces = col.pieces;
+  const indexFilament = col.filamentPrice;
+  const indexMarkup = col.markup;
+  const indexFailure = col.failure;
+  const indexLaborMinutes = col.laborMinutes;
+  const indexLaborRate = col.laborRate;
+  const indexEnergy = col.energy;
+  const indexIncludeFixed = col.includeFixed;
+  const indexRounding = col.rounding;
+  const indexLinkModel = col.linkModel;
+  const indexLinkCompetitor = col.linkCompetitor;
+  const indexLinkFile = col.linkFile;
+  const indexStages = col.stages;
+  const indexAccessories = col.accessories;
+  const indexFilaments = col.filaments;
+  const indexSellBySubitems = col.sellBySubitems;
+  const indexSubitems = col.subitems;
+  const indexPrice = col.price;
+  const indexTotalCost = col.totalCost;
 
   if (indexName < 0) {
     throw new Error('Coluna "Produto" não encontrada.');
@@ -467,22 +587,12 @@ export function parseProductsCsv(
   // assim que "Etapas" (em vez de "Etapas JSON") sumiria sem um pio. As 10
   // colunas calculadas são ignoradas DE PROPÓSITO (o preço sai das entradas),
   // então elas não contam como surpresa.
-  const usedIndexes = new Set(
-    [
-      indexName, indexMainName, indexMachine, indexWeight, indexTime,
-      indexPieces, indexFilament, indexMarkup, indexFailure, indexLaborMinutes,
-      indexLaborRate, indexEnergy, indexIncludeFixed, indexRounding,
-      indexLinkModel, indexLinkCompetitor, indexLinkFile, indexStages,
-      indexAccessories, indexFilaments, indexSellBySubitems, indexSubitems,
-      indexPrice, indexTotalCost,
-    ].filter((index) => index >= 0),
-  );
   const CALCULADAS = [
     "material", "energia", "desgaste", "manutencao", "mao de obra (r$)",
     "etapas (r$)", "acessorios (r$)", "reserva falha", "custo fixo", "margem",
   ];
   const ignoradas = headers.filter((header, index) => {
-    if (usedIndexes.has(index) || !header.trim()) return false;
+    if (claimed.has(index) || !header.trim()) return false;
     const nome = normalizeText(header);
     return !CALCULADAS.some((conhecida) => nome.includes(conhecida));
   });

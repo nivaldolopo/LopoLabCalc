@@ -353,3 +353,82 @@ describe("importação — a forma do documento importado", () => {
     expect(comCores.recalc).toBeUndefined();
   });
 });
+
+// CSV-02 / CSV-04 — o arquivo escrito FORA do app: ordem de coluna é de quem
+// escreve, e célula pode ter quebra de linha. Os dois casos partiam a leitura
+// em silêncio.
+describe("importação — arquivo escrito à mão", () => {
+  // Divide preservando as aspas cruas (para remontar o arquivo sem reescapar).
+  function splitRaw(line: string): string[] {
+    const out: string[] = [];
+    let cur = "";
+    let q = false;
+    for (const c of line) {
+      if (c === '"') { q = !q; cur += c; continue; }
+      if (c === ";" && !q) { out.push(cur); cur = ""; continue; }
+      cur += c;
+    }
+    out.push(cur);
+    return out;
+  }
+
+  it("CSV-02: cabeçalho em ordem INVERTIDA importa igual", () => {
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock)
+      .replace(/^\uFEFF/, "");
+    const [cabecalho, linha] = csv.split("\n");
+    const invertido = [
+      splitRaw(cabecalho).reverse().join(";"),
+      splitRaw(linha).reverse().join(";"),
+    ].join("\n");
+
+    const normal = parseProductsCsv(csv, machines).products[0];
+    const trocado = parseProductsCsv(invertido, machines).products[0];
+
+    // "Filamentos JSON" passa a vir ANTES de "Filamento (R$/kg)" — era aí que a
+    // busca por substring pegava a coluna errada.
+    expect(splitRaw(cabecalho).reverse().indexOf("Filamentos JSON")).toBeLessThan(
+      splitRaw(cabecalho).reverse().indexOf("Filamento (R$/kg)"),
+    );
+    expect(JSON.stringify(trocado)).toBe(JSON.stringify(normal));
+  });
+
+  it("CSV-02: cabeçalho com acento e caixa diferente é reconhecido", () => {
+    const csv = [
+      "PRODUTO;Máquina;PESO (G);Tempo (h);Arredondamento;Preço Sugerido (R$)",
+      "Chaveiro;Bambu Lab A1;40;3;0,90;99,90",
+    ].join("\n");
+    const r = parseProductsCsv(csv, machines);
+    expect(r.products[0].name).toBe("Chaveiro");
+    expect(r.products[0].machineId).toBe("a1");
+    expect(r.products[0].weightG).toBe(40);
+    expect(r.products[0].roundingMode).toBe("0.90");
+    // Coluna reconhecida = nenhum aviso de "coluna ignorada".
+    expect(r.warnings).toEqual([]);
+  });
+
+  it("CSV-04: quebra de linha dentro da célula não parte a linha", () => {
+    const comQuebra: SavedProduct = {
+      ...cobaia,
+      id: "p_quebra",
+      name: "Linha 1\nLinha 2",
+      linkModel: "https://exemplo/a\nb",
+    };
+    const csv = exportProductsCsv([comQuebra], machines, fixedCosts, stock);
+    const produtos = parseProductsCsv(csv, machines).products;
+
+    expect(produtos).toHaveLength(1);
+    expect(produtos[0].name).toBe("Linha 1\nLinha 2");
+    expect(produtos[0].linkModel).toBe("https://exemplo/a\nb");
+    expect(produtos[0].stages).toEqual(cobaia.stages);
+  });
+
+  it("CSV-04: CRLF continua funcionando", () => {
+    const csv = [
+      "Produto;Maquina;Peso (g);Tempo (h);Markup",
+      "Chaveiro;Bambu Lab A1;40;3;3",
+      "Caneca;Bambu Lab X2D;80;5;2",
+    ].join("\r\n");
+    const produtos = parseProductsCsv(csv, machines).products;
+    expect(produtos.map((p) => p.name)).toEqual(["Chaveiro", "Caneca"]);
+  });
+});

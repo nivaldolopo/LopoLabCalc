@@ -160,30 +160,6 @@
   salvo sem ter passado pelo diff campo a campo. **Como auditar:** o defeito tem assinatura —
   função que reconstrói um objeto campo a campo e esquece um; e o teste é **diff do documento**,
   nunca comparação de preço (o `supplyId` não movia preço, e foi assim que escapou).
-- **[CSV-02] `findColumn` casa por substring, e a primeira vitória vence** — `"Filamento (R$/kg)"`
-  só é encontrado corretamente porque vem **antes** de `"Filamentos JSON"` no cabeçalho exportado.
-  Reordenar as colunas num CSV escrito à mão faria a busca por `"filamento"` acertar a coluna JSON.
-  Hoje é inofensivo (o preço/kg real vem do JSON), mas vira armadilha num CSV sem a coluna JSON.
-  Correção de uma linha: casar por **nome exato** primeiro e só então cair no `includes`.
-
-## Aberto — resíduo da RE-AUDITORIA independente do RT-01 (2026-08-21)
-
-> Os achados com dado real (`stage2` sumindo no export, a forma do produto importado e o **silêncio**
-> da importação — CSV-05) já foram resolvidos — ver `HISTORICO.md`. Estes dois sobraram: **defeito real, exposição zero hoje**, porque
-> só atingem dado que o catálogo atual não tem. Viram armadilha se reaparecerem depois do recadastro.
-
-- **[RT-02] Etapa sem `id` ganha identidade nova no formulário, mas posicional no CSV** —
-  `createStage` ([usePricingForm.ts:45](../src/features/pricing-calculator/hooks/usePricingForm.ts))
-  gera `stage_${Date.now()}_${index}`, enquanto `stageKeyFor` e o export usam `stage_${index}`.
-  Abrir e salvar um produto com etapa sem id **reescreve a identidade da etapa**, e todo `stageKey`
-  de subitem que apontava para ela vira órfão — o custo da parte cai calado. Medido em 2026-08-21:
-  26 etapas sem id em 14 produtos, **nenhum deles com subitens**, zero `stageKeys` órfãos no
-  catálogo. Correção: usar `stage_${index}` como fallback (mesma regra dos dois outros lados).
-- **[CSV-04] Nome com quebra de linha destrói a linha do CSV** — o export escapa com aspas, mas
-  `parseProductsCsv` faz `split(/\r?\n/)` **antes** de respeitar aspas. Um produto com `\n` no nome
-  volta como dois produtos-lixo. Medido: nenhum nome do catálogo tem `\n` hoje (97 produtos → 98
-  linhas exportadas). Correção: varrer o texto respeitando aspas em vez de quebrar por linha antes.
-
 ## Fechado
 
 Nada aqui. Todo item concluído — com writeup e medições — vive no
