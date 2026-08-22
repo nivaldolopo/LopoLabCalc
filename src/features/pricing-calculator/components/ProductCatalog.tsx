@@ -23,6 +23,7 @@ import type {
   SavedProduct,
   SortMode,
   StockFilament,
+  Supply,
 } from "../types";
 import { errorMessage } from "@/lib/errors";
 import { matchesQuery } from "@/lib/text";
@@ -89,6 +90,9 @@ type ProductCatalogProps = {
   products: SavedProduct[];
   machines: Machine[];
   stock: StockFilament[];
+  // CSV-05: só a importação usa — confere o `supplyId` dos acessórios da
+  // planilha contra os insumos que existem de verdade.
+  supplies: Supply[];
   fixedCosts: FixedCostSettings;
   pricingByProduct: Map<string, PricingResult>;
   capacitySettings: CapacitySettings;
@@ -120,6 +124,7 @@ export function ProductCatalog({
   products,
   machines,
   stock,
+  supplies,
   fixedCosts,
   pricingByProduct,
   capacitySettings,
@@ -249,7 +254,14 @@ export function ProductCatalog({
           products: importedProducts,
           warnings,
           recalc,
-        } = parseProductsCsv(content, machines, { fixedCosts, stock });
+          issues,
+        } = parseProductsCsv(content, machines, {
+          fixedCosts,
+          stock,
+          supplies,
+          // CSV-05: nome repetido não substitui nada — entra produto novo.
+          existingNames: products.map((product) => product.name),
+        });
         if (importedProducts.length === 0) {
           fail("Nenhum produto válido encontrado no CSV.");
           return;
@@ -269,8 +281,8 @@ export function ProductCatalog({
                 <div className="import-warnings">
                   <strong>
                     ⚠️ {warnings.length}{" "}
-                    {warnings.length === 1 ? "linha" : "linhas"} com máquina não
-                    reconhecida:
+                    {warnings.length === 1 ? "aviso" : "avisos"} na leitura do
+                    arquivo:
                   </strong>
                   <ul>
                     {warnings.slice(0, 5).map((warning) => (
@@ -307,6 +319,26 @@ export function ProductCatalog({
                   </p>
                 </div>
               )}
+              {/* CSV-05: o que a linha PERDEU no caminho. A planilha da carga
+                  em massa é escrita fora do app, então o erro vem em série —
+                  por isso agrupado por classe, com a contagem e 3 exemplos.
+                  Nada disto bloqueia: é para o dono decidir antes de gravar. */}
+              {issues?.map((issue) => (
+                <div className="import-warnings" key={issue.kind}>
+                  <strong>
+                    ⚠️ {issue.linhas}{" "}
+                    {issue.linhas === 1 ? "linha" : "linhas"} — {issue.label}:
+                  </strong>
+                  <ul>
+                    {issue.exemplos.map((exemplo) => (
+                      <li key={exemplo}>{exemplo}</li>
+                    ))}
+                  </ul>
+                  {issue.linhas > issue.exemplos.length && (
+                    <p>e mais {issue.linhas - issue.exemplos.length}…</p>
+                  )}
+                </div>
+              ))}
             </>
           ),
           confirmLabel: "Importar",

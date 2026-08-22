@@ -168,8 +168,8 @@
 
 ## Aberto — resíduo da RE-AUDITORIA independente do RT-01 (2026-08-21)
 
-> Os dois achados com dado real (`stage2` sumindo no export e a forma do produto importado) já foram
-> resolvidos — ver `HISTORICO.md`. Estes dois sobraram: **defeito real, exposição zero hoje**, porque
+> Os achados com dado real (`stage2` sumindo no export, a forma do produto importado e o **silêncio**
+> da importação — CSV-05) já foram resolvidos — ver `HISTORICO.md`. Estes dois sobraram: **defeito real, exposição zero hoje**, porque
 > só atingem dado que o catálogo atual não tem. Viram armadilha se reaparecerem depois do recadastro.
 
 - **[RT-02] Etapa sem `id` ganha identidade nova no formulário, mas posicional no CSV** —

@@ -1,9 +1,11 @@
 import { formatDecimal } from "@/lib/formatting/currency";
+import { normalizeText } from "@/lib/text";
 import type {
   Accessory,
   FilamentUsage,
   FixedCostSettings,
   Machine,
+  ProductInput,
   ProductPayload,
   PrintStage,
   RoundingMode,
@@ -11,7 +13,8 @@ import type {
   StockFilament,
   Subitem,
 } from "../types";
-import { calculatePricing } from "./calculatePricing";
+import { calculatePricing, MAIN_STAGE_KEY } from "./calculatePricing";
+import { validateProduct } from "./validateProduct";
 import {
   filamentsTotalG,
   normalizeFilaments,
@@ -140,14 +143,30 @@ function findColumn(headers: string[], name: string): number {
   );
 }
 
-function parseJsonArray(value: string | undefined): unknown[] {
-  if (!value) return [];
+// A célula JSON que não parseia vira lista VAZIA — e é justamente esse silêncio
+// que engolia etapas/acessórios/subitens inteiros numa planilha escrita à mão
+// (aspas internas precisam ir dobradas no CSV). O `ok` existe para a importação
+// poder CONTAR o que engoliu; o comportamento em si não muda: uma célula
+// quebrada nunca derruba a linha toda.
+function parseJsonArraySafe(value: string | undefined): {
+  items: unknown[];
+  ok: boolean;
+} {
+  const raw = String(value ?? "").trim();
+  if (!raw) return { items: [], ok: true };
   try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return { items: parsed, ok: true };
+    // JSON válido que não é lista (`{...}` em vez de `[{...}]`) é erro de forma
+    // tão silencioso quanto o outro.
+    return { items: [], ok: false };
   } catch {
-    return [];
+    return { items: [], ok: false };
   }
+}
+
+function parseJsonArray(value: string | undefined): unknown[] {
+  return parseJsonArraySafe(value).items;
 }
 
 function parseStages(value: string | undefined, fallbackMachineId: string): PrintStage[] {
@@ -334,12 +353,27 @@ export type CsvRecalcNotice = {
 // O que a importação devolve: os produtos e o que ela teve de ADIVINHAR ou
 // IGNORAR. Nada disso bloqueia — aparece na confirmação, para o dono decidir
 // antes de gravar (TD-009: sinalizar o dado órfão em vez de mascarar).
+// CSV-05: um problema de uma classe, agrupado. A planilha da carga em massa é
+// escrita FORA do app, então o erro vem em série — 40 linhas sem `filamentId` é
+// um recado, não 40. Por isso conta e mostra até 3 exemplos, como o CSV-03.
+export type CsvIssue = {
+  // Chave estável da classe do problema (para teste e para React key).
+  kind: string;
+  // Frase pronta, no plural certo do grupo.
+  label: string;
+  linhas: number;
+  exemplos: string[];
+};
+
 export type CsvImportResult = {
   products: ProductPayload[];
-  // Máquina que não casou: por linha, e ACIONÁVEL (dá pra corrigir o CSV).
+  // Máquina que não casou e coluna de cabeçalho ignorada: por linha (ou por
+  // arquivo), e ACIONÁVEL (dá pra corrigir o CSV).
   warnings: string[];
   // CSV-03: presente só quando há divergência a contar.
   recalc?: CsvRecalcNotice;
+  // CSV-05: presente só quando há o que apontar. Nada aqui bloqueia.
+  issues?: CsvIssue[];
 };
 
 // Recalcular exige a taxa de custo fixo e as cores do Estoque — sem elas o
@@ -348,6 +382,11 @@ export type CsvImportResult = {
 export type CsvParseOptions = {
   fixedCosts: FixedCostSettings;
   stock?: StockFilament[];
+  // CSV-05: só para CONFERIR referências da planilha — o insumo ligado ao
+  // acessório (7e) e o nome já usado no catálogo. Nenhum dos dois entra em
+  // cálculo; ausentes, as checagens correspondentes simplesmente não rodam.
+  supplies?: { id: string }[];
+  existingNames?: string[];
 };
 
 // Tolerância: o export grava com 2 casas (`formatDecimal`), então até 2 centavos
@@ -414,6 +453,53 @@ export function parseProductsCsv(
   const recalcExemplos: string[] = [];
   let recalcComparadas = 0;
   let recalcDivergentes = 0;
+
+  // CSV-05: agrupa por classe, conta todas e guarda até 3 exemplos.
+  const issues = new Map<string, CsvIssue>();
+  function addIssue(kind: string, label: string, exemplo: string) {
+    const found = issues.get(kind) ?? { kind, label, linhas: 0, exemplos: [] };
+    found.linhas += 1;
+    if (found.exemplos.length < 3) found.exemplos.push(exemplo);
+    issues.set(kind, found);
+  }
+
+  // Coluna cujo nome o `findColumn` não reconheceu passa despercebida — foi
+  // assim que "Etapas" (em vez de "Etapas JSON") sumiria sem um pio. As 10
+  // colunas calculadas são ignoradas DE PROPÓSITO (o preço sai das entradas),
+  // então elas não contam como surpresa.
+  const usedIndexes = new Set(
+    [
+      indexName, indexMainName, indexMachine, indexWeight, indexTime,
+      indexPieces, indexFilament, indexMarkup, indexFailure, indexLaborMinutes,
+      indexLaborRate, indexEnergy, indexIncludeFixed, indexRounding,
+      indexLinkModel, indexLinkCompetitor, indexLinkFile, indexStages,
+      indexAccessories, indexFilaments, indexSellBySubitems, indexSubitems,
+      indexPrice, indexTotalCost,
+    ].filter((index) => index >= 0),
+  );
+  const CALCULADAS = [
+    "material", "energia", "desgaste", "manutencao", "mao de obra (r$)",
+    "etapas (r$)", "acessorios (r$)", "reserva falha", "custo fixo", "margem",
+  ];
+  const ignoradas = headers.filter((header, index) => {
+    if (usedIndexes.has(index) || !header.trim()) return false;
+    const nome = normalizeText(header);
+    return !CALCULADAS.some((conhecida) => nome.includes(conhecida));
+  });
+  if (ignoradas.length > 0) {
+    warnings.push(
+      `Coluna(s) ignorada(s) — o nome não foi reconhecido: ` +
+        `${ignoradas.map((h) => `"${h}"`).join(", ")}.`,
+    );
+  }
+
+  const nomesVistos = new Set(
+    (options?.existingNames ?? []).map((nome) => normalizeText(nome)),
+  );
+  const estoqueIds = new Set((options?.stock ?? []).map((color) => color.id));
+  const insumoIds = options?.supplies
+    ? new Set(options.supplies.map((supply) => supply.id))
+    : null;
 
   const products = rawLines.slice(1).flatMap((line, offset) => {
     const columns = parseLine(line, separator);
@@ -502,6 +588,144 @@ export function parseProductsCsv(
         stage2: null,
     };
 
+    // -----------------------------------------------------------------------
+    // CSV-05 — o que a linha PERDEU no caminho, dito antes de gravar.
+    // Nada aqui bloqueia: a linha entra do mesmo jeito. O que muda é o dono
+    // saber ANTES, em vez de descobrir na produção que não deu baixa.
+    // -----------------------------------------------------------------------
+    const ondeEstou = `Linha ${offset + 2} ("${name}")`;
+
+    // 1) Célula JSON que não parseia — a coluna inteira vira lista vazia.
+    ([
+      [indexStages, "Etapas JSON"],
+      [indexAccessories, "Acessorios JSON"],
+      [indexFilaments, "Filamentos JSON"],
+      [indexSubitems, "Subitens JSON"],
+    ] as const).forEach(([index, coluna]) => {
+      if (index < 0) return;
+      if (!parseJsonArraySafe(columns[index]).ok) {
+        addIssue(
+          "json-invalido",
+          "JSON inválido — a coluna foi ignorada (aspas internas vão DOBRADAS no CSV)",
+          `${ondeEstou}: coluna "${coluna}"`,
+        );
+      }
+    });
+
+    // 2) Arredondamento fora da lista cai em "exact" — e muda o preço final.
+    const roundingRaw = indexRounding >= 0 ? columns[indexRounding]?.trim() : "";
+    if (
+      roundingRaw &&
+      !VALID_ROUNDING_MODES.has(roundingRaw.replace(",", ".") as RoundingMode)
+    ) {
+      addIssue(
+        "arredondamento-invalido",
+        'Arredondamento não reconhecido — a linha entra como "exact"',
+        `${ondeEstou}: "${roundingRaw}"`,
+      );
+    }
+
+    // 3) Markup ilegível vira 3x calado.
+    if (markupRaw && parseNumber(markupRaw) <= 0) {
+      addIssue(
+        "markup-invalido",
+        "Markup não reconhecido — a linha entra com 3x",
+        `${ondeEstou}: "${markupRaw}"`,
+      );
+    }
+
+    // 4) O vínculo com o Estoque. Cor SEM `filamentId` é avulsa: legítima, mas
+    // não dá baixa na produção nem segue o preço vivo do rolo — e é o erro
+    // invisível da carga em massa, porque nada na tela a distingue depois.
+    const coresDaLinha = [
+      ...(filaments ?? []),
+      ...stages.flatMap((stage) => stage.filaments ?? []),
+    ];
+    if (coresDaLinha.length === 0 || coresDaLinha.every((f) => !f.filamentId)) {
+      addIssue(
+        "cor-avulsa",
+        "Filamento AVULSO (sem vínculo com o Estoque): não dá baixa na produção nem segue o preço do rolo",
+        ondeEstou,
+      );
+    }
+    // 5) …e o vínculo que aponta para uma cor que não existe.
+    if (options?.stock) {
+      coresDaLinha.forEach((f) => {
+        if (f.filamentId && !estoqueIds.has(f.filamentId)) {
+          addIssue(
+            "cor-inexistente",
+            "Cor do Estoque não encontrada — o filamento entra com o preço salvo",
+            `${ondeEstou}: filamentId "${f.filamentId}"`,
+          );
+        }
+      });
+    }
+
+    // 6) Insumo do acessório (7e) apontando para o vazio: sem baixa na produção.
+    if (insumoIds) {
+      accessories.forEach((accessory) => {
+        if (accessory.supplyId && !insumoIds.has(accessory.supplyId)) {
+          addIssue(
+            "insumo-inexistente",
+            "Insumo não encontrado — o acessório entra avulso (sem baixa no estoque)",
+            `${ondeEstou}: supplyId "${accessory.supplyId}" em "${accessory.desc}"`,
+          );
+        }
+      });
+    }
+
+    // 7) Referências INTERNAS da própria linha: o subitem que aponta para etapa
+    // inexistente perde o custo dela, e o acessório que aponta para subitem
+    // inexistente volta a ser rateado — os dois em silêncio.
+    const chavesDeEtapa = new Set([
+      MAIN_STAGE_KEY,
+      ...stages.map((stage, index) => stage.id ?? `stage_${index}`),
+    ]);
+    subitems.forEach((subitem) => {
+      subitem.stageKeys.forEach((key) => {
+        if (!chavesDeEtapa.has(key)) {
+          addIssue(
+            "etapa-inexistente",
+            'Subitem aponta para etapa que não existe na linha (use "main" ou o `id` de uma etapa)',
+            `${ondeEstou}: subitem "${subitem.name || subitem.id}" → "${key}"`,
+          );
+        }
+      });
+    });
+    const idsDeSubitem = new Set(subitems.map((subitem) => subitem.id));
+    accessories.forEach((accessory) => {
+      if (accessory.subitemId && !idsDeSubitem.has(accessory.subitemId)) {
+        addIssue(
+          "subitem-inexistente",
+          "Acessório aponta para subitem que não existe na linha — o custo volta rateado",
+          `${ondeEstou}: "${accessory.desc}" → "${accessory.subitemId}"`,
+        );
+      }
+    });
+
+    // 8) Nome repetido — no próprio arquivo ou já salvo no catálogo. A
+    // importação NÃO substitui: entra um segundo produto com o mesmo nome.
+    const nomeNormalizado = normalizeText(name);
+    if (nomesVistos.has(nomeNormalizado)) {
+      addIssue(
+        "nome-duplicado",
+        "Nome repetido (no arquivo ou já no catálogo) — entra um produto NOVO, nada é substituído",
+        `${ondeEstou}`,
+      );
+    }
+    nomesVistos.add(nomeNormalizado);
+
+    // 9) A mesma validação do formulário. A importação nunca a rodou: linha sem
+    // peso E sem tempo entra como produto de custo ~zero.
+    const invalido = validateProduct(product as unknown as ProductInput);
+    if (invalido) {
+      addIssue(
+        "linha-invalida",
+        "Linha que o formulário recusaria",
+        `${ondeEstou}: ${invalido.replace("⚠️ ", "")}`,
+      );
+    }
+
     // CSV-03: o que o arquivo AFIRMA × o que o app recalcula. Simétrico ao
     // export (mesma chamada, mesmas máquinas/taxa/estoque), então numa
     // reimportação sem nada ter mudado no meio isto fica em zero — e acende
@@ -567,6 +791,7 @@ export function parseProductsCsv(
           },
         }
       : {}),
+    ...(issues.size > 0 ? { issues: Array.from(issues.values()) } : {}),
   };
 }
 

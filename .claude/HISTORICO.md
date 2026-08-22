@@ -9,6 +9,47 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ CSV-05 — a importação parou de engolir erro em silêncio (2026-08-21)
+
+> Nasceu de uma correção de rumo do dono: ele **não** vai exportar-editar-reimportar. Vai exportar
+> só para ver quais são os campos e **gerar o CSV do zero**. Ou seja: o caminho provado no RT-01b
+> (arquivo que o próprio app gerou) não é o caminho que ele vai usar.
+
+**O import estava pronto para o arquivo dele mesmo, e cru para um arquivo escrito fora.** Só duas
+coisas eram ditas: máquina que não casou e preço/custo divergente (CSV-03) — e esta segunda **fica
+desligada** numa planilha do zero, que não traz as colunas calculadas. Todo o resto era silêncio:
+JSON quebrado virava lista vazia, coluna com nome errado sumia, arredondamento inválido caía em
+`exact`, referência inexistente virava avulso.
+
+**O pior deles era assimétrico** — e foi o que o dono perguntou primeiro, ao ver que o "atalho sem
+JSON" não liga no Estoque. Em `resolveFilamentPrices`: `filamentId` **errado** marca `missing` e
+rende o badge "⚠ cor removida" no catálogo; `filamentId` **ausente** retorna antes de qualquer
+checagem (`if (!f.filamentId) return f`) — é avulso legítimo, e **nada** na tela o distingue de uma
+cor ligada. O erro mais provável numa planilha gerada (esquecer o id numa coluna inteira) era
+justamente o invisível, e só apareceria na `/producao`, quando a baixa não acontecesse.
+
+**Nove classes, agrupadas por tipo** (a planilha erra em série: 40 linhas sem id são UM recado, não
+40) — cada uma com a contagem total e até 3 exemplos, no molde do CSV-03. Nada bloqueia:
+`json-invalido` · `arredondamento-invalido` · `markup-invalido` · `cor-avulsa` · `cor-inexistente` ·
+`insumo-inexistente` · `etapa-inexistente` (subitem → etapa) · `subitem-inexistente` (acessório →
+subitem) · `nome-duplicado` (no arquivo **e** contra o catálogo) · `linha-invalida`. Esta última
+roda o **mesmo `validateProduct` do formulário**, que a importação nunca tinha chamado — linha sem
+peso e sem tempo entrava como produto de custo zero.
+
+**Coluna de cabeçalho não reconhecida** virou aviso de arquivo (`"Etapas"` em vez de `"Etapas
+JSON"`). As 12 colunas calculadas não contam como surpresa — são ignoradas de propósito.
+
+**O que a checagem precisou de fora:** `supplies` e `existingNames` entraram no `CsvParseOptions`
+(o `CatalogPage` passou a assinar `useSupplies` só para isso). Sem eles, as checagens
+correspondentes simplesmente não rodam — o parsing puro dos testes continua sem dependência.
+
+**Medido no app real** com uma planilha de 7 linhas com defeitos plantados: as 9 classes acenderam,
+cada uma na linha certa. E o export do catálogo real reimportado a seco revelou dois números que
+valem por si: **84 das 97 linhas têm filamento avulso** (o catálogo está 86% desligado do Estoque) e
+**97 nomes repetidos** — a importação nunca substitui, sempre cria.
+
+`lint` ✅ · **455/455** ✅ · `build` ✅
+
 ## ✅ RT-01b — re-auditoria independente, e a semente da planilha ficou limpa (2026-08-21)
 
 > Pedido do dono: refazer a auditoria do RT-01 **do zero, por outra cabeça**, tratando cada

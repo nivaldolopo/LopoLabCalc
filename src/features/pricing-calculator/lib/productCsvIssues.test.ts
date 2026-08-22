@@ -1,0 +1,225 @@
+import { describe, expect, it } from "vitest";
+import { parseProductsCsv, type CsvIssue } from "./productCsv";
+import type {
+  FixedCostSettings,
+  Machine,
+  StockFilament,
+  Supply,
+} from "../types";
+
+// CSV-05 — a planilha da carga em massa é escrita FORA do app. Estes testes
+// cobrem o que ela perde no caminho: o que a importação engolia em silêncio
+// passa a ser contado e mostrado antes de gravar (nada bloqueia).
+
+const machines: Machine[] = [
+  { id: "a1", name: "A1 Combo", price: 3200, lifeHours: 5000, watts: 95, maintenancePerHour: 0.15 },
+  { id: "x2d", name: "X2D Combo", price: 9000, lifeHours: 5000, watts: 150, maintenancePerHour: 0.25 },
+];
+const fixedCosts: FixedCostSettings = {
+  enabled: true, rent: 1500, other: 0, machines: 2, hoursDay: 10, daysMonth: 26,
+};
+const cor = {
+  id: "cor_laranja", colorName: "Laranja", material: "PLA", brand: "Bambu",
+  minG: 0, archived: false, rolls: [{ id: "r1", pricePerKg: 110, initialG: 1000, createdAt: 1, note: "" }],
+  adjustments: [],
+} as unknown as StockFilament;
+const insumo = { id: "sup_argola", name: "Argola", archived: false } as unknown as Supply;
+
+const opcoes = { fixedCosts, stock: [cor], supplies: [insumo], existingNames: ["Ja existe"] };
+
+// Monta um CSV de 1 linha a partir de pares coluna→valor.
+function csv(row: Record<string, string>): string {
+  const headers = Object.keys(row);
+  const cell = (v: string) => (/[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  return [headers.join(";"), headers.map((h) => cell(row[h])).join(";")].join("\n");
+}
+
+const LINHA_BOA: Record<string, string> = {
+  Produto: "Caneca",
+  Maquina: "A1 Combo",
+  "Tempo (h)": "2",
+  Markup: "3x",
+  "Filamentos JSON": JSON.stringify([
+    { filamentId: "cor_laranja", colorName: "Laranja", pricePerKg: 110, totalG: 50 },
+  ]),
+};
+
+function achar(issues: CsvIssue[] | undefined, kind: string): CsvIssue | undefined {
+  return (issues ?? []).find((issue) => issue.kind === kind);
+}
+
+describe("CSV-05 — a importação conta o que engoliu", () => {
+  it("linha correta e ligada ao Estoque: nenhum apontamento", () => {
+    const r = parseProductsCsv(csv(LINHA_BOA), machines, opcoes);
+    expect(r.issues).toBeUndefined();
+    expect(r.warnings).toEqual([]);
+    expect(r.products).toHaveLength(1);
+  });
+
+  it("JSON quebrado: a coluna some, e agora isso é dito", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Etapas JSON": '[{"name":"Tampa",]' }),
+      machines,
+      opcoes,
+    );
+    const issue = achar(r.issues, "json-invalido");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain("Etapas JSON");
+    // O comportamento não muda: a linha entra, sem a etapa.
+    expect(r.products[0].stages).toEqual([]);
+  });
+
+  it("JSON válido que não é lista também conta", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Acessorios JSON": '{"desc":"Argola"}' }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "json-invalido")?.linhas).toBe(1);
+  });
+
+  it("filamento avulso (sem `filamentId`) é apontado — é o erro invisível", () => {
+    const semId = csv({
+      ...LINHA_BOA,
+      "Filamentos JSON": JSON.stringify([{ colorName: "Laranja", pricePerKg: 110, totalG: 50 }]),
+    });
+    expect(achar(parseProductsCsv(semId, machines, opcoes).issues, "cor-avulsa")?.linhas).toBe(1);
+
+    // O atalho dos escalares (sem a coluna JSON) também é avulso.
+    const escalares = csv({
+      Produto: "Chaveiro", Maquina: "A1 Combo", "Peso (g)": "40",
+      "Tempo (h)": "2", "Filamento (R$/kg)": "110", Markup: "3",
+    });
+    expect(achar(parseProductsCsv(escalares, machines, opcoes).issues, "cor-avulsa")?.linhas).toBe(1);
+  });
+
+  it("`filamentId` que não existe no Estoque é apontado", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: "cor_que_nao_existe", colorName: "X", pricePerKg: 110, totalG: 50 },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-inexistente")?.linhas).toBe(1);
+    // …e não é confundido com avulso.
+    expect(achar(r.issues, "cor-avulsa")).toBeUndefined();
+  });
+
+  it("`supplyId` inexistente é apontado; o que existe, não", () => {
+    const acessorio = (supplyId: string) =>
+      csv({
+        ...LINHA_BOA,
+        "Acessorios JSON": JSON.stringify([
+          { desc: "Argola", qty: 1, unitPrice: 0.4, supplyId, subitemId: null },
+        ]),
+      });
+    expect(
+      achar(parseProductsCsv(acessorio("sup_fantasma"), machines, opcoes).issues, "insumo-inexistente")
+        ?.linhas,
+    ).toBe(1);
+    expect(
+      achar(parseProductsCsv(acessorio("sup_argola"), machines, opcoes).issues, "insumo-inexistente"),
+    ).toBeUndefined();
+  });
+
+  it("subitem apontando para etapa inexistente, e acessório para subitem inexistente", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Etapas JSON": JSON.stringify([
+          { id: "st_1", name: "Tampa", machineId: "a1", printHours: 1, laborMinutes: 0 },
+        ]),
+        "Vende por Subitens": "sim",
+        "Subitens JSON": JSON.stringify([
+          { id: "sub_1", name: "Corpo", stageKeys: ["main", "stage_0"] },
+        ]),
+        "Acessorios JSON": JSON.stringify([
+          { desc: "Ima", qty: 1, unitPrice: 1, supplyId: null, subitemId: "sub_fantasma" },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "etapa-inexistente")?.linhas).toBe(1);
+    expect(achar(r.issues, "etapa-inexistente")?.exemplos[0]).toContain("stage_0");
+    expect(achar(r.issues, "subitem-inexistente")?.linhas).toBe(1);
+  });
+
+  it("arredondamento e markup ilegíveis são apontados", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Arredondamento: "psicologico", Markup: "tresx" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "arredondamento-invalido")?.linhas).toBe(1);
+    expect(achar(r.issues, "markup-invalido")?.linhas).toBe(1);
+    // O fallback continua o mesmo — apontar não é bloquear.
+    expect(r.products[0].roundingMode).toBe("exact");
+    expect(r.products[0].markup).toBe(3);
+  });
+
+  it("nome repetido — no arquivo e contra o catálogo", () => {
+    const duasLinhas = [
+      "Produto;Maquina;Peso (g);Tempo (h);Markup",
+      "Caneca;A1 Combo;40;2;3",
+      "caneca;A1 Combo;40;2;3",
+    ].join("\n");
+    expect(achar(parseProductsCsv(duasLinhas, machines, opcoes).issues, "nome-duplicado")?.linhas).toBe(1);
+
+    const contraCatalogo = csv({ ...LINHA_BOA, Produto: "JA EXISTE" });
+    expect(achar(parseProductsCsv(contraCatalogo, machines, opcoes).issues, "nome-duplicado")?.linhas).toBe(1);
+  });
+
+  it("linha que o formulário recusaria (sem peso e sem tempo)", () => {
+    const r = parseProductsCsv(
+      csv({ Produto: "Vazio", Maquina: "A1 Combo", "Peso (g)": "0", "Tempo (h)": "0", Markup: "3" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "linha-invalida")?.exemplos[0]).toContain("peso");
+  });
+
+  it("coluna com nome não reconhecido vira aviso — as CALCULADAS não", () => {
+    const comTypo = parseProductsCsv(
+      csv({ ...LINHA_BOA, Etapas: "[]", Observacao: "qualquer coisa" }),
+      machines,
+      opcoes,
+    );
+    expect(comTypo.warnings).toHaveLength(1);
+    expect(comTypo.warnings[0]).toContain('"Etapas"');
+    expect(comTypo.warnings[0]).toContain('"Observacao"');
+
+    const calculadas = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Material (R$)": "4,01", "Margem (%)": "60", "Desgaste (R$)": "1,00" }),
+      machines,
+      opcoes,
+    );
+    expect(calculadas.warnings).toEqual([]);
+  });
+
+  it("conta TODAS as linhas, mostra no máximo 3 exemplos", () => {
+    const linhas = Array.from({ length: 5 }, (_, i) => `Produto ${i};A1 Combo;40;2;3`);
+    const arquivo = ["Produto;Maquina;Peso (g);Tempo (h);Markup", ...linhas].join("\n");
+    const issue = achar(parseProductsCsv(arquivo, machines, opcoes).issues, "cor-avulsa");
+    expect(issue?.linhas).toBe(5);
+    expect(issue?.exemplos).toHaveLength(3);
+  });
+
+  it("sem opções (parsing puro) as checagens que dependem de dado externo não rodam", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: "cor_que_nao_existe", colorName: "X", pricePerKg: 110, totalG: 50 },
+        ]),
+      }),
+      machines,
+    );
+    expect(achar(r.issues, "cor-inexistente")).toBeUndefined();
+    expect(achar(r.issues, "insumo-inexistente")).toBeUndefined();
+  });
+});

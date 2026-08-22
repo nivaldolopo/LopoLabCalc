@@ -9,6 +9,7 @@ import { useFees } from "../hooks/useFees";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
 import { useStock } from "../hooks/useStock";
+import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
 import { calculatePricing } from "../lib/calculatePricing";
 import {
@@ -45,6 +46,9 @@ export function CatalogPage() {
   }, [focusId]);
   const { machines } = useMachines();
   const { filaments: stock } = useStock();
+  // CSV-05: só para a importação CONFERIR o `supplyId` dos acessórios da
+  // planilha. Não entra em cálculo nenhum desta página.
+  const { supplies } = useSupplies();
   const { fixedCostRate } = useBusinessSettings();
   // UX-10: só para EXIBIR a margem líquida ao lado da bruta — nenhuma taxa entra
   // no preço aqui (o repasse continua sendo escolha da venda).
@@ -175,6 +179,7 @@ export function CatalogPage() {
           products={productsApi.products}
           machines={machines}
           stock={stock}
+          supplies={supplies}
           fixedCosts={fixedCosts}
           pricingByProduct={pricingByProduct}
           capacitySettings={capacitySettings}

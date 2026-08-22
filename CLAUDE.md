@@ -14,29 +14,30 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ RT-01b — a re-auditoria independente, e a semente da planilha ficou limpa
-  (2026-08-21)**. O RT-01/CSV-03 se sustentou, mas a re-auditoria **derrubou** o "reimportar não
-  avisa": 2 de 97 linhas acendiam — e o aviso estava certo. Causa (anterior aos commits): o export
-  montava as etapas de `product.stages`, enquanto o preço da mesma linha vinha de `normalizeStages`
-  — produto legado `combineEnabled`/`stage2` saía com `Etapas JSON []` e custo 3,4× menor na volta.
-  **Corrigido no DADO** (Diretriz 7): os 2 produtos foram abertos e salvos, migrando `stage2 →
-  stages`; **zero produto legado no catálogo**, e o export reimporta **sem nenhum aviso**. Único
-  código tocado: a importação **não grava mais** `weightG`/`filamentPricePerKg` quando a linha traz
-  `Filamentos JSON` — o produto da carga em massa nasce na mesma forma que o formulário grava.
-  `lint` ✅ · **442/442** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **✅ CSV-05 — a importação parou de engolir erro em silêncio (2026-08-21)**.
+  O dono vai **gerar o CSV do zero** (o export serve só para ver os campos), então o caminho provado
+  no RT-01b não é o que ele vai usar. A confirmação agora conta **9 classes** de problema, agrupadas
+  com até 3 exemplos e sem bloquear: JSON quebrado (virava lista vazia), arredondamento/markup
+  ilegível, **filamento avulso**, cor/insumo inexistente, subitem→etapa e acessório→subitem órfãos,
+  nome repetido, e a linha que o `validateProduct` recusaria (a importação **nunca** o chamava).
+  Coluna de cabeçalho não reconhecida virou aviso. O pior era assimétrico: `filamentId` **errado**
+  rende badge no catálogo, `filamentId` **ausente** era invisível — e é o erro provável numa planilha
+  gerada. `lint` ✅ · **455/455** ✅ · `build` ✅. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono.** O plano do dono: **exportar o catálogo de hoje
-  como semente da planilha do recadastro**. A semente está limpa (RT-01b) — reimportar o export não
-  acende aviso nenhum. Abertos: `AUD-01` (estorno/reedição de recibo), `CSV-02` (`findColumn` por
-  substring), `RT-02` (id de etapa regerado no form) e `CSV-04` (nome com `\n` quebra o CSV) — os
-  dois últimos com **exposição zero hoje**. O resto está no rebrand (`DEC-05` + `G2`) ou bloqueado
-  por dado externo (`FEAT-03`, `branding/logo`, `Dashboard`). **A decisão é do dono** — ler o
-  `BACKLOG.md` antes de sugerir tarefa.
+- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono.** Plano dele (2026-08-21): o export serve **só
+  para ver quais são os campos** — a planilha vai ser **gerada do zero** e importada. Ou seja, o
+  caminho que vale é o do CSV escrito FORA do app, que o CSV-05 acabou de blindar. **Pré-requisito
+  que é dele:** cadastrar no Estoque as cores definitivas ANTES (a importação não cria cor nem
+  insumo; `filamentId` que não existe entra avulso — agora avisado). Abertos: `CSV-02` (`findColumn`
+  por substring), `CSV-04` (quebra de linha no nome parte a linha) e `RT-02` (id de etapa regerado no form) —
+  os três do mesmo bloco "CSV à mão"; e `AUD-01` (estorno/reedição de recibo), independente. O resto
+  está no rebrand (`DEC-05` + `G2`) ou bloqueado por dado externo (`FEAT-03`, `branding/logo`,
+  `Dashboard`). **A decisão é do dono** — ler o `BACKLOG.md` antes de sugerir tarefa.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
@@ -173,6 +174,9 @@ src/
   diff de célula JSON exige **stringify canônico** (o Firestore não preserva ordem de chave em mapa,
   e comparar o texto dá falso positivo). **Tarifa e valor-hora são do PRODUTO**, nunca da etapa. O
   **`id` não é campo do documento** — é o caminho. O export escreve etapa **normalizada**, não crua.
+  ⚠ **A importação de CSV AVISA, não engole** (CSV-05): a planilha da carga em massa é escrita fora
+  do app, então `parseProductsCsv` conta o que ignorou (`issues`, agrupado por classe) — coluna nova
+  que possa falhar calada entra com a checagem dela no mesmo commit.
 - Toda a lógica de cálculo vive em `features/pricing-calculator/lib/` — pura e coberta por teste.
 
 ## Diretrizes de trabalho
