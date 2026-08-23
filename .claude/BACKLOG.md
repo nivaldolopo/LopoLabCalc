@@ -176,6 +176,58 @@
   confirmado em duas abas. Máquina editada recalculando o catálogo **não** foi exercitada (escreve
   no doc compartilhado `config/machines`) → **[AUD-08]**.
 
+## Ordem aprovada pelo dono — 4 lotes (2026-08-22)
+
+> O cluster AUD-07 é o backlog inteiro de código hoje. O dono aprovou esta ordem. O critério: **o
+> que sai errado pro cliente primeiro**, depois **o que destrava a carga em massa**, depois o resto.
+>
+> **A descoberta que reagrupou a lista:** CSV-06, CSV-07, CSV-08 e UX-41 **não são 4 itens** — são o
+> MESMO defeito em 4 portas: um número em pt-BR lido por um parser que não fala pt-BR. O app tem
+> `formatDecimal` (formata pt-BR pra fora) e **nada** que leia pt-BR pra dentro; cada porta
+> improvisou a sua. → uma primitiva `parseDecimalPtBr` em `lib/formatting/`, e as 4 portas a chamam.
+
+| Lote | Itens | Estado |
+|---|---|---|
+| **0** | **[TD-017]** | ✅ **FEITO (2026-08-22)** |
+| **1** | **[CSV-06]** + [CSV-07] + [CSV-08] + **[UX-41]** | ▶ próximo |
+| **2** | [UX-42] · [TD-018] · [TD-019] | a fazer |
+| **3** | [UX-43] · [TD-020] | a fazer |
+
+**[AUD-08] fica FORA dos lotes de propósito:** metade da lista dele (*"escrita de 100 produtos de
+verdade"*) é **exercitada de graça pela carga em massa real**. Varrer antes é ensaiar o que vai
+acontecer sozinho depois. Reavaliar **depois** da carga.
+
+### Aviso resolve no import, NÃO resolve na digitação — medido no navegador (2026-08-22)
+
+> O dono perguntou, com razão, se não bastava avisar quando o dado viesse errado. **No import, sim**
+> — é exatamente o que o CSV-06 faz: o texto chega inteiro no código, dá pra ver que `"1,5"` é
+> vírgula pt-BR e apontar. **Na digitação, não** — e a medição diz por quê.
+>
+> Pressionando a vírgula num `<input type="number">`, o evento chega assim:
+>
+> ```
+> key: ""   code: ""   keyCode: 0   which: 0   isTrusted: true
+> ```
+>
+> **Tudo zerado**, e **nenhum `beforeinput` dispara** — o Chrome mata a vírgula antes de ela virar
+> texto. Não é difícil detectar: a informação **não existe**. Somando com `selectionStart === null`
+> e `setRangeText` lançando `InvalidStateError`, o campo nativo é caixa-preta em três frentes.
+> **Não há truque** — nem o `onKeyDown` que o próprio [UX-41] sugeria como mínimo (ele foi testado e
+> produziu justamente o `14353` que a auditoria mediu).
+>
+> ⚠ **Armadilha de método:** digitação sintética (CDP) manda a string inteira num `beforeinput` só
+> (`data: "1,5"`), o que **não reproduz** o teclado humano e dá falso resultado. Só `key` tecla a
+> tecla mede isto de verdade.
+
+### Decisão do dono: setinhas artesanais, não perder o incremento
+
+O dono usa muito as setinhas de incremento, e `type="text"` não as tem. → **`type="text"` +
+`inputMode="decimal"` + stepper próprio.** Protótipo medido nas 4 frentes: `143,53` → 143.53 ✓ ·
+`27.14` (ponto) → 27.14 ✓ · clicar ▲▲ em `143,53` → `143,55` ✓ · tecla ↓ em `27.14` → `27,13` ✓.
+Devolve o valor **em pt-BR**, aceita `step` por campo, e passa a ter setinha **no celular** — que a
+nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange` intactos); muda o
+`NumberInput` + CSS do stepper, que precisa respeitar o alvo de 44px (UX-28/UX-37).
+
 ## Aberto — cluster da varredura AUD-07 (2026-08-22)
 
 > 2ª varredura ponta a ponta, pedida pelo dono **antes da carga em massa**, com a regra de que a
@@ -205,8 +257,11 @@
 
 ### 🟠 Alto (não bloqueia, mas morde cedo)
 
-- **[TD-017] `/vendas` e `/orcamento` precificam SEM o preço vivo do rolo.**
-  `SalesPage.tsx:232` e `QuotePage.tsx:122` chamam `calculatePricing(product, machines, fixedCosts)`
+- ~~**[TD-017] `/vendas` e `/orcamento` precificam SEM o preço vivo do rolo.**~~ — ✅ **FEITO
+  (Lote 0, 2026-08-22).** A `SalesPage` já tinha o `stock` em mãos (linha 201) — faltava só passá-lo;
+  a `QuotePage` ganhou o `useStock`. Varri as **11** chamadas de `calculatePricing`: eram as 2 únicas
+  sem o argumento, e agora nenhuma está. `lint` ✅ · 483/483 ✅ · `build` ✅.
+  `SalesPage.tsx:232` e `QuotePage.tsx:122` chamavam `calculatePricing(product, machines, fixedCosts)`
   — falta o 4º argumento `stock`, que as outras 6 chamadas passam (`CatalogPage:91`,
   `PricingCalculator:128`, `ProductCatalog:171`, `ProductionPage:142`, `SaleFlow:67`,
   `StockPage:236`). Medido: o MESMO produto vale **R$51,58 no catálogo** e **R$18,47** no seletor da

@@ -229,7 +229,10 @@ export function SalesPage() {
     () =>
       products
         .flatMap((product) => {
-          const result = calculatePricing(product, machines, fixedCosts);
+          // TD-017: o 4o argumento e o ESTOQUE — sem ele a precificacao ignora o
+          // preco vivo do rolo e o mesmo produto sai por um valor no catalogo e
+          // outro aqui (medido: R$51,58 vs R$18,47).
+          const result = calculatePricing(product, machines, fixedCosts, stock);
           const baseName = product.name || product.mainStageName || "";
           // FEAT-01: inteiro + um item vendável por subitem (mesma lista do
           // modal aberto pela calculadora).
@@ -253,7 +256,7 @@ export function SalesPage() {
         .sort((a, b) =>
           a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),
-    [products, machines, fixedCosts],
+    [products, machines, fixedCosts, stock],
   );
 
   // Agrupa as vendas por recibo (fase 1b): itens de uma mesma compra ficam juntos.

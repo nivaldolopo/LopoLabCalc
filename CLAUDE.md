@@ -14,28 +14,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **🔍 AUD-07 — 2ª varredura ponta a ponta (2026-08-22)**, com a regra de que
-  **a passada anterior não é referência** (nem as correções dela). Primeira a **gravar no Firestore**
-  (com aval do dono) e a abrir o **PDF**. **Nada corrigido — só reportado: 10 defeitos** no
-  `BACKLOG.md`. Bloqueante: **[CSV-06]** — vírgula pt-BR DENTRO das células JSON vira 0 calada
-  (medido: produto importado a **R$51,58 em vez de R$223,32**, zero avisos). Passaram com conta à
-  mão ao centavo: preço/subitens/arredondamento, FIFO × preço do rolo novo, produção, **estorno de
-  3 reedições + exclusão sem resíduo**, taxas/gross-up, round-trip do form (**34 colunas, 0 diffs**),
-  tempo real e 375px. `lint` ✅ · **483/483 em 5 execuções** ✅ · `build` ✅. Fecha `AUD-03/05/06`.
-  Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **Lote 0 — [TD-017] (2026-08-22)**: `/vendas` e `/orcamento` precificavam
+  **sem o preço vivo do rolo** — eram as **2 únicas** das 11 chamadas de `calculatePricing` sem o 4º
+  argumento `stock` (o MESMO produto valia R$51,58 no catálogo e **R$18,47** no seletor de venda, no
+  orçamento e no PDF que vai pro cliente). `SalesPage` já tinha o `stock` em mãos; `QuotePage` ganhou
+  o `useStock`. `lint` ✅ · **483/483** ✅ · `build` ✅. **Primeiro de 4 lotes** aprovados pelo dono
+  para o cluster AUD-07 — ordem e escopo no [`BACKLOG.md`](.claude/BACKLOG.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — corrigir o [CSV-06]** (`BACKLOG.md`), que **bloqueia a carga em massa**: a
-  planilha é escrita à mão, em pt-BR, e `"1,5"` dentro do JSON vira 0 sem aviso. De quebra valem o
-  **[TD-017]** (uma linha em cada arquivo) e o **[UX-41]** (digitar `143,53` vira `14353`).
-  **Depois:** a **CARGA EM MASSA do dono** — planilha **gerada do zero** por ele; **pré-requisito
-  dele:** cadastrar as cores definitivas ANTES (a importação **não cria** cor nem insumo). Em
-  aberto: **tabela de-para** (cor → id) + **modelo de planilha**. **Não existe "limpar catálogo"**
-  (97 exclusões uma a uma). **A decisão é do dono** — ler o `BACKLOG.md` antes de sugerir tarefa.
+- **▶ PRÓXIMA TAREFA — Lote 1: a vírgula pt-BR** (`BACKLOG.md`, que tem a ordem dos 4 lotes
+  aprovada pelo dono). **[CSV-06]** (bloqueia a carga) + **[CSV-07]** + **[CSV-08]** + **[UX-41]**
+  não são 4 itens — são o MESMO defeito em 4 portas → uma primitiva `parseDecimalPtBr` em
+  `lib/formatting/` (o inverso do `formatDecimal`), e as 4 portas a chamam. **No import o aviso
+  resolve; na digitação NÃO** — medido: a tecla da vírgula chega num `type="number"` sem `key`,
+  sem `code` e sem `beforeinput`, não há o que detectar. → **decisão do dono: `type="text"` +
+  setinhas artesanais** (ele usa muito o incremento); protótipo validado, 40 usos não mudam.
+  **Depois:** Lote 2 (UX-42 · TD-018 · TD-019), Lote 3 (UX-43 · TD-020) e então a **CARGA EM MASSA**
+  — planilha gerada do zero pelo dono; **pré-requisito dele:** cadastrar as cores definitivas ANTES
+  (a importação **não cria** cor nem insumo). Em aberto: **tabela de-para** + **modelo de planilha**
+  (posso gerar os dois). **Não existe "limpar catálogo"** (97 exclusões uma a uma).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
