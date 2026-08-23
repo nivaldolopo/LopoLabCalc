@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
+  Copy,
   ExternalLink,
   Factory,
   Package,
@@ -54,7 +55,9 @@ import {
   saleContextFromSubitem,
   type SaleModalContext,
 } from "../lib/saleContext";
+import { colorIdTable } from "../lib/idTable";
 import { addFrozen, sumFrozen, ZERO_FROZEN } from "../lib/production";
+import { copyText } from "@/lib/clipboard";
 import { DEFAULT_FIXED_COSTS } from "../constants";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useMachines } from "../hooks/useMachines";
@@ -164,6 +167,21 @@ export function StockPage() {
   const [saleSeed, setSaleSeed] = useState<SaleModalContext | null>(null);
   const [saleOpen, setSaleOpen] = useState(false);
   const { note, ok, fail, clear } = useFeedback();
+
+  // O `filamentId` que a planilha da carga precisa escrever é um auto-id do
+  // Firestore e não aparece em lugar nenhum da tela — sem isto, o caminho é
+  // abrir o console do Firebase e copiar cor por cor. Vai em TSV: colado no
+  // Sheets/Excel já cai em colunas.
+  async function copiarDePara() {
+    try {
+      await copyText(colorIdTable(filaments));
+      ok(
+        `Tabela de ${filaments.length} cor(es) copiada — cole no Sheets/Excel.`,
+      );
+    } catch (err) {
+      fail(errorMessage(err));
+    }
+  }
   const { ask, dialog } = useConfirm();
 
   // Os modais buscam a cor pelo id na lista viva (não guardam uma cópia): o
@@ -1247,6 +1265,19 @@ export function StockPage() {
         >
           <Plus size={15} /> Nova cor
         </button>
+        {/* A tabela de-para (nome → id) que a planilha da carga em massa
+            precisa. Só aparece quando há cor: copiar um cabeçalho sozinho não
+            serve pra nada. */}
+        {filaments.length > 0 ? (
+          <button
+            className="btn"
+            type="button"
+            onClick={copiarDePara}
+            title="Copia nome, material, marca e ID de cada cor — para colar na planilha de importação"
+          >
+            <Copy size={15} /> Copiar de-para
+          </button>
+        ) : null}
       </div>
 
       <FeedbackNote note={note} onClose={clear} />

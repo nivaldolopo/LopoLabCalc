@@ -7,10 +7,12 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
+  Copy,
   Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
+import { copyText } from "@/lib/clipboard";
 import { errorMessage, guardOnline } from "@/lib/errors";
 import { formatCurrency } from "@/lib/formatting/currency";
 import { formatDate } from "@/lib/formatting/date";
@@ -26,6 +28,7 @@ import {
   supplyReferences,
   supplyStatement,
 } from "../lib/supplies";
+import { supplyIdTable } from "../lib/idTable";
 import { useSupplies } from "../hooks/useSupplies";
 import type {
   ProductionEvent,
@@ -75,6 +78,18 @@ export function SuppliesTab({
   // UX-05: busca por nome do insumo. Client-side (insumos têm teto natural).
   const [query, setQuery] = useState("");
   const { note, ok, fail, clear } = useFeedback();
+
+  // Ver o comentário do gêmeo em `StockPage` (aba Filamentos).
+  async function copiarDePara() {
+    try {
+      await copyText(supplyIdTable(supplies));
+      ok(
+        `Tabela de ${supplies.length} insumo(s) copiada — cole no Sheets/Excel.`,
+      );
+    } catch (err) {
+      fail(errorMessage(err));
+    }
+  }
   const { ask, dialog } = useConfirm();
 
   // Os modais buscam o insumo pelo id na lista viva (não guardam cópia): uma
@@ -496,6 +511,18 @@ export function SuppliesTab({
         >
           <Plus size={15} /> Novo insumo
         </button>
+        {/* Gêmeo do de-para das cores (aba Filamentos): o `supplyId` do
+            acessório também é auto-id do Firestore e também não aparece. */}
+        {supplies.length > 0 ? (
+          <button
+            className="btn"
+            type="button"
+            onClick={copiarDePara}
+            title="Copia nome, unidade e ID de cada insumo — para colar na planilha de importação"
+          >
+            <Copy size={15} /> Copiar de-para
+          </button>
+        ) : null}
       </div>
 
       <FeedbackNote note={note} onClose={clear} />

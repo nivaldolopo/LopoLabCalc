@@ -7,7 +7,10 @@
 .stock-bar {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  /* `space-between` valia quando a barra tinha UMA ação: com duas, ele jogava
+     uma em cada ponta e as duas deixavam de parecer o mesmo grupo. Com um filho
+     só o resultado é idêntico ao de antes (encostado à esquerda). */
+  justify-content: flex-start;
   gap: var(--space-16);
   margin: 0 0 var(--space-16);
 }
@@ -629,7 +632,9 @@
     flex-direction: column;
   }
 
-  .stock-bar .btn.primary {
+  /* Empilhado, botão de largura natural ao lado de um de largura cheia fica
+     torto — a regra vale para os DOIS, não só para o primário. */
+  .stock-bar .btn {
     width: 100%;
   }
 

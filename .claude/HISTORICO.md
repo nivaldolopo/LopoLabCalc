@@ -97,6 +97,57 @@ insumo. Cruzar `desc` com `Supply.name` daria falso positivo em série.
   copia o id, e o export do catálogo só revela id de cor **já usada** por algum produto. O caminho é
   o console do Firebase. Ofereci um "copiar id" no card da cor; o dono não pediu.
 
+## ✅ De-para nome → id no `/estoque` (2026-08-23)
+
+> Botão **"Copiar de-para"** nas abas Filamentos e Insumos. Nasceu de uma pergunta do dono
+> (*"e como tá a questão de copiar o id pra fazer a tabela?"*) depois de ele **recusar** o botão de
+> planilha-modelo — a diferença que justificou este é que o de-para é **dado que só o app tem** e
+> que muda a cada cor cadastrada, enquanto o modelo era um contrato escrito uma vez.
+
+**O problema:** `filamentId` e `supplyId` são auto-ids do Firestore (`addDoc`) e **não aparecem em
+lugar nenhum da UI** — medido: nada na `/estoque` renderiza ou copia o id, e o export do catálogo
+só revela id de cor **já usada** por algum produto. O único caminho era o console do Firebase,
+documento por documento.
+
+**A forma:** eu tinha oferecido um "copiar id" por cor; o dono quer montar **a tabela**, e 20 cópias
+avulsas é o caminho chato. Um botão só, que entrega a tabela inteira em **TSV** — colado no
+Sheets/Excel já cai em colunas, que é onde ela vai virar `PROCV`.
+
+`colorIdTable` / `supplyIdTable` em `lib/idTable.ts`, puras, 7 testes. Três decisões travadas:
+
+- **`material` e `brand` vão junto do nome.** `colorName` sozinho REPETE — "Laranja" existe em PLA
+  Bambu e em PETG Voolt — e um de-para cego amarraria na cor errada. É o mesmo risco que o CSV-22
+  passou a apontar do outro lado (na importação).
+- **Arquivada entra MARCADA, não sumida.** Ela continua tendo id e podendo ser referenciada.
+- **TAB e quebra de linha no nome viram espaço.** Os dois quebrariam a colagem em colunas.
+
+O `copyText` (`src/lib/clipboard.ts`) falha **explícito** quando o navegador não expõe a API:
+copiar para lugar nenhum em silêncio é pior do que dizer que não deu.
+
+### O que a verificação no navegador pegou (e o teste não pegaria)
+
+Rodei no site logado, contra o Firestore de produção (só leitura). O clipboard funcionou nas duas
+abas — capturei o argumento do `writeText` para provar o conteúdo, porque `readText` é bloqueado:
+
+```
+Cor       Material  Marca   Arquivada  id
+Laranja   PLA       Bambu   nao        US6B9aheebWtn9NMXhUQ
+Bege      PLA       Bambu   nao        sc9LAy9TUcbslnZpEZLb
+```
+
+⚠ **Dois defeitos de layout que só apareceram medindo, e que o CSS antigo escondia porque a barra
+sempre teve UM botão:**
+
+1. `.stock-bar` era `justify-content: space-between`. Com um filho, isso é "encostado à esquerda";
+   com **dois**, joga um em cada ponta da largura toda, e as duas ações deixam de parecer o mesmo
+   grupo. Virou `flex-start` — resultado idêntico no caso de um botão só.
+2. No celular a barra empilha (`flex-direction: column`) e a regra de largura cheia era
+   `.stock-bar .btn.primary`. O botão novo é `.btn` sem `primary`: ficava com 152px de largura
+   natural embaixo de um de 347px, torto. A regra passou a valer para os dois.
+
+**Medido depois do conserto:** 375px → os dois com 347px, empilhados, `scrollWidth` = 375 (sem
+transbordo lateral); 671px → lado a lado em x=14 e x=166, gap de 16.
+
 ## Regras de CSS/UI — as armadilhas medidas
 
 > Os *porquês* das regras resumidas no `CLAUDE.md` ("Pontos-chave"). Cada uma custou uma medição.

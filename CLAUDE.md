@@ -14,32 +14,31 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **Lote D da AUD-09 (2026-08-23) — os 3 últimos consertos antes da carga**,
-  todos em `productCsv.ts`. **[CSV-16]** `Tempo (min)` virou coluna de verdade e **soma** com
-  `Tempo (h)` (a mesma conta do `PrintTimeField`) — antes 120 min entravam como 120 **horas**;
-  duas travas (coluna própria + `headerEmMinutos`). **[CSV-21]** `linhas` conta **linha**, não
-  ocorrência (3 células ruins numa linha só diziam "3 linhas"). **[CSV-22, novo]** `filamentId` é
-  auto-id do Firestore — id **errado mas existente** amarrava na cor errada calado; agora cruza com
-  o `colorName` da mesma célula e avisa (`cor-nome-divergente`), sem escolher: **vale o id**.
-  **20 testes novos.** `lint` ✅ · `build` ✅ · **571/571** ✅.
+- **Última mudança (2026-08-23): lote D da AUD-09 + o de-para no `/estoque`.** Em `productCsv.ts`:
+  **[CSV-16]** `Tempo (min)` virou coluna e **soma** com `Tempo (h)` (a conta do `PrintTimeField`) —
+  antes 120 min entravam como 120 **horas** · **[CSV-21]** `linhas` conta **linha**, não ocorrência ·
+  **[CSV-22, novo]** id **errado mas existente** amarrava na cor errada calado; agora cruza com o
+  `colorName` da mesma célula (`cor-nome-divergente`) e **vale o id**. No `/estoque`, botão **"Copiar
+  de-para"** (TSV pro Sheets), que expôs 2 defeitos de layout da barra de um botão só
+  (`space-between` separando as ações; largura cheia no celular só pro primário).
+  **27 testes novos.** `lint` ✅ · `build` ✅ · **578/578** ✅.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
 - **▶ PRÓXIMA TAREFA — é do DONO: cadastrar as cores e os insumos definitivos**, pegar os ids e
-  passá-los pro **sistema externo dele**, que **gera** a planilha a partir dos dados das impressões.
-  **Sem botão de planilha-modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no chat**
-  depois do cadastro, como contrato desse sistema. Só então a **CARGA EM MASSA**. A importação
-  **não cria** cor nem insumo, e **não existe "limpar catálogo"** (97 exclusões uma a uma).
-- ⚠ **Regra que a carga cria:** `filamentId` é **auto-id do Firestore**, só visível no console do
-  Firebase. Depois da carga, cor se **edita** (nome/preço/arquivar preservam o id); **excluir e
-  recriar gera id novo e mata o vínculo** de todo produto que a usa.
-- ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
-  os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
+  passá-los pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no
+  app** (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. Só então a
+  **CARGA EM MASSA**. A importação **não cria** cor nem insumo, e **não existe "limpar catálogo"**.
+- ⚠ **Regra que a carga cria:** `filamentId`/`supplyId` são **auto-id do Firestore** — o de-para sai
+  pelo botão **"Copiar de-para"** do `/estoque` (TSV). Depois da carga, cor se **edita** (nome/preço/
+  arquivar preservam o id); **excluir e recriar gera id novo e mata o vínculo** de quem a usa.
+- ⚠ **Pendência do 7e (ainda vale):** o dono precisa **cadastrar os insumos e religar os
+  acessórios** — os já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
-  `/maquinas` usa lucro **bruto**, sem fixo nem perda (UX-09); e paginar resolveu a **lista**, não a
-  **análise** (TD-006).
+  `/maquinas` usa lucro **bruto**, sem fixo nem perda (UX-09); paginar resolveu a lista, não a
+  análise (TD-006).
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).
@@ -85,7 +84,8 @@ src/
                             #   um por coleção: useSales, useSupplies, useStock, useProduction,
                             #   useFinishedGoods, useQuotes, useQuoteConfig, useFees
     lib/                    # TODA a matemática, pura. calculatePricing, calculateCapacity,
-                            #   validateProduct, productCsv · fifo (ordem + overdraft D4) →
+                            #   validateProduct, productCsv · idTable (de-para nome→id, TSV) ·
+                            #   fifo (ordem + overdraft D4) →
                             #   stock (g) + supplies (unidades) · production (baixa por evento +
                             #   custo congelado, em 3 escalas) · finishedGoods (camadas FIFO;
                             #   SKU = subitem × cor) · productionPlan (produto/subitem→eventos) ·
@@ -102,6 +102,7 @@ src/
                             #   INSUMO) · production (`producao`, N eventos + baixa no mesmo
                             #   writeBatch) · finishedGoods (`acabados`, doc por PRODUTO)
     errors.ts               # guardOnline (offline trava a escrita) + errorMessage
+    clipboard.ts            # copyText — erro EXPLÍCITO quando o navegador não libera
     formatting/             # currency.ts (formatCurrency/formatDecimal) · date.ts (ponte
                             #   timestamp ↔ <input type="date">)
 ```

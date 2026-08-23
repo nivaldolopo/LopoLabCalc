@@ -661,10 +661,13 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   minutos`) também é lido como minuto ([CSV-16]).
 - **Continua valendo:** `Arredondamento` pede o **token** — `exact`, `0.90`, `4.90`, `0.5`, `1`,
   `5`, `10` —, não o rótulo da tela ([CSV-17], que ao menos avisa).
-- ⚠ **O `filamentId` é auto-id do Firestore e NÃO aparece na UI** (medido 2026-08-23: nada na
-  `/estoque` renderiza ou copia o id; o export do catálogo só revela o id de cor **já usada** por
-  algum produto). O caminho pra extrair é o **console do Firebase**. **Decisão do dono:** segue com
-  o auto-id — a alternativa (slug) colide entre materiais/marcas e exigiria esquema de desempate.
+- ✅ **O de-para (nome → id) sai pelo app** — botão **"Copiar de-para"** nas abas Filamentos e
+  Insumos do `/estoque` (2026-08-23), em TSV: cola no Sheets/Excel já em colunas. Cores saem com
+  `Cor · Material · Marca · Arquivada · id` — material e marca vão junto porque `colorName` sozinho
+  repete entre materiais, e é aí que um de-para cego amarra na cor errada. Antes disso o único
+  caminho era o console do Firebase (medido: nada na `/estoque` renderizava o id, e o export do
+  catálogo só revela id de cor **já usada** por algum produto).
+- **Decisão do dono:** segue com o auto-id — a alternativa (slug) colide entre materiais/marcas e exigiria esquema de desempate.
   **A regra que isso cria:** depois da carga, cor se **edita** (nome, preço, arquivar — tudo
   preserva o id); **excluir e recriar gera id novo** e mata o vínculo de todos os produtos que a
   usam. A exclusão já lista os produtos/vendas afetados antes de confirmar (`filamentReferences`).
