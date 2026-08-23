@@ -190,8 +190,8 @@
 |---|---|---|
 | **0** | **[TD-017]** | ✅ **FEITO (2026-08-22)** |
 | **1** | **[CSV-06]** + [CSV-07] + [CSV-08] + **[UX-41]** | ✅ **FEITO (2026-08-22)** |
-| **2** | [UX-42] · [TD-018] · [TD-019] | ▶ próximo |
-| **3** | [UX-43] · [TD-020] | a fazer |
+| **2** | [UX-42] · [TD-018] · [TD-019] | ✅ **FEITO (2026-08-22)** |
+| **3** | [UX-43] · [TD-020] | ▶ próximo |
 
 **[AUD-08] fica FORA dos lotes de propósito:** metade da lista dele (*"escrita de 100 produtos de
 verdade"*) é **exercitada de graça pela carga em massa real**. Varrer antes é ensaiar o que vai
@@ -304,19 +304,36 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
 
 ### 🟡 Médio
 
-- **[UX-42] Aviso FALSO de saldo negativo ao editar recibo.** O preview usa
+- ~~**[UX-42] Aviso FALSO de saldo negativo ao editar recibo.**~~ — ✅ **FEITO (Lote 2).** O
+  `planReciboReconciliation` passou a **delegar** ao `reconcileReciboWrite` em vez de repetir o
+  cálculo: eram duas implementações que PRECISAM concordar, e por isso divergiram. Ele agora aceita
+  o mesmo `old`, que no `SaleModal` saiu de dentro do salvar e virou um `useMemo` que o preview
+  também lê. Verificado no app, sem gravar: com saldo 3 e venda antiga de 1, **QTD 4 não avisa** e
+  **QTD 5 avisa "1 além"** — o limiar e o número certos. Original: O preview usa
   `planReciboReconciliation` (forward puro, `SaleModal.tsx:588`) enquanto a gravação usa
   `reconcileReciboWrite(..., old, ...)` (`:715`) — o preview não credita de volta o que o recibo
   antigo consumiu. Medido: com 1 conjunto em estoque, editar 1→2 avisou *"o saldo fica negativo"* e
   o resultado real foi **0**, sem overdraft. Atinge também `crossesRoll`/`filamentShortfallG` e o
   **custo real exibido** durante a edição (pode divergir do gravado quando o FIFO atravessa rolo).
-- **[TD-018] Chave React duplicada no extrato do Estoque.** `stock.ts:319` e `supplies.ts:237`
+- ~~**[TD-018] Chave React duplicada no extrato do Estoque.**~~ — ✅ **FEITO (Lote 2):** o índice do
+  move entra na chave, e é o índice da lista **COMPLETA** (não da filtrada), senão a chave mudaria
+  conforme a cor/insumo que se está olhando. Extrato aberto nas duas abas do `/estoque` com o
+  console limpo. Original: `stock.ts:319` e `supplies.ts:237`
   montam a chave com id do evento + id do rolo, o que **não é único** quando um evento tem ≥2 baixas
   do mesmo rolo/lote. Medido: `Encountered two children with the same key` repetido no console do
   `/estoque`. Hoje o extrato ainda soma certo (2000−597=1403 ✓), mas o React pode omitir/duplicar
   linha — no extrato que serve justamente para auditar estoque. **Correção:** juntar o índice do
   move na chave.
-- **[TD-019] Os KPIs de `/vendas` não atualizam depois de gravar.** `useSalesPage.ts:63` dispara
+- ~~**[TD-019] Os KPIs de `/vendas` não atualizam depois de gravar.**~~ — ✅ **FEITO (Lote 2).** Além
+  do que o item descrevia, faltava a causa de o número nunca se corrigir sozinho: **o `onSnapshot`
+  não reemite quando só o metadata muda**, então o snapshot de confirmação simplesmente não chegava.
+  A assinatura passou a pedir `includeMetadataChanges` e o callback leva `pending`
+  (`hasPendingWrites`); a aggregation query só roda com a escrita **já confirmada**, e enquanto isso
+  o total anterior fica na tela em vez de piscar um número errado. O caminho de PRODUTO não mudou
+  (soma no cliente, e o doc otimista já está lá).
+  ⚠ **Verificado por código, `build` e `lint` — NÃO ao vivo:** a prova exige gravar uma venda de
+  verdade no Firestore, e isso não estava combinado nesta sessão. Fica como insumo do **[AUD-08]**.
+  Original: `useSalesPage.ts:63` dispara
   `fetchSalesTotals` dentro do `onSnapshot`, que chega **antes** do servidor confirmar (latency
   compensation); o snapshot de confirmação é só metadata e não refaz a busca. Medido: registrei a
   venda, a linha apareceu e o topo continuou **47 / R$2.620,70**; após recarregar, **48 /

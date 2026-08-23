@@ -5,6 +5,7 @@ import {
   reverseReciboReconciliation,
   type ReconContext,
   type ReconItem,
+  type ReconItemResult,
 } from "./saleReconciliation";
 import { balanceG } from "./stock";
 import {
@@ -492,6 +493,112 @@ describe("recibo misto + estorno (round-trip)", () => {
 
     expect(balanceOf({ ...back.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(4);
     expect(balanceG(back.colorUpdates[0])).toBe(1000);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UX-42 — o preview da edição precisa ESTORNAR antes de simular.
+//
+// O preview chamava `planReciboReconciliation` (forward puro) enquanto a
+// gravação chamava `reconcileReciboWrite(..., old, ...)`. Resultado: a simulação
+// não creditava de volta o que o recibo ANTIGO já tinha consumido e acusava
+// falta que a gravação não produzia.
+// ---------------------------------------------------------------------------
+describe("UX-42 — preview de edição bate com a gravação", () => {
+  // O cenário medido na auditoria: 1 conjunto em estoque, editar 1 → 2.
+  const cenario1para2 = () => {
+    // Saldo ATUAL = 1 (a venda antiga de 1 já saiu de uma camada de 2).
+    const good = makeGood([
+      { name: "Boneco", layers: [{ id: "e1__whole", at: 0, qty: 1, unitCost: 5, sourceEventId: "e1" }] },
+    ]);
+    const old = {
+      finishedMoves: [
+        { productId: "p1", layerId: "e1__whole", qty: 1, unitCost: 5, cost: 5 },
+      ],
+      productionEvents: [],
+    };
+    return { good, old };
+  };
+
+  it("não acusa saldo negativo onde a gravação não produz nenhum", () => {
+    const { good, old } = cenario1para2();
+    const preview = planReciboReconciliation(
+      [acabadoItem({ quantity: 2 })],
+      ctx({ goods: [good] }),
+      old,
+    );
+    // Estorna +1 (saldo 2), reaplica −2 → 0. Sem overdraft.
+    expect(preview.items[0].finishedShortfall).toBe(0);
+    expect(balanceOf({ ...preview.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(0);
+  });
+
+  it("SEM o estorno o preview mentia — é a regressão que este item fecha", () => {
+    const { good } = cenario1para2();
+    const semEstorno = planReciboReconciliation(
+      [acabadoItem({ quantity: 2 })],
+      ctx({ goods: [good] }),
+      // `old` omitido = o comportamento antigo
+    );
+    expect(semEstorno.items[0].finishedShortfall).toBe(1);
+  });
+
+  it("preview e gravação devolvem os MESMOS números (acabado)", () => {
+    const { good, old } = cenario1para2();
+    // Contexto novo por chamada (o `genId` do helper é um contador).
+    const itens = [acabadoItem({ quantity: 2 })];
+    const preview = planReciboReconciliation(itens, ctx({ goods: [good] }), old);
+    const write = reconcileReciboWrite(itens, old, ctx({ goods: [good] }));
+    expect(preview.items).toEqual(write.items);
+    expect(preview.finishedUpdates).toEqual(write.finishedUpdates);
+    expect(preview.colorUpdates).toEqual(write.colorUpdates);
+    expect(preview.supplyUpdates).toEqual(write.supplyUpdates);
+  });
+
+  it("preview e gravação concordam também na ENCOMENDA (crossesRoll e falta)", () => {
+    // O outro lado do item: sem estorno, a encomenda editada parecia atravessar
+    // rolo e faltar filamento que na verdade volta.
+    const product = makeProduct({
+      filaments: [{ filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 }],
+    });
+    const currentColor = makeColor("preto", [{ remainingG: 60 }]);
+    const old = {
+      finishedMoves: [],
+      productionEvents: [
+        {
+          id: "old1",
+          stockMoves: [
+            { itemId: "old1", kind: "filament" as const, stockId: "preto", rollId: "preto_r0", qty: 100 },
+          ],
+        },
+      ],
+    };
+    // ⚠ Um contexto NOVO para cada chamada: o `genId` do helper é um contador,
+    // e reusar o mesmo objeto faria a segunda chamada continuar de onde a
+    // primeira parou.
+    const feitoCtx = () => ctx({ products: [product], colors: [currentColor] });
+    const preview = planReciboReconciliation([encomendaItem({ quantity: 1 })], feitoCtx(), old);
+    const write = reconcileReciboWrite([encomendaItem({ quantity: 1 })], old, feitoCtx());
+
+    // Estorna +100 (saldo 160), reaplica −100 → 60. Não falta nada.
+    expect(preview.items[0].filamentShortfallG).toBe(0);
+    expect(preview.items[0].crossesRoll).toBe(write.items[0].crossesRoll);
+    // `productionEventIds` é a ÚNICA divergência esperada, e é de propósito: o
+    // preview gera com um id fixo ("preview") porque o custo não depende dele,
+    // enquanto a gravação usa os ids definitivos. Todo o resto tem que bater.
+    const semIds = (r: ReconItemResult) => ({ ...r, productionEventIds: [] });
+    expect(semIds(preview.items[0])).toEqual(semIds(write.items[0]));
+    expect(preview.colorUpdates).toEqual(write.colorUpdates);
+  });
+
+  it("venda NOVA (old ausente) segue idêntica ao que era", () => {
+    const good = makeGood([
+      { name: "Boneco", layers: [{ id: "e0__whole", at: 0, qty: 5, unitCost: 5, sourceEventId: "e0" }] },
+    ]);
+    const contexto = ctx({ goods: [good] });
+    const semOld = planReciboReconciliation([acabadoItem({ quantity: 2 })], contexto);
+    const comNull = planReciboReconciliation([acabadoItem({ quantity: 2 })], contexto, null);
+    expect(semOld).toEqual(comNull);
+    expect(semOld.items[0].finishedShortfall).toBe(0);
   });
 });
 

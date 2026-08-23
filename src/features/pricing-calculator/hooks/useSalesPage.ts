@@ -51,15 +51,28 @@ export function useSalesPage(filter: SalesQuery) {
     const unsubscribe = subscribeSalesPage(
       activeFilter,
       pageLimit,
-      (nextSales, more) => {
+      (nextSales, more, pending) => {
         setSales(nextSales);
         setHasMore(more);
         setStatus("synced");
         setError(null);
         if (productId) {
           // Caminho de produto: conjunto inteiro em memória → soma no cliente.
+          // Aqui `pending` não atrapalha — o doc otimista já está na lista, e é
+          // ele mesmo que queremos somar.
           setTotals(totalsOfSales(nextSales));
-        } else {
+        } else if (!pending) {
+          // TD-019: os cards vinham de uma aggregation query no SERVIDOR,
+          // disparada assim que a latency compensation entregava o doc local —
+          // ou seja, antes de o servidor ter a escrita. O total voltava o de
+          // antes (medido: gravei a venda, a linha apareceu e o topo continuou
+          // 47 / R$2.620,70; recarregando, 48 / R$2.729,60).
+          //
+          // Esperar o snapshot CONFIRMADO resolve os dois lados: enquanto
+          // `pending` é true o total anterior continua na tela (não pisca nem
+          // mente), e quando a confirmação chega — que só existe porque a
+          // assinatura pede `includeMetadataChanges` — a soma é refeita já com
+          // a venda dentro.
           fetchSalesTotals(activeFilter)
             .then((next) => {
               if (!cancelled) setTotals(next);

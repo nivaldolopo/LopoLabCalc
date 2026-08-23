@@ -354,26 +354,34 @@ function collectFinishedUpdates(state: ReconState): FinishedGoodPayload[] {
 }
 
 /**
- * Reconciliação FORWARD de um recibo NOVO (sem estorno). PURA. É o preview vivo
- * da `SaleModal` (custo real por item, avisos) e a base do registro de venda nova.
+ * Reconciliação de PREVIEW da `SaleModal` — custo real por item e avisos. PURA.
+ *
+ * `old` é o recibo que está sendo EDITADO (null numa venda nova). Ele existe
+ * aqui por causa do UX-42: esta função fazia só o forward enquanto a gravação
+ * fazia estorno-e-reaplicação, então o preview não creditava de volta o que o
+ * recibo antigo já tinha consumido e acusava falta que não existia. Medido: com
+ * 1 conjunto em estoque, editar 1 → 2 avisava "o saldo fica negativo" e o
+ * resultado real era 0, sem overdraft. Além do aviso, isso atingia o
+ * `crossesRoll`, o `filamentShortfallG` e o CUSTO exibido durante a edição, que
+ * podia divergir do gravado quando o FIFO atravessa rolo.
+ *
+ * Por isso ela delega ao `reconcileReciboWrite` em vez de repetir o cálculo: as
+ * duas PRECISAM concordar, e duas implementações que precisam concordar são
+ * duas implementações que um dia divergem. Aqui só se descarta o que é de
+ * escrita (os ids a apagar).
  */
 export function planReciboReconciliation(
   items: ReconItem[],
   ctx: ReconContext,
+  old: OldReciboState | null = null,
 ): ReciboReconciliation {
-  const state = newState(ctx);
-  const { results, productionCreates } = applyForward(
-    state,
-    items,
-    ctx,
-    makeSubitemsResolver(ctx),
-  );
+  const plan = reconcileReciboWrite(items, old, ctx);
   return {
-    items: results,
-    productionPayloads: productionCreates,
-    colorUpdates: collectColorUpdates(state),
-    supplyUpdates: collectSupplyUpdates(state),
-    finishedUpdates: collectFinishedUpdates(state),
+    items: plan.items,
+    productionPayloads: plan.productionCreates,
+    colorUpdates: plan.colorUpdates,
+    supplyUpdates: plan.supplyUpdates,
+    finishedUpdates: plan.finishedUpdates,
   };
 }
 

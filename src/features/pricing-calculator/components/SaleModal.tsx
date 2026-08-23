@@ -583,6 +583,30 @@ export function SaleModal({
     [items, goods, products],
   );
 
+  // Estado a estornar do recibo ANTIGO (edição): os `finishedMoves` das vendas
+  // salvas + os `stockMoves` dos eventos de encomenda (resolvidos na coleção; um
+  // evento já apagado à mão some sem estorno duplo).
+  //
+  // UX-42: isto vivia DENTRO do salvar. Como o preview não o tinha, ele calculava
+  // só o forward e acusava saldo negativo que a gravação não produzia — o que o
+  // recibo antigo já havia consumido nunca era creditado de volta na simulação.
+  const oldRecibo: OldReciboState | null = useMemo(
+    () =>
+      editRecibo
+        ? {
+            finishedMoves: editRecibo.items.flatMap(
+              (entry) => entry.finishedMoves ?? [],
+            ),
+            productionEvents: editRecibo.items
+              .flatMap((entry) => entry.productionEventIds ?? [])
+              .map((id) => production.find((event) => event.id === id))
+              .filter((event): event is ProductionEvent => Boolean(event))
+              .map((event) => ({ id: event.id, stockMoves: event.stockMoves })),
+          }
+        : null,
+    [editRecibo, production],
+  );
+
   // Reconciliação viva: custo REAL por item (D3) + avisos, por caminho. Pura, não
   // grava; usa id fixo pois o custo independe do id do evento.
   const recon = useMemo(
@@ -598,8 +622,11 @@ export function SaleModal({
         // Preview: createdAt/genId não afetam o custo exibido (id de evento fixo).
         createdAt: 0,
         genId: () => "preview",
-      }),
-    [reconItems, goods, stock, supplies, products, machines, fixedCosts, dateStr],
+      },
+      // UX-42: o MESMO estorno que a gravação faz — sem ele o preview simula
+      // sobre um saldo que já não existe.
+      oldRecibo),
+    [reconItems, goods, stock, supplies, products, machines, fixedCosts, dateStr, oldRecibo],
   );
   const reconByKey = useMemo(
     () => new Map(recon.items.map((r) => [r.key, r])),
@@ -694,25 +721,9 @@ export function SaleModal({
       editRecibo?.reciboId ?? `r_${now}_${Math.floor(Math.random() * 1000)}`;
     const saleDate = toTimestamp(dateStr);
 
-    // Estado a estornar do recibo ANTIGO (edição): os `finishedMoves` das vendas
-    // salvas + os `stockMoves` dos eventos de encomenda (resolvidos na coleção; um
-    // evento já apagado à mão some sem estorno duplo).
-    const old: OldReciboState | null = editRecibo
-      ? {
-          finishedMoves: editRecibo.items.flatMap(
-            (entry) => entry.finishedMoves ?? [],
-          ),
-          productionEvents: editRecibo.items
-            .flatMap((entry) => entry.productionEventIds ?? [])
-            .map((id) => production.find((event) => event.id === id))
-            .filter((event): event is ProductionEvent => Boolean(event))
-            .map((event) => ({ id: event.id, stockMoves: event.stockMoves })),
-        }
-      : null;
-
     // Estorna o recibo antigo e reaplica o novo numa passada só (baixa real, ids
     // de evento definitivos). Devolve o custo real por item + o que gravar.
-    const write = reconcileReciboWrite(reconItems, old, {
+    const write = reconcileReciboWrite(reconItems, oldRecibo, {
       goods,
       colors: stock,
       supplies,

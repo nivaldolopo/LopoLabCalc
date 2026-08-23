@@ -232,9 +232,11 @@ export function supplyStatement(
   const seq = new Map<string, number>();
   const consumption: SupplyStatementEntry[] = [];
   for (const event of production) {
-    for (const move of event.stockMoves) {
+    // TD-018: ver a nota em `stock.ts` — evento + lote não é único, e o índice
+    // vem da lista COMPLETA de moves para não depender do filtro.
+    for (const [indice, move] of event.stockMoves.entries()) {
       if (move.kind !== "supply" || move.stockId !== supply.id) continue;
-      const id = `move_${event.id}_${move.rollId}`;
+      const id = `move_${event.id}_${indice}_${move.rollId}`;
       seq.set(id, num(event.createdAt) || num(event.at));
       consumption.push({
         kind: "consumption",

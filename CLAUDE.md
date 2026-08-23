@@ -14,29 +14,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **Lote 1 — a vírgula pt-BR (2026-08-22)**: `CSV-06`+`CSV-07`+`CSV-08`+`UX-41`
-  eram o MESMO defeito em 4 portas, e viraram uma primitiva — `parseDecimalPtBr` em
-  `lib/formatting/number.ts`, o **inverso do `formatDecimal`** (o app formatava pt-BR pra fora e não
-  lia pt-BR pra dentro). Ela devolve **`null`, não 0**: era o 0 mudo que zerava preço na importação.
-  Nos JSONs os filamentos nem parse tinham (`as` cru) — string ia ao Firestore em campo `number`.
-  No `NumberInput`, `type="text"` + **stepper artesanal** (o dono não quis perder o incremento);
-  ganhou setinha **no celular**, que a nativa nunca teve. `lint` ✅ · **502/502** ✅ · `build` ✅ ·
-  medido no app: 0 cortes em 18 campos, 375px sem rolagem, console limpo. Antes veio o **Lote 0**
-  (`TD-017`, preço sem estoque no PDF). Detalhe e a **correção de um diagnóstico meu errado** sobre
-  o mecanismo da vírgula: [`BACKLOG.md`](.claude/BACKLOG.md).
+- **Última mudança:** **Lote 2 (2026-08-22)** — `UX-42` + `TD-018` + `TD-019`. O **UX-42** era o de
+  fundo: o preview da edição de recibo fazia forward puro enquanto a gravação fazia
+  estorno-e-reaplicação, então acusava saldo negativo que não existia. Em vez de repetir o cálculo,
+  o `planReciboReconciliation` agora **delega** ao `reconcileReciboWrite` — duas implementações que
+  precisam concordar são duas que um dia divergem. Verificado no app **sem gravar**: saldo 3 +
+  venda antiga de 1 → QTD 4 não avisa, QTD 5 avisa "1 além". O **TD-019** tinha uma causa a mais
+  que o backlog registrava: o `onSnapshot` **não reemite em mudança só de metadata**, então o
+  snapshot de confirmação nunca chegava — daí `includeMetadataChanges` + `pending`.
+  ⚠ **TD-019 verificado por código/build, não ao vivo** (a prova exige gravar venda real).
+  `lint` ✅ · **511/511 em 5 execuções** ✅ · `build` ✅. Antes vieram os Lotes 0 e 1.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — Lote 2** (`BACKLOG.md`): **[UX-42]** (aviso FALSO de saldo negativo ao editar
-  recibo — o preview usa forward puro, a gravação usa reverse+forward) · **[TD-018]** (chave React
-  duplicada no extrato do Estoque) · **[TD-019]** (KPIs de `/vendas` não atualizam após gravar).
-  Independentes entre si. **Depois:** Lote 3 (`UX-43` · `TD-020`) e então a **CARGA EM MASSA** —
-  planilha gerada do zero pelo dono; **pré-requisito dele:** cadastrar as cores definitivas ANTES
-  (a importação **não cria** cor nem insumo). Em aberto: **tabela de-para** + **modelo de planilha**
-  (posso gerar os dois). **Não existe "limpar catálogo"** (97 exclusões uma a uma).
+- **▶ PRÓXIMA TAREFA — Lote 3, o último** (`BACKLOG.md`): **[UX-43]** (o PDF come o travessão e as
+  aspas curvas — sanitizar fora do WinAnsi ou embutir fonte Unicode) e **[TD-020]** (máquinas e
+  taxas gravam sem `guardOnline`, então offline a UI finge que salvou). **Depois:** a **CARGA EM
+  MASSA** — planilha gerada do zero pelo dono; **pré-requisito dele:** cadastrar as cores
+  definitivas ANTES (a importação **não cria** cor nem insumo). Em aberto: **tabela de-para** +
+  **modelo de planilha** (posso gerar os dois). **Não existe "limpar catálogo"** (97 exclusões uma
+  a uma). Sobra o **[AUD-08]**, que ganhou a verificação ao vivo do TD-019 como insumo.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do

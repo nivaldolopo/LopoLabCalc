@@ -226,6 +226,43 @@ describe("adjustLot", () => {
 });
 
 describe("supplyStatement", () => {
+  // TD-018 — mesma causa do extrato de filamento: `evento + lote` não é único.
+  it("duas baixas do MESMO lote no mesmo evento têm ids distintos", () => {
+    const events = [
+      prod({
+        id: "ev",
+        at: 4 * DIA,
+        stockMoves: [
+          { itemId: "i1", kind: "supply", stockId: "ima-6x2", rollId: "velho", qty: 2 },
+          { itemId: "i2", kind: "supply", stockId: "ima-6x2", rollId: "velho", qty: 3 },
+        ],
+      }),
+    ];
+    const consumo = supplyStatement(doisLotes(), events).filter(
+      (e) => e.kind === "consumption",
+    );
+    expect(consumo).toHaveLength(2);
+    expect(new Set(consumo.map((e) => e.id)).size).toBe(2);
+    expect(consumo.reduce((t, e) => t + e.delta, 0)).toBe(-5);
+  });
+
+  it("o índice na chave é o da lista COMPLETA (o move de filamento conta)", () => {
+    const events = [
+      prod({
+        id: "ev",
+        at: 4 * DIA,
+        stockMoves: [
+          { itemId: "i0", kind: "filament", stockId: "cor-preto", rollId: "r1", qty: 50 },
+          { itemId: "i1", kind: "supply", stockId: "ima-6x2", rollId: "velho", qty: 2 },
+        ],
+      }),
+    ];
+    const consumo = supplyStatement(doisLotes(), events).find(
+      (e) => e.kind === "consumption",
+    );
+    expect(consumo?.id).toBe("move_ev_1_velho");
+  });
+
   it("junta compra, ajuste e consumo em ordem cronológica", () => {
     const supply = adjustLot(doisLotes(), "velho", 8, "contagem", 3 * DIA);
     const events = [

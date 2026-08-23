@@ -233,20 +233,32 @@ function withinPeriod(sale: Sale, filter: SalesQuery): boolean {
 //  • sem `productId` → range de período (mesmo campo do `orderBy`) + limite
 //    crescente. Realtime na janela; "carregar mais" re-assina com limite maior
 //    (sem cursor, sem risco de pular doc). Busca `limit + 1` p/ saber `hasMore`.
+// TD-019: o 3º argumento do callback é `pending` (`hasPendingWrites`) — a marca
+// de que o snapshot veio da latency compensation e o servidor AINDA não
+// confirmou. Quem soma no cliente pode usá-lo do mesmo jeito (o doc otimista já
+// está ali); quem pergunta o total ao SERVIDOR precisa esperar, senão recebe o
+// número de antes da escrita.
+//
+// ⚠ `includeMetadataChanges` é o que faz o snapshot de CONFIRMAÇÃO chegar. Sem
+// ele o Firestore não reemite quando só o metadata muda — era por isso que os
+// cards ficavam parados até recarregar a página: o segundo snapshot nunca vinha.
+const COM_METADATA = { includeMetadataChanges: true } as const;
+
 export function subscribeSalesPage(
   filter: SalesQuery,
   pageLimit: number,
-  onSales: (sales: Sale[], hasMore: boolean) => void,
+  onSales: (sales: Sale[], hasMore: boolean, pending: boolean) => void,
   onError: (error: Error) => void,
 ): () => void {
   if (filter.productId) {
     return onSnapshot(
       query(salesCollection, where("productId", "==", filter.productId)),
+      COM_METADATA,
       (snapshot) => {
         const sales = snapshot.docs
           .map((item) => toSale(item.id, item.data()))
           .filter((sale) => withinPeriod(sale, filter));
-        onSales(sales, false);
+        onSales(sales, false, snapshot.metadata.hasPendingWrites);
       },
       (error) => onError(error),
     );
@@ -258,6 +270,7 @@ export function subscribeSalesPage(
       orderBy("saleDate", "desc"),
       fsLimit(pageLimit + 1),
     ),
+    COM_METADATA,
     (snapshot) => {
       const docs = snapshot.docs;
       const hasMore = docs.length > pageLimit;
@@ -265,6 +278,7 @@ export function subscribeSalesPage(
       onSales(
         page.map((item) => toSale(item.id, item.data())),
         hasMore,
+        snapshot.metadata.hasPendingWrites,
       );
     },
     (error) => onError(error),

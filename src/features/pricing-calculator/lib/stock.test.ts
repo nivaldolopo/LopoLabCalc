@@ -350,6 +350,47 @@ describe("rollNumbers", () => {
 });
 
 describe("colorStatement (extrato — D6.1)", () => {
+  // TD-018 — a chave do extrato era `evento + rolo`, que NÃO é único: um evento
+  // com duas baixas do mesmo rolo produzia duas linhas com o mesmo id, e o React
+  // reclamava no console ("two children with the same key") justamente na tela
+  // que serve para auditar estoque. O total sempre bateu; o risco era a linha
+  // sumir ou duplicar na renderização.
+  it("duas baixas do MESMO rolo no mesmo evento têm ids distintos", () => {
+    const evento = prod({
+      id: "e1",
+      at: 4 * DIA,
+      stockMoves: [
+        { itemId: "i1", kind: "filament", stockId: "cor-preto", rollId: "velho", qty: 30 },
+        { itemId: "i2", kind: "filament", stockId: "cor-preto", rollId: "velho", qty: 25 },
+      ],
+    });
+    const consumo = colorStatement(doisRolos(), [evento]).filter(
+      (e) => e.kind === "consumption",
+    );
+    expect(consumo).toHaveLength(2);
+    expect(new Set(consumo.map((e) => e.id)).size).toBe(2);
+    // e continua somando certo
+    expect(consumo.reduce((t, e) => t + e.deltaG, 0)).toBe(-55);
+  });
+
+  it("o índice na chave é o da lista COMPLETA de moves, não o da filtrada", () => {
+    // Se o índice viesse da lista já filtrada por cor, a mesma baixa mudaria de
+    // id conforme os vizinhos — a chave dançaria entre renders. Aqui a baixa da
+    // cor-preto está na POSIÇÃO 1 do documento, atrás de um move de outra cor.
+    const evento = prod({
+      id: "e1",
+      at: 4 * DIA,
+      stockMoves: [
+        { itemId: "i0", kind: "filament", stockId: "outra-cor", rollId: "x", qty: 10 },
+        { itemId: "i1", kind: "filament", stockId: "cor-preto", rollId: "velho", qty: 30 },
+      ],
+    });
+    const consumo = colorStatement(doisRolos(), [evento]).find(
+      (e) => e.kind === "consumption",
+    );
+    expect(consumo?.id).toBe("move_e1_1_velho");
+  });
+
   it("junta compra e ajuste em ordem cronológica, com o delta com sinal", () => {
     const color = adjustRoll(doisRolos(), "velho", 70, "contagem", 3 * DIA);
     const extrato = colorStatement(color);

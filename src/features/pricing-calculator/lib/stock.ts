@@ -314,9 +314,15 @@ export function colorStatement(
   const seq = new Map<string, number>();
   const consumption: StatementEntry[] = [];
   for (const event of production) {
-    for (const move of event.stockMoves) {
+    // TD-018: o índice entra na chave porque evento + rolo NÃO é único — um
+    // evento com duas baixas do mesmo rolo gerava duas linhas com o mesmo id, e
+    // o React avisava "two children with the same key" no extrato que existe
+    // justamente para auditar estoque (ele pode omitir ou duplicar linha).
+    // O índice é o da lista COMPLETA, não o da filtrada: assim ele não muda
+    // conforme a cor que se está olhando.
+    for (const [indice, move] of event.stockMoves.entries()) {
       if (move.stockId !== color.id) continue;
-      const id = `move_${event.id}_${move.rollId}`;
+      const id = `move_${event.id}_${indice}_${move.rollId}`;
       seq.set(id, num(event.createdAt) || num(event.at));
       consumption.push({
         kind: "consumption",
