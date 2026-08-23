@@ -11,12 +11,14 @@
 > registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e os
 > writeups das ondas 1 a 5. **Este arquivo só tem o que está ABERTO.**
 >
-> ⚠ **A fila de ondas acabou em 2026-08-17** e a **auditoria de layout responsivo do mesmo dia**, que
-> tinha reaberto o backlog, **também FECHOU em 2026-08-18** (UX-38 + UX-40 + A11Y-01 na última
-> rodada). **Não há mais item de código escolhível:** o que sobra está acoplado ao rebrand
-> (**DEC-05** + **G2**) ou bloqueado por dado externo (**FEAT-03**, **branding/logo**, **Dashboard**).
-> → **A próxima decisão é do dono**, não uma tarefa a pegar: destravar o rebrand (a logo) ou abrir
-> uma frente nova.
+> ⚠ **Estado em 2026-08-22: o backlog de código está ZERADO de novo.** A fila de ondas acabou em
+> 2026-08-17; a auditoria de layout responsivo fechou em 2026-08-18; e o cluster da varredura
+> **AUD-07** (10 defeitos) fechou nos **4 lotes** de 2026-08-22 — tabela logo abaixo.
+> **O que sobra não é tarefa a pegar:** está acoplado ao rebrand (**DEC-05** + **G2**) ou bloqueado
+> por algo de fora (**FEAT-03**, **branding/logo**, **Dashboard**, **AUD-08**).
+> → **A próxima coisa é a CARGA EM MASSA**, que é trabalho e decisão do dono (planilha gerada por
+> ele; as cores definitivas precisam estar cadastradas ANTES). Depois dela, a decisão é destravar o
+> rebrand (a logo) ou abrir frente nova.
 
 ## Ordem de prioridade — ondas (dono, 2026-08-16)
 
