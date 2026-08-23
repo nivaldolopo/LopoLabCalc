@@ -246,6 +246,55 @@ function parseBool(value: string | undefined): boolean {
   return String(value ?? "").toLowerCase().trim() === "sim";
 }
 
+// CSV-16: o cabeçalho DIZ a unidade — e era só isso que faltava ler. O needle
+// da coluna de tempo é "tempo" e o casamento é `includes`, então "Tempo (min)"
+// caía na coluna de HORAS: 120 minutos entravam como 120 HORAS, 60x errado e
+// calado. Não é hipótese: a planilha da carga vem de fora, e fatiador e
+// impressora reportam o tempo em MINUTOS — depois de "Tempo (h)" é o cabeçalho
+// mais provável que existe.
+//
+// São duas travas. A primeira é a coluna própria `timeMinutes`, com needle mais
+// LONGO que "tempo": a ordenação por comprimento do CSV-10 garante que ela
+// reclama o cabeçalho antes. A segunda é esta função, para o que o needle não
+// pega — "Tempo de impressao (min)" não contém "tempo (min". Quando só a coluna
+// de horas casou, o texto dela ainda pode dizer minuto.
+//
+// `\bmin(utos?)?\b` e não `includes("min")`: "Tempo mínimo" normaliza para
+// "tempo minimo", que contém "min" e NÃO é uma coluna de minutos.
+function headerEmMinutos(header: string | undefined): boolean {
+  return /\bmin(utos?)?\b/.test(normalizeText(header ?? ""));
+}
+
+// CSV-16: horas + minutos SOMAM, exatamente como o `PrintTimeField` do
+// formulário — é a mesma conta (`h + min / 60`), agora do lado da planilha.
+// `Tempo (h)` decimal continua valendo (2,5 = 2 h 30), porque é o que o export
+// escreve e o que o round-trip depende.
+function printTimeHours(
+  horasRaw: string | undefined,
+  horasPresente: boolean,
+  horasEmMinutos: boolean,
+  minutosRaw: string | undefined,
+  minutosPresente: boolean,
+  report: NumReporter,
+): number {
+  const primeira = cellNumber(
+    horasRaw,
+    horasPresente,
+    horasEmMinutos ? "Tempo (min)" : "Tempo (h)",
+    0,
+    report,
+  );
+  const horas = horasEmMinutos ? primeira / 60 : primeira;
+  const minutos = cellNumber(
+    minutosRaw,
+    minutosPresente,
+    "Tempo (min)",
+    0,
+    report,
+  );
+  return Math.max(0, horas + minutos / 60);
+}
+
 // CSV-02 — cada coluna que a importação LÊ, com o nome exato que o export
 // escreve e o pedaço que ainda a reconhece num arquivo escrito à mão.
 //
@@ -260,6 +309,10 @@ const COLUMN_SPECS = {
   machine: { exact: "Maquina", needle: "maquina" },
   weight: { exact: "Peso (g)", needle: "peso" },
   time: { exact: "Tempo (h)", needle: "tempo" },
+  // CSV-16: needle sem o parêntese de fechar, para pegar também
+  // "Tempo (min.)" e "Tempo (minutos)". Com 10 caracteres ele vence
+  // "tempo" (5) na passada ordenada por comprimento — ver o CSV-10.
+  timeMinutes: { exact: "Tempo (min)", needle: "tempo (min" },
   pieces: { exact: "Pecas", needle: "pecas" },
   filamentPrice: { exact: "Filamento (R$/kg)", needle: "filamento" },
   markup: { exact: "Markup", needle: "markup" },
@@ -767,6 +820,14 @@ export function parseProductsCsv(
   const indexMachine = col.machine;
   const indexWeight = col.weight;
   const indexTime = col.time;
+  const indexTimeMinutes = col.timeMinutes;
+  // CSV-16, a 2a trava: só quando NÃO há coluna de minutos própria — com as
+  // duas presentes cada uma já está na sua unidade. Olha o cabeçalho que a
+  // coluna de horas de fato reclamou, e não um nome hipotético.
+  const tempoEmMinutos =
+    indexTimeMinutes < 0 &&
+    indexTime >= 0 &&
+    headerEmMinutos(headers[indexTime]);
   const indexPieces = col.pieces;
   const indexFilament = col.filamentPrice;
   const indexMarkup = col.markup;
@@ -968,11 +1029,14 @@ export function parseProductsCsv(
         // CSV-09: as 7 colunas escalares passam pelo `cellNumber` — coluna
         // ausente e célula vazia caem no mesmo default, ilegível avisa. O
         // `Markup`, a 8ª, segue logo abaixo com a checagem própria dele.
-        printHours: cellNumber(
+        // CSV-16: as duas colunas somam, e a de horas ainda é reinterpretada
+        // como minutos quando o cabeçalho dela diz minuto.
+        printHours: printTimeHours(
           columns[indexTime],
           indexTime >= 0,
-          "Tempo (h)",
-          0,
+          tempoEmMinutos,
+          columns[indexTimeMinutes],
+          indexTimeMinutes >= 0,
           reportColuna,
         ),
         piecesCount: Math.max(

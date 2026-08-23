@@ -384,3 +384,64 @@ describe("productCsv — máquina que não casa", () => {
     expect(warnings).toEqual([]);
   });
 });
+
+// CSV-16 — o tempo é a única coluna cuja unidade o cabeçalho anuncia e o parser
+// ignorava. Uma planilha gerada por fora (fatiador, impressora) reporta MINUTOS,
+// e `Tempo (min)` era capturada pelo needle "tempo" da coluna de horas: 120
+// minutos viravam 120 horas, 60x errado e sem um aviso. As duas colunas passam a
+// existir e a SOMAR, como os dois campos do `PrintTimeField` no formulário.
+describe("CSV-16 — horas e minutos", () => {
+  const horas = (csv: string) =>
+    parseProductsCsv(csv, machines).products[0].printHours;
+
+  it("as duas colunas somam: 2 h + 30 min = 2,5 h", () => {
+    expect(horas(`Produto;Tempo (h);Tempo (min)\nUm;2;30\n`)).toBeCloseTo(2.5, 6);
+  });
+
+  it("só minutos: 150 vira 2,5 h — antes entrava como 150 HORAS", () => {
+    expect(horas(`Produto;Tempo (min)\nUm;150\n`)).toBeCloseTo(2.5, 6);
+  });
+
+  it("hora decimal continua valendo (é o que o export escreve)", () => {
+    expect(horas(`Produto;Tempo (h)\nUm;2,5\n`)).toBeCloseTo(2.5, 6);
+    expect(horas(`Produto;Tempo (h)\nUm;11,85\n`)).toBeCloseTo(11.85, 6);
+  });
+
+  it("o cabeçalho que o needle não pega ainda é lido pela unidade", () => {
+    expect(horas(`Produto;Tempo de impressao (min)\nUm;90\n`)).toBeCloseTo(1.5, 6);
+    expect(horas(`Produto;Tempo em minutos\nUm;90\n`)).toBeCloseTo(1.5, 6);
+  });
+
+  it("variantes do cabeçalho de minutos", () => {
+    expect(horas(`Produto;Tempo (min.)\nUm;90\n`)).toBeCloseTo(1.5, 6);
+    expect(horas(`Produto;Tempo (minutos)\nUm;90\n`)).toBeCloseTo(1.5, 6);
+    expect(horas(`Produto;TEMPO (MIN)\nUm;90\n`)).toBeCloseTo(1.5, 6);
+  });
+
+  it('"Tempo mínimo" NÃO é coluna de minutos — "min" dentro de palavra não conta', () => {
+    expect(horas(`Produto;Tempo minimo\nUm;2\n`)).toBeCloseTo(2, 6);
+  });
+
+  it("a coluna de minutos não rouba a de mão de obra, nem o contrário", () => {
+    const { products } = parseProductsCsv(
+      `Produto;Tempo (min);Mao de obra (min)\nUm;120;45\n`,
+      machines,
+    );
+    expect(products[0].printHours).toBeCloseTo(2, 6);
+    expect(products[0].laborMinutes).toBe(45);
+  });
+
+  it("nenhuma das duas colunas: segue no default 0, calado", () => {
+    const { products, warnings } = parseProductsCsv(`Produto\nUm\n`, machines);
+    expect(products[0].printHours).toBe(0);
+    expect(warnings).toEqual([]);
+  });
+
+  it("a coluna de minutos é RECONHECIDA — não entra em 'coluna ignorada'", () => {
+    const { warnings } = parseProductsCsv(
+      `Produto;Tempo (h);Tempo (min)\nUm;1;30\n`,
+      machines,
+    );
+    expect(warnings).toEqual([]);
+  });
+});
