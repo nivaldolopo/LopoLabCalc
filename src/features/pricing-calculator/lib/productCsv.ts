@@ -201,6 +201,36 @@ function numFromJson(
   return parsed;
 }
 
+// CSV-09: a célula de uma coluna ESCALAR. O default só valia quando a coluna
+// estava AUSENTE (`index >= 0 ? parseNumber(...) : DEFAULT`); presente, ela caía
+// no `parseNumber`, que devolve 0 para vazio e para ilegível — e em
+// `Tarifa Energia`, `Valor-hora`, `Mao de obra (min)` e `Taxa Falha` o vazio não
+// significa zero, significa 0,8 / 30 / 15 / 3. Medido: a MESMA linha, com essas
+// 4 colunas presentes e em branco, saía por R$ 21,24 em vez de R$ 30,10, com
+// `warnings: []`. Das 8 colunas, só `Markup` avisava.
+//
+// A regra passa a tratar igual os dois jeitos de não escrever nada — coluna
+// ausente e célula vazia caem no MESMO default — e a célula escrita que não dá
+// para ler vira aviso NOMEANDO a coluna, em vez de virar 0 calado. É o CSV-06
+// (que fechou isso DENTRO dos JSONs) valendo também fora deles.
+function cellNumber(
+  raw: string | undefined,
+  present: boolean,
+  coluna: string,
+  fallback: number,
+  report: NumReporter,
+): number {
+  if (!present) return fallback;
+  const texto = String(raw ?? "").trim();
+  if (!texto) return fallback;
+  const parsed = parseDecimalPtBr(texto);
+  if (parsed === null) {
+    report(coluna, texto);
+    return fallback;
+  }
+  return parsed;
+}
+
 function parseBool(value: string | undefined): boolean {
   return String(value ?? "").toLowerCase().trim() === "sim";
 }
@@ -225,15 +255,24 @@ const COLUMN_SPECS = {
   failure: { exact: "Taxa Falha (%)", needle: "taxa falha" },
   laborMinutes: { exact: "Mao de obra (min)", needle: "mao de obra (min)" },
   laborRate: { exact: "Valor-hora (R$)", needle: "valor-hora" },
-  energy: { exact: "Tarifa Energia", needle: "tarifa energia" },
-  includeFixed: { exact: "Inclui Fixo", needle: "inclui fixo" },
+  // CSV-11: needles curtos de propósito — "Tarifa de Energia" e "Inclui custo
+  // fixo" (o que uma planilha à mão escreve) não casavam com o needle longo e
+  // ainda eram engolidos pela supressão do aviso. Quem impede que "energia"
+  // roube a coluna CALCULADA "Energia (R$)" é a `COLUNAS_CALCULADAS`, logo
+  // abaixo. Em `includeFixed` o needle é "inclui", não "fixo": "fixo" casaria
+  // com qualquer coluna de custo fixo que alguém invente ao lado.
+  energy: { exact: "Tarifa Energia", needle: "energia" },
+  includeFixed: { exact: "Inclui Fixo", needle: "inclui" },
   rounding: { exact: "Arredondamento", needle: "arredondamento" },
   linkModel: { exact: "Link Modelo", needle: "link modelo" },
   linkCompetitor: { exact: "Link Concorrente", needle: "link concorrente" },
   linkFile: { exact: "Link Arquivo", needle: "link arquivo" },
   stages: { exact: "Etapas JSON", needle: "etapas json" },
   accessories: { exact: "Acessorios JSON", needle: "acessorios json" },
-  filaments: { exact: "Filamentos JSON", needle: "filamentos json" },
+  // CSV-10: needle "filamentos" (não "filamentos json") + a passada por needle
+  // ordenada do mais LONGO para o mais curto — assim o cabeçalho abreviado
+  // "Filamentos" fica com as cores em vez de ser reclamado por "filamento".
+  filaments: { exact: "Filamentos JSON", needle: "filamentos" },
   sellBySubitems: { exact: "Vende por Subitens", needle: "vende por subitens" },
   subitems: { exact: "Subitens JSON", needle: "subitens json" },
   // CSV-03: as duas colunas calculadas que alguém de fato tentaria editar para
@@ -245,6 +284,34 @@ const COLUMN_SPECS = {
 } as const;
 
 type ColumnKey = keyof typeof COLUMN_SPECS;
+
+// CSV-11 — as 10 colunas que o export CALCULA e a importação ignora de
+// propósito (o preço sai das entradas). Nome EXATO, normalizado.
+//
+// ⚠ A lista antiga suprimia o aviso "coluna ignorada" por `includes` sobre o
+// cabeçalho inteiro, e continha "energia" e "custo fixo" — que também casam com
+// os nomes das colunas de ENTRADA "Tarifa de Energia" e "Inclui custo fixo".
+// Resultado: elas não eram reconhecidas NEM avisadas. Duplamente caladas.
+//
+// Ela tem dois usos, e é por causa do primeiro que os needles de `energy` e
+// `includeFixed` puderam encurtar: (1) nenhuma delas pode ser capturada por
+// needle; (2) só o nome EXATO some do aviso — "Energia (R$/kWh)", que é
+// entrada, continua sendo apontada quando não casar com nada.
+//
+// "Custo Total (R$)" e "Preco Sugerido (R$)" NÃO entram aqui: são calculadas,
+// mas a importação as LÊ para conferir divergência (CSV-03).
+const COLUNAS_CALCULADAS = [
+  "Material (R$)",
+  "Energia (R$)",
+  "Desgaste (R$)",
+  "Manutencao (R$)",
+  "Mao de obra (R$)",
+  "Etapas (R$)",
+  "Acessorios (R$)",
+  "Reserva Falha (R$)",
+  "Custo Fixo (R$)",
+  "Margem (%)",
+].map((header) => normalizeText(header).trim());
 
 /**
  * Cabeçalho → índice de cada coluna, em DUAS passadas e sem reaproveitar
@@ -277,11 +344,24 @@ function resolveColumns(headers: string[]): {
   });
   keys
     .filter((key) => index[key] < 0)
+    // CSV-10: do needle mais LONGO para o mais curto, e não na ordem de
+    // declaração. Era a ordem que decidia quem levava um cabeçalho abreviado:
+    // "filamento" (o PREÇO, declarado antes) reclamava a coluna "Filamentos" e
+    // a lista de cores inteira virava um R$/kg absurdo, sem um aviso. Needle
+    // mais longo = mais específico, e é o desempate certo em qualquer par.
+    .sort(
+      (a, b) => COLUMN_SPECS[b].needle.length - COLUMN_SPECS[a].needle.length,
+    )
     .forEach((key) => {
       const needle = normalizeText(COLUMN_SPECS[key].needle).trim();
       take(
         normalized.findIndex(
-          (header, i) => !claimed.has(i) && header.includes(needle),
+          (header, i) =>
+            !claimed.has(i) &&
+            // CSV-11: coluna calculada nunca é capturada por needle — é ela que
+            // permite o needle curto ("energia" não rouba "Energia (R$)").
+            !COLUNAS_CALCULADAS.includes(header) &&
+            header.includes(needle),
         ),
         key,
       );
@@ -706,14 +786,11 @@ export function parseProductsCsv(
   // assim que "Etapas" (em vez de "Etapas JSON") sumiria sem um pio. As 10
   // colunas calculadas são ignoradas DE PROPÓSITO (o preço sai das entradas),
   // então elas não contam como surpresa.
-  const CALCULADAS = [
-    "material", "energia", "desgaste", "manutencao", "mao de obra (r$)",
-    "etapas (r$)", "acessorios (r$)", "reserva falha", "custo fixo", "margem",
-  ];
+  // CSV-11: igualdade EXATA contra a `COLUNAS_CALCULADAS`, nunca `includes` —
+  // ver o comentário lá em cima para o que o `includes` engolia.
   const ignoradas = headers.filter((header, index) => {
     if (claimed.has(index) || !header.trim()) return false;
-    const nome = normalizeText(header);
-    return !CALCULADAS.some((conhecida) => nome.includes(conhecida));
+    return !COLUNAS_CALCULADAS.includes(normalizeText(header).trim());
   });
   if (ignoradas.length > 0) {
     warnings.push(
@@ -758,6 +835,18 @@ export function parseProductsCsv(
         `${ondeEstou}: ${campo} = "${bruto}"`,
       );
     };
+    // CSV-09: o irmão do de cima, para as colunas escalares. Classe própria
+    // porque o conselho é outro — na COLUNA o decimal vai com vírgula, e o que
+    // acontece com a linha também é outro: ela fica com o default da coluna, e
+    // não com 0.
+    const reportColuna: NumReporter = (coluna, bruto) => {
+      addIssue(
+        "coluna-numero-nao-reconhecido",
+        "Coluna numérica com valor ilegível — a linha ficou com o valor PADRÃO " +
+          'dessa coluna. Na coluna o decimal vai com vírgula ("1,5")',
+        `${ondeEstou}: coluna "${coluna}" = "${bruto}"`,
+      );
+    };
 
     const stages = parseStages(columns[indexStages], machineId, reportNumero);
     const accessories = parseAccessories(
@@ -784,23 +873,64 @@ export function parseProductsCsv(
         mainStageName:
           indexMainName >= 0 ? columns[indexMainName]?.trim() ?? "" : "",
         machineId,
-        printHours: parseNumber(columns[indexTime]),
-        piecesCount:
-          indexPieces >= 0
-            ? Math.max(1, parseNumber(columns[indexPieces]) || 1)
-            : 1,
-        energyTariff: indexEnergy >= 0 ? parseNumber(columns[indexEnergy]) : 0.8,
-        laborMinutes:
-          indexLaborMinutes >= 0 ? parseNumber(columns[indexLaborMinutes]) : 15,
-        laborRate: indexLaborRate >= 0 ? parseNumber(columns[indexLaborRate]) : 30,
+        // CSV-09: as 7 colunas escalares passam pelo `cellNumber` — coluna
+        // ausente e célula vazia caem no mesmo default, ilegível avisa. O
+        // `Markup`, a 8ª, segue logo abaixo com a checagem própria dele.
+        printHours: cellNumber(
+          columns[indexTime],
+          indexTime >= 0,
+          "Tempo (h)",
+          0,
+          reportColuna,
+        ),
+        piecesCount: Math.max(
+          1,
+          cellNumber(
+            columns[indexPieces],
+            indexPieces >= 0,
+            "Pecas",
+            1,
+            reportColuna,
+          ) || 1,
+        ),
+        energyTariff: cellNumber(
+          columns[indexEnergy],
+          indexEnergy >= 0,
+          "Tarifa Energia",
+          0.8,
+          reportColuna,
+        ),
+        laborMinutes: cellNumber(
+          columns[indexLaborMinutes],
+          indexLaborMinutes >= 0,
+          "Mao de obra (min)",
+          15,
+          reportColuna,
+        ),
+        laborRate: cellNumber(
+          columns[indexLaborRate],
+          indexLaborRate >= 0,
+          "Valor-hora (R$)",
+          30,
+          reportColuna,
+        ),
         // `parseNumber`, não `parseFloat`: este é o único número do CSV que
         // vinha por parseFloat, e ele PARA na vírgula — "2,8" virava 2, um
         // catálogo inteiro precificado abaixo do devido, sem um aviso.
         markup: parseNumber(markupRaw) || 3,
-        failureRate:
-          indexFailure >= 0
-            ? Math.min(95, Math.max(0, parseNumber(columns[indexFailure])))
-            : DEFAULT_FAILURE_RATE,
+        failureRate: Math.min(
+          95,
+          Math.max(
+            0,
+            cellNumber(
+              columns[indexFailure],
+              indexFailure >= 0,
+              "Taxa Falha (%)",
+              DEFAULT_FAILURE_RATE,
+              reportColuna,
+            ),
+          ),
+        ),
         includeFixed:
           indexIncludeFixed >= 0 ? parseBool(columns[indexIncludeFixed]) : false,
         roundingMode:
@@ -833,8 +963,20 @@ export function parseProductsCsv(
         ...(filaments.length > 0
           ? { filaments }
           : {
-              weightG: parseNumber(columns[indexWeight]),
-              filamentPricePerKg: parseNumber(columns[indexFilament]),
+              weightG: cellNumber(
+                columns[indexWeight],
+                indexWeight >= 0,
+                "Peso (g)",
+                0,
+                reportColuna,
+              ),
+              filamentPricePerKg: cellNumber(
+                columns[indexFilament],
+                indexFilament >= 0,
+                "Filamento (R$/kg)",
+                0,
+                reportColuna,
+              ),
             }),
         createdAt: Date.now(),
         fixedCostPerHour: null,

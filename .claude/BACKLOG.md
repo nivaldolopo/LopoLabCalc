@@ -443,9 +443,30 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
 > limpado por aquela lista, teria apagado um produto real. Dump de Firestore põe o id do caminho
 > **por último** e com nome que não colide (`__id`). Foi também o que revelou o [CSV-18].
 
+## Ordem aprovada pelo dono — AUD-09 (2026-08-23)
+
+> O dono aprovou **A + B** antes da carga. O **C** (tabela de-para cor → id + planilha-modelo)
+> fica pendente até ele **cadastrar as cores e os insumos definitivos** — hoje o banco só tem os
+> 2 de teste, e a de-para nasceria com id que vai ser jogado fora.
+
+| Lote | Itens | Estado |
+|---|---|---|
+| **A** | [CSV-09] + [CSV-10] + [CSV-11] — os 3 bloqueantes | ✅ **FEITO (2026-08-23)** |
+| **B** | [CSV-12] · [CSV-13] · [CSV-14] · [CSV-15] | ✅ **FEITO (2026-08-23)** |
+| **C** | tabela de-para (cor → id) + planilha-modelo (cobre [CSV-16] e [CSV-17]) | ⏸ **espera o dono cadastrar as cores** |
+
+**Fora dos lotes:** [CSV-16] e [CSV-17] são item de **modelo/doc**, não de código (o parser não tem
+como saber que "Tempo (min)" é minuto, e o arredondamento já avisa) — entram no leia-me do lote C.
+[CSV-18], [CSV-19] e [CSV-20] são resíduo legado que o round-trip limpa sozinho.
+
 ### 🔴 Bloqueia a carga
 
-- **[CSV-09] Coluna escalar PRESENTE e vazia (ou ilegível) vira 0 — sem um único aviso.**
+- ✅ **[CSV-09] FEITO (Lote A).** Coluna escalar PRESENTE e vazia (ou ilegível) virava 0 — sem um
+  único aviso. Helper `cellNumber` em `productCsv.ts`: **coluna ausente e célula vazia caem no MESMO
+  default**, e a célula escrita que não dá pra ler fica no default + acende a classe nova
+  `coluna-numero-nao-reconhecido`, nomeando a coluna. Vale nas 7 escalares (a 8ª, `Markup`, já
+  tinha checagem própria). **Efeito colateral bom: a "regra de ouro" morreu** — pôr a coluna e
+  deixar em branco agora é seguro. Descrição original:
   **Mecanismo:** o default só vale quando a coluna está **AUSENTE** (`indexX >= 0 ? parseNumber(...)
   : DEFAULT`). Presente, passa pelo `parseNumber`, que é `parseDecimalPtBr(value) ?? 0` — o wrapper
   leniente. O comentário dele diz "use nas colunas cujo vazio JÁ significa zero", mas em
@@ -461,7 +482,11 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
   provável que existe — e é justamente o único sem sinal. É o mesmo defeito que o [CSV-06] fechou
   **dentro** dos JSONs, sobrevivendo **fora** deles.
 
-- **[CSV-10] Cabeçalho `Filamentos` (sem a palavra "JSON") é capturado pela coluna de PREÇO — e a
+- ✅ **[CSV-10] FEITO (Lote A).** A 2ª passada do `resolveColumns` roda **do needle mais LONGO para
+  o mais curto** (era a ordem de declaração), e `filaments` passou a ter needle `"filamentos"`.
+  Comprimento é o desempate certo: needle mais longo é o mais específico, e o par
+  `filamentos`/`filamento` se resolve sozinho em qualquer ordem de cabeçalho. Descrição original:
+  **Cabeçalho `Filamentos` (sem a palavra "JSON") é capturado pela coluna de PREÇO — e a
   lista de cores inteira vira um número absurdo, calada.**
   **Mecanismo:** `resolveColumns` faz 2 passadas. O `claimed` do CSV-02 só protege quando **uma
   das duas** casou por nome EXATO. Quando nenhuma casa, a passada por `needle` roda na ordem de
@@ -472,7 +497,15 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
   `filamentPricePerKg: 11050`, `weightG: 0`, **sem** `filaments`. `warnings: []` — e nem entra em
   "coluna ignorada", porque foi reclamada. Duplamente silencioso.
 
-- **[CSV-11] A supressão do aviso "coluna ignorada" engole variantes de DUAS colunas de ENTRADA.**
+- ✅ **[CSV-11] FEITO (Lote A), e melhor do que "só avisar".** A lista `CALCULADAS` (`includes` sobre
+  substring) virou `COLUNAS_CALCULADAS`, com os **10 nomes exatos** que o próprio export escreve, e
+  ganhou **dois** usos: suprime o aviso só por **igualdade exata**, e **impede captura por needle**.
+  É essa segunda trava que permitiu encurtar os needles pra `"energia"` e `"inclui"` sem risco de
+  roubarem as calculadas `Energia (R$)`/`Custo Fixo (R$)` — então `Tarifa de Energia`,
+  `Energia (R$/kWh)` e `Inclui custo fixo` passaram a ser **LIDAS**, não só apontadas.
+  (`"inclui"` e não `"fixo"`: "fixo" casaria com qualquer coluna de custo fixo inventada ao lado.)
+  Descrição original: **A supressão do aviso "coluna ignorada" engole variantes de DUAS colunas de
+  ENTRADA.**
   **Mecanismo:** a lista `CALCULADAS` suprime o aviso por `includes` sobre o cabeçalho inteiro, e
   contém `"energia"` e `"custo fixo"` — que também casam com nomes das colunas de entrada
   `Tarifa Energia` e `Inclui Fixo`. Resultado: o nome não é reconhecido (needle não bate) **e** não
@@ -517,6 +550,13 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
   (avisa certo), `"0.90"` e `"0,90"` → ok. Como avisa, é item de modelo, não de código.
 
 ### 🟢 Baixo / informativo (não é da importação)
+
+- **[CSV-21] O campo `linhas` dos apontamentos conta OCORRÊNCIA, não linha** *(achado no Lote A,
+  2026-08-23 — não é da AUD-09)*. O `addIssue` soma 1 por chamada, então uma única linha com 3
+  células ruins da mesma classe é reportada como **"3 linhas"**. Vem do CSV-06 e há teste travando
+  o comportamento (`linhas: 2` numa linha só, `productCsvIssues.test.ts`). Não corrigi porque está
+  fora do escopo aprovado e o exagero é conservador (aponta a mais, nunca a menos). Conserto:
+  contar por linha (um flag por linha no reporter, ou um `contar` opcional no `addIssue`).
 
 - **[CSV-18] 18 documentos do catálogo carregam um campo `id` DENTRO do dado.** O `id` é o caminho,
   não campo (CLAUDE.md). Em 17 o valor é igual ao id do caminho (eco inofensivo); em **1** —

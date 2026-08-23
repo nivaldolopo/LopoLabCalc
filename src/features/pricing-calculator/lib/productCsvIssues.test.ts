@@ -508,3 +508,178 @@ describe("CSV-07 — o apontamento de milhar errava dos dois lados", () => {
     expect(r.products[0].printHours).toBe(2.375);
   });
 });
+
+// ---------------------------------------------------------------------------
+// AUD-09 — os 3 bloqueantes da carga em massa. Cada caso abaixo é a reprodução
+// medida na varredura, virada em teste.
+// ---------------------------------------------------------------------------
+
+describe("CSV-09 — coluna escalar presente e vazia caía em 0, não no default", () => {
+  // As 4 colunas cujo vazio NÃO significa zero (as outras 3 têm default 0/1).
+  const DEFAULTS = {
+    "Tarifa Energia": ["energyTariff", 0.8],
+    "Valor-hora (R$)": ["laborRate", 30],
+    "Mao de obra (min)": ["laborMinutes", 15],
+    "Taxa Falha (%)": ["failureRate", 3],
+  } as const;
+
+  it("as 4 presentes e EM BRANCO caem no default, e não avisam", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Tarifa Energia": "",
+        "Valor-hora (R$)": "",
+        "Mao de obra (min)": "",
+        "Taxa Falha (%)": "",
+      }),
+      machines,
+      opcoes,
+    );
+    const p = r.products[0];
+    expect(p.energyTariff).toBe(0.8);
+    expect(p.laborRate).toBe(30);
+    expect(p.laborMinutes).toBe(15);
+    expect(p.failureRate).toBe(3);
+    // Vazio é o dono não escrevendo nada — não há o que apontar.
+    expect(achar(r.issues, "coluna-numero-nao-reconhecido")).toBeUndefined();
+  });
+
+  it.each(Object.entries(DEFAULTS))(
+    '"%s" ilegível: fica no default E aponta',
+    (coluna, [campo, valor]) => {
+      const r = parseProductsCsv(
+        csv({ ...LINHA_BOA, [coluna]: "abc" }),
+        machines,
+        opcoes,
+      );
+      expect(r.products[0][campo]).toBe(valor);
+      const issue = achar(r.issues, "coluna-numero-nao-reconhecido");
+      expect(issue?.linhas).toBe(1);
+      expect(issue?.exemplos[0]).toContain(coluna);
+    },
+  );
+
+  it("as 3 colunas de default 0/1 também apontam quando ilegíveis", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Peso (g)": "abc",
+        "Tempo (h)": "abc",
+        Pecas: "abc",
+      }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].printHours).toBe(0);
+    expect(r.products[0].piecesCount).toBe(1);
+    // 2, e não 1: o `Peso (g)` nem é lido (a linha traz `Filamentos JSON`, e
+    // com as cores presentes os escalares não entram). E `linhas` conta
+    // OCORRÊNCIA, não linha — herdado do CSV-06; virou [CSV-21] no backlog.
+    expect(achar(r.issues, "coluna-numero-nao-reconhecido")?.linhas).toBe(2);
+  });
+
+  it("coluna AUSENTE segue no default, calada (o comportamento que já valia)", () => {
+    const r = parseProductsCsv(csv(LINHA_BOA), machines, opcoes);
+    expect(r.products[0].energyTariff).toBe(0.8);
+    expect(r.products[0].laborRate).toBe(30);
+    expect(r.issues).toBeUndefined();
+  });
+
+  it("valor escrito continua mandando", () => {
+    const p = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Tarifa Energia": "0,95", "Valor-hora (R$)": "45" }),
+      machines,
+      opcoes,
+    ).products[0];
+    expect(p.energyTariff).toBe(0.95);
+    expect(p.laborRate).toBe(45);
+  });
+});
+
+describe("CSV-10 — o cabeçalho abreviado 'Filamentos' era roubado pelo PREÇO", () => {
+  const { "Filamentos JSON": cores, ...SEM_CORES } = LINHA_BOA;
+
+  it("'Filamentos' (sem JSON) fica com as cores, não com o R$/kg", () => {
+    const r = parseProductsCsv(
+      csv({ ...SEM_CORES, Filamentos: cores }),
+      machines,
+      opcoes,
+    );
+    const p = r.products[0];
+    expect(p.filaments).toHaveLength(1);
+    expect(p.filaments?.[0].totalG).toBe(50);
+    // Era aqui que a lista de cores inteira virava 11050 R$/kg.
+    expect(p.filamentPricePerKg).toBeUndefined();
+    expect(r.warnings).toEqual([]);
+  });
+
+  it("com as DUAS presentes, cada uma fica com a sua", () => {
+    const p = parseProductsCsv(
+      csv({ ...SEM_CORES, "Filamento (R$/kg)": "120", Filamentos: cores }),
+      machines,
+      opcoes,
+    ).products[0];
+    expect(p.filaments?.[0].totalG).toBe(50);
+    expect(p.filamentPricePerKg).toBeUndefined();
+  });
+
+  it("só o preço, sem cores: segue sendo o preço", () => {
+    const p = parseProductsCsv(
+      csv({ ...SEM_CORES, "Peso (g)": "50", "Filamento (R$/kg)": "120" }),
+      machines,
+      opcoes,
+    ).products[0];
+    expect(p.filamentPricePerKg).toBe(120);
+    expect(p.weightG).toBe(50);
+  });
+});
+
+describe("CSV-11 — a supressão do aviso engolia 2 colunas de ENTRADA", () => {
+  it('"Tarifa de Energia" agora é LIDA (era 0,8 calado)', () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Tarifa de Energia": "99" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].energyTariff).toBe(99);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('"Energia (R$/kWh)" também', () => {
+    const p = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Energia (R$/kWh)": "1,2" }),
+      machines,
+      opcoes,
+    ).products[0];
+    expect(p.energyTariff).toBe(1.2);
+  });
+
+  it('"Inclui custo fixo" agora é LIDA (era false calado)', () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Inclui custo fixo": "sim" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].includeFixed).toBe(true);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it("a coluna CALCULADA 'Energia (R$)' não vira tarifa nem acende aviso", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Energia (R$)": "3,40" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].energyTariff).toBe(0.8);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it("coluna desconhecida de verdade continua sendo apontada", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Coluna Inventada": "x" }),
+      machines,
+      opcoes,
+    );
+    expect(r.warnings.join(" ")).toContain("Coluna Inventada");
+  });
+});

@@ -14,16 +14,14 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **Varredura AUD-09 (2026-08-23) — CSV, antes da carga em massa.** Só
-  relatório, **nada de código mudou**. Harness em vitest + **escrita real no Firestore** (aval do
-  dono): round-trip do catálogo real (97), carga de **100 produtos**, atomicidade, limpeza
-  verificada — 198 docs criados e apagados, banco em **97/97 idênticos e mesmos ids**.
-  **12 itens abertos** (`CSV-09`…`CSV-20`), **3 bloqueiam a carga**, todos silenciosos: célula
-  escalar vazia/ilegível vira 0 (preço R$30,10 → R$21,24 sem aviso); cabeçalho `Filamentos` sem
-  "JSON" é roubado pela coluna de PREÇO (vira `11050` R$/kg); e a supressão de "coluna ignorada"
-  engole `Tarifa de Energia`/`Inclui custo fixo`. **SÃO, medido:** export→parse→export idêntico,
-  0 divergência de preço em 97 linhas, as **13 classes de aviso sem falso positivo**, e lote com 1
-  payload inválido não grava nada (294 → 294). `lint` ✅ · **523/523 em 5 execuções** ✅.
+- **Última mudança:** **Lote A da AUD-09 (2026-08-23) — os 3 bloqueantes da carga, fechados.**
+  `productCsv.ts`: **CSV-09** ganhou o `cellNumber` (coluna ausente e célula **vazia** caem no mesmo
+  default; ilegível fica no default e **avisa**, classe `coluna-numero-nao-reconhecido`) — a "regra
+  de ouro" de não pôr coluna que não vai preencher morreu junto. **CSV-10**: a passada por needle
+  virou **do mais longo pro mais curto**, então `Filamentos` fica com as cores e não com o R$/kg.
+  **CSV-11**: `COLUNAS_CALCULADAS` com os 10 nomes **exatos** do export, que suprime o aviso *e*
+  bloqueia captura por needle — com essa trava, `Tarifa de Energia`, `Energia (R$/kWh)` e
+  `Inclui custo fixo` passaram a ser **lidas**, não só apontadas. `lint` ✅ · **539/539** ✅.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
