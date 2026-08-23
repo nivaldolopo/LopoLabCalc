@@ -9,11 +9,14 @@
 > ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código NÃO está mais zerado (2026-08-23).** Vários
 > parágrafos abaixo dizem "está ZERADO"; eles descrevem o estado **antes** da varredura **AUD-12**
 > (a v2 da geral — a seção dela é a **última** deste arquivo, logo acima de "## Fechado").
-> Ela abriu **15 itens** e ainda **não tem lote aprovado**: 5 defeitos 🔴 (`[CSV-23]` `[CSV-24]`
-> `[UX-44]` `[CSV-25]` `[CSV-26]`), 2 🟠 (`[TD-022]` `[UX-46]`), 4 🟡 (`[UX-45]` `[TD-023]`
-> `[CSV-27]` `[CSV-28]` `[CSV-29]`) e 5 🟢 (`[CSV-31]` `[TD-021]` `[TD-024]` `[TD-025]` `[CSV-30]`).
-> **Três deles entram CALADOS na carga em massa** — `[CSV-23]`, `[CSV-24]` e `[CSV-25]` — e é a
-> única coisa que vale decidir antes de o dono importar.
+> Ela abriu **17 itens** — o cabeçalho dizia 15, e a conta estava errada: o rótulo "4 🟡" vinha
+> seguido de **cinco** nomes. São 5 🔴 (`[CSV-23]` `[CSV-24]` `[UX-44]` `[CSV-25]` `[CSV-26]`),
+> 2 🟠 (`[TD-022]` `[UX-46]`), **5** 🟡 (`[UX-45]` `[TD-023]` `[CSV-27]` `[CSV-28]` `[CSV-29]`) e
+> 5 🟢 (`[CSV-31]` `[TD-021]` `[TD-024]` `[TD-025]` `[CSV-30]`).
+>
+> ✅ **Os 5 🔴 fecharam nos lotes A e B (2026-08-23)** — os três que entravam calados na carga
+> incluídos. Restam **12 abertos**. A ordem dos lotes aprovada pelo dono está na tabela do fim
+> desta seção.
 >
 > **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15, as ondas 0–5 e o `[micro]` do
 > botão de 14px (2026-08-17) ✅ FECHADOS.** O
@@ -736,9 +739,9 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
 > round-trip do próprio export dá **0 avisos** apesar de `printHours: 2.375`; e `"2 e 5"` não vira
 > 200000.
 
-### 🔴 Entra CALADO na carga (o dono não descobre)
+### ✅ 🔴 Entra CALADO na carga — os 5 FECHADOS nos lotes A e B (2026-08-23)
 
-- **[CSV-23] `parseBool` só aceita `"sim"` — `TRUE`/`1`/`VERDADEIRO` viram `false`, sem um aviso.**
+- ✅ **[CSV-23] FEITO (Lote A, 2026-08-23).** `parseBool` passou a aceitar `sim/s/true/verdadeiro/v/1/x/yes/y` (e `nao/n/false/falso/f/0/no/-` para negar), e a grafia fora das duas listas acende `booleano-nao-reconhecido` nomeando a coluna — o default calado era o defeito, não a grafia. Célula VAZIA continua sendo ausência, e segue calada. Descrição original: **`parseBool` só aceita `"sim"` — `TRUE`/`1`/`VERDADEIRO` viram `false`, sem um aviso.**
   Atinge as duas colunas booleanas: `Inclui Fixo` e `Vende por Subitens`. **Medido**, 13 grafias na
   mesma linha: `"sim"`/`"SIM"`/`" sim "` → `true` (custo fixo 4,76 · total 27,65 · **preço 57,98**);
   `"TRUE"`/`"true"`/`"VERDADEIRO"`/`"1"`/`"S"`/`"Y"`/`"yes"` → `false` (fixo **0,00** · total 22,89 ·
@@ -750,7 +753,7 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   verdadeiro`) **e** acender uma classe nova para a grafia não reconhecida — o default calado é o
   defeito, não a grafia.
 
-- **[CSV-24] Nome de máquina casado por SUBSTRING, e o palpite não se anuncia.**
+- ✅ **[CSV-24] FEITO (Lote A, 2026-08-23).** O casamento por substring continua — vira `maquina-por-aproximacao`, classe AGRUPADA e não um `warnings.push` por linha (o palpite erra em bloco: se o sistema externo escrever "AnyCubic A1 Mini", são as 100 linhas de uma vez). E o desempate deixou de ser a ordem do array: vence o **id mais longo** contido no nome, o mesmo critério do CSV-10 — "Maquina X2D e A1" agora dá **x2d**. Descrição original: **Nome de máquina casado por SUBSTRING, e o palpite não se anuncia.**
   `machineNameToId` tenta o nome exato; falhando, procura a 1ª máquina cujo **id** esteja contido no
   nome. Esse 2º caminho **nunca chama o `onFallback`** — só o fracasso total avisa. **Medido**,
   8 nomes: `"AnyCubic A1 Mini"` → **a1**, `"Elegoo Neptune A1"` → **a1**, `"meu x2d antigo"` → x2d,
@@ -763,7 +766,7 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   **Saída:** é o padrão 11 (*o palpite que não se anuncia*) — o casamento aproximado pode continuar,
   desde que vire aviso, como o [CSV-10]/D-3 da AUD-11 fez com as colunas.
 
-- **[UX-44] "Gerenciar Máquinas" quebra no celular: `13999` aparece como `1399` e `7500` como
+- ✅ **[UX-44] FEITO (Lote B, 2026-08-23), e a correção foi APAGAR, não reescrever.** O override de `grid-template-columns` do bloco de 760px saiu inteiro: além do `1fr` puro, as larguras eram as **pré-UX-41**, e sem ele a regra boa do `modal.css` vale de 641px para cima. Abaixo de 640px (a fronteira de cartão que o resto do arquivo já usa) a fileira **vira cartão**, com colocação EXPLÍCITA nos 6 itens — colocar só o botão em `3 / 1` não tira a coluna 3 do fluxo automático, e o campo Watts caía nela (32px de caixa para 44px de conteúdo). ⚠ **Achado NOVO, que o relatório não tinha:** a grade cortava `13999` (71px numa caixa de 64) e `7500` (62 numa de 54) **também de 641 a 760px** — a varredura mediu o NOME a 700px, que estava bem, e não os números. Medido depois, em 320/375/400/430/561/641/1013px e nos 2 temas: **0 estouro, 0 corte, 0 rolagem lateral**, botão dentro da caixa. Descrição original: **"Gerenciar Máquinas" quebra no celular: `13999` aparece como `1399` e `7500` como
   `750`.** Único dos **9 modais** que falha (os outros 8 medidos limpos a 375 px). São dois padrões
   do próprio catálogo deste repositório somados:
   · **`1fr` puro em vez de `minmax(0, 1fr)`** — `responsive.css:93` sobrescreve a regra boa do
@@ -783,7 +786,7 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   próprio projeto — `minmax(0, 1fr)` na media query e a fileira **virando cartão** (receita do
   `.fg-part`) abaixo dos ~300 px úteis, em vez de rolar.
 
-- **[CSV-25] Linha sem nome desaparece sem entrar em contador nenhum.**
+- ✅ **[CSV-25] FEITO (Lote A, 2026-08-23).** Classe `linha-sem-nome`, com até 3 exemplos mostrando as células que a linha trazia. ⚠ A guarda distingue **linha de dado sem nome** de **linha em branco escrita com separador**: `";;"` sobrevive ao `splitRecords` (`";;".trim()` não é vazio) e a AUD-09 registrou o silêncio dela como SÃO — quem separa as duas é ter, ou não, conteúdo em alguma outra célula. Um teste trava isso. Descrição original: **Linha sem nome desaparece sem entrar em contador nenhum.**
   `if (!name) return []` no `flatMap`: sem `warning`, sem `issue`, sem contagem. O diálogo já mostra
   o total **depois** do descarte. **Medido:** arquivo com 5 linhas de dado, 3 com a célula `Produto`
   vazia (vazia, só espaços, e `""` citada) → **2 produtos**, `warnings: []`.
@@ -792,7 +795,7 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   **Onde:** `productCsv.ts:970`. **Saída:** um `addIssue("linha-sem-nome", …)`; é irmã do
   `celulas-demais`, que já avisa.
 
-- **[CSV-26] O aviso do markup MENTE sobre o que entrou no documento** *(era a ressalva "markup
+- ✅ **[CSV-26] FEITO (Lote A, 2026-08-23).** Os três problemas nasciam de espremer leitura, default e aviso numa expressão só; a separação em `markupCell` (o que a planilha escreveu, e é o que o aviso cita) / `markupRaw` (sem o sufixo `x`) / `markupLido` (o número, `null` se ilegível) resolve os três: `-2` e `0` agora entram **com 3x**, como o aviso sempre prometeu; `"x"` sozinho não vira string vazia e **aponta**; e `<1x` ganhou classe própria (`markup-abaixo-de-1`), porque foi LIDO certo — a linha entra como está, mas o dono sabe que o preço sai abaixo do custo. Descrição original: **O aviso do markup MENTE sobre o que entrou no documento** *(era a ressalva "markup
   negativo entrando no documento", promovida a defeito)*. Três problemas na mesma checagem:
   · `markup: parseNumber(raw) || 3` — **`-2` é truthy**, então o `|| 3` nunca dispara e o documento
   recebe **−2** (preço **−R$ 22,59**), enquanto o aviso diz *"a linha entra com 3x"*;
@@ -802,6 +805,17 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   **sem aviso nenhum**.
   **Atenuante:** o `linha-invalida` (que roda o `validateProduct`) pega os dois casos de preço
   absurdo — o que se perde é a confiança no texto. **Onde:** `productCsv.ts:1124` e `:1224`.
+
+### Ordem aprovada pelo dono — AUD-12 (2026-08-23)
+
+| Lote | Itens | O que é | Estado |
+|---|---|---|---|
+| **A — o parser volta a avisar** | [CSV-23] · [CSV-24] · [CSV-25] · [CSV-26] | tudo em `productCsv.ts`; a disciplina do CSV-10 (*o palpite que não se anuncia*) | ✅ **FEITO (2026-08-23)** |
+| **B — celular** | [UX-44] | CSS; `minmax(0, 1fr)` + fileira virando cartão | ✅ **FEITO (2026-08-23)** |
+| **C — qualidade do aviso** | [CSV-27] · [CSV-28] · [CSV-29] · [CSV-31] | falso positivo e conselho errado — o que ensina a ignorar aviso | aberto |
+| **D — dívida barata** | [TD-023] · [TD-024] · [TD-025] | comentário que afirma garantia inexistente + 2 guardas | aberto |
+| **E — toque e responsivo** | [UX-45] · [UX-46] | faixa 641–760px + os alvos abaixo de 44px; o maior dos cinco | aberto |
+| **fora de lote** | [TD-022] · [TD-021] · [CSV-30] | o dono autorizou reproduzir o TD-022 **com escrita real** e corrigir | TD-022 em curso |
 
 ### 🟠 Alto (não bloqueia a carga, mas morde)
 

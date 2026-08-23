@@ -1201,3 +1201,188 @@ describe("AUD-11/D-3 — a coluna lida por APROXIMAÇÃO se anuncia", () => {
     expect(aprox[0]).toContain('"Tempo" → Tempo (h)');
   });
 });
+
+// ---------------------------------------------------------------------------
+// AUD-12 / lote A — os quatro que entravam CALADOS na carga.
+// ---------------------------------------------------------------------------
+
+describe("CSV-23 — booleano em vocabulário de planilha", () => {
+  const grafiasSim = ["sim", "SIM", " sim ", "TRUE", "true", "VERDADEIRO", "1", "S", "x", "yes", "Y", "v"];
+
+  it.each(grafiasSim)('"%s" liga o custo fixo, sem apontamento', (grafia) => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Inclui Fixo": grafia }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].includeFixed).toBe(true);
+    expect(achar(r.issues, "booleano-nao-reconhecido")).toBeUndefined();
+  });
+
+  it.each(["nao", "NÃO", "false", "FALSO", "0", "n", "-"])(
+    '"%s" nega, e também não aponta',
+    (grafia) => {
+      const r = parseProductsCsv(
+        csv({ ...LINHA_BOA, "Inclui Fixo": grafia }),
+        machines,
+        opcoes,
+      );
+      expect(r.products[0].includeFixed).toBe(false);
+      expect(achar(r.issues, "booleano-nao-reconhecido")).toBeUndefined();
+    },
+  );
+
+  it("grafia fora das duas listas entra como não — e APONTA, nomeando a coluna", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Inclui Fixo": "talvez" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].includeFixed).toBe(false);
+    const issue = achar(r.issues, "booleano-nao-reconhecido");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain('"Inclui Fixo"');
+    expect(issue?.exemplos[0]).toContain("talvez");
+  });
+
+  it("célula VAZIA é ausência, não grafia desconhecida — segue calada", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Inclui Fixo": "" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].includeFixed).toBe(false);
+    expect(achar(r.issues, "booleano-nao-reconhecido")).toBeUndefined();
+  });
+
+  it("vale igual para Vende por Subitens", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Vende por Subitens": "TRUE" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].sellBySubitems).toBe(true);
+  });
+});
+
+describe("CSV-24 — o palpite de máquina se anuncia", () => {
+  it("nome exato não é palpite: nenhum apontamento", () => {
+    const r = parseProductsCsv(csv(LINHA_BOA), machines, opcoes);
+    expect(r.products[0].machineId).toBe("a1");
+    expect(achar(r.issues, "maquina-por-aproximacao")).toBeUndefined();
+  });
+
+  it.each([
+    ["AnyCubic A1 Mini", "a1"],
+    ["Elegoo Neptune A1", "a1"],
+    ["meu x2d antigo", "x2d"],
+  ])('"%s" casa por substring — e agora avisa', (nome, id) => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Maquina: nome }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].machineId).toBe(id);
+    const issue = achar(r.issues, "maquina-por-aproximacao");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain(nome);
+  });
+
+  it("com dois ids no nome vence o MAIS LONGO, não o primeiro do array", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Maquina: "Maquina X2D e A1" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].machineId).toBe("x2d");
+  });
+
+  it("nome que não casa com nada segue no aviso de fallback, não na classe nova", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Maquina: "Prusa MK4" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].machineId).toBe("a1");
+    expect(achar(r.issues, "maquina-por-aproximacao")).toBeUndefined();
+    expect(r.warnings.join(" ")).toContain("não encontrada");
+  });
+});
+
+describe("CSV-25 — linha sem nome entra na contagem", () => {
+  it("3 linhas sem nome entre 5: 2 produtos, e o descarte é dito", () => {
+    const linhas = [
+      "Produto;Tempo (h)",
+      "Caneca;2",
+      ";3",
+      "   ;4",
+      '"";5',
+      "Vaso;6",
+    ].join("\n");
+    const r = parseProductsCsv(linhas, machines, opcoes);
+    expect(r.products).toHaveLength(2);
+    const issue = achar(r.issues, "linha-sem-nome");
+    expect(issue?.linhas).toBe(3);
+    expect(issue?.exemplos).toHaveLength(3);
+  });
+
+  it("linha em branco no meio do arquivo continua sem apontar nada", () => {
+    const linhas = ["Produto;Tempo (h)", "Caneca;2", "", ";;", "Vaso;6"].join("\n");
+    const r = parseProductsCsv(linhas, machines, opcoes);
+    expect(r.products).toHaveLength(2);
+    expect(achar(r.issues, "linha-sem-nome")).toBeUndefined();
+  });
+});
+
+describe("CSV-26 — o aviso do markup diz a verdade sobre o documento", () => {
+  it("markup NEGATIVO não entra no documento — entra o 3x que o aviso promete", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Markup: "-2" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].markup).toBe(3);
+    expect(achar(r.issues, "markup-invalido")?.exemplos[0]).toContain("-2");
+  });
+
+  it('"x" sozinho não some no replace: entra 3x E aponta', () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Markup: "x" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].markup).toBe(3);
+    expect(achar(r.issues, "markup-invalido")?.exemplos[0]).toContain('"x"');
+  });
+
+  it("markup abaixo de 1 é LIDO certo, entra como está, e ganha classe própria", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Markup: "0,5" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].markup).toBe(0.5);
+    expect(achar(r.issues, "markup-invalido")).toBeUndefined();
+    expect(achar(r.issues, "markup-abaixo-de-1")?.linhas).toBe(1);
+  });
+
+  it("markup vazio cai em 3x sem apontar (a coluna existe, a célula é ausência)", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Markup: "" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].markup).toBe(3);
+    expect(achar(r.issues, "markup-invalido")).toBeUndefined();
+  });
+
+  it('"2,5x" continua lendo o sufixo e o decimal pt-BR', () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Markup: "2,5x" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].markup).toBe(2.5);
+    expect(r.issues).toBeUndefined();
+  });
+});

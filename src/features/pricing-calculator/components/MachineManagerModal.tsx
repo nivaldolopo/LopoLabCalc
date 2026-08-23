@@ -112,7 +112,11 @@ export function MachineManagerModal({
         </>
       }
     >
-      <div className="machine-edit-header">
+      {/* UX-44: no celular esta faixa some e cada campo carrega o próprio
+          rótulo (o `.me-label` abaixo) — a linha vira CARTÃO. Aqui ela é
+          decorativa: quem nomeia o campo para leitor de tela é o `aria-label`
+          de cada input, que existe nos dois modos. */}
+      <div className="machine-edit-header" aria-hidden="true">
         <span>Nome</span>
         <span>Preço (R$)</span>
         <span>Vida (h)</span>
@@ -123,42 +127,67 @@ export function MachineManagerModal({
       <div>
         {draft.map((machine, index) => (
           <div className="machine-edit-row" key={machine.id}>
-            <input
-              aria-label="Nome da máquina"
-              type="text"
-              value={machine.name}
-              onChange={(event) =>
-                updateMachine(index, { name: event.target.value })
-              }
-              placeholder="Nome"
-            />
-            <NumberInput
-              aria-label="Preço da máquina"
-              min={0}
-              value={machine.price}
-              onChange={(price) => updateMachine(index, { price })}
-            />
-            <NumberInput
-              aria-label="Vida útil em horas"
-              min={1}
-              value={machine.lifeHours}
-              onChange={(lifeHours) => updateMachine(index, { lifeHours })}
-            />
-            <NumberInput
-              aria-label="Consumo em watts"
-              min={0}
-              value={machine.watts}
-              onChange={(watts) => updateMachine(index, { watts })}
-            />
-            <NumberInput
-              aria-label="Manutenção por hora"
-              min={0}
-              step="0.1"
-              value={machine.maintenancePerHour}
-              onChange={(maintenancePerHour) =>
-                updateMachine(index, { maintenancePerHour })
-              }
-            />
+            <span className="me-field me-field-name">
+              <span className="me-label" aria-hidden="true">
+                Nome
+              </span>
+              <input
+                aria-label="Nome da máquina"
+                type="text"
+                value={machine.name}
+                onChange={(event) =>
+                  updateMachine(index, { name: event.target.value })
+                }
+                placeholder="Nome"
+              />
+            </span>
+            <span className="me-field">
+              <span className="me-label" aria-hidden="true">
+                Preço (R$)
+              </span>
+              <NumberInput
+                aria-label="Preço da máquina"
+                min={0}
+                value={machine.price}
+                onChange={(price) => updateMachine(index, { price })}
+              />
+            </span>
+            <span className="me-field">
+              <span className="me-label" aria-hidden="true">
+                Vida (h)
+              </span>
+              <NumberInput
+                aria-label="Vida útil em horas"
+                min={1}
+                value={machine.lifeHours}
+                onChange={(lifeHours) => updateMachine(index, { lifeHours })}
+              />
+            </span>
+            <span className="me-field">
+              <span className="me-label" aria-hidden="true">
+                Watts
+              </span>
+              <NumberInput
+                aria-label="Consumo em watts"
+                min={0}
+                value={machine.watts}
+                onChange={(watts) => updateMachine(index, { watts })}
+              />
+            </span>
+            <span className="me-field">
+              <span className="me-label" aria-hidden="true">
+                Manut. (R$/h)
+              </span>
+              <NumberInput
+                aria-label="Manutenção por hora"
+                min={0}
+                step="0.1"
+                value={machine.maintenancePerHour}
+                onChange={(maintenancePerHour) =>
+                  updateMachine(index, { maintenancePerHour })
+                }
+              />
+            </span>
             <button
               className="icon-button danger"
               type="button"

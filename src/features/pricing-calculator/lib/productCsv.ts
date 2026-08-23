@@ -245,8 +245,35 @@ function cellNumber(
   return parsed;
 }
 
-function parseBool(value: string | undefined): boolean {
-  return String(value ?? "").toLowerCase().trim() === "sim";
+// CSV-23: a coluna booleana aceitava EXATAMENTE "sim" — qualquer outra grafia
+// virava `false` sem um aviso. A planilha da carga vem de um sistema externo, e
+// "TRUE"/"1"/"VERDADEIRO" é o que uma planilha gerada fora escreve: com isso o
+// catálogo inteiro nascia sem repassar o custo fixo (medido: R$ 57,98 → 53,22,
+// −8,2% por peça) e a margem exibida continuava "normal", porque é calculada
+// sobre o custo que ficou. Mesmo formato do `Tempo (min)` da AUD-11 — o
+// default calado é o defeito, não a grafia.
+//
+// Duas metades, como no CSV-09: reconhecer o vocabulário de planilha, E acender
+// a classe quando a grafia não estiver em nenhuma das duas listas. Célula VAZIA
+// é ausência (cai no default, calada), não grafia desconhecida.
+const BOOL_SIM = new Set([
+  "sim", "s", "true", "verdadeiro", "v", "1", "x", "yes", "y",
+]);
+const BOOL_NAO = new Set([
+  "nao", "n", "false", "falso", "f", "0", "no", "-",
+]);
+
+function parseBool(
+  value: string | undefined,
+  coluna?: string,
+  report?: (coluna: string, bruto: string) => void,
+): boolean {
+  const texto = normalizeText(String(value ?? ""));
+  if (!texto) return false;
+  if (BOOL_SIM.has(texto)) return true;
+  if (BOOL_NAO.has(texto)) return false;
+  if (coluna) report?.(coluna, String(value ?? "").trim());
+  return false;
 }
 
 // CSV-16: o cabeçalho DIZ a unidade — e era só isso que faltava ler. O needle
@@ -625,10 +652,24 @@ function parseSubitems(
 // nome ("Bambu Lab A1" → `a1`). Quando NADA casa, cai na primeira máquina — e
 // avisa: um nome errado no CSV punha o produto na impressora errada em
 // silêncio, e energia/desgaste saem de lá (mesma disciplina do TD-009).
+//
+// CSV-24 — o palpite por SUBSTRING também se anuncia agora, e escolhe melhor.
+// Ele nunca chamava callback nenhum: só o fracasso TOTAL avisava. Medido,
+// "AnyCubic A1 Mini" e "Elegoo Neptune A1" caíam na A1 mudos — e o id `a1` tem
+// 2 caracteres, logo cabe dentro de quase qualquer nome de impressora. Como
+// `machineMissing` fica `false`, nem o badge ⚠ do catálogo aparecia; a
+// diferença A1 × X2D no mesmo produto é R$ 53,22 → 65,13 (+22%), quase tudo
+// desgaste. É o padrão 11 (o palpite que não se anuncia) — o casamento
+// aproximado continua, virando aviso, como o CSV-10 fez com as colunas.
+//
+// E o desempate deixa de ser a ordem do array: vence o id MAIS LONGO que couber
+// no nome, o mesmo critério do CSV-10 (needle mais longo é o mais específico).
+// "Maquina X2D e A1" casava com a1 só porque a1 vem primeiro.
 function machineNameToId(
   name: string | undefined,
   machines: Machine[],
   onFallback?: (usada: Machine | undefined) => void,
+  onFuzzy?: (usada: Machine) => void,
 ): string {
   const fallback = machines[0];
   if (!name?.trim()) return fallback?.id ?? "a1";
@@ -637,10 +678,13 @@ function machineNameToId(
     (machine) => machine.name.toLowerCase() === normalized,
   );
   if (exact) return exact.id;
-  const fuzzy = machines.find((machine) =>
-    normalized.includes(machine.id.toLowerCase()),
-  );
-  if (fuzzy) return fuzzy.id;
+  const fuzzy = machines
+    .filter((machine) => normalized.includes(machine.id.toLowerCase()))
+    .sort((a, b) => b.id.length - a.id.length)[0];
+  if (fuzzy) {
+    onFuzzy?.(fuzzy);
+    return fuzzy.id;
+  }
   onFallback?.(fallback);
   return fallback?.id ?? "a1";
 }
@@ -974,7 +1018,33 @@ export function parseProductsCsv(
     classesDaLinha.clear();
     const columns = parseLine(line, separator);
     const name = columns[indexName]?.trim();
-    if (!name) return [];
+    // CSV-25: a linha sumia sem entrar em contador NENHUM — sem warning, sem
+    // issue, sem contagem — e o diálogo mostra o total DEPOIS do descarte.
+    // Medido: arquivo com 5 linhas de dado, 3 sem nome → "2 produtos",
+    // `warnings: []`. Numa planilha de ~100 linhas gerada fora, uma coluna
+    // deslocada ou uma linha de subtotal zeram o nome, e só se descobre
+    // contando o catálogo contra a planilha à mão. Linha inteiramente em branco
+    // não chega aqui (o `splitRecords` já a descarta), então o que acende é
+    // linha COM dado e sem nome — irmã do `celulas-demais`.
+    if (!name) {
+      // A linha `;;` (só separadores, nenhuma célula com conteúdo) sobrevive ao
+      // `splitRecords` — `";;".trim()` não é vazio — e a AUD-09 registrou o
+      // silêncio dela como SÃO. Ela é uma linha em branco escrita com
+      // separador, não uma linha de dado que perdeu o nome. Quem separa as duas
+      // é ter ou não conteúdo em alguma outra célula.
+      const preenchidas = columns
+        .map((cell) => String(cell ?? "").trim())
+        .filter(Boolean);
+      if (preenchidas.length > 0) {
+        addIssue(
+          "linha-sem-nome",
+          'Linha com dado mas SEM a coluna "Produto" preenchida — foi ' +
+            "descartada e não entrou na contagem de produtos",
+          `Linha ${offset + 2}: ${preenchidas.slice(0, 3).join(" | ")}`,
+        );
+      }
+      return [];
+    }
 
     // Declarado aqui em cima, e não junto do bloco CSV-05 lá embaixo, porque o
     // `reportNumero` o lê ao parsear os JSONs — que acontece ANTES (const em
@@ -1006,14 +1076,49 @@ export function parseProductsCsv(
       );
     }
 
-    const markupRaw = columns[indexMarkup]?.replace("x", "").trim() ?? "3";
+    // CSV-26 — o aviso do markup MENTIA sobre o que entrou no documento.
+    // Três problemas na mesma checagem, e os três nascem de espremer leitura,
+    // default e aviso numa expressão só:
+    // · `markup: parseNumber(raw) || 3` — `-2` é TRUTHY, então o `|| 3` nunca
+    //   disparava: o documento recebia −2 (preço −R$ 22,59) enquanto o aviso
+    //   dizia "a linha entra com 3x";
+    // · `"x"` virava string VAZIA no `replace("x", "")` e o guarda `if
+    //   (markupRaw && …)` pulava — entrava a 3x sem aviso nenhum;
+    // · `"0,5"` entrava a 0,5x (preço R$ 15,31 contra custo R$ 22,89) sem
+    //   classe, porque o teste era `<= 0`. Esse foi LIDO certo; o que falta é
+    //   dizer que vende abaixo do custo.
+    // A separação: `markupCell` é o que a planilha escreveu (para o aviso),
+    // `markupRaw` é o que se lê (sem o sufixo "x"), e `markupLido` é o número
+    // — `null` quando ilegível. O default só entra onde o valor é inutilizável.
+    const markupCell = indexMarkup >= 0 ? columns[indexMarkup]?.trim() ?? "" : "";
+    const markupRaw = indexMarkup >= 0 ? markupCell.replace(/x\s*$/i, "").trim() : "3";
+    const markupLido = markupRaw ? parseDecimalPtBr(markupRaw) : null;
+    const markupUsavel = markupLido !== null && markupLido > 0;
+    const markup = markupUsavel ? markupLido : 3;
     const machineName = columns[indexMachine];
-    const machineId = machineNameToId(machineName, machines, (usada) => {
-      warnings.push(
-        `Linha ${offset + 2} ("${name}"): máquina "${machineName?.trim()}" ` +
-          `não encontrada — usando "${usada?.name ?? "a primeira máquina"}".`,
-      );
-    });
+    const machineId = machineNameToId(
+      machineName,
+      machines,
+      (usada) => {
+        warnings.push(
+          `Linha ${offset + 2} ("${name}"): máquina "${machineName?.trim()}" ` +
+            `não encontrada — usando "${usada?.name ?? "a primeira máquina"}".`,
+        );
+      },
+      // CSV-24: classe agrupada, e não um `warnings.push` por linha como o
+      // fallback acima. O palpite por substring erra em BLOCO — se o sistema
+      // externo escrever "AnyCubic A1 Mini", são as 100 linhas de uma vez, e
+      // 100 avisos iguais escondem o resto do diálogo.
+      (usada) => {
+        addIssue(
+          "maquina-por-aproximacao",
+          "Nome de máquina lido por APROXIMAÇÃO (o id apareceu dentro do " +
+            "nome) — confira, porque energia e desgaste saem da máquina " +
+            "escolhida",
+          `${ondeEstou}: "${machineName?.trim()}" → ${usada.name}`,
+        );
+      },
+    );
     // CSV-06: todo número dentro dos 4 JSONs passa a ser lido em pt-BR, e o que
     // não der para ler vira aviso NOMEANDO o campo — em vez de virar 0 calado.
     const reportNumero: NumReporter = (campo, bruto, kind = "ilegivel") => {
@@ -1046,6 +1151,20 @@ export function parseProductsCsv(
         "coluna-numero-nao-reconhecido",
         "Coluna numérica com valor ilegível — a linha ficou com o valor PADRÃO " +
           'dessa coluna. Na coluna o decimal vai com vírgula ("1,5")',
+        `${ondeEstou}: coluna "${coluna}" = "${bruto}"`,
+      );
+    };
+
+    // CSV-23: o terceiro irmão dos dois de cima. A coluna booleana com grafia
+    // fora das duas listas cai em `false` — e `false` é um valor plausível, que
+    // ninguém a jusante desconfia. O conselho é a lista de grafias aceitas,
+    // porque o dono não tem como adivinhá-la.
+    const reportBool = (coluna: string, bruto: string) => {
+      addIssue(
+        "booleano-nao-reconhecido",
+        'Coluna de sim/não com valor não reconhecido — a linha entra como ' +
+          '"não". Aceito: sim, s, true, verdadeiro, v, 1, x (e nao, n, false, ' +
+          "falso, f, 0 para negar)",
         `${ondeEstou}: coluna "${coluna}" = "${bruto}"`,
       );
     };
@@ -1122,7 +1241,7 @@ export function parseProductsCsv(
         // `parseNumber`, não `parseFloat`: este é o único número do CSV que
         // vinha por parseFloat, e ele PARA na vírgula — "2,8" virava 2, um
         // catálogo inteiro precificado abaixo do devido, sem um aviso.
-        markup: parseNumber(markupRaw) || 3,
+        markup,
         failureRate: Math.min(
           95,
           Math.max(
@@ -1137,7 +1256,9 @@ export function parseProductsCsv(
           ),
         ),
         includeFixed:
-          indexIncludeFixed >= 0 ? parseBool(columns[indexIncludeFixed]) : false,
+          indexIncludeFixed >= 0
+            ? parseBool(columns[indexIncludeFixed], "Inclui Fixo", reportBool)
+            : false,
         roundingMode:
           indexRounding >= 0
             ? parseRoundingMode(columns[indexRounding])
@@ -1155,7 +1276,11 @@ export function parseProductsCsv(
         // inteiro — o default de sempre.
         sellBySubitems:
           indexSellBySubitems >= 0
-            ? parseBool(columns[indexSellBySubitems])
+            ? parseBool(
+                columns[indexSellBySubitems],
+                "Vende por Subitens",
+                reportBool,
+              )
             : false,
         subitems,
         // FEAT-02: com as cores na linha, elas são a fonte da verdade — e os
@@ -1229,12 +1354,28 @@ export function parseProductsCsv(
       );
     }
 
-    // 3) Markup ilegível vira 3x calado.
-    if (markupRaw && parseNumber(markupRaw) <= 0) {
+    // 3) Markup inutilizável vira 3x — e agora o texto é verdade: o `markup`
+    // lá em cima usa exatamente esta condição, então a linha entra COM 3x.
+    // O aviso cita a célula CRUA (`markupCell`), não o resto depois de tirar o
+    // "x": era assim que `"x"` aparecia como `""` e o guarda pulava.
+    if (markupCell && !markupUsavel) {
       addIssue(
         "markup-invalido",
-        "Markup não reconhecido — a linha entra com 3x",
-        `${ondeEstou}: "${markupRaw}"`,
+        "Markup não reconhecido (ou zero/negativo) — a linha entra com 3x",
+        `${ondeEstou}: "${markupCell}"`,
+      );
+    }
+
+    // 3a) Markup LIDO certo, mas menor que 1: o preço sai abaixo do custo. Não
+    // é "não reconhecido" — é o número que a planilha pediu —, então classe
+    // própria e a linha entra como está. Quem decide vender no prejuízo é o
+    // dono; o que não pode é ele não saber.
+    if (markupUsavel && markupLido < 1) {
+      addIssue(
+        "markup-abaixo-de-1",
+        "Markup menor que 1x — o preço sai ABAIXO do custo. A linha entra " +
+          "assim mesmo",
+        `${ondeEstou}: "${markupCell}" → ${markupLido}x`,
       );
     }
 

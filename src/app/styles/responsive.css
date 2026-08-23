@@ -89,10 +89,22 @@
     font-size: var(--display-md);
   }
 
-  .machine-edit-row,
-  .machine-edit-header {
-    grid-template-columns: 1fr 64px 54px 52px 66px 32px;
-  }
+  /* UX-44 — aqui havia um override de `grid-template-columns` para as linhas de
+     máquina (`1fr 64px 54px 52px 66px 32px`) e ele foi APAGADO, não reescrito.
+     Ele era o bug inteiro, por dois motivos somados:
+     · `1fr` PURO em vez de `minmax(0, 1fr)` — o mínimo implícito é o
+       min-content e o `<input>` não encolhe, então a coluna do Nome não cedia e
+       a grade estourava 41px a 375px, jogando o botão de excluir para FORA da
+       caixa do diálogo;
+     · as larguras eram as PRÉ-UX-41: a correção que alargou as colunas para
+       "7500" caber foi só para o desktop, e o comentário do `modal.css:85`
+       descrevia exatamente o bug que aqui continuava. Medido a 570px, com a
+       grade em pé, `13999` pedia 71px numa caixa de 64 e `7500` pedia 62 numa
+       de 54 — ou seja, cortava de 641px a 760px também, faixa que a varredura
+       não olhou (ela mediu o NOME a 700px, que estava bem).
+     Sem override, a regra boa do `modal.css` vale desta largura para cima; de
+     640px para baixo a fileira vira CARTÃO, no bloco de 640 logo abaixo. Duas
+     regras, duas faixas, nenhuma cópia para divergir de novo. */
 }
 
 /* --- Catálogo vira lista de cartões no celular --- */
@@ -273,5 +285,72 @@
   .subitem-price-row.total .sp-meta {
     display: none;
   }
-}
 
+  /* UX-44 — "Gerenciar Máquinas" era o único dos 9 modais que quebrava no
+     celular: a 375px a grade tinha 285px para 326px de conteúdo (estouro de
+     41px), o botão de excluir caía FORA da caixa do diálogo (right: 371 contra a
+     borda em right: 355), `13999` aparecia como `1399` e `7500` como `750`.
+     A conta: 64+54+52+66+32 = 268px fixos + 5 gaps de 8px = 308px consumidos
+     antes de o Nome ganhar 1px — a grade de 6 colunas só cabe a partir de 416px
+     de viewport, e mesmo a 430px o Nome fica com 32px. Por isso o corte é 640px —
+     a mesma fronteira de cartão que o resto do arquivo usa — e não 416px: caber
+     não basta, o campo precisa ser usável. Medido no limiar de baixo: a 561px,
+     com a grade em pé, o Nome ficava com 99px para 100px de conteúdo.
+     A saída é a regra do projeto (UX-38/UX-40): a fileira VIRA CARTÃO, não
+     rolagem — rolar de lado esconderia justamente a coluna que se quer ler. As
+     máquinas moram no doc compartilhado `config/machines` e alimentam energia e
+     desgaste de TODOS os produtos; editá-las pelo celular era adivinhação. */
+
+  .machine-edit-header {
+    display: none;
+  }
+
+  .machine-edit-row {
+    /* Reescrito INTEIRO, com a guarda `minmax(0, …)` junto: dentro de media
+       query ela não é herdada do `modal.css`. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px;
+    gap: var(--space-8) var(--space-10);
+    align-items: end;
+    padding: var(--space-10);
+    margin-bottom: var(--space-10);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+  }
+
+  /* O nome ocupa a faixa inteira ao lado do botão que opera a linha — o mesmo
+     par do `.subitem-price-row`: o botão fica junto do que ele apaga. Os 4
+     números descem em 2×2.
+     ⚠ A colocação é EXPLÍCITA nos seis, e não só nos dois das pontas: colocar o
+     botão em `3 / 1` não tira a coluna 3 do fluxo automático dos outros, e o
+     campo Watts caía nela — medido, 32px de caixa para 44px de conteúdo. Item
+     posicionado não reserva trilha para os vizinhos. */
+  .machine-edit-row .me-field-name {
+    grid-area: 1 / 1 / 2 / 3;
+  }
+
+  .machine-edit-row .icon-button.danger {
+    grid-area: 1 / 3;
+    align-self: end;
+  }
+
+  .machine-edit-row .me-field:nth-child(2) {
+    grid-area: 2 / 1;
+  }
+
+  .machine-edit-row .me-field:nth-child(3) {
+    grid-area: 2 / 2;
+  }
+
+  .machine-edit-row .me-field:nth-child(4) {
+    grid-area: 3 / 1;
+  }
+
+  .machine-edit-row .me-field:nth-child(5) {
+    grid-area: 3 / 2;
+  }
+
+  .machine-edit-row .me-label {
+    display: block;
+    margin-bottom: var(--space-2);
+  }
+}
