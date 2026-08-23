@@ -421,6 +421,9 @@ function resolveColumns(headers: string[]): {
   // AUD-11/D-3: as colunas que só casaram por PEDAÇO, com o cabeçalho que
   // reclamaram. Ver o aviso "lidas por aproximação" em `parseProductsCsv`.
   aproximadas: { cabecalho: string; virou: string }[];
+  // CSV-28: os índices das colunas REPETIDAS (mesmo nome de uma já reclamada).
+  // Sem isto elas caíam no aviso de "nome não reconhecido" — ver lá embaixo.
+  duplicadas: Set<number>;
 } {
   const normalized = headers.map((header) => normalizeText(header).trim());
   const claimed = new Set<number>();
@@ -469,7 +472,21 @@ function resolveColumns(headers: string[]): {
       }
     });
 
-  return { index, claimed, aproximadas };
+  // CSV-28: a coluna que sobrou porque o nome dela JÁ tinha sido reclamado.
+  // O `!claimed.has(i)` das duas passadas é de propósito — a primeira vence e a
+  // segunda é descartada —, mas a segunda ficava sem dono e caía no aviso de
+  // "nome não reconhecido". Medido com `Produto;Peso (g);Peso (g)`: o nome FOI
+  // reconhecido, e a mensagem errada manda renomear uma coluna que está certa.
+  // A comparação é sobre o texto NORMALIZADO, o mesmo que reclamou a primeira.
+  const duplicadas = new Set<number>();
+  normalized.forEach((header, i) => {
+    if (claimed.has(i) || !header) return;
+    if (normalized.some((outro, j) => claimed.has(j) && outro === header)) {
+      duplicadas.add(i);
+    }
+  });
+
+  return { index, claimed, aproximadas, duplicadas };
 }
 
 // A célula JSON que não parseia vira lista VAZIA — e é justamente esse silêncio
@@ -869,7 +886,7 @@ export function parseProductsCsv(
   const { separator, runnerUp } = detectSeparator(rawLines[0]);
   const headers = parseLine(rawLines[0], separator);
 
-  const { index: col, claimed, aproximadas } = resolveColumns(headers);
+  const { index: col, claimed, aproximadas, duplicadas } = resolveColumns(headers);
   const indexName = col.name;
   const indexMainName = col.mainName;
   const indexMachine = col.machine;
@@ -967,13 +984,32 @@ export function parseProductsCsv(
   // CSV-11: igualdade EXATA contra a `COLUNAS_CALCULADAS`, nunca `includes` —
   // ver o comentário lá em cima para o que o `includes` engolia.
   const ignoradas = headers.filter((header, index) => {
-    if (claimed.has(index) || !header.trim()) return false;
+    // CSV-28: a repetida sai daqui — ela tem aviso próprio, com o conselho
+    // certo. Deixá-la nos dois seria contar a mesma coluna duas vezes.
+    if (claimed.has(index) || duplicadas.has(index) || !header.trim()) {
+      return false;
+    }
     return !COLUNAS_CALCULADAS.includes(normalizeText(header).trim());
   });
   if (ignoradas.length > 0) {
     warnings.push(
       `Coluna(s) ignorada(s) — o nome não foi reconhecido: ` +
         `${ignoradas.map((h) => `"${h}"`).join(", ")}.`,
+    );
+  }
+
+  // CSV-28: aviso próprio, porque o conselho é o oposto do de cima. Em "nome
+  // não reconhecido" a saída é RENOMEAR a coluna; aqui a coluna está certa e a
+  // saída é APAGAR a sobra. A planilha da carga é gerada fora do app, onde
+  // coluna colada duas vezes é o acidente clássico — e o dono precisa saber
+  // QUAL das duas o app leu antes de confirmar.
+  if (duplicadas.size > 0) {
+    warnings.push(
+      `Coluna(s) repetida(s) — o nome foi reconhecido, mas a coluna já tinha ` +
+        `dono: ${Array.from(duplicadas)
+          .map((i) => `"${headers[i].trim()}"`)
+          .join(", ")}. Vale a PRIMEIRA da esquerda para a direita; a repetida ` +
+        `foi descartada (apague a coluna extra na planilha).`,
     );
   }
 
@@ -1504,13 +1540,25 @@ export function parseProductsCsv(
         const vivo = viva ? catalogPricePerKg(viva) : 0;
         if (vivo > 0 || num(cor.pricePerKg) > 0) return;
         const quem = cor.colorName.trim() || `cor ${i + 1}`;
+        // CSV-27: a cor SEM ROLO e a cor COM ROLO A ZERO são o mesmo sintoma
+        // (material zerado) por causas opostas, e o sufixo antigo era anexado
+        // sempre que a cor existia — dizendo "não tem rolo" para cor que TEM.
+        // O conselho errado é pior que nenhum: manda o dono cadastrar um rolo
+        // que já está lá, ele cadastra, o preço continua 0 e o aviso continua
+        // acendendo. O `catalogPricePerKg` lê o rolo MAIS NOVO, então é ele que
+        // a frase precisa nomear.
+        const temRolo = (viva?.rolls?.length ?? 0) > 0;
         addIssue(
           "cor-sem-preco",
           "Cor com peso mas SEM preço — o material fica ZERADO e o preço sai muito " +
-            "abaixo. Se o preço deve vir do Estoque, cadastre um rolo na cor antes " +
-            "de importar; senão preencha o preço na planilha",
+            "abaixo. Se o preço deve vir do Estoque, a cor precisa de um rolo COM " +
+            "preço; senão preencha o preço na planilha",
           `${ondeEstou}: ${onde} — ${quem}` +
-            (viva ? ` (cor "${viva.colorName}" existe, mas não tem rolo)` : ""),
+            (viva
+              ? temRolo
+                ? ` (cor "${viva.colorName}" existe e TEM rolo, mas o rolo mais novo está com preço 0 — corrija no Estoque)`
+                : ` (cor "${viva.colorName}" existe, mas não tem rolo)`
+              : ""),
         );
       });
     });

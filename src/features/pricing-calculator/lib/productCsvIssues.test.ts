@@ -1386,3 +1386,127 @@ describe("CSV-26 — o aviso do markup diz a verdade sobre o documento", () => {
     expect(r.issues).toBeUndefined();
   });
 });
+
+// ── Lote C da AUD-12 — a QUALIDADE do aviso ────────────────────────────────
+//
+// Os três abaixo já avisavam. O defeito era o CONTEÚDO: conselho que não
+// resolve, razão errada, e alarme sobre dado correto. Aviso que mente custa
+// mais caro que aviso ausente — ensina o dono a ignorar a lista inteira, e é
+// justamente essa lista que decide se a carga em massa é confirmada.
+
+// Cor cadastrada, COM rolo, mas o rolo está com preço 0. É o caso que o
+// CSV-27 confundia com "não tem rolo".
+const corRoloZerado = {
+  id: "cor_zerada", colorName: "Verde", material: "PLA", brand: "Bambu",
+  minG: 0, archived: false,
+  rolls: [{ id: "r1", pricePerKg: 0, initialG: 1000, createdAt: 1, note: "" }],
+  adjustments: [],
+} as unknown as StockFilament;
+
+// Cor cadastrada e sem rolo nenhum — o caso original do aviso.
+const corSemRolo = {
+  id: "cor_vazia", colorName: "Azul", material: "PLA", brand: "Bambu",
+  minG: 0, archived: false, rolls: [], adjustments: [],
+} as unknown as StockFilament;
+
+const opcoesCores = { ...opcoes, stock: [cor, corRoloZerado, corSemRolo] };
+
+function linhaComCor(filamentId: string, colorName: string) {
+  return csv({
+    ...LINHA_BOA,
+    "Filamentos JSON": JSON.stringify([
+      { filamentId, colorName, pricePerKg: 0, totalG: 50 },
+    ]),
+  });
+}
+
+describe("CSV-27 — o cor-sem-preco para de dizer 'não tem rolo' para cor que tem", () => {
+  it("cor COM rolo a preço 0: aponta o rolo, não manda cadastrar outro", () => {
+    const r = parseProductsCsv(
+      linhaComCor("cor_zerada", "Verde"),
+      machines,
+      opcoesCores,
+    );
+    const issue = achar(r.issues, "cor-sem-preco");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain("TEM rolo");
+    expect(issue?.exemplos[0]).toContain("preço 0");
+    // O conselho antigo — cadastrar um rolo que já está lá — não pode voltar.
+    expect(issue?.exemplos[0]).not.toContain("não tem rolo");
+  });
+
+  it("cor SEM rolo nenhum: a frase original continua, que ali ela está certa", () => {
+    const r = parseProductsCsv(
+      linhaComCor("cor_vazia", "Azul"),
+      machines,
+      opcoesCores,
+    );
+    const issue = achar(r.issues, "cor-sem-preco");
+    expect(issue?.exemplos[0]).toContain("não tem rolo");
+    expect(issue?.exemplos[0]).not.toContain("TEM rolo");
+  });
+
+  it("cor com rolo COM preço: nada a apontar", () => {
+    const r = parseProductsCsv(
+      linhaComCor("cor_laranja", "Laranja"),
+      machines,
+      opcoesCores,
+    );
+    expect(achar(r.issues, "cor-sem-preco")).toBeUndefined();
+  });
+});
+
+describe("CSV-28 — coluna repetida não é 'nome não reconhecido'", () => {
+  // O helper `csv()` é um objeto, então não consegue repetir chave: aqui o
+  // arquivo vai escrito à mão, que é como a planilha de verdade chega.
+  const repetida =
+    "Produto;Maquina;Tempo (h);Markup;Peso (g);Peso (g)\n" +
+    "Caneca;A1 Combo;2;3x;100;250";
+
+  it("avisa como REPETIDA, dizendo qual das duas venceu", () => {
+    const r = parseProductsCsv(repetida, machines, opcoes);
+    const repetidaMsg = r.warnings.find((w) => w.includes("repetida"));
+    expect(repetidaMsg).toContain('"Peso (g)"');
+    expect(repetidaMsg).toContain("PRIMEIRA");
+    // E some do aviso de nome não reconhecido, que mandava RENOMEAR.
+    expect(r.warnings.some((w) => w.includes("não foi reconhecido"))).toBe(false);
+  });
+
+  it("o comportamento de leitura não muda: a primeira vence", () => {
+    const r = parseProductsCsv(repetida, machines, opcoes);
+    expect(r.products[0].weightG).toBe(100);
+  });
+
+  it("coluna de nome realmente desconhecido continua no aviso de sempre", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Etapas: "[]" }),
+      machines,
+      opcoes,
+    );
+    expect(r.warnings.some((w) => w.includes("não foi reconhecido"))).toBe(true);
+    expect(r.warnings.some((w) => w.includes("repetida"))).toBe(false);
+  });
+});
+
+describe("CSV-31 — peça fracionária é reprovada, não arredondada", () => {
+  it('Pecas = "1.234" acende o milhar E reprova a linha', () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Pecas: "1.234" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "milhar-ambiguo")?.linhas).toBe(1);
+    const invalida = achar(r.issues, "linha-invalida");
+    expect(invalida?.exemplos[0]).toContain("inteiro");
+  });
+
+  it("Pecas inteira continua passando sem apontamento", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Pecas: "4" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].piecesCount).toBe(4);
+    expect(achar(r.issues, "linha-invalida")).toBeUndefined();
+  });
+});

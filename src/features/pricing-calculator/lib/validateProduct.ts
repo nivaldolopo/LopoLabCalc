@@ -52,6 +52,18 @@ export function validateProduct(product: ProductInput): string | null {
 
   if (product.markup < 1) return "⚠️ O markup deve ser no mínimo 1x.";
 
+  // CSV-31: peça é CONTAGEM — não existe "1,234 peça". A planilha que escreve
+  // `Pecas = "1.234"` já acende o `milhar-ambiguo` (o app não adivinha se era
+  // mil duzentos e trinta e quatro ou um vírgula duzentos e trinta e quatro),
+  // mas o valor absurdo entrava assim mesmo e o preço caía de 29,71 para 24,08
+  // — o custo fixo dividido por 1,234 em vez de por 1234.
+  // ⚠ Reprovar em vez de arredondar é a escolha do dono, e é a certa: se a
+  // planilha queria dizer 1234, arredondar para 1 troca um número absurdo (que
+  // salta aos olhos) por um plausível (que ninguém acha depois).
+  if (!Number.isInteger(num(product.piecesCount))) {
+    return '⚠️ "Peças por impressão" precisa ser um número inteiro.';
+  }
+
   // Etapas extras: nenhum campo pode ser negativo (tempo/mão de obra e o
   // peso/preço de cada cor). Tarifa e valor-hora não entram: são do produto e
   // já foram checados acima.

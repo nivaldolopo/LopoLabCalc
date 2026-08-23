@@ -15,10 +15,11 @@
 > 5 🟢 (`[CSV-31]` `[TD-021]` `[TD-024]` `[TD-025]` `[CSV-30]`).
 >
 > ✅ **Fecharam em 2026-08-23:** os 5 🔴 (lotes A e B, com os três que entravam calados na carga), o
-> `[TD-022]` inteiro (reproduzido com escrita real) e as duas guardas baratas `[TD-024]`/`[TD-025]`.
-> O `[CSV-30]` virou **ressalva** por decisão do dono. Restam **8 abertos**: `[UX-46]` · `[UX-45]`
-> `[TD-023]` `[CSV-27]` `[CSV-28]` `[CSV-29]` · `[CSV-31]` `[TD-021]`. A ordem aprovada pelo dono
-> está na tabela do fim desta seção.
+> `[TD-022]` inteiro (reproduzido com escrita real), as duas guardas baratas `[TD-024]`/`[TD-025]`
+> e o **lote C inteiro** (`[CSV-27]` `[CSV-28]` `[CSV-29]` `[CSV-31]`).
+> `[CSV-30]` e `[TD-021]` viraram **ressalva** por decisão do dono. Restam **3 abertos**:
+> `[TD-023]` (lote D) · `[UX-45]` + `[UX-46]` (lote E). A ordem aprovada pelo dono está na tabela
+> do fim desta seção.
 >
 > **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15, as ondas 0–5 e o `[micro]` do
 > botão de 14px (2026-08-17) ✅ FECHADOS.** O
@@ -814,10 +815,10 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
 |---|---|---|---|
 | **A — o parser volta a avisar** | [CSV-23] · [CSV-24] · [CSV-25] · [CSV-26] | tudo em `productCsv.ts`; a disciplina do CSV-10 (*o palpite que não se anuncia*) | ✅ **FEITO (2026-08-23)** |
 | **B — celular** | [UX-44] | CSS; `minmax(0, 1fr)` + fileira virando cartão | ✅ **FEITO (2026-08-23)** |
-| **C — qualidade do aviso** | [CSV-27] · [CSV-28] · [CSV-29] · [CSV-31] | falso positivo e conselho errado — o que ensina a ignorar aviso | aberto |
+| **C — qualidade do aviso** | [CSV-27] · [CSV-28] · [CSV-29] · [CSV-31] | falso positivo e conselho errado — o que ensina a ignorar aviso | ✅ **FEITO (2026-08-23)** |
 | **D — dívida barata** | [TD-023] · ~~[TD-024]~~ · ~~[TD-025]~~ | comentário que afirma garantia inexistente + 2 guardas | 🔸 **as 2 guardas FEITAS (2026-08-23)**; sobra o [TD-023] |
 | **E — toque e responsivo** | [UX-45] · [UX-46] | faixa 641–760px + os alvos abaixo de 44px; o maior dos cinco | aberto |
-| **fora de lote** | ~~[TD-022]~~ · [TD-021] · ~~[CSV-30]~~ | TD-022 reproduzido e corrigido; CSV-30 virou ressalva (dono) | ✅ **TD-022 FEITO**; sobra o [TD-021] |
+| **fora de lote** | ~~[TD-022]~~ · ~~[TD-021]~~ · ~~[CSV-30]~~ | TD-022 reproduzido e corrigido; CSV-30 e TD-021 viraram ressalva (dono) | ✅ **nada aberto aqui** |
 
 ### 🟠 Alto (não bloqueia a carga, mas morde)
 
@@ -871,32 +872,43 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   `removeEventLayers` limpa as duas camadas. → **ou o comentário muda, ou o código o honra** (dedup
   por `layer.id`). Um comentário que afirma garantia inexistente é armadilha para quem confiar.
 
-- **[CSV-27] O `cor-sem-preco` diz "não tem rolo" para cor que TEM rolo.**
-  O sufixo é anexado sempre que a cor existe, sem olhar se há rolo. **Medido:** cor com 1 rolo de
-  `pricePerKg: 0` → o aviso manda cadastrar um rolo que já está cadastrado. O conselho certo é
-  *"o rolo está com preço 0"*.
+- ✅ **[CSV-27] FEITO (Lote C, 2026-08-23).** O sufixo passa a olhar `rolls.length`: sem rolo mantém
+  a frase original (ali ela está certa); **com** rolo diz *"TEM rolo, mas o rolo mais novo está com
+  preço 0 — corrija no Estoque"*, que é o que o `catalogPricePerKg` de fato lê. O corpo do aviso
+  deixou de mandar "cadastre um rolo" e passou a pedir *"um rolo COM preço"*. 3 testes. Descrição
+  original: o sufixo era anexado sempre que a cor existia, sem olhar se havia rolo — cor com 1 rolo
+  de `pricePerKg: 0` recebia ordem de cadastrar um rolo que já estava cadastrado.
 
-- **[CSV-28] Coluna duplicada é reportada como "nome não reconhecido".**
-  **Medido:** `Produto;Peso (g);Peso (g)` → *"Coluna(s) ignorada(s) — o nome não foi reconhecido:
-  "Peso (g)"."* O nome **foi** reconhecido; ela é a segunda (a 1ª vence, peso 100, e a 2ª é
-  descartada). Avisa, mas pela razão errada — e a razão errada manda o dono renomear a coluna.
+- ✅ **[CSV-28] FEITO (Lote C, 2026-08-23).** O `resolveColumns` passou a devolver `duplicadas` (os
+  índices cujo texto normalizado casa com o de uma coluna JÁ reclamada). Elas saem do aviso de "nome
+  não reconhecido" e ganham o seu, com o conselho **oposto**: lá a saída é renomear, aqui é apagar a
+  sobra — e a mensagem diz qual das duas venceu (*"vale a PRIMEIRA da esquerda para a direita"*).
+  A leitura não mudou. 3 testes. Descrição original: `Produto;Peso (g);Peso (g)` reportava *"o nome
+  não foi reconhecido"* — o nome **foi** reconhecido, e a razão errada mandava renomear.
 
-- **[CSV-29] `isMilharAmbiguo` acende sobre notação científica — falso positivo.**
-  **Medido:** `"1.5E+03"` é lido **corretamente como 1500**, mas a limpeza por regex do
-  `isMilharAmbiguo` transforma o texto em `"1.503"` e casa o padrão. O aviso sairia como *"lido como
-  DECIMAL (1.234 = 1,234) → 1500"*, contraditório consigo mesmo. Raro — mas falso positivo é defeito
-  (padrão 7): ensina a ignorar aviso. **Saída:** rodar a checagem de científica **antes**, e sair sem
-  apontar quando ela casar.
+- ✅ **[CSV-29] FEITO (Lote C, 2026-08-23).** A regex de científica virou o helper `matchCientifica`,
+  usado pelos **dois** lados do `number.ts`: o `parseDecimalPtBr` a lê antes da limpeza (como já
+  fazia) e o `isMilharAmbiguo` sai **mudo** quando ela casa. O milhar ambíguo de verdade (`"1.234"`,
+  `"R$ 1.234"`, `"(1.234)"`) continua acendendo, e `"2 e 5"` segue sem virar 200000 — o espaço
+  preservado na limpeza é o que o impede. 4 testes. Descrição original: `"1.5E+03"` era lido
+  **corretamente como 1500**, mas a limpeza transformava o texto em `"1.503"` e casava o padrão,
+  produzindo um aviso que se contradizia.
 
 ### 🟢 Baixo / informativo
 
-- **[CSV-31] `Pecas` fracionária entra depois do aviso.** *(era a ressalva "`Pecas`/`Taxa Falha` no
-  milhar")*. `Pecas` entrou na lista de milhar da AUD-11 ✅, e `Taxa Falha` segue fora — corretamente:
-  o clamp em 95 torna a leitura de milhar impossível. Mas `Pecas = "1.234"` grava **1,234 peça** e o
-  preço cai de 29,71 para 24,08: o aviso acende, o valor absurdo entra. Um `Math.round` (ou uma
-  reprovação no `validateProduct`) fecha.
+- ✅ **[CSV-31] FEITO (Lote C, 2026-08-23) — REPROVA, não arredonda (escolha do dono).**
+  `validateProduct` passou a exigir `Number.isInteger(piecesCount)`, então a linha cai no
+  `linha-invalida` que a importação já mostra, junto do `milhar-ambiguo` que já acendia. **O motivo
+  de não arredondar:** se a planilha queria dizer 1234, virar 1 troca um número absurdo (que salta
+  aos olhos) por um plausível (que ninguém acha depois). 0 e ausente continuam passando — o default
+  é do chamador (`Math.max(1, …)` no CSV). 5 testes. Descrição original: `Pecas = "1.234"` gravava
+  **1,234 peça** e o preço caía de 29,71 para 24,08 — o aviso acendia e o valor absurdo entrava.
 
-- **[TD-021] `parseDecimalPtBr` cola pedaços e devolve número plausível** *(padrão 12 do roteiro)*.
+- 📌 **[TD-021] RESSALVA, não item (dono, 2026-08-23).** A planilha da carga é **gerada por máquina**
+  pelo sistema externo do dono — as entradas abaixo são de escrita à mão, que não é o caminho real.
+  Fica registrado para não voltar como achado novo; se a planilha um dia passar a ser editada à mão,
+  reabrir. Descrição original: **`parseDecimalPtBr` cola pedaços e devolve número plausível**
+  *(padrão 12 do roteiro)*.
   **Medido, 83 entradas:** `"1/2"` → **12** · `"1a2"` → 12 · `"1,2,3"` → 123 · `"2 e 5"` → 25 ·
   `"1E"` → 1 · `"e5"` → 5 · `"(5) (6)"` → −56. Nenhum devolve `null`, então nenhum vira aviso. Em
   compensação `"1-2"`, `"--5"`, `"N/A"` e `"n.d."` viram `null` corretamente, e `"1E+400"` também

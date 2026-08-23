@@ -1,3 +1,13 @@
+// Notação científica, extraída para servir aos DOIS lados: o `parseDecimalPtBr`
+// a lê antes da limpeza (senão "1E+03" viraria 103), e o `isMilharAmbiguo` a
+// usa para NÃO acender sobre ela (CSV-29). A limpeza preserva o espaço de
+// propósito — sem isso "2 e 5" (texto, não número) casaria como 2e5 = 200000.
+function matchCientifica(raw: string): RegExpMatchArray | null {
+  return raw
+    .replace(/[^\d.,+\-eE\s]/g, "")
+    .match(/^\s*([+-]?\d+(?:[.,]\d+)?)[eE]([+-]?\d+)\s*$/);
+}
+
 // Leitura de número escrito por gente — o INVERSO do `formatDecimal` daqui do
 // lado (`currency.ts`). O app tinha o caminho de saída (número → "1.234,56") e
 // nenhum de entrada: cada porta que recebia texto improvisou o seu, e as quatro
@@ -44,9 +54,7 @@ export function parseDecimalPtBr(value: unknown): number | null {
   // volta é tolerado, como no resto da função.
   // ⚠ O espaço é PRESERVADO na limpeza e depois proibido no meio: sem isso
   // "2 e 5" (texto, não número) vira "2e5" e sai como 200000.
-  const cientifica = raw
-    .replace(/[^\d.,+\-eE\s]/g, "")
-    .match(/^\s*([+-]?\d+(?:[.,]\d+)?)[eE]([+-]?\d+)\s*$/);
+  const cientifica = matchCientifica(raw);
   if (cientifica) {
     const parsed = Number(`${cientifica[1].replace(",", ".")}e${cientifica[2]}`);
     return Number.isFinite(parsed) ? parsed : null;
@@ -97,8 +105,15 @@ export function parseDecimalPtBr(value: unknown): number | null {
 // ⚠ CSV-07: isto se testa no texto LIMPO, nunca no cru. No cru o teste errava
 // dos dois lados — "R$ 1.234" não acendia (o prefixo quebra a âncora `^`) e o
 // `2.375` que o próprio export escreve acendia à toa no round-trip.
+// ⚠ CSV-29: científica sai ANTES, sem apontar. O `parseDecimalPtBr` lê
+// "1.5E+03" CORRETAMENTE como 1500 (a checagem dele roda antes da limpeza) —
+// mas a limpeza daqui apaga o "E+" e cola o resto em "1.503", que casa o
+// padrão. O aviso sairia dizendo que 1500 foi "lido como decimal 1,234":
+// contraditório consigo mesmo. Falso positivo é defeito — ensina a ignorar
+// aviso, e este arquivo inteiro existe para o aviso ser levado a sério.
 export function isMilharAmbiguo(value: unknown): boolean {
   if (typeof value !== "string") return false;
+  if (matchCientifica(value)) return false;
   const limpo = value.replace(/[^\d.,-]/g, "");
   return /^-?\d{1,3}\.\d{3}$/.test(limpo);
 }

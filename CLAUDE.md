@@ -14,28 +14,25 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-23): os 5 🔴 da AUD-12 (lotes A+B) e o `[TD-022]` inteiro.**
-  **Lote A** (`productCsv.ts`, tudo "o silêncio é que era o defeito"): booleano em vocabulário de
-  planilha `[CSV-23]` · palpite de máquina por substring agora avisa, e vence o **id mais longo**
-  `[CSV-24]` · `linha-sem-nome` `[CSV-25]` · markup honesto `[CSV-26]`. **Lote B** `[UX-44]`: o
-  override de grade foi **apagado**, não reescrito, e a fileira vira cartão em 640px — **achado
-  novo**: cortava `13999` também de **641 a 760px**, faixa que a varredura não olhou.
-  **`[TD-022]` reproduzido em produção e corrigido nas 2 metades** — contador `rev` conferido dentro
-  de `runTransaction`, que **recusa** em vez de mesclar: (a) produtos (a aba que salvava por último
-  apagava a outra) · (b) estoque/insumos/acabados — `vendas` e `producao` deixaram de ser
-  `writeBatch` (atômico, mas **não isolado**), e o `/estoque` incrementa junto, senão o guarda não
-  guardaria nada. Mais as **guardas baratas** `[TD-024]` (lista de máquinas vazia lançava
-  `TypeError`) e `[TD-025]` (quantidade 0 vendia 1); `[CSV-30]` virou **ressalva** (dono).
-  `lint` ✅ · `build` ✅ · **653/653** ✅ (+50). Detalhe: `HISTORICO.md`.
-  ⚠ **Resíduo declarado:** a Laranja ficou com **2 ajustes** no rastro D6 (403→400→403, anotados
-  como sonda; append-only, não se apaga). Saldo e catálogo restaurados exatos.
+- **Última mudança (2026-08-23): o lote C da AUD-12 — a QUALIDADE do aviso.** Os quatro já
+  avisavam; o defeito era o **conteúdo**. `[CSV-27]` o `cor-sem-preco` dizia *"não tem rolo"* para
+  cor que TEM rolo (com preço 0) — agora olha `rolls.length` e aponta o rolo · `[CSV-28]` coluna
+  repetida saía como *"nome não reconhecido"*, cujo conselho é **renomear** uma coluna certa; ganhou
+  aviso próprio dizendo qual venceu · `[CSV-29]` `isMilharAmbiguo` acendia sobre notação científica
+  lida CORRETAMENTE (a regex virou o helper `matchCientifica`, usado pelos dois lados do `number.ts`)
+  · `[CSV-31]` peça fracionária agora é **reprovada** no `validateProduct`, não arredondada (dono):
+  arredondar 1.234 → 1 troca um absurdo visível por um plausível invisível.
+  `lint` ✅ · **667/667** ✅ (+14). Antes disso, no mesmo dia: os 5 🔴 (lotes A+B), o `[TD-022]`
+  inteiro e as guardas `[TD-024]`/`[TD-025]`. Detalhe: `HISTORICO.md`.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — 2 frentes em paralelo:** (a) **minha:** os 8 itens abertos da AUD-12 — lote
-  C (qualidade do aviso), o `[TD-023]` que sobrou do D, e o E (toque e responsivo); (b) **do DONO: cadastrar as cores e os insumos definitivos**, pegar
+- **▶ PRÓXIMA TAREFA — 2 frentes em paralelo:** (a) **minha:** os **3** que restam da AUD-12 —
+  `[TD-023]` (lote D) e o lote E (`[UX-45]` + `[UX-46]`, este com **escopo enxuto**: só os controles
+  que o dedo busca). `[TD-021]` e `[CSV-30]` viraram **ressalva** por decisão do dono;
+  (b) **do DONO: cadastrar as cores e os insumos definitivos**, pegar
   os ids e passá-los pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-
   modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. Só
   então a **CARGA EM MASSA** — que **não cria** cor nem insumo, e não tem "limpar catálogo".

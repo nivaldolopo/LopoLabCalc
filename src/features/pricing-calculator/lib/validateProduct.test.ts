@@ -32,6 +32,26 @@ describe("validateProduct", () => {
     expect(validateProduct(makeProduct({ weightG: 0, printHours: 3 }))).toBeNull();
   });
 
+  // CSV-31 — peça é CONTAGEM. A planilha da carga é escrita fora do app, e
+  // "1.234" na coluna `Pecas` já acendia o milhar ambíguo; o que faltava era
+  // recusar o valor. Arredondar trocaria um número absurdo por um plausível.
+  it("peças fracionárias são recusadas", () => {
+    expect(validateProduct(makeProduct({ piecesCount: 1.234 }))).toContain(
+      "inteiro",
+    );
+    expect(validateProduct(makeProduct({ piecesCount: 2.5 }))).toContain(
+      "inteiro",
+    );
+  });
+
+  it("peças inteiras passam — inclusive 0 e o default", () => {
+    expect(validateProduct(makeProduct({ piecesCount: 1 }))).toBeNull();
+    expect(validateProduct(makeProduct({ piecesCount: 12 }))).toBeNull();
+    // 0 e ausente caem no `num()` e não inventam erro: quem trata o default
+    // é o chamador (o CSV escreve `Math.max(1, …)`).
+    expect(validateProduct(makeProduct({ piecesCount: 0 }))).toBeNull();
+  });
+
   it("markup deve ser no mínimo 1x", () => {
     expect(validateProduct(makeProduct({ markup: 0.9 }))).toContain("markup");
     expect(validateProduct(makeProduct({ markup: 1 }))).toBeNull();

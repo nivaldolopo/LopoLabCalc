@@ -142,3 +142,31 @@ describe("AUD-11/D-4 — negativo contábil entre parênteses", () => {
     expect(parseDecimalPtBr("(200)")).toBe(-200);
   });
 });
+
+// CSV-29 — o alarme sobre dado CORRETO. A científica é lida certa pelo
+// `parseDecimalPtBr` (a checagem dele roda antes da limpeza), mas a limpeza do
+// `isMilharAmbiguo` apagava o "E+" e colava "1.503", que casa o padrão de
+// milhar. O aviso sairia dizendo que 1500 virou 1,234 — contraditório.
+describe("CSV-29 — isMilharAmbiguo não acende sobre notação científica", () => {
+  it("científica é lida certa e NÃO vira aviso", () => {
+    expect(parseDecimalPtBr("1.5E+03")).toBe(1500);
+    expect(isMilharAmbiguo("1.5E+03")).toBe(false);
+  });
+
+  it("as outras formas de científica também ficam mudas", () => {
+    for (const entrada of ["1e3", "1E+03", "1,5E+03", "2.5e-03"]) {
+      expect(isMilharAmbiguo(entrada)).toBe(false);
+    }
+  });
+
+  it("o milhar ambíguo de verdade continua acendendo", () => {
+    expect(isMilharAmbiguo("1.234")).toBe(true);
+    expect(isMilharAmbiguo("R$ 1.234")).toBe(true);
+    expect(isMilharAmbiguo("(1.234)")).toBe(true);
+  });
+
+  it('"2 e 5" não é científica nem milhar — e segue sem virar 200000', () => {
+    expect(isMilharAmbiguo("2 e 5")).toBe(false);
+    expect(parseDecimalPtBr("2 e 5")).not.toBe(200000);
+  });
+});
