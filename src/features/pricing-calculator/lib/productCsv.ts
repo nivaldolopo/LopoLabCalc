@@ -185,7 +185,11 @@ function parseNumber(value: string | undefined): number {
 // Duas diferenças para o `parseNumber`: lê o pt-BR (a primitiva) e, quando não
 // consegue ler, CHAMA o `report` em vez de devolver 0 calado. O campo ausente
 // (`undefined`) não é erro — é ausência, e cai no zero de sempre.
-type NumReporter = (campo: string, bruto: string) => void;
+// O `kind` existe por causa do CSV-12: o mesmo reporter agora carrega duas
+// notícias diferentes sobre o mesmo campo — "não consegui ler" e "li, mas o
+// ponto pode ser milhar". Quem recebe é que decide a classe de aviso.
+type NumIssueKind = "ilegivel" | "milhar";
+type NumReporter = (campo: string, bruto: string, kind?: NumIssueKind) => void;
 
 function numFromJson(
   value: unknown,
@@ -198,6 +202,13 @@ function numFromJson(
     report?.(campo, String(value));
     return 0;
   }
+  // CSV-12: a checagem de milhar cobria 4 colunas escalares — e é DENTRO do
+  // JSON que moram os pesos de verdade do modelo. `"totalG":"1.234"` entrava
+  // como 1,234 g (1000× mais leve) sem um aviso, e nem o `cor-sem-peso` pegava,
+  // porque 1,234 > 0. Aqui não há a ambiguidade que obrigou o CSV-07 a excluir
+  // colunas: no JSON o decimal é escrito com PONTO por quem exporta, mas um
+  // número com 3 casas exatas continua sendo o formato de milhar do Excel.
+  if (isMilharAmbiguo(value)) report?.(campo, String(value), "milhar");
   return parsed;
 }
 
@@ -711,6 +722,33 @@ function moneyCell(value: string | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+// CSV-14 — qual caractere separa as células. Era
+// `header.includes(";") ? ";" : ","`, que só enxergava dois candidatos e nunca
+// errava para MENOS: qualquer arquivo sem `;` virava CSV de vírgula, e um
+// arquivo de TAB caía aí — a linha inteira virava o NOME do produto e todo o
+// resto ficava no default, com `warnings: []`.
+//
+// Contar caractere seria frágil (vírgula dentro de célula citada conta igual),
+// então quem decide é o próprio `parseLine`: o separador de verdade é o que
+// PARTE o cabeçalho em mais células. Empate fica com `;`, que é o que o export
+// escreve — daí a ordem dos candidatos.
+function detectSeparator(header: string): {
+  separator: string;
+  runnerUp: string | null;
+} {
+  const scored = [";", "\t", ","].map((separator) => ({
+    separator,
+    cells: parseLine(header, separator).length,
+  }));
+  const best = scored.reduce((a, b) => (b.cells > a.cells ? b : a));
+  // Dois candidatos partindo o mesmo cabeçalho é motivo de aviso, não de
+  // adivinhação: o dono precisa saber qual eu usei.
+  const rival = scored.find(
+    (c) => c.separator !== best.separator && c.cells > 1,
+  );
+  return { separator: best.separator, runnerUp: rival?.separator ?? null };
+}
+
 export function parseProductsCsv(
   content: string,
   machines: Machine[],
@@ -720,7 +758,7 @@ export function parseProductsCsv(
 
   if (rawLines.length < 2) return { products: [], warnings: [] };
 
-  const separator = rawLines[0].includes(";") ? ";" : ",";
+  const { separator, runnerUp } = detectSeparator(rawLines[0]);
   const headers = parseLine(rawLines[0], separator);
 
   const { index: col, claimed } = resolveColumns(headers);
@@ -754,6 +792,18 @@ export function parseProductsCsv(
   }
 
   const warnings: string[] = [];
+
+  // CSV-14: dois candidatos partem o cabeçalho — digo qual usei em vez de
+  // escolher calado. O nome legível existe porque "usei o separador ' '" não
+  // ajudaria ninguém.
+  const nomeSep = (sep: string) => (sep === "\t" ? "TAB" : `"${sep}"`);
+  if (runnerUp) {
+    warnings.push(
+      `O cabeçalho pode ser lido com ${nomeSep(separator)} ou com ` +
+        `${nomeSep(runnerUp)} — usei ${nomeSep(separator)}. Se as colunas ` +
+        `saírem trocadas, salve a planilha como "CSV UTF-8" separado por ";".`,
+    );
+  }
 
   // Arquivo salvo em ANSI/Windows-1252 e lido como UTF-8: cada acento vira
   // U+FFFD e o nome entra corrompido ("Coração" → "Cora??o"), sem nada quebrar.
@@ -807,6 +857,10 @@ export function parseProductsCsv(
     ? new Set(options.supplies.map((supply) => supply.id))
     : null;
 
+  // CSV-15: um só instante de referência para o arquivo inteiro (ver o
+  // `createdAt` lá embaixo).
+  const importadoEm = Date.now();
+
   const products = rawLines.slice(1).flatMap((line, offset) => {
     const columns = parseLine(line, separator);
     const name = columns[indexName]?.trim();
@@ -816,6 +870,31 @@ export function parseProductsCsv(
     // `reportNumero` o lê ao parsear os JSONs — que acontece ANTES (const em
     // zona morta temporal explodiria em ReferenceError).
     const ondeEstou = `Linha ${offset + 2} ("${name}")`;
+
+    // CSV-14, a outra metade: com o separador `,` e decimais pt-BR SEM aspas
+    // (`Caneca,2,5,50`), a detecção acerta o separador e ainda assim a linha
+    // sai desalinhada — cada vírgula decimal vira uma célula a mais, e o que
+    // sobra é descartado em silêncio. Célula A MAIS que o cabeçalho não tem
+    // outra explicação plausível, então dá para apontar. A MENOS tem (planilha
+    // enxuta, coluna final vazia) e segue calada.
+    // Célula vazia sobrando no fim é só um separador a mais no fim da linha —
+    // não é desalinhamento, e não vale aviso.
+    const uteis = [...columns];
+    while (
+      uteis.length > headers.length &&
+      !String(uteis[uteis.length - 1] ?? "").trim()
+    ) {
+      uteis.pop();
+    }
+    if (uteis.length > headers.length) {
+      addIssue(
+        "celulas-demais",
+        `A linha tem mais células do que o cabeçalho — o excedente foi ` +
+          `descartado. Com separador ${nomeSep(separator)}, um decimal escrito ` +
+          `com vírgula precisa ir entre aspas ("1,5")`,
+        `${ondeEstou}: ${uteis.length} células para ${headers.length} colunas`,
+      );
+    }
 
     const markupRaw = columns[indexMarkup]?.replace("x", "").trim() ?? "3";
     const machineName = columns[indexMachine];
@@ -827,7 +906,20 @@ export function parseProductsCsv(
     });
     // CSV-06: todo número dentro dos 4 JSONs passa a ser lido em pt-BR, e o que
     // não der para ler vira aviso NOMEANDO o campo — em vez de virar 0 calado.
-    const reportNumero: NumReporter = (campo, bruto) => {
+    const reportNumero: NumReporter = (campo, bruto, kind = "ilegivel") => {
+      if (kind === "milhar") {
+        // Classe própria, e não a `milhar-ambiguo` das colunas: o conselho é
+        // outro. Na coluna a saída é escrever com vírgula decimal; dentro do
+        // JSON, onde o decimal já é o ponto, a saída é tirar o ponto.
+        addIssue(
+          "milhar-ambiguo-json",
+          "Número com ponto e 3 casas DENTRO de uma célula JSON foi lido como " +
+            'DECIMAL ("1.234" = 1,234) — se era mil duzentos e trinta e quatro, ' +
+            "escreva 1234, sem o ponto",
+          `${ondeEstou}: ${campo} = "${bruto}" → ${parseDecimalPtBr(bruto)}`,
+        );
+        return;
+      }
       addIssue(
         "numero-nao-reconhecido",
         'Número não reconhecido dentro de uma célula JSON — virou 0. Dentro do JSON o decimal ' +
@@ -978,7 +1070,12 @@ export function parseProductsCsv(
                 reportColuna,
               ),
             }),
-        createdAt: Date.now(),
+        // CSV-15: era `Date.now()` por linha, e o parse de 100 produtos leva
+        // ~5 ms — medido, a carga inteira nascia com 3 valores distintos, e
+        // "Mais recentes"/"Mais antigos" saía arbitrária para o lote todo. O
+        // offset da linha dá um instante distinto por produto E preserva a
+        // ordem da planilha (linha de baixo = mais recente).
+        createdAt: importadoEm + offset,
         fixedCostPerHour: null,
         combineEnabled: null,
         stage2: null,
@@ -1075,15 +1172,21 @@ export function parseProductsCsv(
         (stage, i) =>
           [stage.filaments ?? [], `Etapas JSON — etapa ${i + 2}`] as const,
       ),
+    // ⚠ CSV-13: COR A COR, não sobre a soma da lista. `filamentsTotalG(lista)
+    // === 0` só acende quando TODAS zeram — em produto multicolor, que é a
+    // feature-bandeira do app, uma cor zerada por engano some dentro do peso
+    // das outras. Medido: 2 cores, uma com `totalG: 0`, nenhum aviso.
     ]).forEach(([lista, onde]) => {
-      if (lista.length > 0 && filamentsTotalG(lista.map((f) => makeFilament(f))) === 0) {
+      lista.map((f) => makeFilament(f)).forEach((cor, i) => {
+        if (filamentsTotalG([cor]) !== 0) return;
+        const quem = cor.colorName.trim() || `cor ${i + 1}`;
         addIssue(
           "cor-sem-peso",
           "Cor declarada com 0 g — o material fica ZERADO e o preço sai muito abaixo " +
             '(dentro do JSON o número vai com PONTO decimal e a chave do peso é "totalG")',
-          `${ondeEstou}: ${onde}`,
+          `${ondeEstou}: ${onde} — ${quem}`,
         );
-      }
+      });
     });
 
     // 4) O vínculo com o Estoque. Cor SEM `filamentId` é avulsa: legítima, mas

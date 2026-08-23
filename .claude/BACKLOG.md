@@ -11,10 +11,12 @@
 > registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e os
 > writeups das ondas 1 a 5. **Este arquivo só tem o que está ABERTO.**
 >
-> ⚠ **Estado em 2026-08-23: o backlog de código NÃO está mais zerado** — a varredura **AUD-09**
-> (importação/exportação de CSV, pedida antes da carga em massa) abriu **12 itens**, `CSV-09` a
-> `CSV-20`, dos quais **3 bloqueiam a carga**. Tabela no fim deste arquivo. O parágrafo abaixo
-> descreve o estado de 2026-08-22, que valia até então.
+> ⚠ **Estado em 2026-08-23, DEPOIS dos lotes A e B:** a varredura **AUD-09** abriu 12 itens
+> (`CSV-09`…`CSV-20`); **os 3 bloqueantes e os 4 que mordiam na carga estão fechados**. O que resta
+> do cluster **não é código**: o lote **C** (tabela de-para cor → id + planilha-modelo, que cobre
+> [CSV-16] e [CSV-17]) espera o dono **cadastrar as cores e os insumos definitivos**; [CSV-18],
+> [CSV-19] e [CSV-20] são resíduo legado que o round-trip limpa; e o [CSV-21] (achado no lote A) é
+> exagero conservador num contador. O parágrafo abaixo descreve o estado de 2026-08-22.
 >
 > ⚠ **Estado em 2026-08-22: o backlog de código está ZERADO de novo.** A fila de ondas acabou em
 > 2026-08-17; a auditoria de layout responsivo fechou em 2026-08-18; e o cluster da varredura
@@ -24,8 +26,9 @@
 > → **A próxima coisa é a CARGA EM MASSA**, que é trabalho e decisão do dono (planilha gerada por
 > ele; as cores definitivas precisam estar cadastradas ANTES). Depois dela, a decisão é destravar o
 > rebrand (a logo) ou abrir frente nova.
-> **Atualização 2026-08-23:** antes da carga há agora os **3 bloqueantes da AUD-09**
-> ([CSV-09], [CSV-10], [CSV-11]) — todos silenciosos, todos na planilha escrita à mão.
+> **Atualização 2026-08-23:** os 3 bloqueantes da AUD-09 ([CSV-09], [CSV-10], [CSV-11]) e os 4 do
+> lote B foram fechados no mesmo dia. **O que falta antes da carga é do dono:** cadastrar as cores
+> e os insumos definitivos — só então eu gero a de-para e a planilha-modelo (lote C).
 
 ## Ordem de prioridade — ondas (dono, 2026-08-16)
 
@@ -518,17 +521,17 @@ como saber que "Tempo (min)" é minuto, e o arredondamento já avisa) — entram
 
 ### 🟠 Alto (não bloqueia, mas morde na carga)
 
-- **[CSV-12] `milhar-ambiguo` não roda DENTRO das células JSON.** A checagem cobre 4 colunas
+- ✅ **[CSV-12] FEITO (Lote B).** O `numFromJson` passou a testar `isMilharAmbiguo` também quando CONSEGUE ler, e o reporter ganhou um `kind` para carregar as duas notícias sobre o mesmo campo. Classe própria (`milhar-ambiguo-json`), porque o conselho é outro: na coluna a saída é escrever com vírgula decimal; dentro do JSON, onde o decimal já é o ponto, a saída é tirar o ponto. Descrição original: **`milhar-ambiguo` não roda DENTRO das células JSON.** A checagem cobre 4 colunas
   escalares; o JSON é onde moram os pesos de verdade do modelo. **Medido:** `"totalG":"1.234"` →
   **1,234 g**, sem aviso, e o `cor-sem-peso` **não** dispara (1,234 > 0). Um produto de 1234 g
   entra 1000× mais leve, invisível.
 
-- **[CSV-13] `cor-sem-peso` só olha a SOMA da lista, não cada cor.** **Mecanismo:**
+- ✅ **[CSV-13] FEITO (Lote B).** A checagem roda **cor a cor** sobre as normalizadas, e o exemplo NOMEIA a cor zerada (ou a posição, quando ela não tem nome). Descrição original: **`cor-sem-peso` só olha a SOMA da lista, não cada cor.** **Mecanismo:**
   `filamentsTotalG(lista.map(makeFilament)) === 0`. **Medido:** 2 cores, uma com `totalG: 0` →
   **nenhum aviso**. Em produto multicolor — a feature-bandeira do app — uma cor zerada por engano
   passa batida.
 
-- **[CSV-14] O separador sai só do cabeçalho, e vírgula/TAB degradam em silêncio.**
+- ✅ **[CSV-14] FEITO (Lote B), em duas metades.** (1) Quem decide o separador é o próprio `parseLine`: entre `;`, TAB e `,`, vence o que PARTE o cabeçalho em mais células (empate fica com `;`, que é o que o export escreve) — contar caractere seria frágil, porque vírgula dentro de célula citada conta igual. Se dois candidatos partem o cabeçalho, um aviso diz qual usei. (2) O caso que a detecção sozinha NÃO resolve — vírgula com decimal pt-BR sem aspas, onde o separador está certo e a linha desalinha — virou a classe `celulas-demais`: célula A MAIS que o cabeçalho não tem outra explicação. A MENOS tem (planilha enxuta) e segue calada, e separador sobrando no fim da linha não conta. Descrição original: **O separador sai só do cabeçalho, e vírgula/TAB degradam em silêncio.**
   **Mecanismo:** `const separator = rawLines[0].includes(";") ? ";" : ","`.
   **Medido:** planilha com `,` e decimais pt-BR **sem aspas** — `Caneca,2,5,50` → `printHours: 2`,
   `weightG: 5`, terceiro valor descartado, `warnings: []`. Planilha com **TAB** → a linha inteira
@@ -537,7 +540,7 @@ como saber que "Tempo (min)" é minuto, e o arredondamento já avisa) — entram
 
 ### 🟡 Médio
 
-- **[CSV-15] `createdAt: Date.now()` no parse → a carga inteira nasce no mesmo instante.**
+- ✅ **[CSV-15] FEITO (Lote B).** Um só instante de referência por arquivo, mais o índice da linha: instante distinto por produto E ordem da planilha preservada (linha de baixo = mais recente). Descrição original: **`createdAt: Date.now()` no parse → a carga inteira nasce no mesmo instante.**
   **Medido na escrita real:** 100 produtos → **3 valores distintos** de `createdAt`; o round-trip de
   97 → **6**. Consequência: "Mais recentes"/"Mais antigos" fica arbitrário para o lote todo (a
   tela ordenou 047, 095, 061, 049…). Não corrompe nada; atrapalha achar o que acabou de entrar.
@@ -617,11 +620,17 @@ como saber que "Tempo (min)" é minuto, e o arredondamento já avisa) — entram
   `Produto` · `Maquina` · `Peso (g)` · `Tempo (h)` · `Pecas` · `Filamento (R$/kg)` · `Markup` ·
   `Taxa Falha (%)` · `Tarifa Energia` · `Mao de obra (min)` · `Valor-hora (R$)` · `Inclui Fixo` ·
   `Arredondamento` · `Filamentos JSON` · `Acessorios JSON`.
-- **Regra de ouro enquanto o [CSV-09] estiver aberto: coluna que você NÃO vai preencher, não
-  coloque.** Ausente pega o default; presente e vazia vira **0**.
-- **Nomes:** acento e caixa não importam ("Máquina" = "Maquina"). Mas **não abrevie**
-  `Filamentos JSON` → `Filamentos` ([CSV-10]) e **não escreva** `Tarifa de Energia` nem
-  `Inclui custo fixo` ([CSV-11]). Use `;` como separador e salve como **CSV UTF-8**.
+- ~~**Regra de ouro enquanto o [CSV-09] estiver aberto: coluna que você NÃO vai preencher, não
+  coloque.**~~ **Morreu com o lote A:** coluna ausente e célula **vazia** agora caem no MESMO
+  default. Deixar em branco é seguro; o que aponta é o valor escrito e ilegível.
+- **Nomes:** acento e caixa não importam ("Máquina" = "Maquina"). **Depois do lote A**,
+  `Filamentos` (sem "JSON"), `Tarifa de Energia`, `Energia (R$/kWh)` e `Inclui custo fixo` também
+  funcionam. Use `;` como separador e salve como **CSV UTF-8** — TAB e `,` são detectados, mas com
+  `,` todo decimal precisa ir **entre aspas** (`"1,5"`), senão a linha desalinha (a importação
+  avisa, mas o excedente é descartado).
+- **Continua valendo:** `Tempo (h)` é em **HORAS** — uma coluna chamada `Tempo (min)` é lida como
+  hora, e o parser não tem como saber ([CSV-16]) · `Arredondamento` pede o **token** — `exact`,
+  `0.90`, `4.90`, `0.5`, `1`, `5`, `10` —, não o rótulo da tela ([CSV-17], que ao menos avisa).
 - **Pré-requisito confirmado (item E):** a importação **não cria** cor nem insumo — medido, 2 cores
   e 2 insumos antes e depois de importar 100 produtos que os referenciam. Referência órfã **entra
   assim mesmo**, avisando (`cor-inexistente` / `insumo-inexistente`); máquina que não casa cai na

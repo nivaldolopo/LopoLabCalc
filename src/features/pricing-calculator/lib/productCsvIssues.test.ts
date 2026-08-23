@@ -683,3 +683,158 @@ describe("CSV-11 — a supressão do aviso engolia 2 colunas de ENTRADA", () => 
     expect(r.warnings.join(" ")).toContain("Coluna Inventada");
   });
 });
+
+// ---------------------------------------------------------------------------
+// AUD-09, Lote B — os que não bloqueiam mas mordem na carga.
+// ---------------------------------------------------------------------------
+
+describe("CSV-12 — milhar ambíguo DENTRO da célula JSON", () => {
+  it('"totalG":"1.234" acende (entrava 1000× mais leve, calado)', () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON":
+          '[{"filamentId":"cor_laranja","colorName":"L","pricePerKg":110,"totalG":"1.234"}]',
+      }),
+      machines,
+      opcoes,
+    );
+    // O valor NÃO muda — o ponto é decimal mesmo. O que muda é o dono saber.
+    expect(r.products[0].filaments?.[0].totalG).toBe(1.234);
+    const issue = achar(r.issues, "milhar-ambiguo-json");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain("totalG");
+    // Nem o cor-sem-peso pegava: 1,234 > 0.
+    expect(achar(r.issues, "cor-sem-peso")).toBeUndefined();
+  });
+
+  it("número normal e formato en-US não acendem", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON":
+          '[{"filamentId":"cor_laranja","colorName":"L","pricePerKg":"1,234.56","totalG":50}]',
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "milhar-ambiguo-json")).toBeUndefined();
+  });
+
+  it("acende também nos acessórios", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Acessorios JSON": '[{"desc":"ima","qty":1,"unitPrice":"1.500"}]' }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "milhar-ambiguo-json")?.exemplos[0]).toContain("unitPrice");
+  });
+});
+
+describe("CSV-13 — cor sem peso é olhada COR A COR, não pela soma", () => {
+  it("multicolor com UMA cor zerada acende e diz qual", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: "cor_laranja", colorName: "Laranja", pricePerKg: 110, totalG: 50 },
+          { filamentId: "cor_laranja", colorName: "Preto", pricePerKg: 110, totalG: 0 },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    const issue = achar(r.issues, "cor-sem-peso");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain("Preto");
+  });
+
+  it("todas com peso: calado", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: "cor_laranja", colorName: "Laranja", pricePerKg: 110, totalG: 50 },
+          { filamentId: "cor_laranja", colorName: "Preto", pricePerKg: 110, totalG: 30 },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-sem-peso")).toBeUndefined();
+  });
+
+  it("cor sem nome é apontada pela POSIÇÃO", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": '[{"filamentId":"cor_laranja","pricePerKg":110,"totalG":0}]',
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-sem-peso")?.exemplos[0]).toContain("cor 1");
+  });
+});
+
+describe("CSV-14 — o separador", () => {
+  it("TAB é detectado (a linha inteira virava o NOME do produto)", () => {
+    const r = parseProductsCsv(
+      "Produto\tTempo (h)\tPeso (g)\nCaneca\t2\t50",
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].name).toBe("Caneca");
+    expect(r.products[0].printHours).toBe(2);
+    expect(r.products[0].weightG).toBe(50);
+  });
+
+  it("vírgula com decimal pt-BR SEM aspas: a linha desalinha, e agora isso é dito", () => {
+    const r = parseProductsCsv(
+      "Produto,Tempo (h),Peso (g)\nCaneca,2,5,50",
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "celulas-demais")?.linhas).toBe(1);
+  });
+
+  it("vírgula COM aspas (o que o Excel escreve) continua certa e calada", () => {
+    const r = parseProductsCsv(
+      'Produto,Tempo (h),Peso (g)\nCaneca,"2,5",50',
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].printHours).toBe(2.5);
+    expect(r.products[0].weightG).toBe(50);
+    expect(achar(r.issues, "celulas-demais")).toBeUndefined();
+  });
+
+  it("separador sobrando no fim da linha NÃO é desalinhamento", () => {
+    const r = parseProductsCsv(
+      "Produto;Tempo (h);Peso (g)\nCaneca;2;50;",
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "celulas-demais")).toBeUndefined();
+  });
+
+  it("cabeçalho que se parte dos dois jeitos: avisa qual usei", () => {
+    const r = parseProductsCsv(
+      "Produto;Nome Etapa Principal,Tempo (h)\nCaneca;Corpo,2",
+      machines,
+      opcoes,
+    );
+    expect(r.warnings.join(" ")).toContain("usei");
+  });
+});
+
+describe("CSV-15 — createdAt distinto por linha", () => {
+  it("3 linhas, 3 instantes, na ordem da planilha", () => {
+    const linhas = ["Produto;Tempo (h)", "Um;1", "Dois;2", "Tres;3"].join("\n");
+    const p = parseProductsCsv(linhas, machines, opcoes).products;
+    const datas = p.map((x) => x.createdAt as number);
+    expect(new Set(datas).size).toBe(3);
+    expect(datas[0]).toBeLessThan(datas[1]);
+    expect(datas[1]).toBeLessThan(datas[2]);
+  });
+});

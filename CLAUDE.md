@@ -14,28 +14,28 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **Lote A da AUD-09 (2026-08-23) — os 3 bloqueantes da carga, fechados.**
-  `productCsv.ts`: **CSV-09** ganhou o `cellNumber` (coluna ausente e célula **vazia** caem no mesmo
-  default; ilegível fica no default e **avisa**, classe `coluna-numero-nao-reconhecido`) — a "regra
-  de ouro" de não pôr coluna que não vai preencher morreu junto. **CSV-10**: a passada por needle
-  virou **do mais longo pro mais curto**, então `Filamentos` fica com as cores e não com o R$/kg.
-  **CSV-11**: `COLUNAS_CALCULADAS` com os 10 nomes **exatos** do export, que suprime o aviso *e*
-  bloqueia captura por needle — com essa trava, `Tarifa de Energia`, `Energia (R$/kWh)` e
-  `Inclui custo fixo` passaram a ser **lidas**, não só apontadas. `lint` ✅ · **539/539** ✅.
+- **Última mudança:** **Lotes A e B da AUD-09 (2026-08-23) — os 3 bloqueantes + os 4 que mordiam na
+  carga, fechados.** Tudo em `productCsv.ts`. **A:** `cellNumber` (coluna ausente e célula **vazia**
+  caem no mesmo default; ilegível fica no default e **avisa**) — a "regra de ouro" de não pôr coluna
+  que não vai preencher morreu junto · passada por needle **do mais longo pro mais curto**
+  (`Filamentos` fica com as cores) · `COLUNAS_CALCULADAS` com os 10 nomes **exatos** do export, que
+  suprime o aviso *e* bloqueia captura por needle — com essa trava, `Tarifa de Energia`,
+  `Energia (R$/kWh)` e `Inclui custo fixo` passaram a ser **lidas**, não só apontadas. **B:** milhar
+  ambíguo dentro do JSON · `cor-sem-peso` **cor a cor** (multicolor com uma cor zerada era mudo) ·
+  separador decidido por quem PARTE o cabeçalho em mais células (TAB entrou) + classe
+  `celulas-demais` pro decimal com vírgula sem aspas · `createdAt` distinto por linha.
+  **28 testes novos**, um por caso medido. `lint` ✅ · `build` ✅ · **551/551** ✅.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — decidir os LOTES da AUD-09** (`BACKLOG.md`), e só então a **CARGA EM
-  MASSA**. Os 3 bloqueantes mordem exatamente o caso da carga (planilha escrita à mão), e os dois
-  primeiros mudam o PREÇO sem dizer nada. Continuam valendo: a planilha é do dono, e o
-  **pré-requisito é cadastrar as cores definitivas ANTES** — a importação **não cria** cor nem
-  insumo (reconfirmado: 2 e 2, inalterados após importar 100 produtos que as referenciam).
-  Em aberto e eu posso gerar: **tabela de-para** (cor → id) + **modelo de planilha** — a AUD-09 já
-  fixou o conjunto de colunas (15, com carga de 100 e zero avisos). **Não existe "limpar
-  catálogo"** (97 exclusões uma a uma).
+- **▶ PRÓXIMA TAREFA — é do DONO: cadastrar as cores e os insumos definitivos.** Só então eu faço o
+  **lote C** (tabela **de-para** cor → id + **planilha-modelo** com as 15 colunas, que também cobre
+  o `Tempo (h)` em horas e o token do arredondamento) e aí vem a **CARGA EM MASSA**. A importação
+  **não cria** cor nem insumo (medido: 2 e 2, inalterados após importar 100 produtos que as
+  referenciam), e a planilha é do dono. **Não existe "limpar catálogo"** (97 exclusões uma a uma).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
