@@ -14,34 +14,35 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-23): AUD-11 — varredura completa do zero + os 4 defeitos dela corrigidos.**
-  **[D-1]** `Tempo (min)` (criada pelo CSV-16!) estava **fora** da checagem de milhar: `1.234` entrava
-  como 0,02 h — 1000× menor, calado, com o produto aparentando margem normal. Entrou na lista, junto
-  de `Pecas` e da 2ª trava do CSV-16; `Taxa Falha` fica fora **de propósito** (o clamp em 95 mata a
-  ambiguidade) · **[D-2, classe nova `cor-sem-preco`]** cor ligada **sem rolo** + `pricePerKg 0` dava
-  material **R$ 0,00** com `issues: []` e `filamentMissing: false` — é o gêmeo do `cor-sem-peso` do
-  outro lado da multiplicação, e roda sobre as cores **normalizadas** (pega também o caminho escalar) ·
-  **[D-3]** coluna lida por **aproximação** agora se anuncia em UMA linha por arquivo (`"Tempo de cura
-  (h)" → Tempo (h)`); antes o palpite errado era mudo · **[D-4]** `parseDecimalPtBr` lê notação
-  científica (`1E+03` era **103**) e negativo contábil (`(500)` era **+500**).
-  **25 testes novos.** `lint` ✅ · `build` ✅ · **603/603** ✅.
+- **Última mudança (2026-08-23): AUD-12 — varredura v2 do sistema inteiro, REPORTADA SEM CORRIGIR.**
+  Nenhuma linha de código mudou; o cluster (15 itens) está no `BACKLOG.md`, e as medições no
+  [relatório](https://claude.ai/code/artifact/b7e0753b-ec6a-4e1a-9418-91ac4667766c).
+  **Os 4 da AUD-11 seguram** (reproduzidos) e **3 falsos positivos meus ficaram declarados**.
+  **Os 3 que entram CALADOS na carga:** `[CSV-23]` `parseBool` só aceita `"sim"` — `TRUE`/`1`/
+  `VERDADEIRO` viram `false` sem aviso (o fixo some: R$57,98 → **R$53,22**) · `[CSV-24]` máquina
+  casada por **substring** sem se anunciar ("AnyCubic A1 Mini" → A1; A1 × X2D = R$53,22 ×
+  **R$65,13**) · `[CSV-25]` linha **sem nome** sumindo sem contagem (5 linhas → 2 produtos,
+  `warnings: []`). Fora do CSV: `[UX-44]`, o **MachineManagerModal** (único quebrado dos 9) mostra
+  `13999` como **1399** abaixo de 416px — `1fr` puro em `responsive.css:93` sobrescrevendo o
+  `minmax(0,1fr)` do `modal.css:87`. `lint` ✅ · `build` ✅ · **603/603** ✅ · **0 escritas**.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — é do DONO: cadastrar as cores e os insumos definitivos**, pegar os ids e
-  passá-los pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no
-  app** (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. Só então a
-  **CARGA EM MASSA**. A importação **não cria** cor nem insumo, e **não existe "limpar catálogo"**.
+- **▶ PRÓXIMA TAREFA — 2 frentes, e a 1ª é decisão do dono:** (a) **aprovar o lote da AUD-12** —
+  no mínimo os 3 calados (`[CSV-23]` `[CSV-24]` `[CSV-25]`), que é o que muda o resultado da carga;
+  (b) **é do DONO: cadastrar as cores e os insumos definitivos**, pegar os ids e passá-los pro
+  **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app** (dono,
+  2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. Só então a **CARGA EM MASSA**.
+  A importação **não cria** cor nem insumo, e **não existe "limpar catálogo"**.
 - ⚠ **Regra que a carga cria:** `filamentId`/`supplyId` são **auto-id do Firestore** — o de-para sai
   pelo botão **"Copiar de-para"** do `/estoque` (TSV). Depois da carga, cor se **edita** (nome/preço/
   arquivar preservam o id); **excluir e recriar gera id novo e mata o vínculo** de quem a usa.
 - ⚠ **Pendência do 7e (ainda vale):** o dono precisa **cadastrar os insumos e religar os
   acessórios** — os já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
-- ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do
-  `/maquinas` usa lucro **bruto**, sem fixo nem perda (UX-09); paginar resolveu a lista, não a
-  análise (TD-006).
+- ⚠ **Duas ressalvas que o Dashboard resolve** (já na tela/no código): payback do `/maquinas` usa
+  lucro **bruto**, sem fixo nem perda (UX-09); paginar resolveu a lista, não a análise (TD-006).
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).

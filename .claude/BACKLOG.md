@@ -6,6 +6,15 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
+> ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código NÃO está mais zerado (2026-08-23).** Vários
+> parágrafos abaixo dizem "está ZERADO"; eles descrevem o estado **antes** da varredura **AUD-12**
+> (a v2 da geral — a seção dela é a **última** deste arquivo, logo acima de "## Fechado").
+> Ela abriu **15 itens** e ainda **não tem lote aprovado**: 5 defeitos 🔴 (`[CSV-23]` `[CSV-24]`
+> `[UX-44]` `[CSV-25]` `[CSV-26]`), 2 🟠 (`[TD-022]` `[UX-46]`), 4 🟡 (`[UX-45]` `[TD-023]`
+> `[CSV-27]` `[CSV-28]` `[CSV-29]`) e 5 🟢 (`[CSV-31]` `[TD-021]` `[TD-024]` `[TD-025]` `[CSV-30]`).
+> **Três deles entram CALADOS na carga em massa** — `[CSV-23]`, `[CSV-24]` e `[CSV-25]` — e é a
+> única coisa que vale decidir antes de o dono importar.
+>
 > **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15, as ondas 0–5 e o `[micro]` do
 > botão de 14px (2026-08-17) ✅ FECHADOS.** O
 > registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e os
@@ -13,7 +22,8 @@
 >
 > ⚠ **Estado em 2026-08-23, DEPOIS dos lotes A, B e D: o código da importação está ZERADO.** A
 > varredura **AUD-09** abriu 12 itens (`CSV-09`…`CSV-20`), mais o [CSV-21] achado no lote A e o
-> [CSV-22] aberto e fechado no lote D. **Tudo que era código está fechado.** Sobra: o [CSV-17]
+> [CSV-22] aberto e fechado no lote D. **Tudo que era código da AUD-09 está fechado** — mas a
+> **AUD-12** abriu `CSV-23`…`CSV-31` depois (ver o aviso do topo). Sobra: o [CSV-17]
 > (token do arredondamento, item de **doc** — e ele avisa), que entra na spec da planilha; e
 > [CSV-18]/[CSV-19]/[CSV-20], resíduo legado que o round-trip limpa sozinho.
 >
@@ -68,6 +78,10 @@
 
 > ⚠ **Com o cluster da auditoria zerado (2026-08-18), esta tabela é o backlog INTEIRO** — e as três
 > linhas dependem de algo de fora: a logo (dono/designer) ou ~1-2 meses de venda real no banco.
+>
+> ⚠ **Vencido em 2026-08-23:** a **AUD-12** reabriu o backlog de código com 15 itens, e eles **não
+> estão nesta tabela** — não passaram pelo martelo do dono. A fila de ondas continua valendo só para
+> o que sobrou do rebrand; a ordem dos itens novos é a decisão pendente.
 
 > Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
@@ -688,6 +702,246 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
 - **A planilha-modelo / spec** continua por fazer; esta varredura define o que ela precisa conter,
   não a entrega. A **tabela de-para (cor → id)** saiu de cena: o dono pega os ids no console do
   Firebase depois de cadastrar as cores e alimenta o sistema externo dele (2026-08-23).
+
+## Aberto — cluster da varredura AUD-12 (2026-08-23) — SISTEMA INTEIRO, 2ª passada
+
+> 5ª varredura (a **v2** da geral), pedida pelo dono **imediatamente antes da carga em massa**, com
+> a regra mais dura até aqui: **nada é verdade até ser reproduzido** — inclusive os `✅ FEITO` deste
+> arquivo, os comentários do código, os nomes dos testes, as mensagens de commit e **o relatório da
+> AUD-11**, cujas duas listas (4 defeitos corrigidos + 78 verificações sãs) entraram como hipótese.
+> Reportado **sem correção**: o dono decide os lotes.
+>
+> **Relatório com todas as medições:**
+> <https://claude.ai/code/artifact/b7e0753b-ec6a-4e1a-9418-91ac4667766c>
+>
+> **Método:** 10 arquivos de harness em vitest (~350 casos) · sonda instalada em `window` medindo o
+> DOM nas **7 rotas × 2 temas × 4 larguras** (375 / 400–430 / 700 / 1280) com os acordeões abertos ·
+> os **9 modais** medidos um a um (o buraco declarado da AUD-11) · PDF gerado em node e o texto
+> extraído do stream · **importação real** montada em JS, disparada no `input[type=file]`, o diálogo
+> lido e **cancelada**. `lint` ✅ · `build` ✅ · **603/603** ✅ · `git status` vazio ·
+> **0 escritas no Firestore** (a de duas abas gravando ficou pendente de aval — ver o fim da seção).
+>
+> ⚠ **Três falsos positivos MEUS, declarados** (valem mais que achado inflado): (1) "o
+> `buildProductPayload` perde o `weightG` de etapa legada" — errado, montei o estado do formulário à
+> mão; o caminho real passa por `createStage` → `normalizeFilaments`, que migra o escalar antes de
+> qualquer save (refeito pelo documento: `doc1 === doc2`, preço 78,80 → 78,80); (2) "`marginTier(65)`
+> está errado" — é a DEC-04 escrita, faixa fechada nas duas pontas, e o arredondamento antes do
+> faixeamento é de propósito; (3) "`worstPaymentFee` devolve 2% havendo 6%" — meu fixture usava
+> `t1`/`t2` em vez de `visamaster`/`amexelo`; com as constantes reais devolve 7,19%.
+>
+> ✅ **O lote AUD-11 segura.** Os 4 foram reproduzidos e nenhum criou falso positivo: auditei **toda**
+> coluna escalar numérica do `COLUMN_SPECS` e nenhuma ficou fora da checagem de milhar; a 2ª trava do
+> CSV-16 acende nos 3 cabeçalhos testados; o `cor-sem-preco` fica **mudo** com cor real que tem rolo
+> (confirmado ao vivo com o id do Bege) e nunca coexiste com `cor-sem-peso` na mesma cor; o
+> round-trip do próprio export dá **0 avisos** apesar de `printHours: 2.375`; e `"2 e 5"` não vira
+> 200000.
+
+### 🔴 Entra CALADO na carga (o dono não descobre)
+
+- **[CSV-23] `parseBool` só aceita `"sim"` — `TRUE`/`1`/`VERDADEIRO` viram `false`, sem um aviso.**
+  Atinge as duas colunas booleanas: `Inclui Fixo` e `Vende por Subitens`. **Medido**, 13 grafias na
+  mesma linha: `"sim"`/`"SIM"`/`" sim "` → `true` (custo fixo 4,76 · total 27,65 · **preço 57,98**);
+  `"TRUE"`/`"true"`/`"VERDADEIRO"`/`"1"`/`"S"`/`"Y"`/`"yes"` → `false` (fixo **0,00** · total 22,89 ·
+  **preço 53,22**), com **0 avisos** nos três canais (`warnings`, `recalc`, `issues`).
+  **Impacto:** a planilha vem de um sistema externo; se ele escrever em inglês, o catálogo inteiro
+  nasce sem repassar aluguel e fixos — **−R$ 4,76/peça (−8,2%)** — e a margem exibida continua
+  "normal", porque é calculada sobre o custo que ficou. Mesmo formato do `Tempo (min)` da AUD-11.
+  **Onde:** `productCsv.ts:247`. **Saída:** aceitar o vocabulário de planilha (`sim/s/true/1/x/v/
+  verdadeiro`) **e** acender uma classe nova para a grafia não reconhecida — o default calado é o
+  defeito, não a grafia.
+
+- **[CSV-24] Nome de máquina casado por SUBSTRING, e o palpite não se anuncia.**
+  `machineNameToId` tenta o nome exato; falhando, procura a 1ª máquina cujo **id** esteja contido no
+  nome. Esse 2º caminho **nunca chama o `onFallback`** — só o fracasso total avisa. **Medido**,
+  8 nomes: `"AnyCubic A1 Mini"` → **a1**, `"Elegoo Neptune A1"` → **a1**, `"meu x2d antigo"` → x2d,
+  `"Maquina X2D e A1"` → **a1** (a 1ª do array vence, não a mais específica) — os quatro **sem
+  aviso**; só `"Prusa MK4"` avisa.
+  **Impacto:** energia, desgaste e manutenção saem da máquina errada e `machineMissing` fica
+  `false`, então nem o badge ⚠ do catálogo aparece. Diferença A1 × X2D no mesmo produto:
+  **R$ 53,22 → R$ 65,13 (+22%)**, quase tudo desgaste (2,1196 → 5,5996). O id `a1` tem 2
+  caracteres: casa dentro de quase qualquer nome de impressora. **Onde:** `productCsv.ts:625`.
+  **Saída:** é o padrão 11 (*o palpite que não se anuncia*) — o casamento aproximado pode continuar,
+  desde que vire aviso, como o [CSV-10]/D-3 da AUD-11 fez com as colunas.
+
+- **[UX-44] "Gerenciar Máquinas" quebra no celular: `13999` aparece como `1399` e `7500` como
+  `750`.** Único dos **9 modais** que falha (os outros 8 medidos limpos a 375 px). São dois padrões
+  do próprio catálogo deste repositório somados:
+  · **`1fr` puro em vez de `minmax(0, 1fr)`** — `responsive.css:93` sobrescreve a regra boa do
+  `modal.css:87` (`minmax(0, 1fr) 82px 72px 68px 78px 32px`) por `1fr 64px 54px 52px 66px 32px`;
+  · **a correção que não foi para a irmã em media query** — o comentário do `modal.css:85` descreve
+  exatamente este bug (UX-41: *"7500 deixava de caber e aparecia como 750"*) e alargou as colunas
+  **só no desktop**.
+  **Medido a 375 px:** colunas resolvidas `22px 64px 54px 52px 66px 32px`; grade com 285 px para
+  326 px de conteúdo → **estoura 41 px**; botão de excluir em `right: 371` contra a borda do diálogo
+  em `right: 355` → **fora da caixa**; campo Nome com **22 px** para conteúdo de 90–100 px;
+  `13999` corta (caixa 64 / precisa 71), `7500` corta (54 / 62), `150` corta (52 / 53).
+  **A conta que explica:** 64+54+52+66+32 = 268 px fixos + 5 gaps de 8 px = **308 px** consumidos
+  antes de o Nome ganhar 1 px → só cabe a partir de viewport **≥ 416 px**. Medido a 400 px: ainda
+  estoura 16 px. A 430 px: 0 estouro, mas Nome com 32 px. A 700 px: Nome com 202 px ✅.
+  **Impacto:** as máquinas moram no doc compartilhado `config/machines` e alimentam energia +
+  desgaste de **todos** os produtos; editá-las pelo celular hoje é adivinhação. **Saída:** a regra do
+  próprio projeto — `minmax(0, 1fr)` na media query e a fileira **virando cartão** (receita do
+  `.fg-part`) abaixo dos ~300 px úteis, em vez de rolar.
+
+- **[CSV-25] Linha sem nome desaparece sem entrar em contador nenhum.**
+  `if (!name) return []` no `flatMap`: sem `warning`, sem `issue`, sem contagem. O diálogo já mostra
+  o total **depois** do descarte. **Medido:** arquivo com 5 linhas de dado, 3 com a célula `Produto`
+  vazia (vazia, só espaços, e `""` citada) → **2 produtos**, `warnings: []`.
+  **Impacto:** numa planilha de ~100 linhas gerada fora, uma coluna deslocada ou uma linha de
+  subtotal zeram o nome — e só se descobre contando o catálogo contra a planilha à mão.
+  **Onde:** `productCsv.ts:970`. **Saída:** um `addIssue("linha-sem-nome", …)`; é irmã do
+  `celulas-demais`, que já avisa.
+
+- **[CSV-26] O aviso do markup MENTE sobre o que entrou no documento** *(era a ressalva "markup
+  negativo entrando no documento", promovida a defeito)*. Três problemas na mesma checagem:
+  · `markup: parseNumber(raw) || 3` — **`-2` é truthy**, então o `|| 3` nunca dispara e o documento
+  recebe **−2** (preço **−R$ 22,59**), enquanto o aviso diz *"a linha entra com 3x"*;
+  · `"0,5"` entra a 0,5× (preço R$ 15,31, **abaixo** do custo R$ 22,89) **sem** a classe
+  `markup-invalido` — o teste é `<= 0`;
+  · `"x"` vira string vazia no `replace("x","")` e o guarda `if (markupRaw && …)` pula: entra a 3×
+  **sem aviso nenhum**.
+  **Atenuante:** o `linha-invalida` (que roda o `validateProduct`) pega os dois casos de preço
+  absurdo — o que se perde é a confiança no texto. **Onde:** `productCsv.ts:1124` e `:1224`.
+
+### 🟠 Alto (não bloqueia a carga, mas morde)
+
+- **[TD-022] Escrita concorrente é last-write-wins, sem controle nenhum.**
+  Leitura dos 12 repositórios: `saveProduct` faz `updateDoc(ref, {...payload})` — **documento
+  inteiro**; idem `estoque` (`stockRepository.ts:135`) e `insumos` (`suppliesRepository.ts:130`). O
+  **único** `runTransaction` do app é a numeração do orçamento (`quotesRepository.ts:86`).
+  Consequência: duas abas editando o mesmo produto — a que salvar por último **apaga** a mudança da
+  outra em silêncio; duas vendas simultâneas da mesma cor podem perder uma baixa (as duas leem o
+  mesmo saldo e escrevem o mesmo resultado). ⚠ **Mecanismo lido no código, NÃO reproduzido** — exige
+  escrita real, que ficou pendente de aval (plano no fim desta seção).
+
+- **[UX-46] Alvos de toque abaixo da régua — mais largo do que a ressalva antiga dizia.**
+  A ressalva falava do *"slider de markup com ~15px de área real"*. **Medido:** o slider tem caixa
+  de **313×4 px** com `padding: 0`. E a 375 px, contra os 44 px da regra do projeto:
+  `/orcamento` **67** elementos abaixo · `/producao` **41** (25 deles `.icon-button.danger` de
+  28×28) · `/vendas` 42 · `/estoque` 27 · `/catalogo` 18. Os steppers `.num-spin` medem **14×20 px**
+  (têm `tabindex="-1"`, então não quebram teclado — o dedo é que não acerta). No desktop,
+  `.icon-button` 28×28 e `.btn-sm` 29 px contra os 32 da régua.
+  ⚠ A técnica documentada (`padding` + margem negativa igual, UX-28/UX-37) **apareceria** no
+  `getBoundingClientRect` — ela não foi aplicada nesses lugares.
+
+### 🟡 Médio
+
+- **[UX-45] Faixa 641–760 px: tabela rolando de lado em vez de virar cartão.**
+  *(era ressalva aberta; agora medida)*. A regra "vira cartão" só entra em `max-width: 640px`.
+  **Medido a 700 px:** `/catalogo` → `.table-scroll` 672 → 740 = **68 px de rolagem**, com a célula
+  de nome em 66 px para conteúdo de 99–135 px; `/vendas` → `.recibo-items-scroll` 670 → 800 =
+  **130 px**, repetido em 6+ recibos. `/estoque` e `/producao`: **0** ✅.
+
+- **[TD-023] `addProductionLayers` NÃO é idempotente, apesar do comentário afirmar que é.**
+  O comentário diz *"a `layerId` é evento+SKU, então um mesmo evento nunca duplica camada na mesma
+  SKU (idempotente por evento)"* — e o código só faz `existing.layers.push(layer)`, sem checar o id.
+  **Medido:** mesmo `eventId` aplicado 2× → **2 camadas com o id idêntico**
+  (`EV1____whole__::__nocolor__`) e o saldo dobra de 4 para 8. O mesmo vale para
+  `reverseFinishedConsumption` (8 → 12 no estorno duplo). **Risco prático baixo:** o `batch.set`
+  grava o doc inteiro já computado, então repetir o batch grava o mesmo valor; e o
+  `removeEventLayers` limpa as duas camadas. → **ou o comentário muda, ou o código o honra** (dedup
+  por `layer.id`). Um comentário que afirma garantia inexistente é armadilha para quem confiar.
+
+- **[CSV-27] O `cor-sem-preco` diz "não tem rolo" para cor que TEM rolo.**
+  O sufixo é anexado sempre que a cor existe, sem olhar se há rolo. **Medido:** cor com 1 rolo de
+  `pricePerKg: 0` → o aviso manda cadastrar um rolo que já está cadastrado. O conselho certo é
+  *"o rolo está com preço 0"*.
+
+- **[CSV-28] Coluna duplicada é reportada como "nome não reconhecido".**
+  **Medido:** `Produto;Peso (g);Peso (g)` → *"Coluna(s) ignorada(s) — o nome não foi reconhecido:
+  "Peso (g)"."* O nome **foi** reconhecido; ela é a segunda (a 1ª vence, peso 100, e a 2ª é
+  descartada). Avisa, mas pela razão errada — e a razão errada manda o dono renomear a coluna.
+
+- **[CSV-29] `isMilharAmbiguo` acende sobre notação científica — falso positivo.**
+  **Medido:** `"1.5E+03"` é lido **corretamente como 1500**, mas a limpeza por regex do
+  `isMilharAmbiguo` transforma o texto em `"1.503"` e casa o padrão. O aviso sairia como *"lido como
+  DECIMAL (1.234 = 1,234) → 1500"*, contraditório consigo mesmo. Raro — mas falso positivo é defeito
+  (padrão 7): ensina a ignorar aviso. **Saída:** rodar a checagem de científica **antes**, e sair sem
+  apontar quando ela casar.
+
+### 🟢 Baixo / informativo
+
+- **[CSV-31] `Pecas` fracionária entra depois do aviso.** *(era a ressalva "`Pecas`/`Taxa Falha` no
+  milhar")*. `Pecas` entrou na lista de milhar da AUD-11 ✅, e `Taxa Falha` segue fora — corretamente:
+  o clamp em 95 torna a leitura de milhar impossível. Mas `Pecas = "1.234"` grava **1,234 peça** e o
+  preço cai de 29,71 para 24,08: o aviso acende, o valor absurdo entra. Um `Math.round` (ou uma
+  reprovação no `validateProduct`) fecha.
+
+- **[TD-021] `parseDecimalPtBr` cola pedaços e devolve número plausível** *(padrão 12 do roteiro)*.
+  **Medido, 83 entradas:** `"1/2"` → **12** · `"1a2"` → 12 · `"1,2,3"` → 123 · `"2 e 5"` → 25 ·
+  `"1E"` → 1 · `"e5"` → 5 · `"(5) (6)"` → −56. Nenhum devolve `null`, então nenhum vira aviso. Em
+  compensação `"1-2"`, `"--5"`, `"N/A"` e `"n.d."` viram `null` corretamente, e `"1E+400"` também
+  (não vira `Infinity`). **Risco baixo numa planilha gerada por máquina; alto numa escrita à mão.**
+
+- **[TD-024] `calculatePricing` com lista de máquinas VAZIA lança `TypeError`.**
+  **Medido:** `Cannot read properties of undefined (reading 'watts')`. Alcançável só se
+  `useMachines` devolver lista vazia — ele semeia dos defaults e cai em fallback local, então **não
+  reproduzi pela UI**. Máquina *inexistente* (id órfão) é tratada certo: cai na 1ª e marca
+  `machineMissing: true`.
+
+- **[TD-025] `saleItemFinancials` com quantidade 0 vende 1.**
+  **Medido:** `quantity: 0` e `quantity: -2` devolvem os dois `totalRevenue: 100, totalCost: 30,
+  profit: 70` — é o `Math.max(1, …)`. **Não achei caminho pela UI** que produza qty 0; fica como
+  ressalva de biblioteca.
+
+- **[CSV-30] O texto do CSV não é estável byte a byte no round-trip.**
+  Export → import → export produz a mesma linha com a ordem das chaves de `Acessorios JSON` trocada
+  (`subitemId`/`supplyId`). Os **dados** são idênticos (diff canônico limpo); só o texto difere.
+  Importa apenas para quem comparar arquivos com `diff`.
+
+### Ressalva que FECHA (não é mais item)
+
+- ~~**`filamentId` sem `trim`**~~ — **não é mais silencioso.** `"sc9LAy…ZLb "` (espaço no fim) não
+  bate no `Set` e o parser acende `cor-inexistente` **nomeando o id com o espaço visível entre
+  aspas**. Nada a fazer.
+
+### Observação registrada (não é código)
+
+- **O overdraft de −370 g na cor Bege continua exato, no banco de produção.** A tela mostra saldo
+  total **243 g** com *"Rolo #5 em uso · 613 g restantes"* — ou seja, os rolos #1–#4 somam
+  **−370 g**. Número idêntico ao reportado antes. A matemática está certa (o preço de repor lido é
+  R$ 100,00/kg = rolo mais novo ✅); o furo é de **contagem física** e o remédio é o `adjustRoll`
+  (D6), que grava o `beforeG` negativo como prova do tamanho do furo.
+
+### ✅ O que está SÃO — medido, não presumido (64 verificações)
+
+A lista longa, com os números, vive no relatório (link no topo desta seção). O resumo do que foi
+**refeito à mão** e bateu dígito a dígito: `calculatePricing` componente a componente no cenário
+40 g/3 h/A1 (material 4,4000 · energia 0,2280 · desgaste 2,1196 · manut 0,3600 · labor 7,5000 ·
+reserva 0,45178 · total 15,05938 · **preço 29,71423**) · preço ponta a ponta de um produto escalar
+(à mão 106,098145 = código 106,10) · FIFO misto (R$ 42,00) · overdraft D4 (R$ 134,40, shortfall
+370 g) · gross-up (104,71204188) · `saleItemFinancials` nos 5 campos · custo fixo/hora
+(1,5865384615). O round-trip documento→formulário→documento fecha **campo a campo** na 2ª volta
+(`doc1 === doc2`, 24 chaves, com *stringify* canônico), e **0 `undefined`** chega ao payload (o
+Firestore os rejeita — o client não liga `ignoreUndefinedProperties`). Contraste WCAG AA:
+**0 falhas** em 7 rotas × 2 temas. PDF: travessão, aspas curvas, ‰, € e todo o acentuado intactos;
+total R$ 1.390,26 = conta à mão. Importação real cancelada: **Catálogo (97) → Catálogo (97)**.
+E o cache `calc3d-machines` confirma que `config/machines` em produção é **idêntico** aos
+`DEFAULT_MACHINES` — o que valida todas as contas à mão acima contra o banco real.
+
+### O que a AUD-12 NÃO cobriu
+
+- **Escrita real no Firestore** — nada foi criado, alterado ou apagado. O dono pediu autorização
+  explícita antes, e não a pedi no meio para não travar o resto da varredura.
+  **Plano, se for autorizado:** 1 produto sonda `__SONDA_VARREDURA__` criado pela importação (1 doc
+  em `products`), aberto em **duas abas**, editado em campos diferentes nas duas, salvo em ordem
+  invertida, e o documento relido campo a campo para provar ou refutar o **[TD-022]**. Backup em
+  disco antes e depois; limpeza pelo id retornado no `addDoc`, com releitura confirmando
+  `exists: false`. ⚠ No dump, o id do caminho vai **por último** e com nome `__id` — a armadilha do
+  `{ id: doc.id, ...doc.data() }` da AUD-09 não se repete.
+- **Duas abas gravando o mesmo documento** — é o primeiro item do plano acima. O [TD-022] é leitura
+  de código, não experimento.
+- **Offline de verdade** (rede caída, fila do Firestore, reconexão). Verifiquei a *guarda*
+  (`guardOnline` antes do `await`, nos 5 pontos de escrita) por leitura. Continua sendo o resíduo do
+  antigo [AUD-04].
+- **Regras de segurança do Firestore** (usuário fora da lista) — exige uma segunda conta Google.
+- **PDF contra a tela do `/orcamento` com dado real** — gerei e extraí um PDF sintético completo, com
+  os números conferidos à mão. A ponte tela → `QuotePdfData` não foi exercitada.
+- **Fluxo completo de venda e produção pela UI** (SaleFlow, submissão, estorno de recibo) — todo
+  caminho grava. Matemática medida por harness, atomicidade por leitura.
+- **Acima de 500 produtos** (onde o batch deixa de ser atômico). Testei 200 linhas no parser; a carga
+  prevista é ~100.
+- **Navegadores além do Chromium embutido**, e iOS Safari real.
 
 ## Fechado
 
