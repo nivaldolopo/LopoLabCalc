@@ -14,20 +14,16 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-23): o lote C da AUD-12 — a QUALIDADE do aviso.** Os quatro já
-  avisavam; o defeito era o **conteúdo**. `[CSV-27]` o `cor-sem-preco` dizia *"não tem rolo"* para
-  cor que TEM rolo (com preço 0) — agora olha `rolls.length` e aponta o rolo · `[CSV-28]` coluna
-  repetida saía como *"nome não reconhecido"*, cujo conselho é **renomear** uma coluna certa; ganhou
-  aviso próprio dizendo qual venceu · `[CSV-29]` `isMilharAmbiguo` acendia sobre notação científica
-  lida CORRETAMENTE (a regex virou o helper `matchCientifica`, usado pelos dois lados do `number.ts`)
-  · `[CSV-31]` peça fracionária agora é **reprovada** no `validateProduct`, não arredondada (dono):
-  arredondar 1.234 → 1 troca um absurdo visível por um plausível invisível.
-  E o **lote D** `[TD-023]`: `addProductionLayers` confere `layer.id` antes do `push` e a promessa
-  de idempotência vira garantia real — mas `shiftLayers` (baixa/estorno) é **DELTA** e ficou
-  deliberadamente NÃO idempotente, com o porquê no comentário: deduplicar ali faria o estorno de um
-  recibo devolver o material de outro. `lint` ✅ · `build` ✅ · **672/672** ✅ (+19). Antes disso, no
-  mesmo dia: os 5 🔴 (lotes A+B), o `[TD-022]` inteiro e as guardas `[TD-024]`/`[TD-025]`.
-  Detalhe: `HISTORICO.md`.
+- **Última mudança (2026-08-23): lotes C e D da AUD-12.** **C — a QUALIDADE do aviso** (os quatro já
+  avisavam; o defeito era o *conteúdo*): `cor-sem-preco` dizia "não tem rolo" para cor que TEM rolo
+  a preço 0 `[CSV-27]` · coluna repetida saía como "nome não reconhecido", cujo conselho é renomear
+  uma coluna certa `[CSV-28]` · `isMilharAmbiguo` acendia sobre científica lida CORRETAMENTE
+  `[CSV-29]` · peça fracionária virou **reprovação** no `validateProduct`, não arredondamento
+  `[CSV-31]`. **D** `[TD-023]`: `addProductionLayers` confere `layer.id` e a idempotência prometida
+  vira real — mas `shiftLayers` (baixa/estorno) é **DELTA** e ficou deliberadamente NÃO idempotente
+  (deduplicar ali faria o estorno de um recibo devolver o material de outro).
+  `lint` ✅ · `build` ✅ · **672/672** ✅ (+19). Antes, no mesmo dia: os 5 🔴 (lotes A+B), o
+  `[TD-022]` inteiro e as guardas `[TD-024]`/`[TD-025]`. Detalhe: `HISTORICO.md`.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
