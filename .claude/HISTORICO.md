@@ -9,6 +9,94 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Lote D da AUD-09 — os 3 últimos consertos antes da carga (2026-08-23)
+
+> Fecha o cluster de código da AUD-09. Dois itens vieram do backlog ([CSV-16] e [CSV-21]) e o
+> terceiro ([CSV-22]) **nasceu de uma pergunta do dono no chat**, não de varredura.
+> `lint` ✅ · `build` ✅ · **571/571** ✅ (+20 testes).
+
+### [CSV-16] — o cabeçalho DIZ a unidade, e ninguém estava lendo
+
+O item estava classificado como *"modelo/doc, não código"*, com o argumento: **o parser não tem
+como saber que "Tempo (min)" é minuto.** O argumento é falso — o cabeçalho literalmente nomeia a
+unidade. O que existia era um needle `"tempo"` casando por `includes`, então `Tempo (min)` era
+reclamada pela coluna de HORAS e 120 minutos entravam como **120 horas**, 60× errado e calado.
+
+**O que reabriu:** o dono observou que o formulário já aceita horas **e** minutos, e que hora
+decimal ali já se ajusta sozinha (`PrintTimeField` + `splitPrintTime`, `ProductForm.tsx` — o
+BUG-01). Se a tela aceita, a planilha também deveria. E o motivo prático é mais forte: quem vai
+**gerar** a planilha é um sistema externo que lê os dados da impressão — e impressora/fatiador
+reportam o tempo em **minutos**.
+
+**Duas travas, porque uma não cobre o espaço todo:**
+1. Coluna própria `timeMinutes`, needle `"tempo (min"` — 10 caracteres contra os 5 de `"tempo"`,
+   então a **ordenação por comprimento que o CSV-10 criou** já garante que ela reclama o cabeçalho
+   primeiro. Não precisou de mecanismo novo. O needle vai **sem o parêntese de fechar** de
+   propósito: pega `Tempo (min)`, `Tempo (min.)` e `Tempo (minutos)` de uma vez.
+2. `headerEmMinutos`, pro cabeçalho que o needle **não** pega — `"Tempo de impressao (min)"` não
+   contém `"tempo (min"`. Quando só a coluna de horas casou, o texto dela ainda pode dizer minuto,
+   e aí o valor é reinterpretado. A guarda é apertada por construção: só inspeciona o cabeçalho que
+   a coluna de tempo de fato reclamou, e esse cabeçalho contém `"tempo"`.
+
+⚠ **A armadilha da regex:** `\bmin(utos?)?\b` e **não** `includes("min")`. "Tempo mínimo" normaliza
+para "tempo minimo", que contém "min" e não é coluna de minutos. Word boundary resolve: `minimo`
+continua com `i` depois de `min`, então não casa.
+
+**A soma é a mesma conta do formulário:** `h + min / 60`. Com as duas colunas presentes cada uma
+está na sua unidade e elas somam; hora decimal continua valendo, que é o que o export escreve e o
+que o round-trip depende.
+
+### [CSV-21] — `linhas` contava ocorrência
+
+`addIssue` fazia `found.linhas += 1` por chamada. O campo se chama `linhas`, a tela escreve
+"linhas", e uma única linha com 3 células ruins da mesma classe era reportada como **"3 linhas"**.
+
+**Por que importa mais do que parece:** é esse número que o dono usa pra decidir se confirma a
+carga ou volta pro Excel. "12 linhas com problema" em 100 é uma coisa; 4 linhas com 3 erros cada é
+outra bem diferente.
+
+Conserto: um `Set` de classes já contadas na linha corrente, zerado no topo de cada volta do laço.
+Coube porque **todas** as chamadas de `addIssue` acontecem dentro do `flatMap` das linhas —
+inclusive as que vêm dos parsers de JSON, via closure criada por linha.
+
+⚠ **Os exemplos seguem por OCORRÊNCIA (até 3), de propósito.** Numa linha só eles nomeiam campos
+diferentes (`Tempo (h)`, `Pecas`, `Valor-hora`), que é justamente a informação acionável. Isso faz
+`exemplos.length` poder ser **maior** que `linhas` — conferi o render (`ProductCatalog.tsx`): o
+"e mais N…" é guardado por `linhas > exemplos.length`, então não vira texto errado.
+
+### [CSV-22] — o id certo é o erro que sobrou
+
+**Veio de uma pergunta do dono:** *"usar o id aleatório do Firestore pode dar problema, ou é
+indiferente?"*. A resposta honesta é **quase indiferente** — auto-id dá unicidade de graça (um slug
+`laranja` colidiria entre PLA Voolt e PETG Creality), distribui escrita melhor, é o que o resto do
+app já usa, e o histórico não depende dele (a D7 congela `colorName`/`material`/`brand` na venda).
+
+Mas a pergunta expôs **um buraco real**: a importação só verifica se o `filamentId` **existe**. Um
+id **errado mas existente** — paste deslocado, `PROCV` mal ancorado na planilha — amarra o produto
+na cor errada e **nada acende**. E como o id é opaco (`4MKTY5K6OGldKp0zDZNB`), não dá pra revisar a
+olho lendo o CSV, que é como se pegaria um slug trocado.
+
+**A saída usa o dado que já está lá:** o `colorName` vai na MESMA célula JSON, ao lado do id (o
+export escreve os dois). Divergiu, alguma das duas células está errada — e não dá pra saber qual,
+então o parser **não escolhe**: o id continua valendo (é ele que liga ao Estoque) e o aviso
+`cor-nome-divergente` mostra as duas versões. Mesma disciplina do TD-009: sinalizar, não mascarar.
+
+⚠ **Não vale pros insumos.** O acessório carrega `desc` — texto livre ("ima"), não o nome do
+insumo. Cruzar `desc` com `Supply.name` daria falso positivo em série.
+
+### O que a discussão decidiu fora do código
+
+- **A planilha-modelo NÃO vira botão no app.** Cheguei a propor um gerador (lendo `stock`/`supplies`
+  no clique, pra não envelhecer), mas quem vai gerar a planilha de importação é um **sistema externo
+  do dono**, alimentado pelos dados das impressões. O modelo é um **contrato escrito uma vez**, não
+  um arquivo que se reemite — vira spec escrita no chat depois do cadastro das cores.
+- **Resolver a cor por NOME na importação foi proposto e recusado** (dono, 2026-08-23): ele prefere
+  cadastrar as cores, pegar os ids e passá-los ao sistema externo. Fica registrado como alternativa
+  descartada, não como item aberto.
+- **O `filamentId` não aparece em lugar nenhum da UI** — medido: nada na `/estoque` renderiza ou
+  copia o id, e o export do catálogo só revela id de cor **já usada** por algum produto. O caminho é
+  o console do Firebase. Ofereci um "copiar id" no card da cor; o dono não pediu.
+
 ## Regras de CSS/UI — as armadilhas medidas
 
 > Os *porquês* das regras resumidas no `CLAUDE.md` ("Pontos-chave"). Cada uma custou uma medição.

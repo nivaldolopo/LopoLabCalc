@@ -14,26 +14,27 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **Lotes A e B da AUD-09 (2026-08-23) — os 3 bloqueantes + os 4 que mordiam na
-  carga, fechados.** Tudo em `productCsv.ts`. **A:** `cellNumber` (coluna ausente e célula **vazia**
-  caem no mesmo default; ilegível fica no default e **avisa**) — morreu junto a "regra de ouro" de
-  não pôr coluna que não vai preencher · needle **do mais longo pro mais curto** (`Filamentos` fica
-  com as cores) · `COLUNAS_CALCULADAS` com os nomes **exatos** do export, que suprime o aviso *e*
-  bloqueia captura por needle — com ela, `Tarifa de Energia` e `Inclui custo fixo` passaram a ser
-  **lidas**. **B:** milhar dentro do JSON · `cor-sem-peso` **cor a cor** · separador decidido por
-  quem PARTE o cabeçalho em mais células (TAB entrou) + `celulas-demais` · `createdAt` por linha.
-  **28 testes novos.** `lint` ✅ · `build` ✅ · **551/551** ✅.
+- **Última mudança:** **Lote D da AUD-09 (2026-08-23) — os 3 últimos consertos antes da carga**,
+  todos em `productCsv.ts`. **[CSV-16]** `Tempo (min)` virou coluna de verdade e **soma** com
+  `Tempo (h)` (a mesma conta do `PrintTimeField`) — antes 120 min entravam como 120 **horas**;
+  duas travas (coluna própria + `headerEmMinutos`). **[CSV-21]** `linhas` conta **linha**, não
+  ocorrência (3 células ruins numa linha só diziam "3 linhas"). **[CSV-22, novo]** `filamentId` é
+  auto-id do Firestore — id **errado mas existente** amarrava na cor errada calado; agora cruza com
+  o `colorName` da mesma célula e avisa (`cor-nome-divergente`), sem escolher: **vale o id**.
+  **20 testes novos.** `lint` ✅ · `build` ✅ · **571/571** ✅.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
-- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
-  (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
-  token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — é do DONO: cadastrar as cores e os insumos definitivos.** Só então eu faço o
-  **lote C** (tabela **de-para** cor → id + **planilha-modelo** com as 15 colunas, que também cobre
-  o `Tempo (h)` em horas e o token do arredondamento) e aí vem a **CARGA EM MASSA**. A importação
-  **não cria** cor nem insumo (medido: 2 e 2, inalterados após importar 100 produtos que as
-  referenciam), e a planilha é do dono. **Não existe "limpar catálogo"** (97 exclusões uma a uma).
+- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
+  não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
+- **▶ PRÓXIMA TAREFA — é do DONO: cadastrar as cores e os insumos definitivos**, pegar os ids e
+  passá-los pro **sistema externo dele**, que **gera** a planilha a partir dos dados das impressões.
+  **Sem botão de planilha-modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no chat**
+  depois do cadastro, como contrato desse sistema. Só então a **CARGA EM MASSA**. A importação
+  **não cria** cor nem insumo, e **não existe "limpar catálogo"** (97 exclusões uma a uma).
+- ⚠ **Regra que a carga cria:** `filamentId` é **auto-id do Firestore**, só visível no console do
+  Firebase. Depois da carga, cor se **edita** (nome/preço/arquivar preservam o id); **excluir e
+  recriar gera id novo e mata o vínculo** de todo produto que a usa.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do

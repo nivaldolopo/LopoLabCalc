@@ -11,12 +11,17 @@
 > registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e os
 > writeups das ondas 1 a 5. **Este arquivo só tem o que está ABERTO.**
 >
-> ⚠ **Estado em 2026-08-23, DEPOIS dos lotes A e B:** a varredura **AUD-09** abriu 12 itens
-> (`CSV-09`…`CSV-20`); **os 3 bloqueantes e os 4 que mordiam na carga estão fechados**. O que resta
-> do cluster **não é código**: o lote **C** (tabela de-para cor → id + planilha-modelo, que cobre
-> [CSV-16] e [CSV-17]) espera o dono **cadastrar as cores e os insumos definitivos**; [CSV-18],
-> [CSV-19] e [CSV-20] são resíduo legado que o round-trip limpa; e o [CSV-21] (achado no lote A) é
-> exagero conservador num contador. O parágrafo abaixo descreve o estado de 2026-08-22.
+> ⚠ **Estado em 2026-08-23, DEPOIS dos lotes A, B e D: o código da importação está ZERADO.** A
+> varredura **AUD-09** abriu 12 itens (`CSV-09`…`CSV-20`), mais o [CSV-21] achado no lote A e o
+> [CSV-22] aberto e fechado no lote D. **Tudo que era código está fechado.** Sobra: o [CSV-17]
+> (token do arredondamento, item de **doc** — e ele avisa), que entra na spec da planilha; e
+> [CSV-18]/[CSV-19]/[CSV-20], resíduo legado que o round-trip limpa sozinho.
+>
+> **A planilha-modelo mudou de forma (dono, 2026-08-23): NÃO vira botão no app.** Quem gera a
+> planilha de importação é um **sistema externo do dono**, que lê os dados das impressões. O que
+> falta é a **spec/planilha-modelo escrita no chat** com ele, *depois* que ele cadastrar as cores e
+> os insumos definitivos e tiver os ids em mãos. O que era o "lote C" virou isso.
+> O parágrafo abaixo descreve o estado de 2026-08-22.
 >
 > ⚠ **Estado em 2026-08-22: o backlog de código está ZERADO de novo.** A fila de ondas acabou em
 > 2026-08-17; a auditoria de layout responsivo fechou em 2026-08-18; e o cluster da varredura
@@ -456,11 +461,17 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
 |---|---|---|
 | **A** | [CSV-09] + [CSV-10] + [CSV-11] — os 3 bloqueantes | ✅ **FEITO (2026-08-23)** |
 | **B** | [CSV-12] · [CSV-13] · [CSV-14] · [CSV-15] | ✅ **FEITO (2026-08-23)** |
-| **C** | tabela de-para (cor → id) + planilha-modelo (cobre [CSV-16] e [CSV-17]) | ⏸ **espera o dono cadastrar as cores** |
+| **C** | ~~tabela de-para (cor → id) + planilha-modelo~~ | ❌ **CANCELADO** — vira spec escrita no chat, sem botão (ver acima) |
+| **D** | [CSV-16] + [CSV-21] + [CSV-22] | ✅ **FEITO (2026-08-23)** |
 
-**Fora dos lotes:** [CSV-16] e [CSV-17] são item de **modelo/doc**, não de código (o parser não tem
-como saber que "Tempo (min)" é minuto, e o arredondamento já avisa) — entram no leia-me do lote C.
-[CSV-18], [CSV-19] e [CSV-20] são resíduo legado que o round-trip limpa sozinho.
+**Fora dos lotes:** só o [CSV-17] (o arredondamento pede o token e **avisa** quando não recebe) —
+entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado que o round-trip limpa.
+
+> **O [CSV-16] mudou de lado.** Estava classificado como "doc, não código" com o argumento de que *o
+> parser não tem como saber que 'Tempo (min)' é minuto*. **O argumento é falso: o cabeçalho DIZ a
+> unidade.** O que faltava era ler. Reclassificado e fechado no lote D — e o dono apontou o motivo
+> de valer o esforço: o formulário já aceita horas **e** minutos (`PrintTimeField`), e o sistema que
+> vai gerar a planilha tira o tempo da impressão, que reporta em minutos.
 
 ### 🔴 Bloqueia a carga
 
@@ -545,8 +556,13 @@ como saber que "Tempo (min)" é minuto, e o arredondamento já avisa) — entram
   97 → **6**. Consequência: "Mais recentes"/"Mais antigos" fica arbitrário para o lote todo (a
   tela ordenou 047, 095, 061, 049…). Não corrompe nada; atrapalha achar o que acabou de entrar.
 
-- **[CSV-16] `Tempo (min)` é aceito como HORAS.** O needle `"tempo"` casa. **Medido:** 120 →
-  `printHours: 120`. Erro de 60×, sem aviso. Não dá pra resolver no parser — é item de modelo/doc.
+- ✅ **[CSV-16] FEITO (Lote D)** — e reclassificado: **era código, não doc.** `Tempo (min)` virou
+  coluna própria (`timeMinutes`, needle `"tempo (min"`, que vence `"tempo"` na ordenação por
+  comprimento do CSV-10) e **soma** com `Tempo (h)`, a mesma conta do `PrintTimeField` do
+  formulário. Pro cabeçalho que o needle não pega (`"Tempo de impressao (min)"`), a 2ª trava é
+  `headerEmMinutos`, que lê a unidade no texto da coluna que a de horas reclamou — com
+  `\bmin(utos?)?\b`, pra "Tempo mínimo" não virar coluna de minutos. Descrição original: o needle
+  `"tempo"` casa; **medido:** 120 → `printHours: 120`. Erro de 60×, sem aviso.
 
 - **[CSV-17] `Arredondamento` pede o TOKEN, não o rótulo da tela.** O dono vê "Final ,90
   (psicológico)" na UI e precisa escrever `0.90`. **Medido:** `"0,9"` → `arredondamento-invalido`
@@ -554,12 +570,23 @@ como saber que "Tempo (min)" é minuto, e o arredondamento já avisa) — entram
 
 ### 🟢 Baixo / informativo (não é da importação)
 
-- **[CSV-21] O campo `linhas` dos apontamentos conta OCORRÊNCIA, não linha** *(achado no Lote A,
-  2026-08-23 — não é da AUD-09)*. O `addIssue` soma 1 por chamada, então uma única linha com 3
-  células ruins da mesma classe é reportada como **"3 linhas"**. Vem do CSV-06 e há teste travando
-  o comportamento (`linhas: 2` numa linha só, `productCsvIssues.test.ts`). Não corrigi porque está
-  fora do escopo aprovado e o exagero é conservador (aponta a mais, nunca a menos). Conserto:
-  contar por linha (um flag por linha no reporter, ou um `contar` opcional no `addIssue`).
+- ✅ **[CSV-21] FEITO (Lote D).** Set de classes já contadas na linha corrente, zerado a cada volta
+  do laço. Os **exemplos** seguem por ocorrência (até 3) de propósito: numa linha só eles nomeiam
+  campos diferentes, que é a informação acionável. Os 2 testes que travavam o comportamento antigo
+  viraram "1 linha + N exemplos". Descrição original: o `addIssue` somava 1 por chamada, então uma
+  única linha com 3 células ruins da mesma classe era reportada como **"3 linhas"** — e é esse
+  número que decide se o dono confirma a carga ou volta pro Excel.
+
+- ✅ **[CSV-22] FEITO (Lote D) — aberto nesta conversa, a partir de uma pergunta do dono**
+  (*"usar o id aleatório do Firestore pode dar problema?"*). **Um `filamentId` errado mas
+  EXISTENTE amarra o produto na cor errada, calado.** A checagem do CSV só pergunta se o id existe.
+  O id é auto-id do Firestore (`addDoc`), ninguém digita, todo mundo cola — paste deslocado ou
+  `PROCV` mal ancorado na planilha não deixa rastro. Conserto: cruzar com o `colorName` da MESMA
+  célula JSON (o export escreve os dois). Divergiu, avisa (`cor-nome-divergente`) e **não escolhe**:
+  vale o id, o dono decide. Por `normalizeText` (acento/caixa não contam); nome vazio é ausência;
+  id inexistente acende só o `cor-inexistente`; vale também pra cor de etapa.
+  ⚠ **Não vale pros insumos:** o acessório tem `desc` (texto livre, "ima"), não o nome do insumo —
+  cruzar daria falso positivo em série.
 
 - **[CSV-18] 18 documentos do catálogo carregam um campo `id` DENTRO do dado.** O `id` é o caminho,
   não campo (CLAUDE.md). Em 17 o valor é igual ao id do caminho (eco inofensivo); em **1** —
@@ -628,9 +655,19 @@ como saber que "Tempo (min)" é minuto, e o arredondamento já avisa) — entram
   funcionam. Use `;` como separador e salve como **CSV UTF-8** — TAB e `,` são detectados, mas com
   `,` todo decimal precisa ir **entre aspas** (`"1,5"`), senão a linha desalinha (a importação
   avisa, mas o excedente é descartado).
-- **Continua valendo:** `Tempo (h)` é em **HORAS** — uma coluna chamada `Tempo (min)` é lida como
-  hora, e o parser não tem como saber ([CSV-16]) · `Arredondamento` pede o **token** — `exact`,
-  `0.90`, `4.90`, `0.5`, `1`, `5`, `10` —, não o rótulo da tela ([CSV-17], que ao menos avisa).
+- **Depois do lote D:** o tempo pode vir em **horas, em minutos, ou nos dois** — `Tempo (h)` e
+  `Tempo (min)` são colunas distintas e **somam** (2 h + 30 min = 2,5 h), e hora decimal continua
+  valendo. Um cabeçalho que diga minuto de outro jeito (`Tempo de impressao (min)`, `Tempo em
+  minutos`) também é lido como minuto ([CSV-16]).
+- **Continua valendo:** `Arredondamento` pede o **token** — `exact`, `0.90`, `4.90`, `0.5`, `1`,
+  `5`, `10` —, não o rótulo da tela ([CSV-17], que ao menos avisa).
+- ⚠ **O `filamentId` é auto-id do Firestore e NÃO aparece na UI** (medido 2026-08-23: nada na
+  `/estoque` renderiza ou copia o id; o export do catálogo só revela o id de cor **já usada** por
+  algum produto). O caminho pra extrair é o **console do Firebase**. **Decisão do dono:** segue com
+  o auto-id — a alternativa (slug) colide entre materiais/marcas e exigiria esquema de desempate.
+  **A regra que isso cria:** depois da carga, cor se **edita** (nome, preço, arquivar — tudo
+  preserva o id); **excluir e recriar gera id novo** e mata o vínculo de todos os produtos que a
+  usam. A exclusão já lista os produtos/vendas afetados antes de confirmar (`filamentReferences`).
 - **Pré-requisito confirmado (item E):** a importação **não cria** cor nem insumo — medido, 2 cores
   e 2 insumos antes e depois de importar 100 produtos que os referenciam. Referência órfã **entra
   assim mesmo**, avisando (`cor-inexistente` / `insumo-inexistente`); máquina que não casa cai na
@@ -645,8 +682,9 @@ como saber que "Tempo (min)" é minuto, e o arredondamento já avisa) — entram
   nem no Google Sheets para ver o que ELES escrevem ao salvar.
 - **O seletor de arquivo do sistema:** injetei o `File` via `DataTransfer` — `FileReader`, parse,
   modal e `writeBatch` rodaram de verdade, mas o diálogo do SO não.
-- **A planilha-modelo e a tabela de-para (cor → id)** continuam por fazer; esta varredura define o
-  que elas precisam conter, não as entrega.
+- **A planilha-modelo / spec** continua por fazer; esta varredura define o que ela precisa conter,
+  não a entrega. A **tabela de-para (cor → id)** saiu de cena: o dono pega os ids no console do
+  Firebase depois de cadastrar as cores e alimenta o sistema externo dele (2026-08-23).
 
 ## Fechado
 
