@@ -11,6 +11,11 @@
 > registro deles (com as medições) vive no `HISTORICO.md` — seção "📒 Arquivo do BACKLOG" e os
 > writeups das ondas 1 a 5. **Este arquivo só tem o que está ABERTO.**
 >
+> ⚠ **Estado em 2026-08-23: o backlog de código NÃO está mais zerado** — a varredura **AUD-09**
+> (importação/exportação de CSV, pedida antes da carga em massa) abriu **12 itens**, `CSV-09` a
+> `CSV-20`, dos quais **3 bloqueiam a carga**. Tabela no fim deste arquivo. O parágrafo abaixo
+> descreve o estado de 2026-08-22, que valia até então.
+>
 > ⚠ **Estado em 2026-08-22: o backlog de código está ZERADO de novo.** A fila de ondas acabou em
 > 2026-08-17; a auditoria de layout responsivo fechou em 2026-08-18; e o cluster da varredura
 > **AUD-07** (10 defeitos) fechou nos **4 lotes** de 2026-08-22 — tabela logo abaixo.
@@ -19,6 +24,8 @@
 > → **A próxima coisa é a CARGA EM MASSA**, que é trabalho e decisão do dono (planilha gerada por
 > ele; as cores definitivas precisam estar cadastradas ANTES). Depois dela, a decisão é destravar o
 > rebrand (a logo) ou abrir frente nova.
+> **Atualização 2026-08-23:** antes da carga há agora os **3 bloqueantes da AUD-09**
+> ([CSV-09], [CSV-10], [CSV-11]) — todos silenciosos, todos na planilha escrita à mão.
 
 ## Ordem de prioridade — ondas (dono, 2026-08-16)
 
@@ -404,15 +411,193 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
 
 ### O que a AUD-07 NÃO cobriu
 
-- **[AUD-08] Insumo da próxima varredura.** Escrita de 100 produtos de verdade (medi o parse — 16 ms
-  — e li que o `writeBatch` é atômico até 500, mas não gravei); **edição de máquina** recalculando o
+- **[AUD-08] Insumo da próxima varredura.** ~~Escrita de 100 produtos de verdade~~ (✅ **coberto
+  pela AUD-09, 2026-08-23**: 100 gravados de fato, atomicidade confirmada, banco restaurado); **edição de máquina** recalculando o
   catálogo (escreve no doc compartilhado); **offline real** (só simulei `navigator.onLine`);
-  round-trip do form via CSV **não cobre** `createdAt` nem os 3 nulos legados; só **um**
+  ~~round-trip do form via CSV **não cobre** `createdAt` nem os 3 nulos legados~~ (✅ **coberto pela
+  AUD-09** — viraram [CSV-15] e [CSV-20]); só **um**
   produto-cobaia (faltou produto sem subitens vendendo acabado, multicolor com cor por etapa —
   SKU composta — e `piecesCount` > 2); importação/exportação de **vendas**, filtros e paginação do
   histórico, `/maquinas` além da leitura, tema claro; **concorrência** (duas abas gravando o mesmo
   recibo); e o **saldo negativo pré-existente** no banco (contador "SALDO NEGATIVO 1"), cuja origem
   não investiguei.
+
+## Aberto — cluster da varredura AUD-09 (2026-08-23) — IMPORTAÇÃO/EXPORTAÇÃO DE CSV
+
+> 3ª varredura, pedida pelo dono **imediatamente antes da carga em massa** e restrita a
+> `productCsv.ts` + o fluxo de import do `ProductCatalog.tsx`. Mesma regra das anteriores: o que
+> está marcado como corrigido **não é referência**, e diagnóstico registrado também não — cada
+> item abaixo foi **reproduzido** antes de virar achado. Reportado sem correção (o dono decide os
+> lotes).
+>
+> **Método:** harness local em vitest sobre as funções puras (≈120 casos) + **escrita real no
+> Firestore de produção**, com aval do dono: backup dos 97 produtos em disco, round-trip do
+> catálogo real (97 cópias), carga de 100 produtos escritos à mão, teste de atomicidade, e
+> **limpeza verificada** no fim — 198 documentos criados e apagados, banco de volta a **97/97
+> idênticos por conteúdo e mesmos ids**. Cores (2) e insumos (2) intactos.
+> `lint` ✅ · **523/523 em 5 execuções** ✅.
+>
+> ⚠ **Armadilha de método que eu mesmo pisei e vale registrar:** o helper de dump escrevia
+> `{ id: doc.id, ...doc.data() }` — o spread sobrescreve o id do caminho quando o documento tem um
+> campo `id`, e isso **mascarou um produto legítimo** na lista de "originais". Se eu tivesse
+> limpado por aquela lista, teria apagado um produto real. Dump de Firestore põe o id do caminho
+> **por último** e com nome que não colide (`__id`). Foi também o que revelou o [CSV-18].
+
+### 🔴 Bloqueia a carga
+
+- **[CSV-09] Coluna escalar PRESENTE e vazia (ou ilegível) vira 0 — sem um único aviso.**
+  **Mecanismo:** o default só vale quando a coluna está **AUSENTE** (`indexX >= 0 ? parseNumber(...)
+  : DEFAULT`). Presente, passa pelo `parseNumber`, que é `parseDecimalPtBr(value) ?? 0` — o wrapper
+  leniente. O comentário dele diz "use nas colunas cujo vazio JÁ significa zero", mas em
+  `Tarifa Energia`, `Valor-hora`, `Mao de obra (min)` e `Taxa Falha` o vazio **não** significa zero:
+  significa o default 0,8 / 30 / 15 / 3.
+  **Medido** (mesma linha, única diferença = as 4 colunas presentes e em branco):
+  custo **R$ 15,19 → R$ 7,08** · preço **R$ 30,10 → R$ 21,24**. `warnings: []`, `issues: [cor-avulsa]`.
+  **Medido por coluna** (valor `"abc"`, referência preço R$ 27,52):
+  `Peso (g)` → **10,51** · `Filamento (R$/kg)` → **10,51** · `Mao de obra (min)` e `Valor-hora` →
+  **22,37** · `Tempo (h)` → **22,16** · `Tarifa Energia` → **27,05** · `Taxa Falha (%)` → **26,70**.
+  **Das 8, só `Markup` avisa** (`markup-invalido`). As outras 7 são mudas.
+  **Por que bloqueia:** a carga é uma planilha escrita à mão. Célula em branco é o erro mais
+  provável que existe — e é justamente o único sem sinal. É o mesmo defeito que o [CSV-06] fechou
+  **dentro** dos JSONs, sobrevivendo **fora** deles.
+
+- **[CSV-10] Cabeçalho `Filamentos` (sem a palavra "JSON") é capturado pela coluna de PREÇO — e a
+  lista de cores inteira vira um número absurdo, calada.**
+  **Mecanismo:** `resolveColumns` faz 2 passadas. O `claimed` do CSV-02 só protege quando **uma
+  das duas** casou por nome EXATO. Quando nenhuma casa, a passada por `needle` roda na ordem de
+  declaração de `COLUMN_SPECS`, e `filamentPrice` (needle `"filamento"`) é declarada **antes** de
+  `filaments` (needle `"filamentos json"`) — então `"Filamentos"` é reclamada pelo preço, e a
+  coluna de cores não acha mais nada.
+  **Medido:** cabeçalho `Produto;Tempo (h);Filamentos` com JSON de cor válido →
+  `filamentPricePerKg: 11050`, `weightG: 0`, **sem** `filaments`. `warnings: []` — e nem entra em
+  "coluna ignorada", porque foi reclamada. Duplamente silencioso.
+
+- **[CSV-11] A supressão do aviso "coluna ignorada" engole variantes de DUAS colunas de ENTRADA.**
+  **Mecanismo:** a lista `CALCULADAS` suprime o aviso por `includes` sobre o cabeçalho inteiro, e
+  contém `"energia"` e `"custo fixo"` — que também casam com nomes das colunas de entrada
+  `Tarifa Energia` e `Inclui Fixo`. Resultado: o nome não é reconhecido (needle não bate) **e** não
+  é avisado.
+  **Medido** (varredura sistemática: 19 colunas × variantes plausíveis, todo o resto exato):
+  `"Tarifa de Energia"` → `energyTariff` 0,8 (planilha dizia 99) · `"Energia (R$/kWh)"` → 0,8 ·
+  `"Inclui custo fixo"` → `includeFixed` false (planilha dizia "sim"). **Os três, calados.**
+  As outras 12 variantes que erraram **avisaram** — a mecânica geral está certa; são estes dois
+  vazamentos.
+
+### 🟠 Alto (não bloqueia, mas morde na carga)
+
+- **[CSV-12] `milhar-ambiguo` não roda DENTRO das células JSON.** A checagem cobre 4 colunas
+  escalares; o JSON é onde moram os pesos de verdade do modelo. **Medido:** `"totalG":"1.234"` →
+  **1,234 g**, sem aviso, e o `cor-sem-peso` **não** dispara (1,234 > 0). Um produto de 1234 g
+  entra 1000× mais leve, invisível.
+
+- **[CSV-13] `cor-sem-peso` só olha a SOMA da lista, não cada cor.** **Mecanismo:**
+  `filamentsTotalG(lista.map(makeFilament)) === 0`. **Medido:** 2 cores, uma com `totalG: 0` →
+  **nenhum aviso**. Em produto multicolor — a feature-bandeira do app — uma cor zerada por engano
+  passa batida.
+
+- **[CSV-14] O separador sai só do cabeçalho, e vírgula/TAB degradam em silêncio.**
+  **Mecanismo:** `const separator = rawLines[0].includes(";") ? ";" : ","`.
+  **Medido:** planilha com `,` e decimais pt-BR **sem aspas** — `Caneca,2,5,50` → `printHours: 2`,
+  `weightG: 5`, terceiro valor descartado, `warnings: []`. Planilha com **TAB** → a linha inteira
+  vira o NOME do produto, todo o resto no default; só acendem `linha-invalida`/`cor-avulsa`.
+  Com `,` **e** aspas (o que o Excel faz) funciona.
+
+### 🟡 Médio
+
+- **[CSV-15] `createdAt: Date.now()` no parse → a carga inteira nasce no mesmo instante.**
+  **Medido na escrita real:** 100 produtos → **3 valores distintos** de `createdAt`; o round-trip de
+  97 → **6**. Consequência: "Mais recentes"/"Mais antigos" fica arbitrário para o lote todo (a
+  tela ordenou 047, 095, 061, 049…). Não corrompe nada; atrapalha achar o que acabou de entrar.
+
+- **[CSV-16] `Tempo (min)` é aceito como HORAS.** O needle `"tempo"` casa. **Medido:** 120 →
+  `printHours: 120`. Erro de 60×, sem aviso. Não dá pra resolver no parser — é item de modelo/doc.
+
+- **[CSV-17] `Arredondamento` pede o TOKEN, não o rótulo da tela.** O dono vê "Final ,90
+  (psicológico)" na UI e precisa escrever `0.90`. **Medido:** `"0,9"` → `arredondamento-invalido`
+  (avisa certo), `"0.90"` e `"0,90"` → ok. Como avisa, é item de modelo, não de código.
+
+### 🟢 Baixo / informativo (não é da importação)
+
+- **[CSV-18] 18 documentos do catálogo carregam um campo `id` DENTRO do dado.** O `id` é o caminho,
+  não campo (CLAUDE.md). Em 17 o valor é igual ao id do caminho (eco inofensivo); em **1** —
+  caminho `4MKTY5K6OGldKp0zDZNB`, "Clicker The Sheep - Rosto cor da orelha" — aponta para **outro**
+  documento (`nTpe34KAcIQf4rxhmYjL`). **Não vem da importação:** medido, **0 dos 100** importados
+  têm o campo, e o `buildProductPayload` de hoje faz `delete base.id`. É resíduo legado — e o
+  round-trip por CSV, aliás, **limpa**.
+
+- **[CSV-19] `markupOnFixed` em 65 documentos** — campo que não existe no `ProductPayload`, nem no
+  `toSavedProduct`, nem no CSV. Morto; o round-trip descarta. Só registro.
+
+- **[CSV-20] Etapa legada `combineEnabled`/`stage2` não sobrevive ao round-trip.** O export lê
+  `product.stages`, não `normalizeStages`. **Medido:** a 2ª etapa legada some e o custo cai — **mas
+  a rede do CSV-03 pega** (`custo 19,08 → 5,11` no aviso de divergência). E, medido no banco real,
+  **nenhum** dos 97 documentos tem `stage2` preenchido → hoje é inalcançável.
+
+### ✅ O que está SÃO — medido, não presumido
+
+> Registrado porque a pergunta do dono era "vai dar certo?", e a maior parte da resposta é **sim**.
+
+- **Round-trip do arquivo do app é estável:** `export → parse → export` deu arquivo **idêntico**
+  (97 produtos reais + 4 sintéticos com etapa/acessório/subitem/markup/links/detalhamento de cor).
+  A 3ª volta também.
+- **Diff campo a campo dos 97 reais:** toda diferença é normalização **documentada** — defaults
+  preenchidos (`sellBySubitems`, `subitems`, `roundingMode`, links…), escalares migrando para
+  `filaments`, `stages[].energyTariff`/`laborRate` descartados de propósito,
+  `accessories[].supplyId`/`subitemId` virando `null`. **`recalc`: 0 divergências em 97 linhas.**
+  ⚠ Sem *stringify canônico* apareciam 33 falsos positivos em `stages[].filaments` — só ordem de
+  chave. A regra do CLAUDE.md se confirmou na prática.
+- **O que caiu no banco bate com o parse:** os 97 documentos gravados casaram **exatamente**
+  (0 sem par) com os payloads que o `parseProductsCsv` produziu; os 100 da carga saíram com forma
+  **uniforme** (as mesmas 24 chaves em 100/100), sem `undefined`, com os 3 nulos legados e sem
+  campo `id`.
+- **As 13 classes de aviso: nenhum falso positivo.** Nos ~45 casos de controle, todas acenderam
+  quando deviam e ficaram caladas quando não deviam — incluindo os limítrofes (`[]` e `[ ]` não são
+  JSON inválido, `{}` é; markup vazio não avisa, `"abc"` avisa; detalhamento sem `totalG` não é
+  cor-sem-peso; subitem apontando `"main"` ou `stage_0` sem id explícito é válido).
+- **Encoding e formato:** ANSI lido como UTF-8 é **detectado** (3 caracteres ilegíveis → aviso
+  certo). CRLF, BOM, célula com quebra de linha citada, aspas dobradas, linha em branco no meio,
+  linha `;;`: todos corretos. Nome repetido conta certo (arquivo + catálogo).
+- **pt-BR:** vírgula decimal, ponto de milhar, `R$`, espaço não-separável — corretos, inclusive
+  **dentro** do JSON quando o número vem como string (`"143,53"` → 143,53). `1.234` acende
+  `milhar-ambiguo` nas 4 colunas certas e **não** acende em `Tempo (h) = 2.375`.
+- **Escala e atomicidade:** 100 produtos = 17,7 KB, parse **5,1 ms**, e da confirmação até
+  aparecerem na tela **1,48 s**. Lote com 1 payload inválido → **nada entra** (294 → 294), nos dois
+  modos de falha (`undefined` barrado pelo SDK; documento > 1 MiB barrado no commit).
+- **Uma linha ruim entre 100 não derruba as outras:** no parse ela entra degradada e é apontada;
+  na escrita, ou entra tudo ou nada (≤ 500 é um `writeBatch` atômico).
+
+### 📋 Resposta direta: o conjunto MÍNIMO de colunas
+
+- **Obrigatória: `Produto`. Só ela.** Sem essa coluna a importação lança
+  `Coluna "Produto" não encontrada.` e **nada** entra. Linha sem nome é pulada em silêncio.
+- **Todo o resto é opcional** e cai em default **quando a coluna está AUSENTE**: máquina = a 1ª
+  (A1), Tempo 0, Peças 1, Tarifa 0,8, Mão de obra 15 min, Valor-hora 30, Markup 3, Taxa de falha 3,
+  Inclui Fixo "não", Arredondamento `exact`, links vazios, sem etapa/acessório/subitem.
+- **Mínimo RECOMENDADO — as 15 colunas que eu carreguei com 100 linhas e ZERO avisos:**
+  `Produto` · `Maquina` · `Peso (g)` · `Tempo (h)` · `Pecas` · `Filamento (R$/kg)` · `Markup` ·
+  `Taxa Falha (%)` · `Tarifa Energia` · `Mao de obra (min)` · `Valor-hora (R$)` · `Inclui Fixo` ·
+  `Arredondamento` · `Filamentos JSON` · `Acessorios JSON`.
+- **Regra de ouro enquanto o [CSV-09] estiver aberto: coluna que você NÃO vai preencher, não
+  coloque.** Ausente pega o default; presente e vazia vira **0**.
+- **Nomes:** acento e caixa não importam ("Máquina" = "Maquina"). Mas **não abrevie**
+  `Filamentos JSON` → `Filamentos` ([CSV-10]) e **não escreva** `Tarifa de Energia` nem
+  `Inclui custo fixo` ([CSV-11]). Use `;` como separador e salve como **CSV UTF-8**.
+- **Pré-requisito confirmado (item E):** a importação **não cria** cor nem insumo — medido, 2 cores
+  e 2 insumos antes e depois de importar 100 produtos que os referenciam. Referência órfã **entra
+  assim mesmo**, avisando (`cor-inexistente` / `insumo-inexistente`); máquina que não casa cai na
+  primeira e avisa; máquina em **branco** cai na primeira **sem** avisar. Ou seja: **cadastre as
+  cores e os insumos definitivos ANTES**, e ponha os ids reais no JSON.
+
+### O que a AUD-09 NÃO cobriu
+
+- **Acima de 500 produtos** (lotes sequenciais, estado parcial possível): li o código e o próprio
+  repositório documenta, mas **não medi** — exigiria criar 500+ documentos. A carga prevista é ~100.
+- **Excel de verdade:** sintetizei ANSI/CRLF/BOM/separadores em bytes. Não abri o arquivo no Excel
+  nem no Google Sheets para ver o que ELES escrevem ao salvar.
+- **O seletor de arquivo do sistema:** injetei o `File` via `DataTransfer` — `FileReader`, parse,
+  modal e `writeBatch` rodaram de verdade, mas o diálogo do SO não.
+- **A planilha-modelo e a tabela de-para (cor → id)** continuam por fazer; esta varredura define o
+  que elas precisam conter, não as entrega.
 
 ## Fechado
 
