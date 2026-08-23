@@ -926,6 +926,11 @@ export function parseProductsCsv(
     (options?.existingNames ?? []).map((nome) => normalizeText(nome)),
   );
   const estoqueIds = new Set((options?.stock ?? []).map((color) => color.id));
+  // CSV-22: id -> cor viva, para cruzar com o `colorName` que a planilha
+  // escreveu ao lado dele (ver o bloco 5b, lá embaixo).
+  const estoquePorId = new Map(
+    (options?.stock ?? []).map((color) => [color.id, color] as const),
+  );
   const insumoIds = options?.supplies
     ? new Set(options.supplies.map((supply) => supply.id))
     : null;
@@ -1289,6 +1294,28 @@ export function parseProductsCsv(
             "cor-inexistente",
             "Cor do Estoque não encontrada — o filamento entra com o preço salvo",
             `${ondeEstou}: filamentId "${f.filamentId}"`,
+          );
+          return;
+        }
+        // 5b) CSV-22: o id CONFERE, e mesmo assim pode ser o id errado. O
+        // `filamentId` é um auto-id do Firestore (`4MKTY5K6OGldKp0zDZNB`) —
+        // ninguém digita, todo mundo cola, e um paste deslocado ou um PROCV mal
+        // ancorado na planilha amarra o produto na cor ERRADA sem que nada
+        // acenda: o id existe. Era o último erro silencioso da carga em massa,
+        // e o único que a checagem de existência não pega.
+        //
+        // O nome ao lado é a segunda fonte, e a planilha já o traz (o export
+        // escreve os dois). Divergiu, alguma das duas células está errada — e
+        // não dá para saber qual, então o parser NÃO escolhe: o id continua
+        // valendo (é ele que liga ao Estoque) e o dono decide olhando o aviso.
+        const viva = f.filamentId ? estoquePorId.get(f.filamentId) : undefined;
+        const naPlanilha = (f.colorName ?? "").trim();
+        if (viva && naPlanilha && normalizeText(naPlanilha) !== normalizeText(viva.colorName ?? "")) {
+          addIssue(
+            "cor-nome-divergente",
+            "Nome da cor não bate com o id — vale o ID, confira se não é a cor errada",
+            `${ondeEstou}: id "${f.filamentId}" é "${viva.colorName}", ` +
+              `a planilha diz "${naPlanilha}"`,
           );
         }
       });

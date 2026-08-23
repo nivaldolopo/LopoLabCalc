@@ -898,3 +898,88 @@ describe("CSV-21 — o contador conta linha, não ocorrência", () => {
     expect(achar(r.issues, "coluna-numero-nao-reconhecido")?.linhas).toBe(2);
   });
 });
+
+// CSV-22 — o `filamentId` é um auto-id do Firestore: ninguém digita, todo mundo
+// cola. Um paste deslocado amarra o produto na cor ERRADA e a checagem de
+// existência não pega, porque o id existe. O nome ao lado é a segunda fonte.
+describe("CSV-22 — nome da cor × id", () => {
+  const comCor = (filamentId: string, colorName: string) =>
+    parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId, colorName, pricePerKg: 110, totalG: 50 },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+
+  it("id e nome batendo: calado", () => {
+    expect(achar(comCor("cor_laranja", "Laranja").issues, "cor-nome-divergente"))
+      .toBeUndefined();
+  });
+
+  it("id certo, nome de OUTRA cor: avisa dizendo os dois", () => {
+    const r = comCor("cor_laranja", "Preto");
+    const issue = achar(r.issues, "cor-nome-divergente");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain("cor_laranja");
+    expect(issue?.exemplos[0]).toContain("Laranja");
+    expect(issue?.exemplos[0]).toContain("Preto");
+    // O id continua valendo — o aviso não muda o vínculo.
+    expect(r.products[0].filaments?.[0].filamentId).toBe("cor_laranja");
+  });
+
+  it("acento e caixa não são divergência", () => {
+    expect(achar(comCor("cor_laranja", "LARANJA").issues, "cor-nome-divergente"))
+      .toBeUndefined();
+  });
+
+  it("nome ausente é ausência, não divergência", () => {
+    expect(achar(comCor("cor_laranja", "").issues, "cor-nome-divergente"))
+      .toBeUndefined();
+  });
+
+  it("id que não existe acende SÓ o cor-inexistente, não os dois", () => {
+    const r = comCor("cor_fantasma", "Laranja");
+    expect(achar(r.issues, "cor-inexistente")?.linhas).toBe(1);
+    expect(achar(r.issues, "cor-nome-divergente")).toBeUndefined();
+  });
+
+  it("vale também para a cor de uma ETAPA", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Etapas JSON": JSON.stringify([
+          {
+            id: "stage_1",
+            name: "Base",
+            machineId: "a1",
+            printHours: 1,
+            laborMinutes: 0,
+            filaments: [
+              { filamentId: "cor_laranja", colorName: "Verde", pricePerKg: 110, totalG: 20 },
+            ],
+          },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-nome-divergente")?.exemplos[0]).toContain("Verde");
+  });
+
+  it("sem estoque nas opções, a checagem não roda", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: "cor_laranja", colorName: "Preto", pricePerKg: 110, totalG: 50 },
+        ]),
+      }),
+      machines,
+    );
+    expect(achar(r.issues, "cor-nome-divergente")).toBeUndefined();
+  });
+});
