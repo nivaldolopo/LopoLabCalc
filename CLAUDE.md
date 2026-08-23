@@ -14,29 +14,28 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **Lote 2 (2026-08-22)** — `UX-42` + `TD-018` + `TD-019`. O **UX-42** era o de
-  fundo: o preview da edição de recibo fazia forward puro enquanto a gravação fazia
-  estorno-e-reaplicação, então acusava saldo negativo que não existia. Em vez de repetir o cálculo,
-  o `planReciboReconciliation` agora **delega** ao `reconcileReciboWrite` — duas implementações que
-  precisam concordar são duas que um dia divergem. Verificado no app **sem gravar**: saldo 3 +
-  venda antiga de 1 → QTD 4 não avisa, QTD 5 avisa "1 além". O **TD-019** tinha uma causa a mais
-  que o backlog registrava: o `onSnapshot` **não reemite em mudança só de metadata**, então o
-  snapshot de confirmação nunca chegava — daí `includeMetadataChanges` + `pending`.
-  ⚠ **TD-019 verificado por código/build, não ao vivo** (a prova exige gravar venda real).
-  `lint` ✅ · **511/511 em 5 execuções** ✅ · `build` ✅. Antes vieram os Lotes 0 e 1.
+- **Última mudança:** **Lote 3 (2026-08-22) — fecha o cluster AUD-07.** `UX-43` + `TD-020`.
+  ⚠ **O diagnóstico do UX-43 estava errado:** o travessão nunca foi comido — o jsPDF declara
+  `WinAnsiEncoding` e grava `—` no byte 0x97, que nessa tabela É o travessão; a varredura leu o
+  stream como Latin-1 e o viu "sumir". O defeito real é maior: **um** caractere sem byte no cp1252
+  faz o jsPDF reescrever a **string inteira** em UTF-16BE com a fonte ainda WinAnsi — a linha toda
+  vira lixo (um emoji no nome levaria o nome junto). O saneador é cirúrgico: preserva o que tem
+  byte, troca só o que não tem. `TD-020`: `saveMachines` devolve erro e o modal não fecha;
+  `saveFees` expõe `error` (é chamada a cada tecla, lançar viraria unhandled rejection).
+  `lint` ✅ · **523/523 em 5 execuções** ✅ · `build` ✅.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — Lote 3, o último** (`BACKLOG.md`): **[UX-43]** (o PDF come o travessão e as
-  aspas curvas — sanitizar fora do WinAnsi ou embutir fonte Unicode) e **[TD-020]** (máquinas e
-  taxas gravam sem `guardOnline`, então offline a UI finge que salvou). **Depois:** a **CARGA EM
-  MASSA** — planilha gerada do zero pelo dono; **pré-requisito dele:** cadastrar as cores
-  definitivas ANTES (a importação **não cria** cor nem insumo). Em aberto: **tabela de-para** +
-  **modelo de planilha** (posso gerar os dois). **Não existe "limpar catálogo"** (97 exclusões uma
-  a uma). Sobra o **[AUD-08]**, que ganhou a verificação ao vivo do TD-019 como insumo.
+- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA** (`BACKLOG.md`). **Os 4 lotes do AUD-07 fecharam**; não há
+  mais item de código escolhível fora do que depende de fora (rebrand/logo, Dashboard, AUD-08).
+  A carga é **decisão e trabalho do dono**: planilha gerada do zero por ele, e o **pré-requisito é
+  cadastrar as cores definitivas ANTES** — a importação **não cria** cor nem insumo. Em aberto e
+  eu posso gerar: **tabela de-para** (cor → id) + **modelo de planilha**. **Não existe "limpar
+  catálogo"** (97 exclusões uma a uma). ⚠ Dois resíduos verificáveis só com escrita real, ambos no
+  **[AUD-08]**: o **TD-019** (KPIs) e a carga de 100 produtos — que a própria carga exercita.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do

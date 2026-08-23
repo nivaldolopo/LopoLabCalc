@@ -20,6 +20,91 @@ export type QuotePdfData = {
 
 const ACCENT: [number, number, number] = [255, 107, 53]; // #FF6B35
 
+// UX-43 — o que o PDF faz com caractere que a fonte não sabe escrever.
+//
+// ⚠ O item nasceu de um diagnóstico ERRADO, e desfazê-lo é metade do valor
+// deste bloco. A auditoria extraiu o texto do PDF, viu "Produto  Corpo" onde o
+// app escreve "Produto — Corpo" e concluiu que o travessão era comido. Não é:
+// o jsPDF declara `/Encoding /WinAnsiEncoding` e grava o travessão no byte
+// 0x97, que nessa tabela É o travessão. Quem lê o stream como Latin-1 (onde
+// 0x97 é um controle invisível) vê o caractere "sumir" — artefato de extração.
+// Rebaixar o travessão para hífen "por precaução" pioraria um PDF que já
+// estava certo.
+//
+// O defeito de verdade está ao lado, e é MAIOR do que o relatado. Um único
+// caractere sem byte no cp1252 não se perde sozinho: o jsPDF reescreve a
+// STRING INTEIRA em UTF-16BE e deixa a fonte declarada como WinAnsi. Medido,
+// olhando o bloco de texto do arquivo:
+//
+//   "A—B"  (travessão, tem byte) → (A<97>B) Tj            1 byte por char, ok
+//   "A‐B"  (U+2010, sem byte)    → (<00>A <10><00>B) Tj    UTF-16BE
+//   "A🐱B" (emoji, sem byte)     → (<00>A<d8>=<dc>1<00>B)  UTF-16BE
+//
+// Como o leitor de PDF interpreta byte a byte com a tabela WinAnsi, não é o
+// caractere que some — é a linha toda que vira lixo. Um nome de produto com
+// emoji levaria junto o nome inteiro.
+//
+// Por isso o saneamento é CIRÚRGICO e obrigatório ao mesmo tempo: preserva tudo
+// que tem byte (é o que mantém a linha no caminho de 1 byte) e troca só o que
+// não tem (é o que impede a virada para UTF-16).
+//
+// Embutir uma fonte Unicode resolveria o resto também, mas custa centenas de KB
+// no bundle do cliente para ganhar caracteres que um orçamento não usa.
+
+// Os 27 caracteres que o cp1252 acomoda ACIMA do Latin-1, nos bytes 0x80–0x9F.
+// É o que separa "cabe no PDF" de "cabe em um byte" — a confusão que gerou o
+// diagnóstico errado.
+const WINANSI_EXTRA = new Set([
+  "\u20AC", "\u201A", "\u0192", "\u201E", "\u2026", "\u2020", "\u2021",
+  "\u02C6", "\u2030", "\u0160", "\u2039", "\u0152", "\u017D", "\u2018",
+  "\u2019", "\u201C", "\u201D", "\u2022", "\u2013", "\u2014", "\u02DC",
+  "\u2122", "\u0161", "\u203A", "\u0153", "\u017E", "\u0178",
+]);
+
+function cabeNoPdf(ch: string): boolean {
+  const cp = ch.codePointAt(0) ?? 0;
+  if (cp >= 0x20 && cp <= 0x7e) return true; // ASCII imprimível
+  if (cp >= 0xa0 && cp <= 0xff) return true; // Latin-1 alto (á, ç, ·, º, ×…)
+  return WINANSI_EXTRA.has(ch);
+}
+
+// Só o que NÃO cabe e tem um equivalente óbvio. Os primos do travessão e das
+// aspas que ficaram de fora do cp1252 caem no parente que entrou.
+const SEM_BYTE: Record<string, string> = {
+  "\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2015": "-", "\u2212": "-",
+  "\u2043": "-",
+  "\u201B": "\u2019", "\u201F": "\u201D", // aspas invertidas → a curva normal
+  "\u2032": "'", "\u2033": '"',
+  "\u2007": " ", "\u2009": " ", "\u200A": " ", "\u202F": " ",
+  "\u200B": "", "\uFEFF": "", // largura zero
+};
+
+/**
+ * Texto pronto para as fontes padrão do jsPDF (WinAnsi/cp1252).
+ *
+ * Preserva tudo que a tabela acomoda — inclusive o travessão, as aspas curvas e
+ * o acentuado, que é a maior parte de um orçamento em português. Age só sobre o
+ * que viraria `??`: primeiro o equivalente óbvio, depois o NFKD (que devolve as
+ * letras de um "ﬁ" ou de um "①"), e o que ainda assim não couber é descartado —
+ * um espaço em branco incomoda menos que `??` no meio do nome do produto.
+ */
+export function sanitizeForPdf(text: string): string {
+  if (!text) return "";
+  return [...text]
+    .map((ch) => {
+      if (cabeNoPdf(ch)) return ch;
+      const trocado = SEM_BYTE[ch];
+      if (trocado !== undefined) return trocado;
+      return [...ch.normalize("NFKD").normalize("NFC")]
+        .filter((c) => cabeNoPdf(c))
+        .join("");
+    })
+    .join("");
+}
+
+// Atalho para não esquecer o saneamento em nenhuma chamada de texto.
+const t = sanitizeForPdf;
+
 function brl(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -120,7 +205,7 @@ export function generateQuotePdf(data: QuotePdfData): void {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
   doc.setTextColor(ACCENT[0], ACCENT[1], ACCENT[2]);
-  doc.text(data.business.name || "Lopo Lab", textX, logoY + 19);
+  doc.text(t(data.business.name) || "Lopo Lab", textX, logoY + 19);
 
   // Contato formatado, uma linha por item
   doc.setFont("helvetica", "normal");
@@ -135,9 +220,9 @@ export function generateQuotePdf(data: QuotePdfData): void {
     .filter((line) => line.text)
     .forEach((line) => {
       if (line.url) {
-        doc.textWithLink(line.text, textX, contactY, { url: line.url });
+        doc.textWithLink(t(line.text), textX, contactY, { url: line.url });
       } else {
-        doc.text(line.text, textX, contactY);
+        doc.text(t(line.text), textX, contactY);
       }
       contactY += 13;
     });
@@ -150,7 +235,7 @@ export function generateQuotePdf(data: QuotePdfData): void {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(90);
-  doc.text(`Nº ${data.number}`, pageWidth - marginX, logoY + 32, {
+  doc.text(t(`Nº ${data.number}`), pageWidth - marginX, logoY + 32, {
     align: "right",
   });
   doc.text(`Data: ${formatDate(data.date)}`, pageWidth - marginX, logoY + 45, {
@@ -172,7 +257,7 @@ export function generateQuotePdf(data: QuotePdfData): void {
     doc.text("Cliente:", marginX, y);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(70);
-    doc.text(data.customer, marginX + 52, y);
+    doc.text(t(data.customer), marginX + 52, y);
     y += 18;
   }
 
@@ -185,7 +270,7 @@ export function generateQuotePdf(data: QuotePdfData): void {
     startY: y,
     head: [["Descrição", "Qtd", "Preço unit.", "Subtotal"]],
     body: data.items.map((item) => [
-      item.description,
+      t(item.description),
       String(item.quantity),
       brl(item.unitPrice),
       brl(item.quantity * item.unitPrice),
@@ -228,7 +313,7 @@ export function generateQuotePdf(data: QuotePdfData): void {
     cursorY += 14;
     doc.setFont("helvetica", "normal");
     doc.setTextColor(70);
-    const wrapped = doc.splitTextToSize(data.notes, pageWidth - marginX * 2);
+    const wrapped = doc.splitTextToSize(t(data.notes), pageWidth - marginX * 2);
     doc.text(wrapped, marginX, cursorY);
     cursorY += wrapped.length * 12 + 12;
   }
@@ -239,7 +324,9 @@ export function generateQuotePdf(data: QuotePdfData): void {
   doc.setFontSize(9);
   doc.setTextColor(120);
   doc.text(
-    `Orçamento válido por ${data.validityDays} dias — até ${validUntil.toLocaleDateString("pt-BR")}.`,
+    t(
+      `Orçamento válido por ${data.validityDays} dias — até ${validUntil.toLocaleDateString("pt-BR")}.`,
+    ),
     marginX,
     cursorY,
   );

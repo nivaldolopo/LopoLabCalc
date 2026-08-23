@@ -10,7 +10,9 @@ type MachineManagerModalProps = {
   open: boolean;
   machines: Machine[];
   onClose: () => void;
-  onSave: (machines: Machine[]) => void;
+  // TD-020: devolve a mensagem de erro da gravação, ou `null` se deu certo —
+  // é o que permite ao modal NÃO fechar em cima de um save que não aconteceu.
+  onSave: (machines: Machine[]) => Promise<string | null>;
 };
 
 export function MachineManagerModal({
@@ -22,6 +24,7 @@ export function MachineManagerModal({
   const [draft, setDraft] = useState<Machine[]>(machines);
   // Aviso de validação inline, no lugar do window.alert (TD-004).
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   if (!open) return null;
 
@@ -58,7 +61,7 @@ export function MachineManagerModal({
     );
   }
 
-  function saveDraft() {
+  async function saveDraft() {
     for (const machine of draft) {
       if (!machine.name.trim()) {
         setError("Toda máquina precisa de um nome.");
@@ -76,7 +79,15 @@ export function MachineManagerModal({
     }
 
     setError(null);
-    onSave(draft);
+    setSaving(true);
+    const falha = await onSave(draft);
+    setSaving(false);
+    // TD-020: offline (ou erro de escrita) o modal fechava como se tivesse
+    // salvo. Agora ele fica aberto com o motivo — e o rascunho não se perde.
+    if (falha) {
+      setError(falha);
+      return;
+    }
     onClose();
   }
 
@@ -87,8 +98,13 @@ export function MachineManagerModal({
       onClose={onClose}
       footer={
         <>
-          <button className="btn primary" type="button" onClick={saveDraft}>
-            Salvar
+          <button
+            className="btn primary"
+            type="button"
+            onClick={saveDraft}
+            disabled={saving}
+          >
+            {saving ? "Salvando..." : "Salvar"}
           </button>
           <button className="btn btn-secondary" type="button" onClick={onClose}>
             Cancelar

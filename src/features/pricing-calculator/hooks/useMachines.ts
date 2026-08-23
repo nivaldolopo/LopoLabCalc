@@ -11,6 +11,7 @@ import {
   defaultMaintenanceForId,
 } from "../constants";
 import type { Machine } from "../types";
+import { errorMessage, guardOnline } from "@/lib/errors";
 
 function cloneMachines(machines: Machine[]): Machine[] {
   return machines.map((machine) => ({ ...machine }));
@@ -78,13 +79,40 @@ export function useMachines() {
     return unsubscribe;
   }, []);
 
-  function saveMachines(nextMachines: Machine[]) {
+  /**
+   * TD-020 — grava as máquinas e devolve a MENSAGEM DE ERRO, ou `null` se deu
+   * certo. Antes era `void persistMachines(...)`: fire-and-forget, sem tratar
+   * erro. Offline isso "fingia que salvou" — o estado local e o localStorage
+   * mostravam o valor novo e a escrita ficava enfileirada, sem nada na tela
+   * dizendo que o doc compartilhado `config/machines` não tinha mudado.
+   *
+   * O `guardOnline` vem ANTES de tocar em estado local: offline a Promise do
+   * Firestore não resolve nem rejeita (fica pendente para sempre), então quem
+   * tenta descobrir a falha esperando o `await` espera para sempre.
+   *
+   * Quando a escrita falha JÁ ONLINE, o estado local fica com o valor novo de
+   * propósito — desfazer o que o dono acabou de digitar surpreende mais do que
+   * ajuda. O que não pode é ele não saber, e é isso que o retorno resolve.
+   */
+  async function saveMachines(
+    nextMachines: Machine[],
+  ): Promise<string | null> {
+    try {
+      guardOnline();
+    } catch (err) {
+      return errorMessage(err);
+    }
     const normalized = nextMachines.length
       ? cloneMachines(nextMachines)
       : cloneMachines(DEFAULT_MACHINES);
     setMachines(normalized);
     writeLocalMachines(normalized);
-    void persistMachines(normalized);
+    try {
+      await persistMachines(normalized);
+      return null;
+    } catch (err) {
+      return errorMessage(err);
+    }
   }
 
   return { machines, saveMachines };

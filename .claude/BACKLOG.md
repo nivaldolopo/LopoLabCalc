@@ -191,7 +191,7 @@
 | **0** | **[TD-017]** | ✅ **FEITO (2026-08-22)** |
 | **1** | **[CSV-06]** + [CSV-07] + [CSV-08] + **[UX-41]** | ✅ **FEITO (2026-08-22)** |
 | **2** | [UX-42] · [TD-018] · [TD-019] | ✅ **FEITO (2026-08-22)** |
-| **3** | [UX-43] · [TD-020] | ▶ próximo |
+| **3** | [UX-43] · [TD-020] | ✅ **FEITO (2026-08-22)** — fecha o cluster AUD-07 |
 
 **[AUD-08] fica FORA dos lotes de propósito:** metade da lista dele (*"escrita de 100 produtos de
 verdade"*) é **exercitada de graça pela carga em massa real**. Varrer antes é ensaiar o que vai
@@ -245,10 +245,14 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
 
 > 2ª varredura ponta a ponta, pedida pelo dono **antes da carga em massa**, com a regra de que a
 > passada anterior **não é referência** (nem as correções dela). Método e medições:
-> [`HISTORICO.md`](HISTORICO.md). **10 defeitos, nenhum corrigido ainda** — a varredura tinha regra
-> de só reportar.
+> [`HISTORICO.md`](HISTORICO.md). Eram **10 defeitos**, reportados sem correção (a varredura tinha
+> regra de só reportar). ✅ **Os 10 foram corrigidos em 2026-08-22**, nos 4 lotes acima — o
+> [CSV-06], que bloqueava a carga em massa, incluído.
 >
-> ⚠ **O [CSV-06] BLOQUEIA a carga em massa.** Os outros não.
+> ⚠ **Dois itens tinham o diagnóstico errado**, e a correção está registrada em cada um: o
+> **[CSV-06]** (a coluna escalar não zerava; o `cor-sem-peso` disparava; mas os filamentos nem
+> parse tinham) e o **[UX-43]** (o travessão nunca foi comido — era artefato de extração; o
+> defeito real é a string inteira virar UTF-16). Vale reler os dois antes de citá-los.
 
 ### 🔴 Bloqueante da carga
 
@@ -341,7 +345,30 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
 
 ### 🟢 Baixo
 
-- **[UX-43] O PDF do orçamento come o travessão e as aspas curvas.** Medido no PDF real:
+- ~~**[UX-43] O PDF do orçamento come o travessão e as aspas curvas.**~~ — ✅ **FEITO (Lote 3), mas
+  o DIAGNÓSTICO DESTE ITEM ESTAVA ERRADO.** O travessão nunca foi comido: o jsPDF declara
+  `/Encoding /WinAnsiEncoding` e grava `—` no byte **0x97**, que nessa tabela É o travessão. Quem
+  extrai o texto lendo o stream como Latin-1 (onde 0x97 é um controle invisível) vê o caractere
+  "sumir" — foi artefato de extração da varredura. O mesmo vale para as aspas curvas, `…`, `•`, `€`
+  e `·`: todos têm byte e sempre renderizaram certo.
+
+  **O defeito real está ao lado e é MAIOR.** Um único caractere SEM byte no cp1252 não se perde
+  sozinho: o jsPDF reescreve a **string inteira** em UTF-16BE e deixa a fonte declarada WinAnsi.
+  Medido no bloco de texto do arquivo:
+
+  ```
+  "A—B"  (travessão, tem byte) → (A<97>B) Tj             1 byte por char, ok
+  "A‐B"  (U+2010, sem byte)    → (<00>A <10><00>B) Tj     UTF-16BE
+  "A🐱B" (emoji, sem byte)     → (<00>A<d8>=<dc>1<00>B)   UTF-16BE
+  ```
+
+  Como o leitor lê byte a byte pela tabela WinAnsi, **a linha toda vira lixo** — um nome de produto
+  com emoji levaria junto o nome inteiro. O saneador é cirúrgico por isso: preserva tudo que tem
+  byte (mantém a linha no caminho de 1 byte) e troca só o que não tem. Rebaixar o travessão para
+  hífen, como a "correção proposta" original pedia, pioraria um PDF que já estava certo.
+
+  ⚠ **Lição de método, para a próxima varredura:** extrair texto de PDF só vale como medição se a
+  extração respeitar o `/Encoding` do arquivo. Descrição original: Medido no PDF real:
   `"ZZ AUDIT Produto  Corpo · PLA azul"` (o travessão sumiu; o `·` sobrevive) e o rodapé
   `"7 dias  até 29/08/2026"`. Como o app monta o nome do subitem com travessão e usa `option.name`
   como descrição (`QuotePage.tsx:174`), **todo orçamento de subitem sai sem o separador**.
@@ -357,7 +384,12 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
   dois separadores, o ÚLTIMO é o decimal; separador repetido é milhar. Original: `parseNumber` (`productCsv.ts:175`):
   `"1,234.56"` → **1.23456** (1000× menor) e `"1.234.567"` → **1.234**. Relevante se a planilha for
   gerada no Google Sheets em locale en-US.
-- **[TD-020] Máquinas e taxas gravam sem `guardOnline`.** `useMachines.ts:87`
+- ~~**[TD-020] Máquinas e taxas gravam sem `guardOnline`.**~~ — ✅ **FEITO (Lote 3).** `saveMachines`
+  virou `async` e devolve a **mensagem de erro** (ou `null`): o `MachineManagerModal` mostra e **não
+  fecha**, em vez de fechar por cima de um save que não aconteceu. `saveFees` é chamada a cada tecla
+  e sem `await`, então lançar viraria unhandled rejection por dígito — ela expõe um `error` que o
+  editor de taxas renderiza. Nos dois casos o `guardOnline` vem ANTES do `await`, porque offline a
+  Promise do Firestore não resolve nem rejeita. Original: `useMachines.ts:87`
   (`void persistMachines(...)`, fire-and-forget, sem tratar erro) e `useFees.saveFees`. Offline a UI
   mostra o valor novo (estado local + localStorage) e a escrita fica enfileirada — "finge que
   salvou". **Verificado só no código** (escrever em `config/machines` estava fora do combinado).

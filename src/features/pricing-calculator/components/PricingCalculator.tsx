@@ -259,12 +259,15 @@ export function PricingCalculator() {
     if (handledLoad) window.history.replaceState(null, "", "/");
   }, [handledLoad]);
 
-  function handleSaveMachines(nextMachines: typeof machines) {
-    saveMachines(nextMachines);
+  async function handleSaveMachines(nextMachines: typeof machines) {
+    // TD-020: repassa a falha ao modal, que a mostra em vez de fechar.
+    const falha = await saveMachines(nextMachines);
+    if (falha) return falha;
     const fallbackMachine = nextMachines[0] ?? DEFAULT_MACHINES[0];
     if (!nextMachines.some((machine) => machine.id === form.product.machineId)) {
       form.updateProduct({ machineId: fallbackMachine.id });
     }
+    return null;
   }
 
   // UX-11: as 3 ações de destino (vender/produzir/orçar) precisam de um produto

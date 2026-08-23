@@ -152,6 +152,9 @@ type SaleModalProps = {
   // Taxas por forma de pagamento (config global) + callback para editá-las ali.
   fees: PaymentFeeSettings;
   onFeesChange?: (fees: PaymentFeeSettings) => void;
+  // TD-020: a última falha ao gravar as taxas. O editor grava a cada tecla e
+  // não espera o resultado, então a falha chega por aqui em vez de exceção.
+  feesError?: string | null;
   // Passo 8: dados vivos para a reconciliação (custo real + baixa por caminho).
   goods: FinishedGood[];
   stock: StockFilament[];
@@ -237,6 +240,7 @@ export function SaleModal({
   catalogItems,
   fees,
   onFeesChange,
+  feesError,
   goods,
   stock,
   supplies,
@@ -1091,6 +1095,14 @@ export function SaleModal({
       {showFeesEditor && onFeesChange ? (
         <div className="fee-editor">
           <div className="fee-editor-title">Taxas da maquininha (%)</div>
+          {/* TD-020: offline a taxa mudava na tela e não chegava ao banco,
+              calada. As taxas valem para TODA venda seguinte — errar aqui é
+              errar o preço de todas elas. */}
+          {feesError ? (
+            <p className="form-error" role="alert">
+              {feesError}
+            </p>
+          ) : null}
           <div className="fee-editor-grid">
             <div className="fee-editor-item">
               <label htmlFor={`${fieldId}-fee-pix`}>Pix</label>
