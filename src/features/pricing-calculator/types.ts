@@ -588,11 +588,27 @@ export type StockFilamentInput = {
   adjustments: StockAdjustment[]; // D6
 };
 
-export type StockFilamentPayload = StockFilamentInput & { createdAt: number };
+export type StockFilamentPayload = StockFilamentInput & {
+  createdAt: number;
+  // TD-022: a versão do documento viaja no payload da edição MANUAL também. Sem
+  // isto o guarda da venda seria inútil: a tela do estoque gravaria o doc sem
+  // mexer no `rev`, e um plano de venda calculado sobre o saldo VELHO passaria
+  // pela conferência como se nada tivesse mudado. Todo escritor incrementa, ou
+  // o contador não conta nada. Chega de graça — o `toPayload` do `StockPage` é
+  // a identidade sobre o `StockFilament`.
+  rev?: number;
+};
 
 export type StockFilament = StockFilamentInput & {
   id: string;
   createdAt: number;
+  // TD-022: versão do documento (ver `SavedProduct.rev`). Duas vendas
+  // simultâneas da mesma cor liam o MESMO saldo e gravavam o MESMO resultado —
+  // uma das baixas sumia, e o furo só aparece contando o rolo na mão. É do
+  // repositório, não campo de negócio; as funções puras o preservam de carona
+  // no spread, e é assim que ele chega até a gravação carregando a versão
+  // contra a qual o plano foi calculado.
+  rev?: number;
 };
 
 // O que a VENDA grava sobre o que deduziu — é de onde o estorno lê (editar um
@@ -675,11 +691,23 @@ export type SupplyInput = {
   adjustments: SupplyAdjustment[];
 };
 
-export type SupplyPayload = SupplyInput & { createdAt: number };
+export type SupplyPayload = SupplyInput & {
+  createdAt: number;
+  // TD-022: ver a nota em `StockFilamentPayload.rev` — mesma razão, mesmo
+  // caminho.
+  rev?: number;
+};
 
 export type Supply = SupplyInput & {
   id: string;
   createdAt: number;
+  // TD-022: versão do documento (ver `SavedProduct.rev`). Duas vendas
+  // simultâneas da mesma cor liam o MESMO saldo e gravavam o MESMO resultado —
+  // uma das baixas sumia, e o furo só aparece contando o rolo na mão. É do
+  // repositório, não campo de negócio; as funções puras o preservam de carona
+  // no spread, e é assim que ele chega até a gravação carregando a versão
+  // contra a qual o plano foi calculado.
+  rev?: number;
 };
 
 // Espelho do `ConsumptionMove` em unidades. `cost` é qty × unitPrice (sem a
@@ -842,11 +870,21 @@ export type FinishedGoodInput = {
   skus: FinishedSku[];
 };
 
-export type FinishedGoodPayload = FinishedGoodInput & { createdAt: number };
+export type FinishedGoodPayload = FinishedGoodInput & {
+  createdAt: number;
+  // TD-022: o payload do acabado carrega o `rev` porque é ELE que chega ao
+  // repositório na reconciliação (o `FinishedGood` fica no cliente). Ver a nota
+  // em `StockFilament.rev`.
+  rev?: number;
+};
 
 // O doc do acabado. `id` = `productId` (um doc por produto, id DETERMINÍSTICO — a
 // baixa da produção acha o doc do produto sem query).
-export type FinishedGood = FinishedGoodInput & { id: string; createdAt: number };
+export type FinishedGood = FinishedGoodInput & {
+  id: string;
+  createdAt: number;
+  rev?: number;
+};
 
 // Uma fatia do consumo FIFO do acabado (passo 8): quanto saiu de UMA camada e a
 // que custo congelado. Molde do `ConsumptionMove` do filamento; o passo 8

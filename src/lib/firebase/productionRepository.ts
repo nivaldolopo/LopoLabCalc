@@ -9,11 +9,12 @@ import {
   orderBy,
   query,
   where,
-  writeBatch,
+  runTransaction,
   type DocumentData,
   type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "./client";
+import { lerEConferirRevs } from "./revGuard";
 import { serializeRolls } from "./stockRepository";
 import { serializeLots } from "./suppliesRepository";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
@@ -320,29 +321,91 @@ export async function saveProduction(
   finished?: FinishedUpdate | null,
   supplyUpdates: Supply[] = [],
 ): Promise<void> {
-  const batch = writeBatch(db);
-  for (const { id, payload } of events) {
-    batch.set(doc(productionCollection, id), productionToDocument(payload));
-  }
-  for (const color of colorUpdates) {
-    batch.update(doc(db, "estoque", color.id), {
-      rolls: serializeRolls(color.rolls),
-    });
-  }
-  // 7e: os insumos afetados entram no MESMO batch (só o campo `lots`) — o ímã
-  // não pode sair do estoque sem o evento que o explica, nem o contrário.
-  for (const supply of supplyUpdates) {
-    batch.update(doc(db, "insumos", supply.id), {
-      lots: serializeLots(supply.lots),
-    });
-  }
-  if (finished) {
-    batch.set(
-      doc(db, "acabados", finished.productId),
-      finishedGoodToDocument(finished.payload),
+  // TD-022: virou transação com conferência de `rev` (ver `revGuard.ts`). A
+  // produção grava exatamente os mesmos três documentos que a venda, e sem a
+  // trava uma produção salva no mesmo instante que uma venda apagava a baixa da
+  // outra. Atomicidade idêntica à do batch; o que entra é o isolamento.
+  await runTransaction(db, async (tx) => {
+    const revs = await escreverEstoqueNaTransacao(
+      tx,
+      colorUpdates,
+      supplyUpdates,
+      finished,
     );
-  }
-  await batch.commit();
+    for (const { id, payload } of events) {
+      tx.set(doc(productionCollection, id), productionToDocument(payload));
+    }
+    revs();
+  });
+}
+
+// A leitura+conferência e a escrita da trinca (cores, insumos, acabado), que é
+// idêntica na criação e na exclusão do evento. Devolve a função que ESCREVE, e
+// não escreve sozinha, porque a transação exige toda leitura antes de qualquer
+// escrita — quem chama intercala o que é dele no meio.
+async function escreverEstoqueNaTransacao(
+  tx: Parameters<Parameters<typeof runTransaction>[1]>[0],
+  colorUpdates: StockFilament[],
+  supplyUpdates: Supply[],
+  finished?: FinishedUpdate | null,
+): Promise<() => void> {
+  const cores = colorUpdates.map((color) => ({
+    color,
+    ref: doc(db, "estoque", color.id),
+  }));
+  const insumos = supplyUpdates.map((supply) => ({
+    supply,
+    ref: doc(db, "insumos", supply.id),
+  }));
+  const acabadoRef = finished
+    ? doc(db, "acabados", finished.productId)
+    : null;
+
+  const revs = await lerEConferirRevs(tx, [
+    ...cores.map(({ color, ref }) => ({
+      ref,
+      esperado: color.rev ?? 0,
+      nome: `A cor "${color.colorName}"`,
+    })),
+    ...insumos.map(({ supply, ref }) => ({
+      ref,
+      esperado: supply.rev ?? 0,
+      nome: `O insumo "${supply.name}"`,
+    })),
+    ...(finished && acabadoRef
+      ? [
+          {
+            ref: acabadoRef,
+            esperado: finished.payload.rev ?? 0,
+            nome: `As peças prontas de "${finished.payload.productName ?? finished.productId}"`,
+            podeNaoExistir: true,
+          },
+        ]
+      : []),
+  ]);
+
+  return () => {
+    cores.forEach(({ color, ref }, i) => {
+      tx.update(ref, {
+        rolls: serializeRolls(color.rolls),
+        rev: revs[i] + 1,
+      });
+    });
+    // 7e: os insumos entram na MESMA transação (só o campo `lots`) — o ímã não
+    // pode sair do estoque sem o evento que o explica, nem o contrário.
+    insumos.forEach(({ supply, ref }, i) => {
+      tx.update(ref, {
+        lots: serializeLots(supply.lots),
+        rev: revs[cores.length + i] + 1,
+      });
+    });
+    if (finished && acabadoRef) {
+      tx.set(acabadoRef, {
+        ...finishedGoodToDocument(finished.payload),
+        rev: revs[cores.length + insumos.length] + 1,
+      });
+    }
+  };
 }
 
 // Exclui um evento e estorna a baixa no mesmo batch. `colorUpdates` vem de
@@ -360,23 +423,17 @@ export async function removeProduction(
     await deleteDoc(doc(db, "producao", eventId));
     return;
   }
-  const batch = writeBatch(db);
-  batch.delete(doc(db, "producao", eventId));
-  for (const color of colorUpdates) {
-    batch.update(doc(db, "estoque", color.id), {
-      rolls: serializeRolls(color.rolls),
-    });
-  }
-  for (const supply of supplyUpdates) {
-    batch.update(doc(db, "insumos", supply.id), {
-      lots: serializeLots(supply.lots),
-    });
-  }
-  if (finished) {
-    batch.set(
-      doc(db, "acabados", finished.productId),
-      finishedGoodToDocument(finished.payload),
+  // TD-022: mesma transação da criação — o ESTORNO tem ainda mais motivo para
+  // travar, porque devolver ao estoque um saldo calculado sobre uma foto velha
+  // repõe grama que outra baixa já tinha tirado.
+  await runTransaction(db, async (tx) => {
+    const escrever = await escreverEstoqueNaTransacao(
+      tx,
+      colorUpdates,
+      supplyUpdates,
+      finished,
     );
-  }
-  await batch.commit();
+    tx.delete(doc(db, "producao", eventId));
+    escrever();
+  });
 }

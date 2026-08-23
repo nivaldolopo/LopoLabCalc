@@ -9,6 +9,89 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ TD-022 — duas gravações simultâneas deixaram de se apagar (2026-08-23)
+
+> Único item da AUD-12 que estava marcado como *"mecanismo lido no código, NÃO reproduzido"*. O dono
+> autorizou **escrita real no Firestore de produção** para reproduzir **e corrigir**.
+
+### A reprodução (produtos), com a sonda
+
+Sonda `__SONDA_TD022__` criada pela calculadora (catálogo 97 → 98), aberta em duas abas:
+
+```
+aba A: peso 40 -> 99          aba B: mão de obra 10 -> 55
+B salva primeiro, A depois
+documento final: peso 99, mão de obra 10      <- os 55 de B, apagados
+```
+
+**O detalhe que explica por que ninguém percebe:** medi o formulário de A no instante do salvar, e
+ele ainda exibia `mão de obra: 10`. A assinatura em tempo real atualiza a **lista**; a cópia que o
+formulário está editando, não. As duas abas mostram a mesma tela, e uma delas está mentindo.
+
+A causa é `updateDoc(ref, {...payload})` — o **documento inteiro**, montado a partir dessa cópia.
+
+### O que a correção NÃO é
+
+**Não é merge campo a campo.** Era a saída tentadora (A mexeu no peso, B na mão de obra: dá para
+salvar os dois). Foi descartada porque juntar duas edições cegamente produz um produto que **nenhuma
+das duas abas quis** — e no caminho do estoque seria pior: o FIFO pode ter atravessado outro rolo, e
+o custo congelado da venda sairia de um rolo que não é o que saiu da prateleira.
+
+A saída é a doutrina que o resto do projeto já segue (*"a importação AVISA, não engole"*, *"o palpite
+que não se anuncia"*): **contador de versão conferido dentro de uma transação, e recusa quando não
+bate.** O `runTransaction` do Firestore relê o documento e reexecuta o callback se ele mudar no meio,
+então ou a versão bate e a escrita entra, ou ela não bate e nada é gravado.
+
+**Medido depois, mesmo roteiro:** a gravação da aba velha é recusada, o formulário fica **intacto**
+(nada se perde) e o documento mantém os 77min da aba que salvou primeiro.
+
+### A segunda metade: estoque, insumos e acabados
+
+`writeBatch` é **atômico, mas não isolado** — ele não relê nada. As baixas são calculadas no cliente
+sobre o saldo que a assinatura entregou e gravadas como o array `rolls`/`lots`/`skus` **inteiro**.
+Duas vendas simultâneas da mesma cor leem o mesmo saldo, calculam o mesmo resultado e gravam o mesmo
+array: **uma das baixas não aconteceu**, e o furo só aparece quando alguém pesa o rolo.
+(O overdraft de −370 g na Bege, registrado sem origem conhecida, tem exatamente esse formato.)
+
+`reconcileRecibo`, `saveProduction` e `removeProduction` viraram `runTransaction` com a conferência
+no `revGuard.ts` — **um lugar só**, porque a mesma checagem escrita três vezes é a receita de
+divergirem (foi assim que o UX-42 nasceu, com duas implementações que PRECISAVAM concordar).
+
+⚠ **O furo que quase passou:** o guarda seria **inútil** se a tela do `/estoque` continuasse gravando
+sem mexer no `rev`. Um plano de venda calculado sobre o saldo velho atravessaria a conferência como
+se nada tivesse mudado. **Todo escritor do documento incrementa, ou o contador não conta nada** —
+por isso `saveStockFilament` e `saveSupply` entraram na mesma transação.
+
+### Como provei a recusa no estoque, já que a UI não fica desatualizada
+
+Primeira tentativa: abrir o diálogo "Ajustar" numa aba, gravar na outra, confirmar. **Não reproduziu
+— e isso é um elogio ao app:** o `adjustFor` é derivado da lista viva a cada render
+(`byId(adjustForId)`), então a aba 2 já tinha a versão nova. A janela de desatualização por esse
+caminho não existe.
+
+O que reproduz é a **simultaneidade de verdade**, e ela é encenável de forma determinística: dois
+cliques no **mesmo tick** do React. Os dois handlers usam o MESMO objeto `color` da renderização
+corrente, logo a mesma versão esperada. Medido em produção, na cor Laranja: a primeira gravação
+entrou, a segunda foi recusada com a frase certa.
+
+⚠ **Um erro de concordância saiu na primeira medição** (`"O estoque de a cor \"Laranja\""`): o
+template prefixava "O estoque de" e quem chama já passava o artigo. O `nome` passou a vir com artigo
+e maiúscula inicial, porque ele **abre** a frase.
+
+### Estado do banco depois de tudo
+
+Catálogo **97/97**; estoque **1,65 kg** (Bege 243 g, Laranja 1403 g), nenhuma cor arquivada — os
+números exatos de antes. **Resíduo declarado:** a Laranja carrega **2 lançamentos de ajuste** no
+rastro D6 (403 → 400 e 400 → 403, anotados como sonda). O rastro é append-only de propósito (é a
+prova do tamanho do furo, D6) e não se apaga — o saldo, esse, voltou exato.
+
+### O que ficou de fora
+
+Documento sem o campo `rev` vale 0 e a primeira gravação o cria: **nada a migrar** (Diretriz 7).
+Não exercitei duas vendas reais concorrendo pela mesma cor (exigiria encenar a corrida com duas
+submissões de venda no mesmo instante); o que está provado é a **regra** (7 testes do `revGuard`), o
+**mecanismo ponta a ponta em produção** (produtos e estoque) e que **toda escrita incrementa**.
+
 ## ✅ Lote D da AUD-09 — os 3 últimos consertos antes da carga (2026-08-23)
 
 > Fecha o cluster de código da AUD-09. Dois itens vieram do backlog ([CSV-16] e [CSV-21]) e o

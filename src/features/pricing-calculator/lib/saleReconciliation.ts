@@ -119,6 +119,11 @@ const toPayload = (good: FinishedGood): FinishedGoodPayload => ({
   productName: good.productName,
   skus: good.skus,
   createdAt: good.createdAt,
+  // TD-022: o `rev` precisa atravessar — é ele que a transação confere para não
+  // deixar duas gravações simultâneas do mesmo acabado se apagarem. Campo que
+  // esta função esquecesse viraria `undefined` e a trava não travaria (FORM-01
+  // aplicado a metadado de documento).
+  rev: good.rev,
 });
 
 // Estado mutável do estoque durante a reconciliação (cores + acabados), com o

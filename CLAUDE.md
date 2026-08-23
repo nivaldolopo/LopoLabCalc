@@ -14,38 +14,35 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-23): lotes A + B da AUD-12 — os 5 🔴 corrigidos.** **A (o parser volta a
-  avisar), tudo em `productCsv.ts`:** `[CSV-23]` `parseBool` aceita o vocabulário de planilha
-  (`sim/s/true/verdadeiro/v/1/x/yes/y`, e o inverso pra negar) e a grafia fora das listas acende
-  `booleano-nao-reconhecido` — vazio segue sendo ausência · `[CSV-24]` o palpite por **substring**
-  vira aviso agrupado (`maquina-por-aproximacao`) e o desempate passa a ser o **id mais longo**, não
-  a ordem do array ("Maquina X2D e A1" → x2d) · `[CSV-25]` `linha-sem-nome` (a linha `;;`, só
-  separadores, segue calada de propósito) · `[CSV-26]` markup honesto: `-2` e `0` entram mesmo com
-  3x como o aviso promete, `"x"` sozinho aponta, e `<1x` ganha classe própria. **B — `[UX-44]`:** o
-  override de grade em `responsive.css` foi **apagado**, não reescrito (eram as larguras pré-UX-41),
-  e a fileira **vira cartão** em 640px, com colocação explícita nos 6 itens. **Achado novo, fora do
-  relatório:** a grade cortava `13999` também de **641 a 760px** — a varredura mediu o Nome a 700px,
-  não os números. Medido a 320/375/400/430/561/641/1013px, 2 temas: **0 estouro, 0 corte, 0 rolagem
-  lateral**. `lint` ✅ · `build` ✅ · **638/638** ✅ (+35).
+- **Última mudança (2026-08-23): os 5 🔴 da AUD-12 (lotes A+B) e o `[TD-022]` inteiro.**
+  **Lote A** (`productCsv.ts`, tudo "o silêncio é que era o defeito"): booleano em vocabulário de
+  planilha `[CSV-23]` · palpite de máquina por substring agora avisa, e vence o **id mais longo**
+  `[CSV-24]` · `linha-sem-nome` `[CSV-25]` · markup honesto `[CSV-26]`. **Lote B** `[UX-44]`: o
+  override de grade foi **apagado**, não reescrito, e a fileira vira cartão em 640px — **achado
+  novo**: cortava `13999` também de **641 a 760px**, faixa que a varredura não olhou.
+  **`[TD-022]` reproduzido em produção e corrigido nas 2 metades** — contador `rev` conferido dentro
+  de `runTransaction`, que **recusa** em vez de mesclar: (a) produtos (a aba que salvava por último
+  apagava a outra) · (b) estoque/insumos/acabados — `vendas` e `producao` deixaram de ser
+  `writeBatch` (atômico, mas **não isolado**), e o `/estoque` incrementa junto, senão o guarda não
+  guardaria nada. `lint` ✅ · `build` ✅ · **646/646** ✅ (+43). Detalhe: `HISTORICO.md`.
+  ⚠ **Resíduo declarado:** a Laranja ficou com **2 ajustes** no rastro D6 (403→400→403, anotados
+  como sonda; append-only, não se apaga). Saldo e catálogo restaurados exatos.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — 2 frentes em paralelo:** (a) **minha:** TD-022 (concorrência) — o dono
-  autorizou **reproduzir com escrita real e corrigir** —, mais as guardas baratas TD-024/TD-025;
-  depois os lotes C (qualidade do aviso), D e E do `BACKLOG.md`; (b) **é do DONO: cadastrar as cores
-  e os insumos definitivos**, pegar os ids e passá-los pro **sistema externo dele**, que **gera** a
-  planilha. **Sem botão de planilha-modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no
-  chat** depois do cadastro. Só então a **CARGA EM MASSA**. A importação **não cria** cor nem insumo,
-  e **não existe "limpar catálogo"**.
+- **▶ PRÓXIMA TAREFA — 2 frentes em paralelo:** (a) **minha:** guardas TD-024/TD-025, depois os
+  lotes C, D e E do `BACKLOG.md`; (b) **do DONO: cadastrar as cores e os insumos definitivos**, pegar
+  os ids e passá-los pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-
+  modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. Só
+  então a **CARGA EM MASSA** — que **não cria** cor nem insumo, e não tem "limpar catálogo".
 - ⚠ **Regra que a carga cria:** `filamentId`/`supplyId` são **auto-id do Firestore** — o de-para sai
   pelo botão **"Copiar de-para"** do `/estoque` (TSV). Depois da carga, cor se **edita** (nome/preço/
   arquivar preservam o id); **excluir e recriar gera id novo e mata o vínculo** de quem a usa.
-- ⚠ **Pendência do 7e (ainda vale):** o dono precisa **cadastrar os insumos e religar os
-  acessórios** — os já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
-- ⚠ **Duas ressalvas que o Dashboard resolve** (já na tela/no código): payback do `/maquinas` usa
-  lucro **bruto**, sem fixo nem perda (UX-09); paginar resolveu a lista, não a análise (TD-006).
+- ⚠ **Ainda pendentes:** o dono precisa **cadastrar os insumos e religar os acessórios** (os de hoje
+  entram no custo mas não dão baixa) · e o Dashboard fecha as duas ressalvas já na tela — payback do
+  `/maquinas` sobre lucro **bruto** (UX-09) e paginar que resolveu a lista, não a análise (TD-006).
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).

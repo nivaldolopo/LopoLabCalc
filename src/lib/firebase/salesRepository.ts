@@ -9,6 +9,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   sum,
   where,
   writeBatch,
@@ -19,6 +20,7 @@ import { db } from "./client";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import { productionToDocument } from "./productionRepository";
 import { frozenFromDocument, frozenToDocument } from "./frozenCost";
+import { lerEConferirRevs } from "./revGuard";
 import { serializeRolls } from "./stockRepository";
 import { serializeLots } from "./suppliesRepository";
 import type {
@@ -422,41 +424,90 @@ export type ReciboWrite = {
   finishedUpdates: FinishedGoodPayload[];
 };
 
+// TD-022 — o `writeBatch` daqui virou `runTransaction`, com a conferência de
+// versão do `revGuard`. O porquê (e por que RECUSAR em vez de mesclar) está lá,
+// num lugar só, porque `saveProduction` e `removeProduction` fazem o mesmo.
+//
+// A atomicidade não se perde: uma transação é tão tudo-ou-nada quanto um batch,
+// com o mesmo teto de 500 escritas. O que muda é que ela também não atropela
+// ninguém. Offline a Promise não resolve — mas todo caminho que chega aqui passa
+// antes pelo `guardOnline` (TD-020).
 export async function reconcileRecibo(write: ReciboWrite): Promise<void> {
-  const batch = writeBatch(db);
+  await runTransaction(db, async (tx) => {
+    const cores = write.colorUpdates.map((color) => ({
+      color,
+      ref: doc(db, "estoque", color.id),
+    }));
+    const insumos = write.supplyUpdates.map((supply) => ({
+      supply,
+      ref: doc(db, "insumos", supply.id),
+    }));
+    const acabados = write.finishedUpdates.map((payload) => ({
+      payload,
+      ref: doc(db, "acabados", payload.productId),
+    }));
 
-  for (const { id, payload } of write.saleUpserts) {
-    const ref = id ? doc(db, "vendas", id) : doc(salesCollection);
-    batch.set(ref, saleToDocument(payload));
-  }
-  for (const id of write.saleRemovedIds) {
-    batch.delete(doc(db, "vendas", id));
-  }
-  // Encomendas: cria os eventos de produção novos e apaga os do recibo antigo.
-  for (const { id, payload } of write.productionCreates) {
-    batch.set(doc(db, "producao", id), productionToDocument(payload));
-  }
-  for (const id of write.productionDeleteIds) {
-    batch.delete(doc(db, "producao", id));
-  }
-  // Estoque de filamento: só o campo `rolls` das cores afetadas.
-  for (const color of write.colorUpdates) {
-    batch.update(doc(db, "estoque", color.id), {
-      rolls: serializeRolls(color.rolls),
-    });
-  }
-  // Estoque de insumos: só o campo `lots` dos insumos afetados.
-  for (const supply of write.supplyUpdates) {
-    batch.update(doc(db, "insumos", supply.id), {
-      lots: serializeLots(supply.lots),
-    });
-  }
-  // Acabados: o doc inteiro (id = productId) já com/sem as camadas.
-  for (const payload of write.finishedUpdates) {
-    batch.set(doc(db, "acabados", payload.productId), finishedGoodToDocument(payload));
-  }
+    // Toda leitura ANTES de qualquer escrita — a regra da transação.
+    const revs = await lerEConferirRevs(tx, [
+      ...cores.map(({ color, ref }) => ({
+        ref,
+        esperado: color.rev ?? 0,
+        nome: `A cor "${color.colorName}"`,
+      })),
+      ...insumos.map(({ supply, ref }) => ({
+        ref,
+        esperado: supply.rev ?? 0,
+        nome: `O insumo "${supply.name}"`,
+      })),
+      ...acabados.map(({ payload, ref }) => ({
+        ref,
+        esperado: payload.rev ?? 0,
+        nome: `As peças prontas de "${payload.productName ?? payload.productId}"`,
+        // Id determinístico (= productId): a primeira produção do produto cria
+        // o doc, então não existir é legítimo.
+        podeNaoExistir: true,
+      })),
+    ]);
+    const revCor = revs.slice(0, cores.length);
+    const revInsumo = revs.slice(cores.length, cores.length + insumos.length);
+    const revAcabado = revs.slice(cores.length + insumos.length);
 
-  await batch.commit();
+    for (const { id, payload } of write.saleUpserts) {
+      const ref = id ? doc(db, "vendas", id) : doc(salesCollection);
+      tx.set(ref, saleToDocument(payload));
+    }
+    for (const id of write.saleRemovedIds) {
+      tx.delete(doc(db, "vendas", id));
+    }
+    // Encomendas: cria os eventos de produção novos e apaga os do recibo antigo.
+    for (const { id, payload } of write.productionCreates) {
+      tx.set(doc(db, "producao", id), productionToDocument(payload));
+    }
+    for (const id of write.productionDeleteIds) {
+      tx.delete(doc(db, "producao", id));
+    }
+    // Estoque de filamento: só o campo `rolls` das cores afetadas, mais o `rev`.
+    cores.forEach(({ color, ref }, i) => {
+      tx.update(ref, {
+        rolls: serializeRolls(color.rolls),
+        rev: revCor[i] + 1,
+      });
+    });
+    // Estoque de insumos: só o campo `lots` dos insumos afetados.
+    insumos.forEach(({ supply, ref }, i) => {
+      tx.update(ref, {
+        lots: serializeLots(supply.lots),
+        rev: revInsumo[i] + 1,
+      });
+    });
+    // Acabados: o doc inteiro (id = productId) já com/sem as camadas.
+    acabados.forEach(({ payload, ref }, i) => {
+      tx.set(ref, {
+        ...finishedGoodToDocument(payload),
+        rev: revAcabado[i] + 1,
+      });
+    });
+  });
 }
 
 export async function removeSale(saleId: string): Promise<void> {

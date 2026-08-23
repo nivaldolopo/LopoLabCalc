@@ -4,10 +4,11 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-  updateDoc,
+  runTransaction,
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { EstoqueDesatualizadoError } from "./revGuard";
 import type {
   FilamentRoll,
   StockAdjustment,
@@ -47,6 +48,10 @@ function toAdjustment(data: DocumentData): StockAdjustment {
 function toStockFilament(id: string, data: DocumentData): StockFilament {
   return {
     id,
+    // TD-022: a versão do documento entra na leitura para viajar de carona nos
+    // planos (as funções puras fazem `{...color}`) e voltar na gravação, que a
+    // confere dentro da transação.
+    rev: Number(data.rev) || 0,
     material: data.material ?? "",
     brand: data.brand ?? "",
     colorName: data.colorName ?? "",
@@ -125,14 +130,33 @@ export function subscribeStock(
 export async function createStockFilament(
   payload: StockFilamentPayload,
 ): Promise<void> {
-  await addDoc(stockCollection, toDocument(payload));
+  await addDoc(stockCollection, { ...toDocument(payload), rev: 1 });
 }
 
+// TD-022: a edição manual da cor (novo rolo, ajuste D6, arquivar, renomear)
+// grava o doc INTEIRO, e por isso participa do mesmo contador que a venda e a
+// produção conferem. Duas razões, e as duas importam:
+// · duas abas mexendo na mesma cor não se apagam mais;
+// · e — o que faz o guarda da venda VALER — nenhuma escrita passa sem
+//   incrementar. Se esta tela gravasse sem mexer no `rev`, um plano de venda
+//   calculado sobre o saldo velho atravessaria a conferência intacto.
 export async function saveStockFilament(
   filamentId: string,
   payload: StockFilamentPayload,
 ): Promise<void> {
-  await updateDoc(doc(db, "estoque", filamentId), toDocument(payload));
+  const ref = doc(db, "estoque", filamentId);
+  const esperado = payload.rev ?? 0;
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) {
+      throw new EstoqueDesatualizadoError(`A cor "${payload.colorName}"`);
+    }
+    const atual = Number(snap.data().rev) || 0;
+    if (atual !== esperado) {
+      throw new EstoqueDesatualizadoError(`A cor "${payload.colorName}"`);
+    }
+    tx.update(ref, { ...toDocument(payload), rev: atual + 1 });
+  });
 }
 
 export async function removeStockFilament(filamentId: string): Promise<void> {

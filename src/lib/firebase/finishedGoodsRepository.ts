@@ -57,6 +57,10 @@ function toSku(data: DocumentData): FinishedSku {
 function toFinishedGood(id: string, data: DocumentData): FinishedGood {
   return {
     id,
+    // TD-022: a versão do documento entra na leitura para viajar de carona nos
+    // planos (as funções puras fazem `{...color}`) e voltar na gravação, que a
+    // confere dentro da transação.
+    rev: Number(data.rev) || 0,
     productId: data.productId ?? id,
     productName: data.productName ?? "",
     skus: Array.isArray(data.skus) ? data.skus.map(toSku) : [],

@@ -14,9 +14,9 @@
 > 2 🟠 (`[TD-022]` `[UX-46]`), **5** 🟡 (`[UX-45]` `[TD-023]` `[CSV-27]` `[CSV-28]` `[CSV-29]`) e
 > 5 🟢 (`[CSV-31]` `[TD-021]` `[TD-024]` `[TD-025]` `[CSV-30]`).
 >
-> ✅ **Os 5 🔴 fecharam nos lotes A e B (2026-08-23)** — os três que entravam calados na carga
-> incluídos. Restam **12 abertos**. A ordem dos lotes aprovada pelo dono está na tabela do fim
-> desta seção.
+> ✅ **Os 5 🔴 fecharam nos lotes A e B, e o `[TD-022]` fechou junto (2026-08-23)** — os três que
+> entravam calados na carga incluídos. Restam **11 abertos**. A ordem dos lotes aprovada pelo dono
+> está na tabela do fim desta seção.
 >
 > **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15, as ondas 0–5 e o `[micro]` do
 > botão de 14px (2026-08-17) ✅ FECHADOS.** O
@@ -815,11 +815,24 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
 | **C — qualidade do aviso** | [CSV-27] · [CSV-28] · [CSV-29] · [CSV-31] | falso positivo e conselho errado — o que ensina a ignorar aviso | aberto |
 | **D — dívida barata** | [TD-023] · [TD-024] · [TD-025] | comentário que afirma garantia inexistente + 2 guardas | aberto |
 | **E — toque e responsivo** | [UX-45] · [UX-46] | faixa 641–760px + os alvos abaixo de 44px; o maior dos cinco | aberto |
-| **fora de lote** | [TD-022] · [TD-021] · [CSV-30] | o dono autorizou reproduzir o TD-022 **com escrita real** e corrigir | TD-022 em curso |
+| **fora de lote** | ~~[TD-022]~~ · [TD-021] · [CSV-30] | reproduzido com escrita real e corrigido nas 2 metades | ✅ **TD-022 FEITO (2026-08-23)** |
 
 ### 🟠 Alto (não bloqueia a carga, mas morde)
 
-- **[TD-022] Escrita concorrente é last-write-wins, sem controle nenhum.**
+- ✅ **[TD-022] FEITO (2026-08-23) — REPRODUZIDO com escrita real e corrigido nas duas metades.**
+  Contador `rev` conferido dentro de `runTransaction`, que **RECUSA** em vez de mesclar (mesclar
+  produziria um documento que nenhuma das duas pontas quis, e no estoque o FIFO poderia atravessar
+  outro rolo). (a) **produtos:** medido — aba A peso 40→99, aba B mão de obra 10→55, B salva antes,
+  A depois, e o documento fica com **mão de obra 10**; o formulário de A ainda exibia 10 no instante
+  do salvar, porque a assinatura atualiza a LISTA, não a cópia em edição. Depois da correção a
+  gravação velha é recusada e o formulário fica intacto. (b) **estoque/insumos/acabados:**
+  `reconcileRecibo`, `saveProduction` e `removeProduction` deixaram de ser `writeBatch` (atômico,
+  mas **não isolado**), com a conferência num lugar só (`revGuard.ts`). ⚠ O guarda seria inútil se a
+  tela do `/estoque` gravasse sem incrementar — `saveStockFilament`/`saveSupply` entraram na mesma
+  transação. Recusa medida ao vivo (2 cliques no mesmo tick do React, cor Laranja); e a tentativa
+  pelo diálogo "Ajustar" **não** reproduziu, porque o `adjustFor` é derivado da lista viva — o que é
+  elogio ao app. Writeup e o estado do banco: [`HISTORICO.md`](HISTORICO.md). Descrição original:
+  **Escrita concorrente é last-write-wins, sem controle nenhum.**
   Leitura dos 12 repositórios: `saveProduct` faz `updateDoc(ref, {...payload})` — **documento
   inteiro**; idem `estoque` (`stockRepository.ts:135`) e `insumos` (`suppliesRepository.ts:130`). O
   **único** `runTransaction` do app é a numeração do orçamento (`quotesRepository.ts:86`).
@@ -935,16 +948,20 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
 
 ### O que a AUD-12 NÃO cobriu
 
-- **Escrita real no Firestore** — nada foi criado, alterado ou apagado. O dono pediu autorização
-  explícita antes, e não a pedi no meio para não travar o resto da varredura.
+- ~~**Escrita real no Firestore**~~ — ✅ **FEITA em 2026-08-23, com aval do dono**, no conserto do
+  [TD-022]: sonda de produto criada e apagada (catálogo 97 → 98 → 97) e a corrida encenada na cor
+  Laranja. Banco restaurado aos números exatos; o único resíduo (2 lançamentos no rastro D6, que é
+  append-only) está declarado no writeup. O plano abaixo é o que foi executado, com uma diferença:
+  a corrida do estoque NÃO precisou de duas abas — dois cliques no mesmo tick do React reproduzem-na
+  de forma determinística.
   **Plano, se for autorizado:** 1 produto sonda `__SONDA_VARREDURA__` criado pela importação (1 doc
   em `products`), aberto em **duas abas**, editado em campos diferentes nas duas, salvo em ordem
   invertida, e o documento relido campo a campo para provar ou refutar o **[TD-022]**. Backup em
   disco antes e depois; limpeza pelo id retornado no `addDoc`, com releitura confirmando
   `exists: false`. ⚠ No dump, o id do caminho vai **por último** e com nome `__id` — a armadilha do
   `{ id: doc.id, ...doc.data() }` da AUD-09 não se repete.
-- **Duas abas gravando o mesmo documento** — é o primeiro item do plano acima. O [TD-022] é leitura
-  de código, não experimento.
+- ~~**Duas abas gravando o mesmo documento**~~ — ✅ **FEITO**: o [TD-022] deixou de ser leitura de
+  código e virou experimento, com o defeito reproduzido e corrigido.
 - **Offline de verdade** (rede caída, fila do Firestore, reconexão). Verifiquei a *guarda*
   (`guardOnline` antes do `await`, nos 5 pontos de escrita) por leitura. Continua sendo o resíduo do
   antigo [AUD-04].

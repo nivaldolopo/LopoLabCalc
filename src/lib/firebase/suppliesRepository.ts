@@ -4,10 +4,11 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-  updateDoc,
+  runTransaction,
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { EstoqueDesatualizadoError } from "./revGuard";
 import type {
   Supply,
   SupplyAdjustment,
@@ -50,6 +51,10 @@ function toAdjustment(data: DocumentData): SupplyAdjustment {
 function toSupply(id: string, data: DocumentData): Supply {
   return {
     id,
+    // TD-022: a versão do documento entra na leitura para viajar de carona nos
+    // planos (as funções puras fazem `{...color}`) e voltar na gravação, que a
+    // confere dentro da transação.
+    rev: Number(data.rev) || 0,
     name: data.name ?? "",
     unit: data.unit ?? "un",
     minQty: num(data.minQty),
@@ -120,14 +125,28 @@ export function subscribeSupplies(
 }
 
 export async function createSupply(payload: SupplyPayload): Promise<void> {
-  await addDoc(suppliesCollection, toDocument(payload));
+  await addDoc(suppliesCollection, { ...toDocument(payload), rev: 1 });
 }
 
+// TD-022: idêntico ao `saveStockFilament` — ver a nota lá. Todo escritor do doc
+// incrementa o contador, senão o guarda da venda não guarda nada.
 export async function saveSupply(
   supplyId: string,
   payload: SupplyPayload,
 ): Promise<void> {
-  await updateDoc(doc(db, "insumos", supplyId), toDocument(payload));
+  const ref = doc(db, "insumos", supplyId);
+  const esperado = payload.rev ?? 0;
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) {
+      throw new EstoqueDesatualizadoError(`O insumo "${payload.name}"`);
+    }
+    const atual = Number(snap.data().rev) || 0;
+    if (atual !== esperado) {
+      throw new EstoqueDesatualizadoError(`O insumo "${payload.name}"`);
+    }
+    tx.update(ref, { ...toDocument(payload), rev: atual + 1 });
+  });
 }
 
 export async function removeSupply(supplyId: string): Promise<void> {
