@@ -274,8 +274,10 @@ describe("auditoria — número da célula", () => {
 });
 
 describe("auditoria — cor declarada que não pesa nada", () => {
+  // CSV-06: "decimal com vírgula dentro do JSON" SAIU desta lista — a vírgula
+  // pt-BR passou a ser lida, então "50,5" pesa 50,5 g e não há o que apontar.
+  // A cobertura dela virou o bloco de paridade vírgula/ponto mais abaixo.
   const semPeso: Array<[string, unknown]> = [
-    ["decimal com vírgula dentro do JSON", { filamentId: "cor_laranja", colorName: "L", pricePerKg: 110, totalG: "50,5" }],
     ["chave errada (weightG)", { filamentId: "cor_laranja", colorName: "L", pricePerKg: 110, weightG: 50 }],
     ["sem o peso", { filamentId: "cor_laranja", colorName: "L", pricePerKg: 110 }],
     ["peso zero explícito", { filamentId: "cor_laranja", colorName: "L", pricePerKg: 110, totalG: 0 }],
@@ -314,7 +316,7 @@ describe("auditoria — cor declarada que não pesa nada", () => {
         "Etapas JSON": JSON.stringify([
           {
             id: "s1", name: "Tampa", machineId: "a1", printHours: 1, laborMinutes: 5,
-            filaments: [{ filamentId: null, colorName: "X", pricePerKg: 90, totalG: "1,5" }],
+            filaments: [{ filamentId: null, colorName: "X", pricePerKg: 90, totalG: 0 }],
           },
         ]),
       }),
@@ -322,6 +324,25 @@ describe("auditoria — cor declarada que não pesa nada", () => {
       opcoes,
     );
     expect(achar(r.issues, "cor-sem-peso")?.exemplos[0]).toContain("etapa 2");
+  });
+
+  // CSV-06: o caso mais caro da planilha à mão, e o que a checagem no array CRU
+  // deixava passar. `totalG` bom + `modelG` ilegível: no cru a cor pesa 143,53,
+  // mas `makeFilament` recalcula o total como a SOMA do detalhe — que zerou. Só
+  // conferindo a cor normalizada isto aparece.
+  it("totalG válido com detalhe ILEGÍVEL é apontado (o cru mentia)", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: "cor_laranja", colorName: "L", pricePerKg: 110, totalG: 143.53, modelG: "cento e quarenta" },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-sem-peso")?.linhas).toBe(1);
+    expect(achar(r.issues, "numero-nao-reconhecido")?.exemplos[0]).toContain("modelG");
   });
 
   it("etapa SEM cor nenhuma (só mão de obra) não é apontada", () => {
@@ -362,5 +383,128 @@ describe("auditoria — arquivo salvo em ANSI", () => {
     );
     expect(r.warnings).toEqual([]);
     expect(r.products[0].name).toBe("Coração de Mãe");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CSV-06 / CSV-07 / CSV-08 — a vírgula pt-BR nas células JSON.
+//
+// Fora das colunas escalares, TODO número do JSON era lido com `Number(x) || 0`.
+// Em pt-BR isso zera o valor sem um aviso, e como 0 é um número plausível nada
+// a jusante desconfia: o produto só nasce mais barato. Medido antes do
+// conserto: as cores viajavam como STRING até o Firestore, num campo que o tipo
+// declara `number`.
+// ---------------------------------------------------------------------------
+describe("CSV-06 — vírgula pt-BR dentro do JSON", () => {
+  const COM_VIRGULA = {
+    ...LINHA_BOA,
+    "Filamentos JSON": '[{"filamentId":"cor_laranja","colorName":"L","pricePerKg":"110,00","totalG":"143,53"}]',
+    "Etapas JSON": '[{"id":"s1","name":"Tampa","machineId":"a1","printHours":"1,5","laborMinutes":"12,5"}]',
+    "Acessorios JSON": '[{"desc":"ima","qty":"2","unitPrice":"12,50"}]',
+    "Subitens JSON": '[{"id":"sb1","name":"Corpo","stageKeys":[],"markup":"2,5"}]',
+  };
+  const COM_PONTO = {
+    ...LINHA_BOA,
+    "Filamentos JSON": '[{"filamentId":"cor_laranja","colorName":"L","pricePerKg":110,"totalG":143.53}]',
+    "Etapas JSON": '[{"id":"s1","name":"Tampa","machineId":"a1","printHours":1.5,"laborMinutes":12.5}]',
+    "Acessorios JSON": '[{"desc":"ima","qty":2,"unitPrice":12.5}]',
+    "Subitens JSON": '[{"id":"sb1","name":"Corpo","stageKeys":[],"markup":2.5}]',
+  };
+
+  it("lê a vírgula nas 4 portas — e o resultado é IDÊNTICO ao do ponto", () => {
+    // Diff campo a campo do documento: preço não é canário (FORM-01/RT-01) — o
+    // `supplyId` já sumiu uma vez sem mover um centavo.
+    // ⚠ `createdAt` sai de `Date.now()` e os dois parses caem em milissegundos
+    // diferentes: compará-lo reprovava o teste em ~1 de cada 5 execuções. Ele é
+    // conferido pelo TIPO, e o resto campo a campo.
+    const { createdAt: tsVirgula, ...virgula } = parseProductsCsv(
+      csv(COM_VIRGULA), machines, opcoes,
+    ).products[0] as Record<string, unknown>;
+    const { createdAt: tsPonto, ...ponto } = parseProductsCsv(
+      csv(COM_PONTO), machines, opcoes,
+    ).products[0] as Record<string, unknown>;
+
+    expect(virgula).toEqual(ponto);
+    expect(typeof tsVirgula).toBe("number");
+    expect(typeof tsPonto).toBe("number");
+  });
+
+  it("grava NÚMERO, não a string crua (o `as` deixava a string ir ao Firestore)", () => {
+    const p = parseProductsCsv(csv(COM_VIRGULA), machines, opcoes).products[0];
+    expect(p.filaments?.[0].totalG).toBe(143.53);
+    expect(p.filaments?.[0].pricePerKg).toBe(110);
+    expect(typeof p.filaments?.[0].totalG).toBe("number");
+    expect(p.stages?.[0].printHours).toBe(1.5);
+    expect(p.stages?.[0].laborMinutes).toBe(12.5);
+    expect(p.accessories?.[0].unitPrice).toBe(12.5);
+    expect(p.subitems?.[0].markup).toBe(2.5);
+  });
+
+  it("a vírgula legítima não gera apontamento nenhum", () => {
+    const r = parseProductsCsv(csv(COM_VIRGULA), machines, opcoes);
+    expect(achar(r.issues, "numero-nao-reconhecido")).toBeUndefined();
+    expect(achar(r.issues, "cor-sem-peso")).toBeUndefined();
+  });
+
+  it("o que NÃO é número vira aviso NOMEANDO o campo, em vez de 0 calado", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": '[{"filamentId":"cor_laranja","colorName":"L","pricePerKg":"duzentos","totalG":50}]',
+        "Acessorios JSON": '[{"desc":"ima","qty":2,"unitPrice":"R$"}]',
+      }),
+      machines,
+      opcoes,
+    );
+    const issue = achar(r.issues, "numero-nao-reconhecido");
+    expect(issue?.linhas).toBe(2);
+    expect(issue?.exemplos.join(" | ")).toContain("pricePerKg");
+    expect(issue?.exemplos.join(" | ")).toContain("unitPrice");
+  });
+
+  it("campo AUSENTE é ausência, não erro — não avisa", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Acessorios JSON": '[{"desc":"ima","qty":2,"unitPrice":12}]',
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "numero-nao-reconhecido")).toBeUndefined();
+  });
+
+  it("CSV-08: formato en-US do Google Sheets não entra 1000× menor", () => {
+    const p = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": '[{"filamentId":"cor_laranja","colorName":"L","pricePerKg":"1,234.56","totalG":"1.234.567"}]',
+      }),
+      machines,
+      opcoes,
+    ).products[0];
+    expect(p.filaments?.[0].pricePerKg).toBe(1234.56);
+    expect(p.filaments?.[0].totalG).toBe(1234567);
+  });
+});
+
+describe("CSV-07 — o apontamento de milhar errava dos dois lados", () => {
+  it("acende com prefixo de moeda (o teste no texto cru não acendia)", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Peso (g)": "R$ 1.234" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "milhar-ambiguo")?.linhas).toBe(1);
+  });
+
+  it("NÃO acende no Tempo (h) — falso positivo do round-trip do próprio export", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Tempo (h)": "2.375" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "milhar-ambiguo")).toBeUndefined();
+    expect(r.products[0].printHours).toBe(2.375);
   });
 });

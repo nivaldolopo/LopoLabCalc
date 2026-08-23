@@ -1,4 +1,5 @@
 import { formatDecimal } from "@/lib/formatting/currency";
+import { isMilharAmbiguo, parseDecimalPtBr } from "@/lib/formatting/number";
 import { normalizeText } from "@/lib/text";
 import type {
   Accessory,
@@ -17,6 +18,7 @@ import { calculatePricing, MAIN_STAGE_KEY } from "./calculatePricing";
 import { validateProduct } from "./validateProduct";
 import {
   filamentsTotalG,
+  makeFilament,
   normalizeFilaments,
   stripFilamentIds,
 } from "./filaments";
@@ -167,34 +169,37 @@ function splitRecords(content: string): string[] {
   return records.filter((record) => record.trim().length > 0);
 }
 
-// Célula numérica escrita à mão — ou formatada pelo Excel. `parseFloat` PARA no
-// primeiro caractere que não é número, então "R$ 118,90" virava 0 e "1 234,56"
-// virava 1: o preço sumia sem um pio. Tudo que não é dígito, sinal ou separador
-// cai fora ANTES da conversão — símbolo de moeda, espaço comum e os espaços
-// não-separáveis (U+00A0 / U+202F) que o Excel usa como separador de milhar.
+// Célula numérica escrita à mão — ou formatada pelo Excel. A leitura em si vive
+// em `parseDecimalPtBr` (`lib/formatting/number.ts`), o inverso do
+// `formatDecimal`; aqui só se escolhe o comportamento leniente: ilegível vira 0.
+// Use nas colunas cujo vazio JÁ significa zero. Onde a diferença entre "vazio" e
+// "não consegui ler" importa, use `numFromJson`, que APONTA (CSV-06).
 function parseNumber(value: string | undefined): number {
-  if (!value) return 0;
-  let normalized = value.replace(/[^\d.,-]/g, "").trim();
-  if (!normalized) return 0;
-  const hasComma = normalized.includes(",");
-  const hasDot = normalized.includes(".");
-
-  if (hasComma && hasDot) normalized = normalized.replace(/\./g, "").replace(",", ".");
-  else if (hasComma) normalized = normalized.replace(",", ".");
-  // Só-ponto continua sendo DECIMAL: é a forma que o próprio export escreve
-  // (`printHours`, `markup`, `energyTariff`…), e reinterpretá-la como milhar
-  // quebraria o round-trip do arquivo do app. O caso ambíguo de verdade —
-  // "1.234", que no Excel pt-BR é mil duzentos e trinta e quatro — não é
-  // adivinhado aqui: é APONTADO na importação (`milhar-ambiguo`).
-
-  const parsed = Number.parseFloat(normalized);
-  return Number.isNaN(parsed) ? 0 : parsed;
+  return parseDecimalPtBr(value) ?? 0;
 }
 
-// "1.234" — um ponto, com exatamente 3 dígitos depois e nada mais. Escrito à
-// mão em pt-BR quase sempre é milhar; vindo do export é decimal. Como as duas
-// leituras são plausíveis e diferem por 1000×, a importação não escolhe calada.
-const MILHAR_AMBIGUO = /^-?\d{1,3}\.\d{3}$/;
+// CSV-06: o número que vem DENTRO de uma célula JSON. Era `Number(x) || 0`, que
+// em pt-BR transforma "1,5" em 0 sem mover um músculo — e como 0 é um número
+// plausível, nada a jusante desconfia: o produto só nasce mais barato.
+//
+// Duas diferenças para o `parseNumber`: lê o pt-BR (a primitiva) e, quando não
+// consegue ler, CHAMA o `report` em vez de devolver 0 calado. O campo ausente
+// (`undefined`) não é erro — é ausência, e cai no zero de sempre.
+type NumReporter = (campo: string, bruto: string) => void;
+
+function numFromJson(
+  value: unknown,
+  campo: string,
+  report?: NumReporter,
+): number {
+  if (value === undefined || value === null || value === "") return 0;
+  const parsed = parseDecimalPtBr(value);
+  if (parsed === null) {
+    report?.(campo, String(value));
+    return 0;
+  }
+  return parsed;
+}
 
 function parseBool(value: string | undefined): boolean {
   return String(value ?? "").toLowerCase().trim() === "sim";
@@ -311,9 +316,50 @@ function parseJsonArray(value: string | undefined): unknown[] {
   return parseJsonArraySafe(value).items;
 }
 
-function parseStages(value: string | undefined, fallbackMachineId: string): PrintStage[] {
-  return parseJsonArray(value).map((stage) => {
+// CSV-06: as cores NÃO eram lidas — a linha era `parseJsonArray(...) as
+// FilamentUsage[]`, um `as` cru. Um `"totalG":"143,53"` viajava como STRING até
+// o Firestore, num campo que o tipo declara `number`. Agora cada campo passa
+// pela mesma leitura dos outros três JSONs.
+function parseFilaments(
+  value: string | undefined,
+  onde: string,
+  report?: NumReporter,
+): FilamentUsage[] {
+  return parseJsonArray(value).map((raw) => {
+    const item = raw as Partial<FilamentUsage>;
+    const campo = (nome: string) => `${onde} → ${nome}`;
+    return {
+      ...(item.id ? { id: item.id } : {}),
+      filamentId: item.filamentId ?? null,
+      colorName: item.colorName ?? "",
+      pricePerKg: numFromJson(item.pricePerKg, campo("pricePerKg"), report),
+      totalG: numFromJson(item.totalG, campo("totalG"), report),
+      // Detalhe é OPCIONAL: ausente continua ausente (`makeFilament` distingue
+      // "sem detalhamento" de "detalhado com zero" para recalcular o totalG).
+      ...(item.modelG !== undefined
+        ? { modelG: numFromJson(item.modelG, campo("modelG"), report) }
+        : {}),
+      ...(item.supportG !== undefined
+        ? { supportG: numFromJson(item.supportG, campo("supportG"), report) }
+        : {}),
+      ...(item.purgedG !== undefined
+        ? { purgedG: numFromJson(item.purgedG, campo("purgedG"), report) }
+        : {}),
+      ...(item.towerG !== undefined
+        ? { towerG: numFromJson(item.towerG, campo("towerG"), report) }
+        : {}),
+    };
+  });
+}
+
+function parseStages(
+  value: string | undefined,
+  fallbackMachineId: string,
+  report?: NumReporter,
+): PrintStage[] {
+  return parseJsonArray(value).map((stage, index) => {
     const item = stage as Partial<PrintStage>;
+    const campo = (nome: string) => `Etapas JSON — etapa ${index + 2} → ${nome}`;
     const base: PrintStage = {
       // FEAT-01: o id é a IDENTIDADE da etapa — os `stageKeys` dos subitens
       // referenciam-no. Descartá-lo aqui faria todo subitem importado nascer
@@ -321,8 +367,8 @@ function parseStages(value: string | undefined, fallbackMachineId: string): Prin
       ...(item.id ? { id: String(item.id) } : {}),
       name: item.name ?? "",
       machineId: item.machineId ?? fallbackMachineId,
-      printHours: Number(item.printHours) || 0,
-      laborMinutes: Number(item.laborMinutes) || 0,
+      printHours: numFromJson(item.printHours, campo("printHours"), report),
+      laborMinutes: numFromJson(item.laborMinutes, campo("laborMinutes"), report),
       // `energyTariff`/`laborRate` da etapa são IGNORADOS de propósito: valem os
       // do produto (colunas "Tarifa Energia" e "Valor-hora"). Um CSV que os
       // traga na etapa não vira override — não há onde editá-los depois, e a
@@ -331,22 +377,54 @@ function parseStages(value: string | undefined, fallbackMachineId: string): Prin
     // FEAT-02: usa as cores quando presentes; senão mantém os escalares legados
     // (migrados no cálculo por `normalizeFilaments`).
     if (Array.isArray(item.filaments) && item.filaments.length > 0) {
-      base.filaments = item.filaments as FilamentUsage[];
+      base.filaments = item.filaments.map((f) => {
+        const cor = f as Partial<FilamentUsage>;
+        const cf = (nome: string) =>
+          `Etapas JSON — etapa ${index + 2}, cor → ${nome}`;
+        return {
+          ...(cor.id ? { id: cor.id } : {}),
+          filamentId: cor.filamentId ?? null,
+          colorName: cor.colorName ?? "",
+          pricePerKg: numFromJson(cor.pricePerKg, cf("pricePerKg"), report),
+          totalG: numFromJson(cor.totalG, cf("totalG"), report),
+          ...(cor.modelG !== undefined
+            ? { modelG: numFromJson(cor.modelG, cf("modelG"), report) }
+            : {}),
+          ...(cor.supportG !== undefined
+            ? { supportG: numFromJson(cor.supportG, cf("supportG"), report) }
+            : {}),
+          ...(cor.purgedG !== undefined
+            ? { purgedG: numFromJson(cor.purgedG, cf("purgedG"), report) }
+            : {}),
+          ...(cor.towerG !== undefined
+            ? { towerG: numFromJson(cor.towerG, cf("towerG"), report) }
+            : {}),
+        };
+      });
     } else {
-      base.weightG = Number(item.weightG) || 0;
-      base.filamentPricePerKg = Number(item.filamentPricePerKg) || 0;
+      base.weightG = numFromJson(item.weightG, campo("weightG"), report);
+      base.filamentPricePerKg = numFromJson(
+        item.filamentPricePerKg,
+        campo("filamentPricePerKg"),
+        report,
+      );
     }
     return base;
   });
 }
 
-function parseAccessories(value: string | undefined): Accessory[] {
-  return parseJsonArray(value).map((accessory) => {
+function parseAccessories(
+  value: string | undefined,
+  report?: NumReporter,
+): Accessory[] {
+  return parseJsonArray(value).map((accessory, index) => {
     const item = accessory as Partial<Accessory>;
+    const campo = (nome: string) =>
+      `Acessorios JSON — item ${index + 1} ("${item.desc ?? ""}") → ${nome}`;
     return {
       desc: item.desc ?? "",
-      qty: Number(item.qty) || 0,
-      unitPrice: Number(item.unitPrice) || 0,
+      qty: numFromJson(item.qty, campo("qty"), report),
+      unitPrice: numFromJson(item.unitPrice, campo("unitPrice"), report),
       // 7e: o vínculo com o insumo sobrevive ao round-trip do CSV (o export é
       // JSON puro).
       supplyId: item.supplyId ?? null,
@@ -360,11 +438,21 @@ function parseAccessories(value: string | undefined): Accessory[] {
 
 // FEAT-01: subitens vendáveis. `markup` é OMITIDO quando ausente (herda o do
 // produto) — gravar `undefined` faria o Firestore recusar o lote.
-function parseSubitems(value: string | undefined): Subitem[] {
+function parseSubitems(
+  value: string | undefined,
+  report?: NumReporter,
+): Subitem[] {
   return parseJsonArray(value).flatMap((subitem, index) => {
     const item = subitem as Partial<Subitem>;
     const id = item.id ? String(item.id) : `sub_${index}`;
-    const markup = Number(item.markup);
+    // CSV-06: `Number("2,5")` era NaN, e o `markup > 0` seguinte DESCARTAVA o
+    // campo — o subitem herdava o markup do produto sem nada dizer que a
+    // planilha pedia outro.
+    const markup = numFromJson(
+      item.markup,
+      `Subitens JSON — "${item.name ?? id}" → markup`,
+      report,
+    );
     return [
       {
         id,
@@ -647,6 +735,11 @@ export function parseProductsCsv(
     const name = columns[indexName]?.trim();
     if (!name) return [];
 
+    // Declarado aqui em cima, e não junto do bloco CSV-05 lá embaixo, porque o
+    // `reportNumero` o lê ao parsear os JSONs — que acontece ANTES (const em
+    // zona morta temporal explodiria em ReferenceError).
+    const ondeEstou = `Linha ${offset + 2} ("${name}")`;
+
     const markupRaw = columns[indexMarkup]?.replace("x", "").trim() ?? "3";
     const machineName = columns[indexMachine];
     const machineId = machineNameToId(machineName, machines, (usada) => {
@@ -655,15 +748,35 @@ export function parseProductsCsv(
           `não encontrada — usando "${usada?.name ?? "a primeira máquina"}".`,
       );
     });
-    const stages = parseStages(columns[indexStages], machineId);
-    const accessories = parseAccessories(columns[indexAccessories]);
+    // CSV-06: todo número dentro dos 4 JSONs passa a ser lido em pt-BR, e o que
+    // não der para ler vira aviso NOMEANDO o campo — em vez de virar 0 calado.
+    const reportNumero: NumReporter = (campo, bruto) => {
+      addIssue(
+        "numero-nao-reconhecido",
+        'Número não reconhecido dentro de uma célula JSON — virou 0. Dentro do JSON o decimal ' +
+          'vai com PONTO ("1.5"), não com vírgula',
+        `${ondeEstou}: ${campo} = "${bruto}"`,
+      );
+    };
+
+    const stages = parseStages(columns[indexStages], machineId, reportNumero);
+    const accessories = parseAccessories(
+      columns[indexAccessories],
+      reportNumero,
+    );
     const subitems =
-      indexSubitems >= 0 ? parseSubitems(columns[indexSubitems]) : [];
+      indexSubitems >= 0
+        ? parseSubitems(columns[indexSubitems], reportNumero)
+        : [];
     // FEAT-02: cores da etapa principal quando o CSV as traz; senão os escalares
     // "Peso (g)"/"Filamento (R$/kg)" migram no cálculo (`normalizeFilaments`).
     const filaments =
       indexFilaments >= 0
-        ? (parseJsonArray(columns[indexFilaments]) as FilamentUsage[])
+        ? parseFilaments(
+            columns[indexFilaments],
+            "Filamentos JSON",
+            reportNumero,
+          )
         : [];
 
     const product: ProductPayload = {
@@ -734,8 +847,6 @@ export function parseProductsCsv(
     // Nada aqui bloqueia: a linha entra do mesmo jeito. O que muda é o dono
     // saber ANTES, em vez de descobrir na produção que não deu baixa.
     // -----------------------------------------------------------------------
-    const ondeEstou = `Linha ${offset + 2} ("${name}")`;
-
     // 1) Célula JSON que não parseia — a coluna inteira vira lista vazia.
     ([
       [indexStages, "Etapas JSON"],
@@ -777,19 +888,26 @@ export function parseProductsCsv(
 
     // 3b) A célula que o Excel formatou como MILHAR. "1.234" é lido como 1,234
     // (decimal, que é como o export escreve) — se o dono quis mil duzentos e
-    // trinta e quatro, o número entra 1000× menor. Não dá para adivinhar qual
-    // das duas leituras é a certa, então a linha é apontada.
+    // trinta e quatro, o número entra 1000× menor.
+    //
+    // CSV-07, os dois lados do erro:
+    // · o teste rodava no texto CRU, então "R$ 1.234" NÃO acendia — o prefixo
+    //   quebra a âncora `^` do regex. Agora `isMilharAmbiguo` limpa antes.
+    // · e acendia à toa em `Tempo (h) = 2.375`, valor que o PRÓPRIO export
+    //   escreve. Ler a estrutura não distingue os dois casos: quem distingue é
+    //   a coluna. Onde o valor natural JÁ é um decimal pequeno, a leitura de
+    //   milhar é absurda (2375 h são 99 dias de impressão; R$1.234/kWh não
+    //   existe) e não há ambiguidade a apontar. Nas outras quatro, as duas
+    //   leituras são plausíveis — e aí sim vale perguntar.
     ([
       [indexWeight, "Peso (g)"],
-      [indexTime, "Tempo (h)"],
       [indexFilament, "Filamento (R$/kg)"],
       [indexLaborRate, "Valor-hora (R$)"],
       [indexLaborMinutes, "Mao de obra (min)"],
-      [indexEnergy, "Tarifa Energia"],
     ] as const).forEach(([index, coluna]) => {
       if (index < 0) return;
       const bruto = columns[index]?.trim();
-      if (bruto && MILHAR_AMBIGUO.test(bruto)) {
+      if (bruto && isMilharAmbiguo(bruto)) {
         addIssue(
           "milhar-ambiguo",
           'Número com ponto e 3 casas foi lido como DECIMAL — se era separador de milhar, use vírgula decimal ("1234,00")',
@@ -804,6 +922,11 @@ export function parseProductsCsv(
     // nasce a uma fração do preço, sem nada na tela denunciando. O
     // `validateProduct` não pega: lá o peso zero só reprova junto com tempo
     // zero, e toda linha importada tem tempo.
+    // ⚠ Roda sobre as cores NORMALIZADAS (`makeFilament`), não sobre as cruas:
+    // quando há detalhamento, o `totalG` é RECALCULADO como a soma de
+    // model+suporte+purga+torre. Uma cor com `totalG` bom e `modelG` ilegível
+    // pesa no array cru e zera depois — conferir o cru deixaria passar
+    // exatamente o caso mais caro.
     ([
       [filaments, "Filamentos JSON"] as const,
       ...stages.map(
@@ -811,7 +934,7 @@ export function parseProductsCsv(
           [stage.filaments ?? [], `Etapas JSON — etapa ${i + 2}`] as const,
       ),
     ]).forEach(([lista, onde]) => {
-      if (lista.length > 0 && filamentsTotalG(lista) === 0) {
+      if (lista.length > 0 && filamentsTotalG(lista.map((f) => makeFilament(f))) === 0) {
         addIssue(
           "cor-sem-peso",
           "Cor declarada com 0 g — o material fica ZERADO e o preço sai muito abaixo " +
