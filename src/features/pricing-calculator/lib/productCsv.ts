@@ -885,10 +885,22 @@ export function parseProductsCsv(
   let recalcDivergentes = 0;
 
   // CSV-05: agrupa por classe, conta todas e guarda até 3 exemplos.
+  //
+  // CSV-21: `linhas` conta LINHA, não ocorrência. O `+= 1` por chamada fazia uma
+  // única linha com 3 células ruins da mesma classe ser reportada como "3
+  // linhas" — e é justamente esse número que decide se o dono confirma a carga
+  // ou volta pro Excel: "12 linhas com problema" em 100 é uma coisa, 4 linhas
+  // com 3 erros cada é outra. O set é zerado a cada linha do laço, logo abaixo.
+  // Os EXEMPLOS continuam vindo por ocorrência (até 3): numa linha só eles
+  // nomeiam campos diferentes, que é a informação que o dono precisa.
   const issues = new Map<string, CsvIssue>();
+  const classesDaLinha = new Set<string>();
   function addIssue(kind: string, label: string, exemplo: string) {
     const found = issues.get(kind) ?? { kind, label, linhas: 0, exemplos: [] };
-    found.linhas += 1;
+    if (!classesDaLinha.has(kind)) {
+      found.linhas += 1;
+      classesDaLinha.add(kind);
+    }
     if (found.exemplos.length < 3) found.exemplos.push(exemplo);
     issues.set(kind, found);
   }
@@ -923,6 +935,8 @@ export function parseProductsCsv(
   const importadoEm = Date.now();
 
   const products = rawLines.slice(1).flatMap((line, offset) => {
+    // CSV-21: nova linha, contagem por classe zerada.
+    classesDaLinha.clear();
     const columns = parseLine(line, separator);
     const name = columns[indexName]?.trim();
     if (!name) return [];

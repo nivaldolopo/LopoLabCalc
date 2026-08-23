@@ -457,7 +457,10 @@ describe("CSV-06 — vírgula pt-BR dentro do JSON", () => {
       opcoes,
     );
     const issue = achar(r.issues, "numero-nao-reconhecido");
-    expect(issue?.linhas).toBe(2);
+    // CSV-21: 1 LINHA, com os 2 campos nos exemplos — os dois erros estão na
+    // mesma linha da planilha, e é linha que o dono conta.
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos).toHaveLength(2);
     expect(issue?.exemplos.join(" | ")).toContain("pricePerKg");
     expect(issue?.exemplos.join(" | ")).toContain("unitPrice");
   });
@@ -572,10 +575,12 @@ describe("CSV-09 — coluna escalar presente e vazia caía em 0, não no default
     );
     expect(r.products[0].printHours).toBe(0);
     expect(r.products[0].piecesCount).toBe(1);
-    // 2, e não 1: o `Peso (g)` nem é lido (a linha traz `Filamentos JSON`, e
-    // com as cores presentes os escalares não entram). E `linhas` conta
-    // OCORRÊNCIA, não linha — herdado do CSV-06; virou [CSV-21] no backlog.
-    expect(achar(r.issues, "coluna-numero-nao-reconhecido")?.linhas).toBe(2);
+    // 1 linha (CSV-21), com 2 exemplos: `Tempo (h)` e `Pecas`. O `Peso (g)`
+    // nem é lido — a linha traz `Filamentos JSON`, e com as cores presentes os
+    // escalares não entram.
+    const ilegivel = achar(r.issues, "coluna-numero-nao-reconhecido");
+    expect(ilegivel?.linhas).toBe(1);
+    expect(ilegivel?.exemplos).toHaveLength(2);
   });
 
   it("coluna AUSENTE segue no default, calada (o comportamento que já valia)", () => {
@@ -836,5 +841,60 @@ describe("CSV-15 — createdAt distinto por linha", () => {
     expect(new Set(datas).size).toBe(3);
     expect(datas[0]).toBeLessThan(datas[1]);
     expect(datas[1]).toBeLessThan(datas[2]);
+  });
+});
+
+// CSV-21 — `linhas` conta LINHA, não ocorrência. Uma linha com 3 células ruins
+// da mesma classe era reportada como "3 linhas", e é esse número que decide se
+// o dono confirma a carga ou volta pro Excel.
+describe("CSV-21 — o contador conta linha, não ocorrência", () => {
+  it("3 erros da MESMA classe numa linha só = 1 linha, 3 exemplos", () => {
+    const r = parseProductsCsv(
+      csv({
+        Produto: "Caneca",
+        "Tempo (h)": "abc",
+        Pecas: "abc",
+        "Valor-hora (R$)": "abc",
+      }),
+      machines,
+      opcoes,
+    );
+    const issue = achar(r.issues, "coluna-numero-nao-reconhecido");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos).toHaveLength(3);
+    expect(issue?.exemplos.join(" | ")).toContain("Tempo (h)");
+    expect(issue?.exemplos.join(" | ")).toContain("Pecas");
+    expect(issue?.exemplos.join(" | ")).toContain("Valor-hora (R$)");
+  });
+
+  it("a mesma classe em 3 linhas distintas continua contando 3", () => {
+    const arquivo = [
+      "Produto;Tempo (h)",
+      "Um;abc",
+      "Dois;abc",
+      "Tres;abc",
+    ].join("\n");
+    const r = parseProductsCsv(arquivo, machines, opcoes);
+    expect(achar(r.issues, "coluna-numero-nao-reconhecido")?.linhas).toBe(3);
+  });
+
+  it("classes DIFERENTES na mesma linha seguem contando 1 cada", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Tempo (h)": "abc", Markup: "abc" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "coluna-numero-nao-reconhecido")?.linhas).toBe(1);
+    expect(achar(r.issues, "markup-invalido")?.linhas).toBe(1);
+  });
+
+  it("misto: 2 linhas, uma delas com 2 erros da classe = 2 linhas", () => {
+    const arquivo = [
+      "Produto;Tempo (h);Pecas",
+      "Um;abc;abc",
+      "Dois;abc;1",
+    ].join("\n");
+    const r = parseProductsCsv(arquivo, machines, opcoes);
+    expect(achar(r.issues, "coluna-numero-nao-reconhecido")?.linhas).toBe(2);
   });
 });
