@@ -16,10 +16,9 @@
 >
 > ✅ **Fecharam em 2026-08-23:** os 5 🔴 (lotes A e B, com os três que entravam calados na carga), o
 > `[TD-022]` inteiro (reproduzido com escrita real), as duas guardas baratas `[TD-024]`/`[TD-025]`
-> e o **lote C inteiro** (`[CSV-27]` `[CSV-28]` `[CSV-29]` `[CSV-31]`).
-> `[CSV-30]` e `[TD-021]` viraram **ressalva** por decisão do dono. Restam **3 abertos**:
-> `[TD-023]` (lote D) · `[UX-45]` + `[UX-46]` (lote E). A ordem aprovada pelo dono está na tabela
-> do fim desta seção.
+> e os lotes **C** (`[CSV-27]` `[CSV-28]` `[CSV-29]` `[CSV-31]`) e **D** (`[TD-023]`).
+> `[CSV-30]` e `[TD-021]` viraram **ressalva** por decisão do dono. Restam **2 abertos**, o lote E:
+> `[UX-45]` + `[UX-46]` (este com **escopo enxuto** — só os controles que o dedo busca).
 >
 > **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15, as ondas 0–5 e o `[micro]` do
 > botão de 14px (2026-08-17) ✅ FECHADOS.** O
@@ -816,7 +815,7 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
 | **A — o parser volta a avisar** | [CSV-23] · [CSV-24] · [CSV-25] · [CSV-26] | tudo em `productCsv.ts`; a disciplina do CSV-10 (*o palpite que não se anuncia*) | ✅ **FEITO (2026-08-23)** |
 | **B — celular** | [UX-44] | CSS; `minmax(0, 1fr)` + fileira virando cartão | ✅ **FEITO (2026-08-23)** |
 | **C — qualidade do aviso** | [CSV-27] · [CSV-28] · [CSV-29] · [CSV-31] | falso positivo e conselho errado — o que ensina a ignorar aviso | ✅ **FEITO (2026-08-23)** |
-| **D — dívida barata** | [TD-023] · ~~[TD-024]~~ · ~~[TD-025]~~ | comentário que afirma garantia inexistente + 2 guardas | 🔸 **as 2 guardas FEITAS (2026-08-23)**; sobra o [TD-023] |
+| **D — dívida barata** | ~~[TD-023]~~ · ~~[TD-024]~~ · ~~[TD-025]~~ | comentário que afirma garantia inexistente + 2 guardas | ✅ **FEITO (2026-08-23)** |
 | **E — toque e responsivo** | [UX-45] · [UX-46] | faixa 641–760px + os alvos abaixo de 44px; o maior dos cinco | aberto |
 | **fora de lote** | ~~[TD-022]~~ · ~~[TD-021]~~ · ~~[CSV-30]~~ | TD-022 reproduzido e corrigido; CSV-30 e TD-021 viraram ressalva (dono) | ✅ **nada aberto aqui** |
 
@@ -862,7 +861,15 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   de nome em 66 px para conteúdo de 99–135 px; `/vendas` → `.recibo-items-scroll` 670 → 800 =
   **130 px**, repetido em 6+ recibos. `/estoque` e `/producao`: **0** ✅.
 
-- **[TD-023] `addProductionLayers` NÃO é idempotente, apesar do comentário afirmar que é.**
+- ✅ **[TD-023] FEITO (Lote D, 2026-08-23) — o CÓDIGO passou a honrar o comentário (escolha do dono).**
+  `addProductionLayers` confere `layer.id` antes do `push`: reaplicar o mesmo evento na mesma SKU não
+  soma nada. ⚠ **A outra metade do achado foi resolvida ao contrário, de propósito:** `shiftLayers`
+  (e portanto `applyFinishedConsumption`/`reverseFinishedConsumption`) é **DELTA**, e deduplicar por
+  `layerId` ali seria BUG — dois recibos diferentes drenando a mesma camada são dois movimentos
+  legítimos, e engolir o 2º faria o estorno de um devolver o material do outro. Ganhou comentário
+  explicando a assimetria (lá a `layerId` identifica O EVENTO; aqui só aponta DE ONDE tirar).
+  5 testes, incluindo os dois lados. Descrição original:
+  **`addProductionLayers` NÃO é idempotente, apesar do comentário afirmar que é.**
   O comentário diz *"a `layerId` é evento+SKU, então um mesmo evento nunca duplica camada na mesma
   SKU (idempotente por evento)"* — e o código só faz `existing.layers.push(layer)`, sem checar o id.
   **Medido:** mesmo `eventId` aplicado 2× → **2 camadas com o id idêntico**

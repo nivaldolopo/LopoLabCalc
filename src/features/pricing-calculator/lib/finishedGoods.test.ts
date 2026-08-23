@@ -158,6 +158,88 @@ describe("addProductionLayers", () => {
   });
 });
 
+// TD-023 — a garantia que o comentário prometia desde sempre e o código nao
+// cumpria: reaplicar o MESMO evento na MESMA SKU duplicava a camada (mesmo id) e
+// dobrava o saldo. Hoje inalcançável pela UI (quem chama grava com `batch.set`,
+// que sobrescreve o doc inteiro), mas quem confiasse na promessa se machucaria.
+describe("addProductionLayers — idempotente por evento (TD-023)", () => {
+  const entries = [{ name: "Boneco", color: AZUL, qty: 4, unitCost: 3 }];
+
+  it("aplicar o mesmo evento 2x da o mesmo doc que aplicar 1x", () => {
+    const uma = addProductionLayers(null, "prod-1", "Boneco", entries, "EV1", DIA);
+    const duas = addProductionLayers(
+      uma as unknown as FinishedGood,
+      "prod-1",
+      "Boneco",
+      entries,
+      "EV1",
+      DIA,
+    );
+    expect(duas.skus[0].layers).toHaveLength(1);
+    expect(skuBalance(duas.skus[0])).toBe(4);
+    expect(JSON.stringify(duas)).toBe(JSON.stringify(uma));
+  });
+
+  it("evento DIFERENTE na mesma SKU continua empilhando", () => {
+    const uma = addProductionLayers(null, "prod-1", "Boneco", entries, "EV1", DIA);
+    const dois = addProductionLayers(
+      uma as unknown as FinishedGood,
+      "prod-1",
+      "Boneco",
+      entries,
+      "EV2",
+      DIA,
+    );
+    expect(dois.skus[0].layers).toHaveLength(2);
+    expect(skuBalance(dois.skus[0])).toBe(8);
+  });
+
+  it("o mesmo evento em SKU de outra COR abre camada propria", () => {
+    const uma = addProductionLayers(null, "prod-1", "Boneco", entries, "EV1", DIA);
+    const duas = addProductionLayers(
+      uma as unknown as FinishedGood,
+      "prod-1",
+      "Boneco",
+      [{ name: "Boneco", color: VERMELHO, qty: 4, unitCost: 3 }],
+      "EV1",
+      DIA,
+    );
+    expect(duas.skus).toHaveLength(2);
+    expect(duas.skus.map((sku) => skuBalance(sku))).toEqual([4, 4]);
+  });
+});
+
+// A assimetria deliberada do outro lado: `shiftLayers` é DELTA. Deduplicar por
+// `layerId` ali engoliria o 2o de dois recibos que drenam a mesma camada — e
+// estornar um devolveria o material do outro junto.
+describe("applyFinishedConsumption/reverse — DELTA, não idempotente (TD-023)", () => {
+  const good = makeGood({
+    skus: [
+      {
+        name: "Boneco",
+        layers: [{ id: "e1__whole", at: 0, qty: 10, unitCost: 5, sourceEventId: "e1" }],
+      },
+    ],
+  });
+  const move = [{ productId: "prod-1", layerId: "e1__whole", qty: 3 }];
+
+  it("duas baixas do mesmo tamanho na mesma camada somam as duas", () => {
+    const uma = applyFinishedConsumption(good, move as never);
+    const duas = applyFinishedConsumption(uma, move as never);
+    expect(skuBalance(duas.skus[0])).toBe(4);
+  });
+
+  it("cada estorno devolve o seu — e o round-trip fecha", () => {
+    const uma = applyFinishedConsumption(good, move as never);
+    const duas = applyFinishedConsumption(uma, move as never);
+    const volta = reverseFinishedConsumption(
+      reverseFinishedConsumption(duas, move as never),
+      move as never,
+    );
+    expect(skuBalance(volta.skus[0])).toBe(10);
+  });
+});
+
 describe("removeEventLayers (estorno)", () => {
   it("remove exatamente as camadas do evento, mantendo as dos outros", () => {
     const good = makeGood({

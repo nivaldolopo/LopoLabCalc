@@ -263,8 +263,10 @@ export function colorsWithBalance(
  * Incremento de UMA produção `estoque` no doc do acabado. PURA: devolve o doc
  * novo, não grava. Cria o doc quando `good` é null (1ª produção do produto).
  *
- * Cada entry vira/soma uma camada na sua SKU. A `layerId` é evento+SKU, então um
- * mesmo evento nunca duplica camada na mesma SKU (idempotente por evento).
+ * Cada entry vira/soma uma camada na sua SKU. A `layerId` é evento+SKU, e a
+ * inserção CONFERE esse id antes de empurrar: reaplicar o mesmo evento na mesma
+ * SKU não soma nada (idempotente por evento). TD-023 — a conferência é nova; o
+ * comentário afirmava a garantia desde o início, mas o código só fazia `push`.
  * Entries com qty ≤ 0 são ignoradas.
  */
 export function addProductionLayers(
@@ -296,6 +298,14 @@ export function addProductionLayers(
     const key = skuKey(entry.subitemId, color.key);
     const existing = byKey.get(key);
     if (existing) {
+      // TD-023: o comentário lá em cima promete idempotência por evento, e até
+      // aqui o código só fazia `push` — sem olhar o id. Medido: mesmo `eventId`
+      // aplicado 2× produzia DUAS camadas com o id idêntico e o saldo dobrava
+      // (4 → 8). Hoje é inalcançável pela UI (quem chama monta o doc inteiro e
+      // grava com `batch.set`, que sobrescreve), mas um comentário que afirma
+      // garantia inexistente é armadilha para quem confiar nela depois. Agora a
+      // garantia é do CÓDIGO: reaplicar o mesmo evento na mesma SKU não soma.
+      if (existing.layers.some((l) => l.id === layer.id)) continue;
       existing.layers.push(layer);
       if (entry.name) existing.name = entry.name;
       // O rótulo acompanha a cor viva: renomear "Azul" para "Azul Bebê" no
@@ -488,6 +498,12 @@ export function consumeWholeFifo(
 // venda e devolver por camada, sem depender do custo (molde do `RollDelta`).
 type LayerDelta = Pick<FinishedMove, "productId" | "layerId" | "qty">;
 
+// ⚠ TD-023 — isto é DELTA, e de propósito NÃO é idempotente: aplicar duas vezes
+// move o saldo duas vezes. É o oposto do `addProductionLayers`, e a assimetria
+// não é descuido — lá a `layerId` identifica O EVENTO (reaplicar é repetição),
+// aqui ela só aponta DE ONDE tirar. Dois recibos diferentes drenando a mesma
+// camada são dois movimentos legítimos, e deduplicar por `layerId` engoliria o
+// segundo — estornar um recibo devolveria material do outro junto.
 function shiftLayers(
   good: FinishedGood,
   moves: LayerDelta[],

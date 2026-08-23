@@ -22,16 +22,20 @@
   lida CORRETAMENTE (a regex virou o helper `matchCientifica`, usado pelos dois lados do `number.ts`)
   · `[CSV-31]` peça fracionária agora é **reprovada** no `validateProduct`, não arredondada (dono):
   arredondar 1.234 → 1 troca um absurdo visível por um plausível invisível.
-  `lint` ✅ · **667/667** ✅ (+14). Antes disso, no mesmo dia: os 5 🔴 (lotes A+B), o `[TD-022]`
-  inteiro e as guardas `[TD-024]`/`[TD-025]`. Detalhe: `HISTORICO.md`.
+  E o **lote D** `[TD-023]`: `addProductionLayers` confere `layer.id` antes do `push` e a promessa
+  de idempotência vira garantia real — mas `shiftLayers` (baixa/estorno) é **DELTA** e ficou
+  deliberadamente NÃO idempotente, com o porquê no comentário: deduplicar ali faria o estorno de um
+  recibo devolver o material de outro. `lint` ✅ · `build` ✅ · **672/672** ✅ (+19). Antes disso, no
+  mesmo dia: os 5 🔴 (lotes A+B), o `[TD-022]` inteiro e as guardas `[TD-024]`/`[TD-025]`.
+  Detalhe: `HISTORICO.md`.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — 2 frentes em paralelo:** (a) **minha:** os **3** que restam da AUD-12 —
-  `[TD-023]` (lote D) e o lote E (`[UX-45]` + `[UX-46]`, este com **escopo enxuto**: só os controles
-  que o dedo busca). `[TD-021]` e `[CSV-30]` viraram **ressalva** por decisão do dono;
+- **▶ PRÓXIMA TAREFA — 2 frentes em paralelo:** (a) **minha:** só o **lote E** da AUD-12 —
+  `[UX-45]` (faixa 641–760px rolando de lado) + `[UX-46]` com **escopo enxuto** (só os controles que
+  o dedo busca). `[TD-021]` e `[CSV-30]` viraram **ressalva** por decisão do dono;
   (b) **do DONO: cadastrar as cores e os insumos definitivos**, pegar
   os ids e passá-los pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-
   modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. Só
