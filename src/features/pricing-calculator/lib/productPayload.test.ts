@@ -144,6 +144,24 @@ describe("round-trip do formulário — abrir e salvar sem tocar em nada", () =>
     expect(novo.createdAt).not.toBe(salvo.createdAt);
   });
 
+  it("TD-022: não grava o `rev` dentro do documento", () => {
+    // O `rev` é do repositório (como o `id` é do caminho) e viaja no
+    // `SavedProduct`; o `buildLoadedProduct` espalha o objeto inteiro no
+    // estado do formulário. Se ele sobrevivesse até o payload, o save
+    // regravaria a versão VELHA por cima da que a transação acabou de
+    // escrever — o contador andaria para trás e a trava de concorrência
+    // deixaria de travar.
+    const comRev: SavedProduct = { ...salvo, rev: 7 };
+    const doc = abrirESalvar(comRev) as Record<string, unknown>;
+    expect(doc.rev).toBeUndefined();
+    expect(
+      (buildProductPayload(buildLoadedProduct(comRev), true, true) as Record<
+        string,
+        unknown
+      >).rev,
+    ).toBeUndefined();
+  });
+
   it("nunca produz `undefined` — o Firestore rejeita a gravação", () => {
     const achados: string[] = [];
     const scan = (o: unknown, path: string) => {

@@ -206,10 +206,22 @@ export function PricingCalculator() {
     setSaveError(null);
     if (blockedOffline()) return;
 
-    if (form.editingProductId) {
-      await productsApi.updateProduct(form.editingProductId, buildPayload(false));
-    } else {
-      await productsApi.addProduct(buildPayload(true));
+    // TD-022: a gravação pode ser RECUSADA quando outra aba já salvou este
+    // produto — e recusar é o ponto. O formulário fica como está (nada se
+    // perde), e a frase do erro diz o que fazer.
+    try {
+      if (form.editingProductId) {
+        await productsApi.updateProduct(
+          form.editingProductId,
+          buildPayload(false),
+          form.editingProductRev,
+        );
+      } else {
+        await productsApi.addProduct(buildPayload(true));
+      }
+    } catch (err) {
+      setSaveError(errorMessage(err));
+      return;
     }
 
     setSaved(true);
@@ -289,13 +301,27 @@ export function PricingCalculator() {
     setSaveError(null);
     if (blockedOffline()) return null;
 
-    if (form.editingProductId) {
-      await productsApi.updateProduct(form.editingProductId, buildPayload(false));
-      return form.editingProductId;
+    try {
+      if (form.editingProductId) {
+        // A versão nova volta e fica guardada: sem isso, este mesmo formulário
+        // (que continua editando o produto) bateria contra a versão que ele
+        // acabou de gravar no save seguinte.
+        const rev = await productsApi.updateProduct(
+          form.editingProductId,
+          buildPayload(false),
+          form.editingProductRev,
+        );
+        form.setEditingProductRev(rev);
+        return form.editingProductId;
+      }
+      const newId = await productsApi.addProduct(buildPayload(true));
+      form.setEditingProductId(newId);
+      form.setEditingProductRev(1);
+      return newId;
+    } catch (err) {
+      setSaveError(errorMessage(err));
+      return null;
     }
-    const newId = await productsApi.addProduct(buildPayload(true));
-    form.setEditingProductId(newId);
-    return newId;
   }
 
   async function openSaleFromForm() {

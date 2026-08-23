@@ -24,6 +24,12 @@ export function buildProductPayload(
   // inteiro), e gravá-lo criava uma cópia que ninguém lê — e que em "salvar
   // como novo" ficava apontando para o produto ORIGINAL, errada e silenciosa.
   delete (base as { id?: string }).id;
+  // TD-022: o `rev` viaja no `SavedProduct` e o `buildLoadedProduct` espalha o
+  // objeto inteiro no estado do formulário — se ele sobrevivesse até aqui, o
+  // payload gravaria a versão VELHA por cima da nova que a transação acabou de
+  // escrever, e o contador andaria para trás. Quem grava o `rev` é o
+  // repositório, e só ele.
+  delete (base as { rev?: number }).rev;
   return {
     ...base,
     name: product.name.trim(),

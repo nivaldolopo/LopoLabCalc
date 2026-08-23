@@ -123,6 +123,11 @@ export function usePricingForm() {
     cloneDefaultProduct(),
   );
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  // TD-022: a versão do documento que este formulário carregou. Fica FORA do
+  // `product` de propósito — é metadado do documento, não campo que se edita, e
+  // dentro do estado ele viraria mais um campo que o `buildProductPayload`
+  // precisa lembrar de tirar (a armadilha FORM-01).
+  const [editingProductRev, setEditingProductRev] = useState(0);
 
   function updateProduct(patch: Partial<ProductInput>) {
     setProduct((current) => ({ ...current, ...patch }));
@@ -250,6 +255,7 @@ export function usePricingForm() {
 
   function resetForm() {
     setEditingProductId(null);
+    setEditingProductRev(0);
     setProduct(cloneDefaultProduct());
   }
 
@@ -258,6 +264,7 @@ export function usePricingForm() {
     setFixedCosts: (patch: Partial<FixedCostSettings>) => void,
   ) {
     setEditingProductId(savedProduct.id);
+    setEditingProductRev(savedProduct.rev ?? 0);
     setProduct(buildLoadedProduct(savedProduct));
     setFixedCosts({
       enabled: savedProduct.includeFixed,
@@ -268,6 +275,8 @@ export function usePricingForm() {
   return {
     product,
     editingProductId,
+    editingProductRev,
+    setEditingProductRev,
     // UX-11: "salvar e vender/produzir/orçar" cria o produto e mantém o
     // formulário EDITANDO o recém-criado (em vez de limpar como o botão
     // Salvar), pra quem volta de /producao continuar de onde parou.

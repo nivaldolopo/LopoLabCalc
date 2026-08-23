@@ -36,8 +36,15 @@ export function useProducts() {
     return createProduct(payload);
   }
 
-  async function updateProduct(productId: string, payload: ProductPayload) {
-    await saveProduct(productId, payload);
+  // TD-022: devolve a versão NOVA do documento. Quem continua editando o mesmo
+  // produto depois de salvar (UX-11) precisa guardá-la, senão o próximo save
+  // bate contra a versão que ele mesmo acabou de gravar.
+  async function updateProduct(
+    productId: string,
+    payload: ProductPayload,
+    expectedRev: number,
+  ): Promise<number> {
+    return saveProduct(productId, payload, expectedRev);
   }
 
   async function deleteProduct(productId: string) {

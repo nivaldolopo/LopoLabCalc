@@ -138,6 +138,11 @@ export type ProductInput = {
 export type SavedProduct = ProductInput & {
   id: string;
   createdAt?: number;
+  // TD-022: versão do documento, conferida na gravação para uma aba não apagar
+  // a edição da outra. É do REPOSITÓRIO, como o `id` é do caminho — por isso
+  // NÃO está no `ProductPayload`, e o `buildProductPayload` a remove junto com
+  // o `id` antes de montar o que vai para o Firestore.
+  rev?: number;
 };
 
 export type ProductPayload = ProductInput & {

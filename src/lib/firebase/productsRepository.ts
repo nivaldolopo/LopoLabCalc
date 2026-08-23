@@ -4,7 +4,7 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-  updateDoc,
+  runTransaction,
   writeBatch,
   type DocumentData,
 } from "firebase/firestore";
@@ -20,6 +20,11 @@ const productsCollection = collection(db, "products");
 function toSavedProduct(id: string, data: DocumentData): SavedProduct {
   return {
     id,
+    // TD-022: o contador de versão do documento. Não é campo de negócio nem
+    // entra no `ProductPayload` — é do REPOSITÓRIO, como o `id` é do caminho.
+    // Documento antigo (os 97 do catálogo) não tem o campo e vale 0; a primeira
+    // gravação já o cria. Nada a migrar.
+    rev: Number(data.rev) || 0,
     name: data.name ?? "",
     mainStageName: data.mainStageName ?? "",
     weightG: Number(data.weightG) || 0,
@@ -79,7 +84,7 @@ export function subscribeProducts(
 // num clique) precisa dele imediatamente para semear a venda ou a rota, sem
 // esperar o produto voltar pela assinatura.
 export async function createProduct(payload: ProductPayload): Promise<string> {
-  const ref = await addDoc(productsCollection, payload);
+  const ref = await addDoc(productsCollection, { ...payload, rev: 1 });
   return ref.id;
 }
 
@@ -99,7 +104,7 @@ export async function createProductsBatch(
     const chunk = payloads.slice(start, start + BATCH_LIMIT);
     const batch = writeBatch(db);
     for (const payload of chunk) {
-      batch.set(doc(productsCollection), payload);
+      batch.set(doc(productsCollection), { ...payload, rev: 1 });
     }
     try {
       await batch.commit();
@@ -118,11 +123,55 @@ export async function createProductsBatch(
   }
 }
 
+// TD-022 — a gravação era `updateDoc(ref, {...payload})`, ou seja o DOCUMENTO
+// INTEIRO, e o formulário guarda uma cópia local do produto que ele carregou.
+// Duas abas abrindo o mesmo produto e salvando em sequência: a segunda escreve
+// por cima da primeira e a alteração dela some sem um ruído.
+//
+// Reproduzido no Firestore de produção (sonda `__SONDA_TD022__`, 2026-08-23):
+// aba A mudou o peso 40 → 99, aba B a mão de obra 10 → 55; B salvou primeiro,
+// A depois. O documento ficou com peso 99 e mão de obra **10** — a alteração
+// de B apagada. E o formulário de A continuava exibindo 10 no instante do
+// salvar: a assinatura em tempo real atualiza a LISTA, não a cópia que o
+// formulário está editando. Por isso ninguém percebe.
+//
+// A saída é a doutrina do resto do projeto: o silêncio é que é o defeito.
+// Um contador de versão lido e conferido DENTRO de uma transação — o Firestore
+// reexecuta o callback se o documento mudar no meio, então ou a versão bate e a
+// escrita entra, ou ela não bate e a gravação é RECUSADA com uma frase que diz
+// o que aconteceu. Mesclar campo a campo foi descartado de propósito: juntar
+// duas edições cegamente produz um produto que nenhuma das duas abas quis.
+export class ProdutoDesatualizadoError extends Error {
+  constructor() {
+    super(
+      "Este produto foi alterado em outra aba ou dispositivo depois que você " +
+        "o abriu. Nada foi gravado — carregue o produto de novo (Catálogo → " +
+        "Carregar no formulário) para não apagar a alteração da outra ponta.",
+    );
+    this.name = "ProdutoDesatualizadoError";
+  }
+}
+
+// Devolve a versão NOVA: quem continua editando o mesmo produto (o UX-11,
+// "salvar e já vender/produzir/orçar") precisa dela para o próximo save não
+// falhar contra a versão que ele mesmo acabou de criar.
 export async function saveProduct(
   productId: string,
   payload: ProductPayload,
-): Promise<void> {
-  await updateDoc(doc(db, "products", productId), { ...payload });
+  expectedRev: number,
+): Promise<number> {
+  const ref = doc(db, "products", productId);
+  return runTransaction(db, async (tx) => {
+    const snapshot = await tx.get(ref);
+    // Produto apagado em outra ponta: a mesma conversa, não uma recriação
+    // silenciosa do documento.
+    if (!snapshot.exists()) throw new ProdutoDesatualizadoError();
+    const atual = Number(snapshot.data().rev) || 0;
+    if (atual !== expectedRev) throw new ProdutoDesatualizadoError();
+    const proxima = atual + 1;
+    tx.update(ref, { ...payload, rev: proxima });
+    return proxima;
+  });
 }
 
 export async function removeProduct(productId: string): Promise<void> {
