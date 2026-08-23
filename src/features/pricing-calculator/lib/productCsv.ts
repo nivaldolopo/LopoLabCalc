@@ -17,13 +17,16 @@ import type {
 import { calculatePricing, MAIN_STAGE_KEY } from "./calculatePricing";
 import { validateProduct } from "./validateProduct";
 import {
+  filamentTotalG,
   filamentsTotalG,
   makeFilament,
   normalizeFilaments,
   stripFilamentIds,
 } from "./filaments";
+import { catalogPricePerKg } from "./stock";
 import { ROUNDING_OPTIONS } from "./roundPrice";
 import { DEFAULT_FAILURE_RATE } from "../constants";
+import { num } from "@/lib/number";
 
 const VALID_ROUNDING_MODES = new Set(
   ROUNDING_OPTIONS.map((option) => option.value),
@@ -388,9 +391,13 @@ const COLUNAS_CALCULADAS = [
 function resolveColumns(headers: string[]): {
   index: Record<ColumnKey, number>;
   claimed: Set<number>;
+  // AUD-11/D-3: as colunas que só casaram por PEDAÇO, com o cabeçalho que
+  // reclamaram. Ver o aviso "lidas por aproximação" em `parseProductsCsv`.
+  aproximadas: { cabecalho: string; virou: string }[];
 } {
   const normalized = headers.map((header) => normalizeText(header).trim());
   const claimed = new Set<number>();
+  const aproximadas: { cabecalho: string; virou: string }[] = [];
   const index = {} as Record<ColumnKey, number>;
   const keys = Object.keys(COLUMN_SPECS) as ColumnKey[];
 
@@ -418,20 +425,24 @@ function resolveColumns(headers: string[]): {
     )
     .forEach((key) => {
       const needle = normalizeText(COLUMN_SPECS[key].needle).trim();
-      take(
-        normalized.findIndex(
-          (header, i) =>
-            !claimed.has(i) &&
-            // CSV-11: coluna calculada nunca é capturada por needle — é ela que
-            // permite o needle curto ("energia" não rouba "Energia (R$)").
-            !COLUNAS_CALCULADAS.includes(header) &&
-            header.includes(needle),
-        ),
-        key,
+      const found = normalized.findIndex(
+        (header, i) =>
+          !claimed.has(i) &&
+          // CSV-11: coluna calculada nunca é capturada por needle — é ela que
+          // permite o needle curto ("energia" não rouba "Energia (R$)").
+          !COLUNAS_CALCULADAS.includes(header) &&
+          header.includes(needle),
       );
+      take(found, key);
+      if (found >= 0) {
+        aproximadas.push({
+          cabecalho: headers[found].trim(),
+          virou: COLUMN_SPECS[key].exact,
+        });
+      }
     });
 
-  return { index, claimed };
+  return { index, claimed, aproximadas };
 }
 
 // A célula JSON que não parseia vira lista VAZIA — e é justamente esse silêncio
@@ -814,7 +825,7 @@ export function parseProductsCsv(
   const { separator, runnerUp } = detectSeparator(rawLines[0]);
   const headers = parseLine(rawLines[0], separator);
 
-  const { index: col, claimed } = resolveColumns(headers);
+  const { index: col, claimed, aproximadas } = resolveColumns(headers);
   const indexName = col.name;
   const indexMainName = col.mainName;
   const indexMachine = col.machine;
@@ -919,6 +930,25 @@ export function parseProductsCsv(
     warnings.push(
       `Coluna(s) ignorada(s) — o nome não foi reconhecido: ` +
         `${ignoradas.map((h) => `"${h}"`).join(", ")}.`,
+    );
+  }
+
+  // AUD-11/D-3 — o que a passada por PEDAÇO adivinhou.
+  //
+  // Reconhecer "Peso" como `Peso (g)` é o recurso (CSV-10/CSV-11) e tem de
+  // continuar; o defeito era o silêncio quando o palpite estava ERRADO. Com a
+  // coluna canônica ausente, a vizinha é reclamada e — por já estar reclamada —
+  // some também do aviso "coluna ignorada". Medido: um arquivo só com
+  // "Tempo de cura (h)" entrava com `printHours = 11` e `warnings: []`;
+  // "Peso do modelo (g)" virava o peso total; "Tempo minimo" virava o tempo.
+  //
+  // UMA linha por arquivo (não uma por coluna): o palpite certo é o caso comum,
+  // e um aviso por coluna viraria ruído em toda planilha escrita à mão. Assim o
+  // dono lê a lista de uma vez e o palpite errado salta.
+  if (aproximadas.length > 0) {
+    warnings.push(
+      `Coluna(s) lida(s) por aproximação — confira se o palpite está certo: ` +
+        `${aproximadas.map((a) => `"${a.cabecalho}" → ${a.virou}`).join(", ")}.`,
     );
   }
 
@@ -1221,11 +1251,32 @@ export function parseProductsCsv(
     //   milhar é absurda (2375 h são 99 dias de impressão; R$1.234/kWh não
     //   existe) e não há ambiguidade a apontar. Nas outras quatro, as duas
     //   leituras são plausíveis — e aí sim vale perguntar.
+    //
+    // AUD-11/D-4 — `Tempo (min)`, a coluna que o CSV-16 acabou de criar, ficou
+    // FORA desta lista, e é a pior ausência possível: o argumento que excluiu
+    // `Tempo (h)` era que 1234 h são 99 dias, absurdo. Mas 1234 MINUTOS são
+    // 20h37 — um tempo de impressão comum. Medido: `Tempo (min) = "1.234"`
+    // entrava como 0,0206 h (1000× menor) com `issues: []`, e o produto ficava
+    // com energia, desgaste, manutenção e fixo zerados, aparentando margem
+    // normal. A assimetria denunciava o esquecimento: `Mao de obra (min)`, a
+    // coluna-irmã em minutos, já estava aqui.
+    //
+    // `Pecas` entra pelo mesmo motivo: 1,234 peça divide o custo por 1,234 em
+    // vez de 1234, e as duas leituras são igualmente estranhas — quem decide é
+    // o dono. `Taxa Falha (%)` continua FORA de propósito: ela é clampada em 95
+    // logo acima, então a leitura de milhar (2375%) é impossível e não há
+    // ambiguidade real a apontar.
     ([
       [indexWeight, "Peso (g)"],
       [indexFilament, "Filamento (R$/kg)"],
       [indexLaborRate, "Valor-hora (R$)"],
       [indexLaborMinutes, "Mao de obra (min)"],
+      [indexTimeMinutes, "Tempo (min)"],
+      // A 2ª trava do CSV-16 também precisa da checagem: quando NÃO há coluna
+      // de minutos própria e o cabeçalho de horas diz minuto, é `indexTime` que
+      // carrega os minutos, e a ambiguidade é a mesma.
+      [tempoEmMinutos ? indexTime : -1, "Tempo (min)"],
+      [indexPieces, "Pecas"],
     ] as const).forEach(([index, coluna]) => {
       if (index < 0) return;
       const bruto = columns[index]?.trim();
@@ -1268,6 +1319,51 @@ export function parseProductsCsv(
           "Cor declarada com 0 g — o material fica ZERADO e o preço sai muito abaixo " +
             '(dentro do JSON o número vai com PONTO decimal e a chave do peso é "totalG")',
           `${ondeEstou}: ${onde} — ${quem}`,
+        );
+      });
+    });
+
+    // 3d) AUD-11/D-2 — a cor que PESA mas não CUSTA nada. Gêmeo do `cor-sem-peso`
+    // do outro lado da multiplicação: peso × preço, e o CSV-13 só olhava o peso.
+    //
+    // O caso que motivou: uma cor JÁ CADASTRADA no Estoque mas ainda SEM ROLO.
+    // O `catalogPricePerKg` devolve o preço do rolo mais novo — sem rolo, 0 —, e
+    // o cálculo cai no `pricePerKg` salvo, que a planilha da carga escreve 0
+    // justamente porque "o preço vem do Estoque". As três guardas falham juntas:
+    // o `cor-inexistente` não acende (a cor existe), o `filamentMissing` fica
+    // FALSE (idem, então nem o badge aparece) e o `cor-sem-peso` olha gramas.
+    // Medido, a mesma linha: cor com rolo → material R$ 30,00 e preço R$ 108,43;
+    // cor sem rolo → material R$ 0,00 e preço R$ 15,65, com `issues: []`.
+    //
+    // ⚠ Roda sobre as cores NORMALIZADAS, não sobre as parseadas: é assim que a
+    // checagem também pega o caminho ESCALAR (`Peso (g)` preenchido com
+    // `Filamento (R$/kg)` vazia), onde o array de cores nem existe.
+    //
+    // Peso 0 é pulado de propósito — ali quem fala é o `cor-sem-peso`, e duas
+    // classes para o mesmo defeito ensinam a ignorar as duas.
+    ([
+      [normalizeFilaments(product), "Filamentos JSON"] as const,
+      ...stages.map(
+        (stage, i) =>
+          [normalizeFilaments(stage), `Etapas JSON — etapa ${i + 2}`] as const,
+      ),
+    ]).forEach(([lista, onde]) => {
+      lista.forEach((cor, i) => {
+        if (filamentTotalG(cor) <= 0) return;
+        // Preço EFETIVO, na mesma ordem que o `resolveFilamentPrices` usa no
+        // cálculo: o rolo mais novo manda; sem rolo (ou sem estoque para
+        // consultar), vale o que a planilha escreveu.
+        const viva = cor.filamentId ? estoquePorId.get(cor.filamentId) : undefined;
+        const vivo = viva ? catalogPricePerKg(viva) : 0;
+        if (vivo > 0 || num(cor.pricePerKg) > 0) return;
+        const quem = cor.colorName.trim() || `cor ${i + 1}`;
+        addIssue(
+          "cor-sem-preco",
+          "Cor com peso mas SEM preço — o material fica ZERADO e o preço sai muito " +
+            "abaixo. Se o preço deve vir do Estoque, cadastre um rolo na cor antes " +
+            "de importar; senão preencha o preço na planilha",
+          `${ondeEstou}: ${onde} — ${quem}` +
+            (viva ? ` (cor "${viva.colorName}" existe, mas não tem rolo)` : ""),
         );
       });
     });

@@ -48,6 +48,13 @@ function achar(issues: CsvIssue[] | undefined, kind: string): CsvIssue | undefin
   return (issues ?? []).find((issue) => issue.kind === kind);
 }
 
+// Mesma linha, sem uma das colunas — sem deixar binding morto no destructuring.
+function sem(row: Record<string, string>, ...colunas: string[]): Record<string, string> {
+  const out = { ...row };
+  for (const coluna of colunas) delete out[coluna];
+  return out;
+}
+
 describe("CSV-05 — a importação conta o que engoliu", () => {
   it("linha correta e ligada ao Estoque: nenhum apontamento", () => {
     const r = parseProductsCsv(csv(LINHA_BOA), machines, opcoes);
@@ -615,7 +622,12 @@ describe("CSV-10 — o cabeçalho abreviado 'Filamentos' era roubado pelo PREÇO
     expect(p.filaments?.[0].totalG).toBe(50);
     // Era aqui que a lista de cores inteira virava 11050 R$/kg.
     expect(p.filamentPricePerKg).toBeUndefined();
-    expect(r.warnings).toEqual([]);
+    // AUD-11/D-3: o palpite continua CERTO — o que mudou é que ele agora se
+    // anuncia, em vez de ficar calado (era aqui que um cabeçalho errado passava).
+    expect(r.warnings).toEqual([
+      'Coluna(s) lida(s) por aproximação — confira se o palpite está certo: ' +
+        '"Filamentos" → Filamentos JSON.',
+    ]);
   });
 
   it("com as DUAS presentes, cada uma fica com a sua", () => {
@@ -647,7 +659,10 @@ describe("CSV-11 — a supressão do aviso engolia 2 colunas de ENTRADA", () => 
       opcoes,
     );
     expect(r.products[0].energyTariff).toBe(99);
-    expect(r.warnings).toEqual([]);
+    expect(r.warnings).toEqual([
+      'Coluna(s) lida(s) por aproximação — confira se o palpite está certo: ' +
+        '"Tarifa de Energia" → Tarifa Energia.',
+    ]);
   });
 
   it('"Energia (R$/kWh)" também', () => {
@@ -666,7 +681,10 @@ describe("CSV-11 — a supressão do aviso engolia 2 colunas de ENTRADA", () => 
       opcoes,
     );
     expect(r.products[0].includeFixed).toBe(true);
-    expect(r.warnings).toEqual([]);
+    expect(r.warnings).toEqual([
+      'Coluna(s) lida(s) por aproximação — confira se o palpite está certo: ' +
+        '"Inclui custo fixo" → Inclui Fixo.',
+    ]);
   });
 
   it("a coluna CALCULADA 'Energia (R$)' não vira tarifa nem acende aviso", () => {
@@ -981,5 +999,201 @@ describe("CSV-22 — nome da cor × id", () => {
       machines,
     );
     expect(achar(r.issues, "cor-nome-divergente")).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AUD-11 — os três defeitos de CSV que a varredura de 2026-08-23 reproduziu.
+// ---------------------------------------------------------------------------
+
+describe("AUD-11/D-1 — `Tempo (min)` entrou na checagem de milhar", () => {
+  const SEM_TEMPO = sem(LINHA_BOA, "Tempo (h)");
+
+  it('"1.234" em `Tempo (min)` acende o aviso (antes: 0,02 h calado)', () => {
+    const r = parseProductsCsv(
+      csv({ ...SEM_TEMPO, "Tempo (min)": "1.234" }),
+      machines,
+      opcoes,
+    );
+    const issue = achar(r.issues, "milhar-ambiguo");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain("Tempo (min)");
+    // O VALOR não muda — o parser não adivinha, aponta (mesma regra do CSV-07).
+    expect(r.products[0].printHours).toBeCloseTo(1.234 / 60, 10);
+  });
+
+  it("a 2ª trava do CSV-16 também é coberta: coluna de HORAS que diz minuto", () => {
+    const r = parseProductsCsv(
+      csv({ ...SEM_TEMPO, "Tempo de impressao (min)": "1.234" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "milhar-ambiguo")?.exemplos[0]).toContain("Tempo (min)");
+  });
+
+  it("`Pecas` também: 1,234 peça divide o custo por 1,234, não por 1234", () => {
+    const r = parseProductsCsv(csv({ ...LINHA_BOA, Pecas: "1.234" }), machines, opcoes);
+    expect(achar(r.issues, "milhar-ambiguo")?.exemplos[0]).toContain("Pecas");
+  });
+
+  it("`Taxa Falha (%)` continua FORA — o clamp em 95 mata a ambiguidade", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Taxa Falha (%)": "1.234" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "milhar-ambiguo")).toBeUndefined();
+    expect(r.products[0].failureRate).toBeCloseTo(1.234, 10);
+  });
+
+  it("`Tempo (h)` continua FORA — é o valor que o próprio export escreve", () => {
+    const r = parseProductsCsv(csv({ ...LINHA_BOA, "Tempo (h)": "2.375" }), machines, opcoes);
+    expect(achar(r.issues, "milhar-ambiguo")).toBeUndefined();
+    expect(r.products[0].printHours).toBe(2.375);
+  });
+
+  it("tempo normal em minutos não acende nada", () => {
+    const r = parseProductsCsv(
+      csv({ ...SEM_TEMPO, "Tempo (min)": "150" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "milhar-ambiguo")).toBeUndefined();
+    expect(r.products[0].printHours).toBe(2.5);
+  });
+});
+
+describe("AUD-11/D-2 — cor que PESA mas não CUSTA", () => {
+  const semRolo = { ...cor, rolls: [] } as unknown as StockFilament;
+  const corDe = (over: Record<string, unknown>) =>
+    JSON.stringify([
+      { filamentId: "cor_laranja", colorName: "Laranja", pricePerKg: 110, totalG: 50, ...over },
+    ]);
+
+  it("cor cadastrada SEM ROLO e preço 0 na planilha: acende", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Filamentos JSON": corDe({ pricePerKg: 0 }) }),
+      machines,
+      { ...opcoes, stock: [semRolo] },
+    );
+    const issue = achar(r.issues, "cor-sem-preco");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain("não tem rolo");
+  });
+
+  it("a MESMA linha com a cor tendo rolo: silêncio (o preço vivo resolve)", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Filamentos JSON": corDe({ pricePerKg: 0 }) }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-sem-preco")).toBeUndefined();
+  });
+
+  it("caminho ESCALAR: Peso preenchido com Filamento (R$/kg) vazio", () => {
+    const r = parseProductsCsv(
+      csv({ ...sem(LINHA_BOA, "Filamentos JSON"), "Peso (g)": "200", "Filamento (R$/kg)": "" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-sem-preco")?.linhas).toBe(1);
+  });
+
+  it("cor avulsa sem preço também acende", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: null, colorName: "Dourado", pricePerKg: 0, totalG: 80 },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-sem-preco")?.exemplos[0]).toContain("Dourado");
+  });
+
+  it("peso 0 NÃO acende as duas classes — ali quem fala é o cor-sem-peso", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Filamentos JSON": corDe({ pricePerKg: 0, totalG: 0 }) }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-sem-peso")?.linhas).toBe(1);
+    expect(achar(r.issues, "cor-sem-preco")).toBeUndefined();
+  });
+
+  it("etapa extra com cor sem preço é apontada com o número da etapa", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Etapas JSON": JSON.stringify([
+          {
+            id: "st",
+            machineId: "a1",
+            printHours: 1,
+            laborMinutes: 0,
+            filaments: [{ filamentId: null, colorName: "Tampa", pricePerKg: 0, totalG: 30 }],
+          },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "cor-sem-preco")?.exemplos[0]).toContain("etapa 2");
+  });
+
+  it("linha boa segue sem apontamento nenhum", () => {
+    const r = parseProductsCsv(csv(LINHA_BOA), machines, opcoes);
+    expect(r.issues).toBeUndefined();
+  });
+});
+
+describe("AUD-11/D-3 — a coluna lida por APROXIMAÇÃO se anuncia", () => {
+  const SEM_TEMPO = sem(LINHA_BOA, "Tempo (h)");
+
+  it("cabeçalho errado sem a coluna canônica: agora avisa (antes: calado)", () => {
+    const r = parseProductsCsv(
+      csv({ ...SEM_TEMPO, "Tempo de cura (h)": "11" }),
+      machines,
+      opcoes,
+    );
+    // O comportamento não muda — o palpite continua sendo feito.
+    expect(r.products[0].printHours).toBe(11);
+    expect(r.warnings.join(" ")).toContain('"Tempo de cura (h)" → Tempo (h)');
+  });
+
+  it("nome EXATO não entra no aviso — só o pedaço entra", () => {
+    const r = parseProductsCsv(csv(LINHA_BOA), machines, opcoes);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it("com a canônica presente, a intrusa vira 'ignorada' e não 'aproximação'", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Tempo de cura (h)": "11" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].printHours).toBe(2);
+    expect(r.warnings.join(" ")).toContain("Coluna(s) ignorada(s)");
+    expect(r.warnings.join(" ")).not.toContain("aproximação");
+  });
+
+  it("UMA linha por arquivo, com todas as colunas adivinhadas juntas", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...sem(LINHA_BOA, "Filamentos JSON", "Tempo (h)"),
+        Filamentos: LINHA_BOA["Filamentos JSON"],
+        Peso: "50",
+        Tempo: "2",
+      }),
+      machines,
+      opcoes,
+    );
+    const aprox = r.warnings.filter((w) => w.includes("aproximação"));
+    expect(aprox).toHaveLength(1);
+    expect(aprox[0]).toContain('"Filamentos" → Filamentos JSON');
+    expect(aprox[0]).toContain('"Peso" → Peso (g)');
+    expect(aprox[0]).toContain('"Tempo" → Tempo (h)');
   });
 });

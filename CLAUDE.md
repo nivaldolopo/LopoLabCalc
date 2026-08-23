@@ -14,14 +14,17 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-23): lote D da AUD-09 + o de-para no `/estoque`.** Em `productCsv.ts`:
-  **[CSV-16]** `Tempo (min)` virou coluna e **soma** com `Tempo (h)` (a conta do `PrintTimeField`) —
-  antes 120 min entravam como 120 **horas** · **[CSV-21]** `linhas` conta **linha**, não ocorrência ·
-  **[CSV-22, novo]** id **errado mas existente** amarrava na cor errada calado; agora cruza com o
-  `colorName` da mesma célula (`cor-nome-divergente`) e **vale o id**. No `/estoque`, botão **"Copiar
-  de-para"** (TSV pro Sheets), que expôs 2 defeitos de layout da barra de um botão só
-  (`space-between` separando as ações; largura cheia no celular só pro primário).
-  **27 testes novos.** `lint` ✅ · `build` ✅ · **578/578** ✅.
+- **Última mudança (2026-08-23): AUD-11 — varredura completa do zero + os 4 defeitos dela corrigidos.**
+  **[D-1]** `Tempo (min)` (criada pelo CSV-16!) estava **fora** da checagem de milhar: `1.234` entrava
+  como 0,02 h — 1000× menor, calado, com o produto aparentando margem normal. Entrou na lista, junto
+  de `Pecas` e da 2ª trava do CSV-16; `Taxa Falha` fica fora **de propósito** (o clamp em 95 mata a
+  ambiguidade) · **[D-2, classe nova `cor-sem-preco`]** cor ligada **sem rolo** + `pricePerKg 0` dava
+  material **R$ 0,00** com `issues: []` e `filamentMissing: false` — é o gêmeo do `cor-sem-peso` do
+  outro lado da multiplicação, e roda sobre as cores **normalizadas** (pega também o caminho escalar) ·
+  **[D-3]** coluna lida por **aproximação** agora se anuncia em UMA linha por arquivo (`"Tempo de cura
+  (h)" → Tempo (h)`); antes o palpite errado era mudo · **[D-4]** `parseDecimalPtBr` lê notação
+  científica (`1E+03` era **103**) e negativo contábil (`(500)` era **+500**).
+  **25 testes novos.** `lint` ✅ · `build` ✅ · **603/603** ✅.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.

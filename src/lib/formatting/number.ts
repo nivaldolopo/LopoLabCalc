@@ -19,6 +19,39 @@ export function parseDecimalPtBr(value: unknown): number | null {
   const raw = String(value).trim();
   if (!raw) return null;
 
+  // AUD-11/D-4 — dois formatos que a limpeza abaixo DESTRUÍA em silêncio, porque
+  // ela apaga tudo que não é dígito/sinal/separador e cola o que sobra:
+  //
+  //   "1e3"     → limpo "13"   → 13     (era 1000)
+  //   "1E+03"   → limpo "103"  → 103    (era 1000)
+  //   "1,5E+03" → limpo "1,503"→ 1,503  (era 1500)
+  //   "(500)"   → limpo "500"  → +500   (era −500)
+  //
+  // Nenhum avisava: 13 é um número plausível para um peso. Os dois são lidos
+  // AQUI, antes da limpeza, porque depois dela a informação já se perdeu.
+
+  // Negativo contábil: o valor inteiro entre parênteses. `(1.234,56)` = −1234,56.
+  // Só quando os parênteses ENVOLVEM tudo — "R$ (5)" não é o mesmo que "a(5)b".
+  const contabil = raw.match(/^\((.+)\)$/);
+  if (contabil) {
+    const interno = parseDecimalPtBr(contabil[1]);
+    return interno === null ? null : -Math.abs(interno);
+  }
+
+  // Notação científica, que é o que o Sheets/Excel escrevem para número muito
+  // grande ou muito pequeno. A mantissa aceita vírgula decimal (pt-BR); o
+  // expoente é sempre inteiro com sinal opcional. Símbolo de moeda/unidade em
+  // volta é tolerado, como no resto da função.
+  // ⚠ O espaço é PRESERVADO na limpeza e depois proibido no meio: sem isso
+  // "2 e 5" (texto, não número) vira "2e5" e sai como 200000.
+  const cientifica = raw
+    .replace(/[^\d.,+\-eE\s]/g, "")
+    .match(/^\s*([+-]?\d+(?:[.,]\d+)?)[eE]([+-]?\d+)\s*$/);
+  if (cientifica) {
+    const parsed = Number(`${cientifica[1].replace(",", ".")}e${cientifica[2]}`);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
   // Fora símbolo de moeda, espaço comum e os espaços não-separáveis (U+00A0 /
   // U+202F) que o Excel usa como milhar. Sobra dígito, sinal e separador.
   const limpo = raw.replace(/[^\d.,-]/g, "");
