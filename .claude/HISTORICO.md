@@ -30,6 +30,87 @@
   não caber, e 44px é regra do DEDO.
 - **Rolagem horizontal** só como válvula (`min-width`), nunca como solução de layout.
 
+## 🔍 AUD-07 — 2ª varredura ponta a ponta, ANTES da carga em massa (2026-08-22)
+
+> Pedido do dono, no mesmo dia da AUD-02: *"houve uma varredura anterior. **Ela não é referência.**
+> Achou defeitos, foram corrigidos, e as correções foram testadas **pelo mesmo agente que as
+> escreveu** — é exatamente esse o problema que esta segunda passada existe para resolver. Vou
+> repetir isso até uma passada não achar nada."* Regras: nada na doc (nem as conclusões da passada
+> anterior, nem teste verde do repo) conta como fato; **não alterar código, doc nem git** — achou,
+> reporta e para; escrever no Firestore exige perguntar antes.
+
+**O que esta passada teve que a anterior não teve.** A AUD-02 mediu funções puras e leu código, mas
+**nunca exercitou o app contra o banco**. Aqui o dono autorizou ~8–12 documentos descartáveis
+(prefixo `ZZ AUDIT`), e a varredura **gravou de verdade**: cor com 2 rolos, insumo com 2 lotes,
+produto completo, 2 produções, 1 venda, 3 reedições e as exclusões. Tudo apagado no fim pela própria
+UI, com o banco conferido campo a campo contra o estado inicial. Também foi a primeira a **abrir o
+PDF** — gerado em Node chamando o `generateQuotePdf` real e com o texto extraído do arquivo, o que
+evitou gravar em `quotes` só para ver o resultado.
+
+**O que passou — com previsão escrita ANTES e conta à mão depois.**
+- **Preço.** O cenário default bateu ao centavo (R$27,14) só depois de descobrir na marra que
+  `failureK = f/(1−f)`, não `f`: com 3% a reserva é 0,3744 e não 0,3632 — a diferença de 3 centavos
+  no preço foi o que denunciou a fórmula. Produto MÁXIMO (2 cores ligadas, etapa em outra máquina,
+  acessório ligado a insumo e atribuído a subitem, 2 subitens com markup próprio, fixo, peças=2):
+  os **8 componentes**, o exato (R$98,99) e o final (R$99,80) bateram — e o final revelou que o
+  **arredondamento é aplicado por subitem**, não no total (37,90 + 62,90; no total daria 99,90).
+- **Estoque.** Catálogo usa o rolo **mais novo** (R$200/kg), FIFO consome o **mais antigo**
+  (R$100/kg) — os dois medidos no mesmo produto. Valor parado dos insumos conferido à mão
+  (142,50 → 392,50 → 388,50 → 392,50).
+- **Produção.** R$30,49 previsto e obtido (15,00 material FIFO + 0,27 + 3,28 + 0,44 + 7,50 + 4,00 de
+  insumo), creditando **1 SKU por subitem** na cor certa, com o rateio **7,86 / 7,38** — que só
+  fecha porque a divisão usa as proporções de `SubitemPrice.cost` (0,5158/0,4842), não o custo real
+  por etapa. Desfecho **falha**: consome e não credita acabado, e a tela **remove a linha** "entra
+  no Estoque de Produtos" antes de registrar.
+- **Venda e reedição (o que o dono mais queria ver).** Taxas recalculadas à mão: 3,14% à vista →
+  lucro 83,36; 6,11% em 3× → 80,33; **repasse** → 108,90 (o gross-up 108,4248 passa pelo
+  arredondamento do produto) e lucro 87,00. **Três reedições seguidas** (1→2, 2→1,
+  `acabado`→`encomenda`) e a exclusão devolveram **exatamente** o consumido: 1225 g / 140 un na
+  encomenda, e 1300 g / 142 un / 2 conjuntos ao excluir. Cesta vazia: "Salvar alterações" fica
+  **desabilitado**. Os eventos de produção criados pela encomenda somem junto com o recibo.
+- **Round-trip do formulário.** Salvar → abrir → salvar sem tocar em nada: **34 colunas, 0
+  diferenças**, com stringify canônico nas 4 células JSON.
+- **Transversais.** Tempo real confirmado em duas abas (R$101,80 → R$89,80 sem reload); 375px sem
+  estouro horizontal nas **7 rotas**; offline (simulado) trava com aviso e não grava; ANSI avisa;
+  100 linhas de CSV parseiam em **16 ms**; suíte **483/483 em 5 execuções** (não é flaky).
+
+**Os 10 defeitos.** Detalhe, causa e correção proposta de cada um no
+[`BACKLOG.md`](BACKLOG.md) — cluster AUD-07. O resumo do que importa:
+
+1. **[CSV-06] (bloqueante)** — a AUD-02 consertou a vírgula pt-BR **nas colunas**, e a checagem de
+   cor 0 g **num campo**. Mas todo número **dentro** dos JSONs continua em `Number(x) || 0`:
+   `printHours`, `laborMinutes`, `pricePerKg`, `qty`, `unitPrice`, `markup` do subitem e os campos
+   de detalhe. Medido ponta a ponta, importando de verdade: produto a **R$51,58 em vez de
+   R$223,32**, **zero avisos**. Pior: `modelG:"140,0"` com `totalG` correto **escapa** da checagem
+   `cor-sem-peso`, porque ela lê o array cru e é o `makeFilament` que depois recalcula o `totalG`
+   como soma do detalhe. É a mesma classe de defeito da AUD-02, corrigida em um campo só.
+2. **[TD-017]** — `/vendas` e `/orcamento` chamam o `calculatePricing` **sem o `stock`**: o mesmo
+   produto vale R$51,58 no catálogo e R$18,47 na venda, no orçamento e no PDF.
+3. **[UX-41]** — digitar `143,53` num campo numérico dá **14353** (o `type="number"` descarta a
+   vírgula e os dígitos colam). Vale para todo peso/preço/hora do app.
+4. **[UX-42]** — o preview da reedição de recibo não estorna o recibo antigo antes de simular, e
+   avisa "saldo fica negativo" quando o resultado real é zero.
+5. **[TD-018]** — a chave do extrato (evento + rolo) repete quando um evento tem duas baixas do
+   mesmo rolo; o React reclama no console em toda renderização do `/estoque`.
+6. **[TD-019]** — os KPIs do `/vendas` são buscados no servidor **antes** de a escrita ser
+   confirmada; ficam velhos até recarregar.
+7. **[UX-43]** — o PDF come o travessão (e as aspas curvas): todo orçamento de subitem sai sem o
+   separador que o próprio app monta.
+8. **[CSV-07] / [CSV-08]** — a checagem de milhar ambíguo tem falso negativo (`R$ 1.234`) e falso
+   positivo (`2.375`, que é o que o export escreve); e o formato en-US (`1,234.56`) entra 1000×
+   menor, mudo.
+9. **[TD-020]** — máquinas e taxas gravam sem `guardOnline` (fire-and-forget): offline a UI mostra
+   o valor novo e a escrita fica enfileirada.
+
+**Veredito.** Dá para apagar o catálogo e carregar ~100 produtos **depois do [CSV-06]** — de
+preferência com o [TD-017] junto. O resto do caminho (FIFO, custo congelado, baixa por evento, SKU
+por subitem × cor, estorno de reedição, taxas) está sólido e conferido à mão.
+
+**O que ficou no escuro** virou o **[AUD-08]** no `BACKLOG.md` — a lista é o insumo da próxima
+passada, e o item mais importante dela é o mesmo de sempre: **quem escreveu a correção não deveria
+ser quem a valida**.
+
+
 ## ✅ AUD-02 — varredura da ENTRADA DE DADOS antes da carga em massa (2026-08-22)
 
 > Pedido do dono: *"o import/export foi muito mexido e eu perdi a noção do todo"*. Varredura de

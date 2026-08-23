@@ -14,30 +14,28 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **✅ AUD-02 — varredura da ENTRADA DE DADOS (2026-08-22)**, pedida pelo dono
-  antes da carga em massa e com a regra "nada na doc é fato, só medição própria". Fechou o
-  **AUD-01** (estorno exato nos dois caminhos) e achou **5 defeitos, todos corrigidos**: cor com
-  0 g no JSON subprecificava ~5× calada (`"totalG":"143,53"`, ou a chave `weightG`) → classe
-  `cor-sem-peso`; `"R$ 118,90"` virava 0 e `"1 234,56"` virava 1 → `parseNumber` limpa antes de
-  converter, e `"1.234"` (ambíguo) vira aviso; arquivo salvo em **ANSI** virava mojibake sem um pio
-  → aviso para salvar como CSV UTF-8; a **venda por encomenda não debitava insumo** (o `SaleModal`
-  montava o `ReciboWrite` sem `supplyUpdates`, campo **opcional** no tipo — agora obrigatório); e
-  faltava `guardOnline` em 3 caminhos de escrita. Bônus: a suíte era **flaky** (6 falhas em 10) e
-  agora não é. `lint` ✅ · **483/483** ✅ · `build` ✅. Detalhe:
-  [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança:** **🔍 AUD-07 — 2ª varredura ponta a ponta (2026-08-22)**, com a regra de que
+  **a passada anterior não é referência** (nem as correções dela). Primeira a **gravar no Firestore**
+  (com aval do dono) e a abrir o **PDF**. **Nada corrigido — só reportado: 10 defeitos** no
+  `BACKLOG.md`. Bloqueante: **[CSV-06]** — vírgula pt-BR DENTRO das células JSON vira 0 calada
+  (medido: produto importado a **R$51,58 em vez de R$223,32**, zero avisos). Passaram com conta à
+  mão ao centavo: preço/subitens/arredondamento, FIFO × preço do rolo novo, produção, **estorno de
+  3 reedições + exclusão sem resíduo**, taxas/gross-up, round-trip do form (**34 colunas, 0 diffs**),
+  tempo real e 375px. `lint` ✅ · **483/483 em 5 execuções** ✅ · `build` ✅. Fecha `AUD-03/05/06`.
+  Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — a CARGA EM MASSA do dono**, agora com o caminho auditado e corrigido. A
-  planilha é **gerada do zero** por ele (o export serve só para ver os campos). **Pré-requisito
-  dele:** cadastrar as cores definitivas no Estoque ANTES — a importação **não cria** cor nem
-  insumo. Pedidos em aberto, ainda não feitos: **tabela de-para** (cor → id; os 2 ids atuais estão
-  no `HISTORICO.md`) + **modelo de planilha**. **Não existe "limpar catálogo"** (verificado: são 97
-  exclusões uma a uma). O que a AUD-02 **não** cobriu virou `AUD-03..06` no `BACKLOG.md` — nada
-  disso bloqueia a carga. **A decisão é do dono** — ler o `BACKLOG.md` antes de sugerir tarefa.
+- **▶ PRÓXIMA TAREFA — corrigir o [CSV-06]** (`BACKLOG.md`), que **bloqueia a carga em massa**: a
+  planilha é escrita à mão, em pt-BR, e `"1,5"` dentro do JSON vira 0 sem aviso. De quebra valem o
+  **[TD-017]** (uma linha em cada arquivo) e o **[UX-41]** (digitar `143,53` vira `14353`).
+  **Depois:** a **CARGA EM MASSA do dono** — planilha **gerada do zero** por ele; **pré-requisito
+  dele:** cadastrar as cores definitivas ANTES (a importação **não cria** cor nem insumo). Em
+  aberto: **tabela de-para** (cor → id) + **modelo de planilha**. **Não existe "limpar catálogo"**
+  (97 exclusões uma a uma). **A decisão é do dono** — ler o `BACKLOG.md` antes de sugerir tarefa.
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
   os acessórios já cadastrados seguem avulsos (entram no custo, não dão baixa) até lá.
 - ⚠ **Duas ressalvas que o Dashboard resolve** (já avisadas na tela/no código): o payback do

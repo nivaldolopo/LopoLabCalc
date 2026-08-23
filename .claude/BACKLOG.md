@@ -160,19 +160,121 @@
   matemática do estorno passou exata nos dois caminhos (`encomenda` e `acabado`, incluindo o
   overdraft D4). Detalhe: [`HISTORICO.md`](HISTORICO.md).
 
-### Sobrou da varredura AUD-02 (2026-08-22) — o que ela NÃO cobriu
+### Sobrou da varredura AUD-02 (2026-08-22) — ✅ TODOS FECHADOS pela AUD-07 (2026-08-22)
 
-Ordenado por risco. Nada aqui bloqueia a carga em massa.
+- ~~**[AUD-03] Ponta a ponta contra o Firestore**~~ — **FEITO na AUD-07** (com aval do dono para
+  gravar): cor + insumo criados, produção real, venda de peça pronta, 3 reedições e exclusão. Tudo
+  apagado no fim; banco devolvido ao estado inicial, conferido campo a campo.
+- ~~**[AUD-04] Offline de verdade**~~ — **PARCIAL na AUD-07**: exercitado com `navigator.onLine`
+  forçado a `false` (calculadora e importação travam com aviso e não gravam). **Continua sem** o
+  teste com a rede realmente caída (fila do Firestore, promise pendente, reconexão) → virou
+  ressalva do **[AUD-08]**.
+- ~~**[AUD-05] Orçamento/PDF**~~ — **FEITO na AUD-07**: PDF gerado de verdade e o texto extraído do
+  arquivo. Os números batem com a tela. Rendeu **[TD-017]** e **[UX-43]**.
+- ~~**[AUD-06] Taxas + tempo real**~~ — **FEITO na AUD-07**: margem líquida recalculada à mão nas 3
+  combinações (3,14% à vista · 6,11% em 3× · repasse com gross-up arredondado) e tempo real
+  confirmado em duas abas. Máquina editada recalculando o catálogo **não** foi exercitada (escreve
+  no doc compartilhado `config/machines`) → **[AUD-08]**.
 
-- **[AUD-03] Ponta a ponta contra o Firestore.** A varredura mediu funções puras e leu código, mas
-  **não escreveu nada no banco**: produção, venda e estorno nunca foram exercitados de verdade.
-  O defeito do `supplyUpdates` é a prova de que a fiação erra onde a matemática acerta — e ele só
-  apareceu por leitura, não por teste. Precisa de dado descartável e do aval do dono para gravar.
-- **[AUD-04] Offline de verdade.** Os 3 `guardOnline` que faltavam foram postos, mas a verificação é
-  de **código**: não deu para cortar a rede no navegador embutido. Falta ver o aviso aparecer.
-- **[AUD-05] Orçamento/PDF: zero cobertura.** Nenhum número do PDF foi conferido contra a tela.
-- **[AUD-06] Taxas de pagamento não recalculadas à mão** (bandeira × parcela → margem líquida), e
-  **tempo real** (duas abas; máquina editada recalculando todos os produtos) não testado.
+## Aberto — cluster da varredura AUD-07 (2026-08-22)
+
+> 2ª varredura ponta a ponta, pedida pelo dono **antes da carga em massa**, com a regra de que a
+> passada anterior **não é referência** (nem as correções dela). Método e medições:
+> [`HISTORICO.md`](HISTORICO.md). **10 defeitos, nenhum corrigido ainda** — a varredura tinha regra
+> de só reportar.
+>
+> ⚠ **O [CSV-06] BLOQUEIA a carga em massa.** Os outros não.
+
+### 🔴 Bloqueante da carga
+
+- **[CSV-06] Vírgula pt-BR DENTRO das células JSON vira 0, em silêncio.** Fora das colunas
+  escalares (que passam pelo `parseNumber`), todo número do JSON é lido com `Number(x) || 0` →
+  `Number("1,5")` é `NaN` → **0**. Medido ponta a ponta: linha com `printHours:"1,5"`,
+  `pricePerKg:"200,00"`, `unitPrice:"12,50"` e `modelG:"140,0"` importou **sem um único aviso** e
+  nasceu a **R$51,58 em vez de R$223,32** (custo 25,78 vs 83,03); o documento gravado ficou com
+  `printHours: 0`, `pricePerKg: 0`, `unitPrice: 0`, `totalG: 3.53`.
+  **A checagem `cor-sem-peso` da AUD-02 não cobre o pior caso**: ela roda `filamentsTotalG` no array
+  **cru** (`productCsv.ts:808-814`), onde `totalG` ainda vale 143,53 — mas `makeFilament`
+  (`filaments.ts:41`) recalcula `totalG` como a soma do detalhe, e o `modelG` com vírgula zerou.
+  **Onde:** `productCsv.ts:314` (`parseStages`) · `:343` (`parseAccessories`) · `:363`
+  (`parseSubitems`) · `:665` (filamentos entram crus).
+  **Correção proposta:** um `numFromCsv()` (o `parseNumber` pt-BR) em **todo** campo numérico dos 4
+  JSONs (`printHours`, `laborMinutes`, `weightG`, `filamentPricePerKg`, `totalG`, `modelG`,
+  `supportG`, `purgedG`, `towerG`, `pricePerKg`, `qty`, `unitPrice`, `markup`) + classe de issue
+  `numero-nao-reconhecido` nomeando o campo + rodar `cor-sem-peso` sobre as cores **normalizadas**.
+
+### 🟠 Alto (não bloqueia, mas morde cedo)
+
+- **[TD-017] `/vendas` e `/orcamento` precificam SEM o preço vivo do rolo.**
+  `SalesPage.tsx:232` e `QuotePage.tsx:122` chamam `calculatePricing(product, machines, fixedCosts)`
+  — falta o 4º argumento `stock`, que as outras 6 chamadas passam (`CatalogPage:91`,
+  `PricingCalculator:128`, `ProductCatalog:171`, `ProductionPage:142`, `SaleFlow:67`,
+  `StockPage:236`). Medido: o MESMO produto vale **R$51,58 no catálogo** e **R$18,47** no seletor da
+  venda, no orçamento e no PDF. Com o catálogo todo ligado ao Estoque, isso dispara na primeira
+  compra de rolo com preço novo. **Correção:** passar `stock` nos dois pontos.
+- **[UX-41] O campo numérico engole a vírgula e concatena os dígitos.**
+  `NumberInput.tsx:58` (`type="number"`) + `:50` (`Number(raw)`). Medido digitando de verdade:
+  **`143,53` → `14353`** (100×), preço R$27,14 → **R$4.896,51**; `R$ 118,90` → `11890`. Com ponto
+  funciona. Nada avisa. **Correção:** `type="text"` + `inputMode="decimal"` normalizando a vírgula
+  para ponto (a mesma função do CSV), ou no mínimo um `onKeyDown` que faça a troca.
+
+### 🟡 Médio
+
+- **[UX-42] Aviso FALSO de saldo negativo ao editar recibo.** O preview usa
+  `planReciboReconciliation` (forward puro, `SaleModal.tsx:588`) enquanto a gravação usa
+  `reconcileReciboWrite(..., old, ...)` (`:715`) — o preview não credita de volta o que o recibo
+  antigo consumiu. Medido: com 1 conjunto em estoque, editar 1→2 avisou *"o saldo fica negativo"* e
+  o resultado real foi **0**, sem overdraft. Atinge também `crossesRoll`/`filamentShortfallG` e o
+  **custo real exibido** durante a edição (pode divergir do gravado quando o FIFO atravessa rolo).
+- **[TD-018] Chave React duplicada no extrato do Estoque.** `stock.ts:319` e `supplies.ts:237`
+  montam a chave com id do evento + id do rolo, o que **não é único** quando um evento tem ≥2 baixas
+  do mesmo rolo/lote. Medido: `Encountered two children with the same key` repetido no console do
+  `/estoque`. Hoje o extrato ainda soma certo (2000−597=1403 ✓), mas o React pode omitir/duplicar
+  linha — no extrato que serve justamente para auditar estoque. **Correção:** juntar o índice do
+  move na chave.
+- **[TD-019] Os KPIs de `/vendas` não atualizam depois de gravar.** `useSalesPage.ts:63` dispara
+  `fetchSalesTotals` dentro do `onSnapshot`, que chega **antes** do servidor confirmar (latency
+  compensation); o snapshot de confirmação é só metadata e não refaz a busca. Medido: registrei a
+  venda, a linha apareceu e o topo continuou **47 / R$2.620,70**; após recarregar, **48 /
+  R$2.729,60**.
+
+### 🟢 Baixo
+
+- **[UX-43] O PDF do orçamento come o travessão e as aspas curvas.** Medido no PDF real:
+  `"ZZ AUDIT Produto  Corpo · PLA azul"` (o travessão sumiu; o `·` sobrevive) e o rodapé
+  `"7 dias  até 29/08/2026"`. Como o app monta o nome do subitem com travessão e usa `option.name`
+  como descrição (`QuotePage.tsx:174`), **todo orçamento de subitem sai sem o separador**.
+  **Correção:** sanitizar os caracteres fora do WinAnsi antes de escrever, ou embutir fonte Unicode.
+- **[CSV-07] A checagem "milhar ambíguo" erra dos dois lados.** `productCsv.ts:197` testa o regex no
+  texto **bruto**: `"R$ 1.234"` vira 1,234 e **não avisa** (o prefixo quebra o regex); e
+  `Tempo (h) = 2.375` — valor que o **próprio export escreve** — **acende** o aviso (falso positivo
+  no round-trip). **Correção:** testar depois da limpeza de moeda/espaço.
+- **[CSV-08] Formato EN e milhar com 2 pontos passam mudos.** `parseNumber` (`productCsv.ts:175`):
+  `"1,234.56"` → **1.23456** (1000× menor) e `"1.234.567"` → **1.234**. Relevante se a planilha for
+  gerada no Google Sheets em locale en-US.
+- **[TD-020] Máquinas e taxas gravam sem `guardOnline`.** `useMachines.ts:87`
+  (`void persistMachines(...)`, fire-and-forget, sem tratar erro) e `useFees.saveFees`. Offline a UI
+  mostra o valor novo (estado local + localStorage) e a escrita fica enfileirada — "finge que
+  salvou". **Verificado só no código** (escrever em `config/machines` estava fora do combinado).
+
+### Observação registrada (não é defeito — decisão do dono)
+
+- A produção com desfecho **falha** também dá baixa do insumo (medido: 4 unidades). Se o ímã só é
+  montado depois da impressão boa, a falha não deveria consumi-lo. A tela declara isso antes de
+  registrar, então é escolha, não silêncio.
+
+### O que a AUD-07 NÃO cobriu
+
+- **[AUD-08] Insumo da próxima varredura.** Escrita de 100 produtos de verdade (medi o parse — 16 ms
+  — e li que o `writeBatch` é atômico até 500, mas não gravei); **edição de máquina** recalculando o
+  catálogo (escreve no doc compartilhado); **offline real** (só simulei `navigator.onLine`);
+  round-trip do form via CSV **não cobre** `createdAt` nem os 3 nulos legados; só **um**
+  produto-cobaia (faltou produto sem subitens vendendo acabado, multicolor com cor por etapa —
+  SKU composta — e `piecesCount` > 2); importação/exportação de **vendas**, filtros e paginação do
+  histórico, `/maquinas` além da leitura, tema claro; **concorrência** (duas abas gravando o mesmo
+  recibo); e o **saldo negativo pré-existente** no banco (contador "SALDO NEGATIVO 1"), cuja origem
+  não investiguei.
+
 ## Fechado
 
 Nada aqui. Todo item concluído — com writeup e medições — vive no
