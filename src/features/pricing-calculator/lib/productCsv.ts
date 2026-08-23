@@ -1342,7 +1342,13 @@ export function parseProductsCsv(
     // Peso 0 é pulado de propósito — ali quem fala é o `cor-sem-peso`, e duas
     // classes para o mesmo defeito ensinam a ignorar as duas.
     ([
-      [normalizeFilaments(product), "Filamentos JSON"] as const,
+      [
+        normalizeFilaments(product),
+        // Nomeia a coluna que a linha DE FATO usou: no caminho escalar não há
+        // "Filamentos JSON" nenhum, e mandar o dono procurar essa coluna numa
+        // planilha que não a tem é pior que não avisar.
+        filaments.length > 0 ? "Filamentos JSON" : "Peso (g) / Filamento (R$/kg)",
+      ] as const,
       ...stages.map(
         (stage, i) =>
           [normalizeFilaments(stage), `Etapas JSON — etapa ${i + 2}`] as const,

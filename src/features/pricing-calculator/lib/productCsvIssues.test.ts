@@ -1096,7 +1096,11 @@ describe("AUD-11/D-2 — cor que PESA mas não CUSTA", () => {
       machines,
       opcoes,
     );
-    expect(achar(r.issues, "cor-sem-preco")?.linhas).toBe(1);
+    const issue = achar(r.issues, "cor-sem-preco");
+    expect(issue?.linhas).toBe(1);
+    // Nomeia a coluna que a linha usou de verdade — aqui não existe JSON nenhum.
+    expect(issue?.exemplos[0]).toContain("Peso (g) / Filamento (R$/kg)");
+    expect(issue?.exemplos[0]).not.toContain("Filamentos JSON");
   });
 
   it("cor avulsa sem preço também acende", () => {
