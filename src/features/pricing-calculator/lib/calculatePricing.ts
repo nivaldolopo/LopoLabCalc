@@ -63,6 +63,24 @@ function resolveFilamentPrices(
   return { filaments: resolved, missing };
 }
 
+// TD-024: com a lista de máquinas VAZIA, o fallback `machines[0]` é `undefined`
+// e a próxima linha a ler `machine.watts` lança
+// `Cannot read properties of undefined`. Não achei caminho pela UI (o
+// `useMachines` semeia dos `DEFAULT_MACHINES` e cai em fallback local no erro),
+// mas "não achei caminho" não é o mesmo que "não existe" — e o preço inteiro
+// depende de a função não explodir. Uma máquina de zeros devolve custo de
+// energia/desgaste/manutenção 0 e mantém o `machineMissing: true`, que é
+// exatamente o que a tela já sabe mostrar.
+// `lifeHours: 0` é seguro: a depreciação já é guardada por `lifeHours > 0`.
+const MAQUINA_AUSENTE: Machine = {
+  id: "",
+  name: "—",
+  price: 0,
+  lifeHours: 0,
+  watts: 0,
+  maintenancePerHour: 0,
+};
+
 function findMachine(
   machines: Machine[],
   machineId: string,
@@ -78,7 +96,7 @@ function findMachine(
         `"${machines[0]?.name ?? "—"}" como fallback.`,
     );
   }
-  return { machine: machines[0], found: false };
+  return { machine: machines[0] ?? MAQUINA_AUSENTE, found: false };
 }
 
 export function normalizeStages(product: ProductInput): PrintStage[] {

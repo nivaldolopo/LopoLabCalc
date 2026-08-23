@@ -270,3 +270,41 @@ describe("netMarginPct (UX-10)", () => {
     expect(netMarginPct(0, 10, 5)).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// TD-025 (AUD-12) — quantidade 0 vendia 1.
+// ---------------------------------------------------------------------------
+describe("TD-025 — quantidade zero não vende uma peça", () => {
+  const base = { chargedUnitPrice: 100, unitCost: 30, feeRatePct: 0 };
+
+  it("qty 0: receita, custo e lucro saem ZERO", () => {
+    const r = saleItemFinancials({ ...base, quantity: 0 });
+    expect(r.totalRevenue).toBe(0);
+    expect(r.totalCost).toBe(0);
+    expect(r.feeAmount).toBe(0);
+    expect(r.profit).toBe(0);
+    expect(r.margin).toBe(0);
+  });
+
+  it("qty negativa também: não se vende peça negativa", () => {
+    const r = saleItemFinancials({ ...base, quantity: -2 });
+    expect(r.totalRevenue).toBe(0);
+    expect(r.totalCost).toBe(0);
+  });
+
+  it("campo AUSENTE continua valendo 1 — é o default de sempre", () => {
+    const r = saleItemFinancials({
+      ...base,
+      quantity: undefined as unknown as number,
+    });
+    expect(r.totalRevenue).toBe(100);
+    expect(r.totalCost).toBe(30);
+  });
+
+  it("quantidade normal não se move", () => {
+    const r = saleItemFinancials({ ...base, quantity: 3 });
+    expect(r.totalRevenue).toBe(300);
+    expect(r.totalCost).toBe(90);
+    expect(r.profit).toBe(210);
+  });
+});

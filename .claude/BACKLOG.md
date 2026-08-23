@@ -14,8 +14,10 @@
 > 2 🟠 (`[TD-022]` `[UX-46]`), **5** 🟡 (`[UX-45]` `[TD-023]` `[CSV-27]` `[CSV-28]` `[CSV-29]`) e
 > 5 🟢 (`[CSV-31]` `[TD-021]` `[TD-024]` `[TD-025]` `[CSV-30]`).
 >
-> ✅ **Os 5 🔴 fecharam nos lotes A e B, e o `[TD-022]` fechou junto (2026-08-23)** — os três que
-> entravam calados na carga incluídos. Restam **11 abertos**. A ordem dos lotes aprovada pelo dono
+> ✅ **Fecharam em 2026-08-23:** os 5 🔴 (lotes A e B, com os três que entravam calados na carga), o
+> `[TD-022]` inteiro (reproduzido com escrita real) e as duas guardas baratas `[TD-024]`/`[TD-025]`.
+> O `[CSV-30]` virou **ressalva** por decisão do dono. Restam **8 abertos**: `[UX-46]` · `[UX-45]`
+> `[TD-023]` `[CSV-27]` `[CSV-28]` `[CSV-29]` · `[CSV-31]` `[TD-021]`. A ordem aprovada pelo dono
 > está na tabela do fim desta seção.
 >
 > **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15, as ondas 0–5 e o `[micro]` do
@@ -813,9 +815,9 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
 | **A — o parser volta a avisar** | [CSV-23] · [CSV-24] · [CSV-25] · [CSV-26] | tudo em `productCsv.ts`; a disciplina do CSV-10 (*o palpite que não se anuncia*) | ✅ **FEITO (2026-08-23)** |
 | **B — celular** | [UX-44] | CSS; `minmax(0, 1fr)` + fileira virando cartão | ✅ **FEITO (2026-08-23)** |
 | **C — qualidade do aviso** | [CSV-27] · [CSV-28] · [CSV-29] · [CSV-31] | falso positivo e conselho errado — o que ensina a ignorar aviso | aberto |
-| **D — dívida barata** | [TD-023] · [TD-024] · [TD-025] | comentário que afirma garantia inexistente + 2 guardas | aberto |
+| **D — dívida barata** | [TD-023] · ~~[TD-024]~~ · ~~[TD-025]~~ | comentário que afirma garantia inexistente + 2 guardas | 🔸 **as 2 guardas FEITAS (2026-08-23)**; sobra o [TD-023] |
 | **E — toque e responsivo** | [UX-45] · [UX-46] | faixa 641–760px + os alvos abaixo de 44px; o maior dos cinco | aberto |
-| **fora de lote** | ~~[TD-022]~~ · [TD-021] · [CSV-30] | reproduzido com escrita real e corrigido nas 2 metades | ✅ **TD-022 FEITO (2026-08-23)** |
+| **fora de lote** | ~~[TD-022]~~ · [TD-021] · ~~[CSV-30]~~ | TD-022 reproduzido e corrigido; CSV-30 virou ressalva (dono) | ✅ **TD-022 FEITO**; sobra o [TD-021] |
 
 ### 🟠 Alto (não bloqueia a carga, mas morde)
 
@@ -900,18 +902,30 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   compensação `"1-2"`, `"--5"`, `"N/A"` e `"n.d."` viram `null` corretamente, e `"1E+400"` também
   (não vira `Infinity`). **Risco baixo numa planilha gerada por máquina; alto numa escrita à mão.**
 
-- **[TD-024] `calculatePricing` com lista de máquinas VAZIA lança `TypeError`.**
+- ✅ **[TD-024] FEITO (2026-08-23) — guarda barata.** `machines[0] ?? MAQUINA_AUSENTE` (uma máquina
+  de zeros): energia, desgaste e manutenção saem 0, `machineMissing` continua `true` — que é o que a
+  tela já sabe mostrar — e o material continua entrando. `lifeHours: 0` é seguro porque a
+  depreciação já era guardada por `lifeHours > 0`. "Não achei caminho pela UI" não é "não existe", e
+  o preço inteiro depende de a função não explodir. 3 testes. Descrição original:
+  **`calculatePricing` com lista de máquinas VAZIA lança `TypeError`.**
   **Medido:** `Cannot read properties of undefined (reading 'watts')`. Alcançável só se
   `useMachines` devolver lista vazia — ele semeia dos defaults e cai em fallback local, então **não
   reproduzi pela UI**. Máquina *inexistente* (id órfão) é tratada certo: cai na 1ª e marca
   `machineMissing: true`.
 
-- **[TD-025] `saleItemFinancials` com quantidade 0 vende 1.**
+- ✅ **[TD-025] FEITO (2026-08-23) — guarda barata.** O `|| 1` existe para o campo AUSENTE
+  (`undefined`/`NaN`), onde 1 é o default certo — mas 0 e negativo são números que alguém escreveu,
+  e responder "vendeu 1" a eles é inventar receita. Agora `Number.isFinite` separa os dois casos:
+  ausente → 1, zero/negativo → 0 (receita, custo, taxa e lucro saem 0). 4 testes. Descrição
+  original: **`saleItemFinancials` com quantidade 0 vende 1.**
   **Medido:** `quantity: 0` e `quantity: -2` devolvem os dois `totalRevenue: 100, totalCost: 30,
   profit: 70` — é o `Math.max(1, …)`. **Não achei caminho pela UI** que produza qty 0; fica como
   ressalva de biblioteca.
 
-- **[CSV-30] O texto do CSV não é estável byte a byte no round-trip.**
+- 📌 **[CSV-30] RESSALVA, não item (dono, 2026-08-23).** Os **dados** são idênticos (diff canônico
+  limpo); só a ordem das chaves de `Acessorios JSON` muda no texto. Importa apenas para quem comparar
+  arquivos com `diff`, e ninguém no fluxo faz isso. Fica registrado para não voltar como achado novo.
+  Descrição original: **O texto do CSV não é estável byte a byte no round-trip.**
   Export → import → export produz a mesma linha com a ordem das chaves de `Acessorios JSON` trocada
   (`subitemId`/`supplyId`). Os **dados** são idênticos (diff canônico limpo); só o texto difere.
   Importa apenas para quem comparar arquivos com `diff`.

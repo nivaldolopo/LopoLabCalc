@@ -24,7 +24,9 @@
   de `runTransaction`, que **recusa** em vez de mesclar: (a) produtos (a aba que salvava por último
   apagava a outra) · (b) estoque/insumos/acabados — `vendas` e `producao` deixaram de ser
   `writeBatch` (atômico, mas **não isolado**), e o `/estoque` incrementa junto, senão o guarda não
-  guardaria nada. `lint` ✅ · `build` ✅ · **646/646** ✅ (+43). Detalhe: `HISTORICO.md`.
+  guardaria nada. Mais as **guardas baratas** `[TD-024]` (lista de máquinas vazia lançava
+  `TypeError`) e `[TD-025]` (quantidade 0 vendia 1); `[CSV-30]` virou **ressalva** (dono).
+  `lint` ✅ · `build` ✅ · **653/653** ✅ (+50). Detalhe: `HISTORICO.md`.
   ⚠ **Resíduo declarado:** a Laranja ficou com **2 ajustes** no rastro D6 (403→400→403, anotados
   como sonda; append-only, não se apaga). Saldo e catálogo restaurados exatos.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
@@ -32,8 +34,8 @@
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — 2 frentes em paralelo:** (a) **minha:** guardas TD-024/TD-025, depois os
-  lotes C, D e E do `BACKLOG.md`; (b) **do DONO: cadastrar as cores e os insumos definitivos**, pegar
+- **▶ PRÓXIMA TAREFA — 2 frentes em paralelo:** (a) **minha:** os 8 itens abertos da AUD-12 — lote
+  C (qualidade do aviso), o `[TD-023]` que sobrou do D, e o E (toque e responsivo); (b) **do DONO: cadastrar as cores e os insumos definitivos**, pegar
   os ids e passá-los pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-
   modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. Só
   então a **CARGA EM MASSA** — que **não cria** cor nem insumo, e não tem "limpar catálogo".

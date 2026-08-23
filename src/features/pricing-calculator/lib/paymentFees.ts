@@ -113,7 +113,13 @@ export function saleItemFinancials(params: {
   feeRatePct: number;
   discountAmount?: number;
 }): SaleItemFinancials {
-  const qty = Math.max(1, Number(params.quantity) || 1);
+  // TD-025: era `Math.max(1, Number(qty) || 1)`, e aí `quantity: 0` vendia 1 —
+  // medido, qty 0 e qty -2 devolviam os dois `totalRevenue: 100`. O `|| 1`
+  // existe para o campo AUSENTE (undefined/NaN), onde 1 é o default certo; mas 0
+  // e negativo são números que alguém escreveu, e responder "vendeu 1" a eles é
+  // inventar receita. Zero entra como zero: receita, custo, taxa e lucro saem 0.
+  const qtyBruta = Number(params.quantity);
+  const qty = Number.isFinite(qtyBruta) ? Math.max(0, qtyBruta) : 1;
   const charged = Math.max(0, Number(params.chargedUnitPrice) || 0);
   const gross = charged * qty;
   const discount = Math.min(gross, Math.max(0, Number(params.discountAmount) || 0));

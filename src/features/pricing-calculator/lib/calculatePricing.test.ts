@@ -634,3 +634,28 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
     expect(r.filamentMissing).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// TD-024 (AUD-12) — lista de máquinas VAZIA lançava TypeError.
+// ---------------------------------------------------------------------------
+describe("TD-024 — lista de máquinas vazia não derruba o preço", () => {
+  const produto = makeProduct({ weightG: 40, printHours: 3, machineId: "a1" });
+
+  it("não lança, e marca a máquina como ausente", () => {
+    const r = calculatePricing(produto, [], NO_FIXED);
+    expect(r.machineMissing).toBe(true);
+  });
+
+  it("energia, desgaste e manutenção saem ZERO — não há máquina de onde tirá-los", () => {
+    const r = calculatePricing(produto, [], NO_FIXED);
+    expect(r.energyCost).toBe(0);
+    expect(r.depreciationCost).toBe(0);
+    expect(r.maintenanceCost).toBe(0);
+  });
+
+  it("o material continua entrando: o resto do custo não depende da máquina", () => {
+    const r = calculatePricing(produto, [], NO_FIXED);
+    expect(r.materialCost).toBeGreaterThan(0);
+    expect(Number.isFinite(r.suggestedPrice)).toBe(true);
+  });
+});
