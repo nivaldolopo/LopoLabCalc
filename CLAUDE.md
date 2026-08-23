@@ -16,15 +16,13 @@
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
 - **Última mudança:** **Lotes A e B da AUD-09 (2026-08-23) — os 3 bloqueantes + os 4 que mordiam na
   carga, fechados.** Tudo em `productCsv.ts`. **A:** `cellNumber` (coluna ausente e célula **vazia**
-  caem no mesmo default; ilegível fica no default e **avisa**) — a "regra de ouro" de não pôr coluna
-  que não vai preencher morreu junto · passada por needle **do mais longo pro mais curto**
-  (`Filamentos` fica com as cores) · `COLUNAS_CALCULADAS` com os 10 nomes **exatos** do export, que
-  suprime o aviso *e* bloqueia captura por needle — com essa trava, `Tarifa de Energia`,
-  `Energia (R$/kWh)` e `Inclui custo fixo` passaram a ser **lidas**, não só apontadas. **B:** milhar
-  ambíguo dentro do JSON · `cor-sem-peso` **cor a cor** (multicolor com uma cor zerada era mudo) ·
-  separador decidido por quem PARTE o cabeçalho em mais células (TAB entrou) + classe
-  `celulas-demais` pro decimal com vírgula sem aspas · `createdAt` distinto por linha.
-  **28 testes novos**, um por caso medido. `lint` ✅ · `build` ✅ · **551/551** ✅.
+  caem no mesmo default; ilegível fica no default e **avisa**) — morreu junto a "regra de ouro" de
+  não pôr coluna que não vai preencher · needle **do mais longo pro mais curto** (`Filamentos` fica
+  com as cores) · `COLUNAS_CALCULADAS` com os nomes **exatos** do export, que suprime o aviso *e*
+  bloqueia captura por needle — com ela, `Tarifa de Energia` e `Inclui custo fixo` passaram a ser
+  **lidas**. **B:** milhar dentro do JSON · `cor-sem-peso` **cor a cor** · separador decidido por
+  quem PARTE o cabeçalho em mais células (TAB entrou) + `celulas-demais` · `createdAt` por linha.
+  **28 testes novos.** `lint` ✅ · `build` ✅ · **551/551** ✅.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
