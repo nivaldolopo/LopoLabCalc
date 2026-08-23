@@ -189,37 +189,50 @@
 | Lote | Itens | Estado |
 |---|---|---|
 | **0** | **[TD-017]** | ✅ **FEITO (2026-08-22)** |
-| **1** | **[CSV-06]** + [CSV-07] + [CSV-08] + **[UX-41]** | ▶ próximo |
-| **2** | [UX-42] · [TD-018] · [TD-019] | a fazer |
+| **1** | **[CSV-06]** + [CSV-07] + [CSV-08] + **[UX-41]** | ✅ **FEITO (2026-08-22)** |
+| **2** | [UX-42] · [TD-018] · [TD-019] | ▶ próximo |
 | **3** | [UX-43] · [TD-020] | a fazer |
 
 **[AUD-08] fica FORA dos lotes de propósito:** metade da lista dele (*"escrita de 100 produtos de
 verdade"*) é **exercitada de graça pela carga em massa real**. Varrer antes é ensaiar o que vai
 acontecer sozinho depois. Reavaliar **depois** da carga.
 
-### Aviso resolve no import, NÃO resolve na digitação — medido no navegador (2026-08-22)
+### Aviso resolve no import, NÃO resolve na digitação — medido (2026-08-22)
 
 > O dono perguntou, com razão, se não bastava avisar quando o dado viesse errado. **No import, sim**
-> — é exatamente o que o CSV-06 faz: o texto chega inteiro no código, dá pra ver que `"1,5"` é
-> vírgula pt-BR e apontar. **Na digitação, não** — e a medição diz por quê.
+> — é o que o CSV-06 faz: o texto chega inteiro no código, dá pra ver que `"1,5"` é vírgula pt-BR e
+> apontar. **Na digitação, não.**
 >
-> Pressionando a vírgula num `<input type="number">`, o evento chega assim:
+> Uma tecla de vírgula de verdade num `<input type="number">` produz:
 >
 > ```
-> key: ""   code: ""   keyCode: 0   which: 0   isTrusted: true
+> keydown      key=","   → chega, e é identificável
+> beforeinput  data=","  → dispara
+> input                  → NÃO dispara: o Chrome recusa a inserção
+> value: "3" → "5" → "35"        a vírgula some e os dígitos colam
+> validity.badInput: false       nada denuncia depois
+> selectionStart: null           e setRangeText lança InvalidStateError
 > ```
 >
-> **Tudo zerado**, e **nenhum `beforeinput` dispara** — o Chrome mata a vírgula antes de ela virar
-> texto. Não é difícil detectar: a informação **não existe**. Somando com `selectionStart === null`
-> e `setRangeText` lançando `InvalidStateError`, o campo nativo é caixa-preta em três frentes.
-> **Não há truque** — nem o `onKeyDown` que o próprio [UX-41] sugeria como mínimo (ele foi testado e
-> produziu justamente o `14353` que a auditoria mediu).
+> O `"35"` é o mesmo mecanismo do `143,53 → 14353` que a auditoria mediu à mão. **O que impede o
+> aviso é o `badInput: false`:** o que chega no código é um número VÁLIDO, 100× maior. Não há erro a
+> detectar depois do fato.
 >
-> ⚠ **Armadilha de método:** digitação sintética (CDP) manda a string inteira num `beforeinput` só
-> (`data: "1,5"`), o que **não reproduz** o teclado humano e dá falso resultado. Só `key` tecla a
-> tecla mede isto de verdade.
+> ⚠ **Correção de um registro anterior deste arquivo.** Numa primeira medição eu afirmei que a tecla
+> chegava anônima (`key:""`, `code:""`, sem `beforeinput`) e que interceptar era *impossível*. Estava
+> **errado**: aquele evento vazio era a ferramenta de automação não mapeando a tecla `comma` — o
+> mesmo evento vazio aparecia num `<input type="text">`, onde a vírgula obviamente funciona. Passando
+> o caractere `,` em vez do nome `comma`, o evento chega normal. **Interceptar no `beforeinput` É
+> possível.** Não foi o caminho escolhido por três motivos concretos, não por impossibilidade:
+> sem `selectionStart` só dá pra acrescentar no fim (editar no meio do número quebra); um campo
+> numérico não exibe os estados intermediários `"143,"` nem `"143."`, o que exige um "decimal
+> pendente" com aresta em backspace, colagem e seleção; e o celular continuaria sem setinha.
+>
+> ⚠ **Armadilha de método, que vale pra próxima varredura:** digitação sintética mente de duas
+> formas. `type` manda a string inteira num `beforeinput` só (`data:"1,5"`), e `key` com o NOME da
+> tecla (`comma`) entrega um evento vazio. Só `key` com o **caractere** reproduz o teclado humano.
 
-### Decisão do dono: setinhas artesanais, não perder o incremento
+### Decisão do dono: setinhas artesanais, não perder o incremento — ✅ FEITO
 
 O dono usa muito as setinhas de incremento, e `type="text"` não as tem. → **`type="text"` +
 `inputMode="decimal"` + stepper próprio.** Protótipo medido nas 4 frentes: `143,53` → 143.53 ✓ ·
@@ -239,7 +252,10 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
 
 ### 🔴 Bloqueante da carga
 
-- **[CSV-06] Vírgula pt-BR DENTRO das células JSON vira 0, em silêncio.** Fora das colunas
+- ~~**[CSV-06] Vírgula pt-BR DENTRO das células JSON vira 0, em silêncio.**~~ — ✅ **FEITO
+  (Lote 1).** Primitiva `parseDecimalPtBr` em `lib/formatting/number.ts` nas 4 portas + classe
+  `numero-nao-reconhecido`. A reprodução corrigiu o diagnóstico deste item em 3 pontos, anotados
+  abaixo. Descrição original: Fora das colunas
   escalares (que passam pelo `parseNumber`), todo número do JSON é lido com `Number(x) || 0` →
   `Number("1,5")` é `NaN` → **0**. Medido ponta a ponta: linha com `printHours:"1,5"`,
   `pricePerKg:"200,00"`, `unitPrice:"12,50"` e `modelG:"140,0"` importou **sem um único aviso** e
@@ -250,6 +266,15 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
   (`filaments.ts:41`) recalcula `totalG` como a soma do detalhe, e o `modelG` com vírgula zerou.
   **Onde:** `productCsv.ts:314` (`parseStages`) · `:343` (`parseAccessories`) · `:363`
   (`parseSubitems`) · `:665` (filamentos entram crus).
+  ⚠ **O que a reprodução corrigiu neste diagnóstico** (medido antes de consertar):
+  · `printHours` **não** zerava na coluna escalar `Tempo (h)` — ela passa pelo `parseNumber`; quem
+    zerava era o `printHours` DENTRO do `Etapas JSON`;
+  · a checagem `cor-sem-peso` **disparava** no caso relatado (`num("143,53")` já é 0), ao contrário
+    do que este item dizia;
+  · mas os filamentos eram **piores** que o descrito: não havia parse nenhum, só um
+    `as FilamentUsage[]` — a string `"143,53"` viajava até o Firestore num campo tipado `number`.
+    O `Acessorios JSON` e o `markup` do `Subitens JSON` eram os silenciosos de verdade.
+
   **Correção proposta:** um `numFromCsv()` (o `parseNumber` pt-BR) em **todo** campo numérico dos 4
   JSONs (`printHours`, `laborMinutes`, `weightG`, `filamentPricePerKg`, `totalG`, `modelG`,
   `supportG`, `purgedG`, `towerG`, `pricePerKg`, `qty`, `unitPrice`, `markup`) + classe de issue
@@ -267,7 +292,11 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
   `StockPage:236`). Medido: o MESMO produto vale **R$51,58 no catálogo** e **R$18,47** no seletor da
   venda, no orçamento e no PDF. Com o catálogo todo ligado ao Estoque, isso dispara na primeira
   compra de rolo com preço novo. **Correção:** passar `stock` nos dois pontos.
-- **[UX-41] O campo numérico engole a vírgula e concatena os dígitos.**
+- ~~**[UX-41] O campo numérico engole a vírgula e concatena os dígitos.**~~ — ✅ **FEITO (Lote 1):**
+  `type="text"` + `inputMode="decimal"` + stepper artesanal (o dono não quis perder o incremento).
+  Medido no app: vírgula ✓ ponto ✓ clique ▲▼ ✓ teclas ↑↓ ✓ · 0 cortes em 18 campos · 375px sem
+  rolagem lateral · console limpo. Efeito colateral corrigido: a coluna "Vida (h)" do modal de
+  máquinas cortava "7500" em "750" (UX-21) — stepper 18→14px e a grade alargada. Original:
   `NumberInput.tsx:58` (`type="number"`) + `:50` (`Number(raw)`). Medido digitando de verdade:
   **`143,53` → `14353`** (100×), preço R$27,14 → **R$4.896,51**; `R$ 118,90` → `11890`. Com ponto
   funciona. Nada avisa. **Correção:** `type="text"` + `inputMode="decimal"` normalizando a vírgula
@@ -300,11 +329,15 @@ nativa nunca renderizou. Os **40 usos não mudam** (`value: number` / `onChange`
   `"7 dias  até 29/08/2026"`. Como o app monta o nome do subitem com travessão e usa `option.name`
   como descrição (`QuotePage.tsx:174`), **todo orçamento de subitem sai sem o separador**.
   **Correção:** sanitizar os caracteres fora do WinAnsi antes de escrever, ou embutir fonte Unicode.
-- **[CSV-07] A checagem "milhar ambíguo" erra dos dois lados.** `productCsv.ts:197` testa o regex no
+- ~~**[CSV-07] A checagem "milhar ambíguo" erra dos dois lados.**~~ — ✅ **FEITO (Lote 1).** O falso
+  negativo saiu testando no texto limpo. O falso positivo NÃO tem conserto estrutural ("2.375" e
+  "1.234" são idênticos): quem decide é a coluna — `Tempo (h)` e `Tarifa Energia` saíram da
+  checagem, porque nelas a leitura de milhar é absurda. Original: `productCsv.ts:197` testa o regex no
   texto **bruto**: `"R$ 1.234"` vira 1,234 e **não avisa** (o prefixo quebra o regex); e
   `Tempo (h) = 2.375` — valor que o **próprio export escreve** — **acende** o aviso (falso positivo
   no round-trip). **Correção:** testar depois da limpeza de moeda/espaço.
-- **[CSV-08] Formato EN e milhar com 2 pontos passam mudos.** `parseNumber` (`productCsv.ts:175`):
+- ~~**[CSV-08] Formato EN e milhar com 2 pontos passam mudos.**~~ — ✅ **FEITO (Lote 1):** com os
+  dois separadores, o ÚLTIMO é o decimal; separador repetido é milhar. Original: `parseNumber` (`productCsv.ts:175`):
   `"1,234.56"` → **1.23456** (1000× menor) e `"1.234.567"` → **1.234**. Relevante se a planilha for
   gerada no Google Sheets em locale en-US.
 - **[TD-020] Máquinas e taxas gravam sem `guardOnline`.** `useMachines.ts:87`

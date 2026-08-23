@@ -83,7 +83,10 @@
 .machine-edit-row,
 .machine-edit-header {
   display: grid;
-  grid-template-columns: 1fr 82px 64px 60px 78px 32px;
+  /* UX-41: "Vida (h)" era 64px e "Watts" 60px. Com o stepper ocupando a direita
+     do campo, "7500" deixava de caber (34px de texto para 28 disponíveis) e
+     aparecia como "750". Os 8px vêm da coluna do NOME, que tem folga. */
+  grid-template-columns: minmax(0, 1fr) 82px 72px 68px 78px 32px;
   gap: var(--space-8);
   align-items: center;
 }

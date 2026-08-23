@@ -652,3 +652,75 @@ input[type="range"]::-webkit-slider-thumb {
   color: var(--danger);
 }
 
+
+/* UX-41 — o stepper do NumberInput.
+   O campo deixou de ser `type="number"` porque o nativo come a vírgula pt-BR
+   sem deixar rastro (a tecla chega sem `key`, sem `code` e sem `beforeinput` —
+   medido). Trocado o tipo, a setinha nativa some junto, e o dono usa muito o
+   incremento: estas são as nossas.
+
+   O desenho é SOBREPOSTO de propósito. O `className` dos 40 usos continua indo
+   para o `<input>`, que mantém `.field-input`, `.fc-item input`, o foco, a
+   borda e a caixa que já tinha — a casca só posiciona. Envolver o campo numa
+   caixa com borda própria exigiria reescrever os 6 seletores do bloco lá em
+   cima e os 4 grids que têm o input como item direto. */
+.num-field {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.num-spin {
+  position: absolute;
+  top: 1.5px;
+  right: 1.5px;
+  bottom: 1.5px;
+  /* 1.5px = a espessura da borda do campo: o stepper encosta por dentro dela,
+     sem cobri-la nem deixar um fio do fundo aparecer. */
+  display: flex;
+  flex-direction: column;
+  /* 14px é a largura do spinner nativo do Chrome. Cada pixel a mais some do
+     texto: a 18px o "7500" do modal de máquinas (coluna de 64px) precisava de
+     34px e tinha 28 — o dono lia "750", que é outro número (UX-21). */
+  width: 14px;
+  border-radius: 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0;
+  overflow: hidden;
+}
+
+.num-spin button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: var(--border-soft);
+  color: var(--muted);
+  cursor: pointer;
+  /* UX-28/UX-37 mandam 44px de alvo no celular, e aqui isso é impossível sem
+     estourar a altura do campo — a régua não se aplica a um controle que é
+     ATALHO: o alvo de verdade é o campo (que aceita ↑↓ e digitação), e ele
+     passa dos 44px. Ver a nota do `[micro]` de 14px no HISTORICO. */
+  min-height: 0;
+}
+
+.num-spin button:first-child {
+  border-bottom: 1px solid var(--field-bg);
+}
+
+.num-spin button:hover {
+  background: var(--border);
+  color: var(--ink);
+}
+
+.num-spin button:active {
+  background: var(--accent-soft);
+}
+
+/* O texto pararia por baixo do stepper sem isto. Nas colunas apertadas
+   (60–82px) do `.accessory-row` e do `.machine-edit-row` cada pixel sai do
+   número, então o recuo é o stepper + 2px, não o `--space-10` de folga dos
+   outros lados. */
+.num-field input {
+  padding-right: 16px;
+}

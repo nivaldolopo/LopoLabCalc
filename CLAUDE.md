@@ -14,27 +14,27 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança:** **Lote 0 — [TD-017] (2026-08-22)**: `/vendas` e `/orcamento` precificavam
-  **sem o preço vivo do rolo** — eram as **2 únicas** das 11 chamadas de `calculatePricing` sem o 4º
-  argumento `stock` (o MESMO produto valia R$51,58 no catálogo e **R$18,47** no seletor de venda, no
-  orçamento e no PDF que vai pro cliente). `SalesPage` já tinha o `stock` em mãos; `QuotePage` ganhou
-  o `useStock`. `lint` ✅ · **483/483** ✅ · `build` ✅. **Primeiro de 4 lotes** aprovados pelo dono
-  para o cluster AUD-07 — ordem e escopo no [`BACKLOG.md`](.claude/BACKLOG.md).
+- **Última mudança:** **Lote 1 — a vírgula pt-BR (2026-08-22)**: `CSV-06`+`CSV-07`+`CSV-08`+`UX-41`
+  eram o MESMO defeito em 4 portas, e viraram uma primitiva — `parseDecimalPtBr` em
+  `lib/formatting/number.ts`, o **inverso do `formatDecimal`** (o app formatava pt-BR pra fora e não
+  lia pt-BR pra dentro). Ela devolve **`null`, não 0**: era o 0 mudo que zerava preço na importação.
+  Nos JSONs os filamentos nem parse tinham (`as` cru) — string ia ao Firestore em campo `number`.
+  No `NumberInput`, `type="text"` + **stepper artesanal** (o dono não quis perder o incremento);
+  ganhou setinha **no celular**, que a nativa nunca teve. `lint` ✅ · **502/502** ✅ · `build` ✅ ·
+  medido no app: 0 cortes em 18 campos, 375px sem rolagem, console limpo. Antes veio o **Lote 0**
+  (`TD-017`, preço sem estoque no PDF). Detalhe e a **correção de um diagnóstico meu errado** sobre
+  o mecanismo da vírgula: [`BACKLOG.md`](.claude/BACKLOG.md).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** bloqueado por dado externo. **Cores saíram
   (2026-08-16): amarelo + preto**; a **logo não**. Destrava quando o dono avisar. Detalhe (e o
   token `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — Lote 1: a vírgula pt-BR** (`BACKLOG.md`, que tem a ordem dos 4 lotes
-  aprovada pelo dono). **[CSV-06]** (bloqueia a carga) + **[CSV-07]** + **[CSV-08]** + **[UX-41]**
-  não são 4 itens — são o MESMO defeito em 4 portas → uma primitiva `parseDecimalPtBr` em
-  `lib/formatting/` (o inverso do `formatDecimal`), e as 4 portas a chamam. **No import o aviso
-  resolve; na digitação NÃO** — medido: a tecla da vírgula chega num `type="number"` sem `key`,
-  sem `code` e sem `beforeinput`, não há o que detectar. → **decisão do dono: `type="text"` +
-  setinhas artesanais** (ele usa muito o incremento); protótipo validado, 40 usos não mudam.
-  **Depois:** Lote 2 (UX-42 · TD-018 · TD-019), Lote 3 (UX-43 · TD-020) e então a **CARGA EM MASSA**
-  — planilha gerada do zero pelo dono; **pré-requisito dele:** cadastrar as cores definitivas ANTES
+- **▶ PRÓXIMA TAREFA — Lote 2** (`BACKLOG.md`): **[UX-42]** (aviso FALSO de saldo negativo ao editar
+  recibo — o preview usa forward puro, a gravação usa reverse+forward) · **[TD-018]** (chave React
+  duplicada no extrato do Estoque) · **[TD-019]** (KPIs de `/vendas` não atualizam após gravar).
+  Independentes entre si. **Depois:** Lote 3 (`UX-43` · `TD-020`) e então a **CARGA EM MASSA** —
+  planilha gerada do zero pelo dono; **pré-requisito dele:** cadastrar as cores definitivas ANTES
   (a importação **não cria** cor nem insumo). Em aberto: **tabela de-para** + **modelo de planilha**
   (posso gerar os dois). **Não existe "limpar catálogo"** (97 exclusões uma a uma).
 - ⚠ **Pendência do 7e (ainda vale):** **o dono precisa cadastrar os insumos e religar os acessórios** —
