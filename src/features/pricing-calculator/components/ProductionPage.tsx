@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Factory, Plus, Trash2 } from "lucide-react";
 import { errorMessage, guardOnline } from "@/lib/errors";
-import { formatCurrency } from "@/lib/formatting/currency";
+import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import {
   formatDate,
   toTimestamp,
@@ -22,6 +22,7 @@ import { calculatePricing } from "../lib/calculatePricing";
 import { filamentTotalG } from "../lib/filaments";
 import {
   addProductionLayers,
+  finishedEventReferences,
   finishedGoodToPayload,
   removeEventLayers,
   submissionEntries,
@@ -44,6 +45,7 @@ import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
 import { useProductionPage } from "../hooks/useProductionPage";
+import { useSales } from "../hooks/useSales";
 import { useStock } from "../hooks/useStock";
 import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
@@ -120,6 +122,11 @@ export function ProductionPage() {
   // Leitura viva dos acabados: a submissão empilha camada no doc do produto e a
   // exclusão a estorna (FEAT-05b). O incremento/estorno grava no batch do evento.
   const { goods } = useFinishedGoods();
+  // TD-028: o histórico de vendas entra aqui só como GUARDA da exclusão —
+  // apagar uma produção cujas peças já foram vendidas deixava o `finishedMoves`
+  // do recibo apontando para uma camada inexistente, e o estorno depois devolvia
+  // zero em silêncio. Leitura, nunca escrita: quem mexe em venda é a `/vendas`.
+  const { sales } = useSales();
 
   const [selectedKey, setSelectedKey] = useState("");
   // UX-06: qual produção recente está com o detalhe aberto (linha + dropdown).
@@ -503,7 +510,37 @@ export function ProductionPage() {
     }
   }
 
+  // TD-028 — o guarda do EXCLUIR. Espelha a exclusão de cor do `/estoque`
+  // (`filamentReferences`): recibo vivo em cima das camadas deste evento barra a
+  // exclusão, nomeando quem segura. Decisão do dono (2026-08-24) entre BARRAR e
+  // preservar a camada drenada; barrar é o que impede o estado ambíguo de
+  // existir — nunca há unidade vendida sem a produção que a explique.
+  function soldReferences(event: ProductionEvent) {
+    if (event.outcome !== "estoque" || !event.productId) return [];
+    const good = goods.find((g) => g.id === event.productId) ?? null;
+    return finishedEventReferences(good, event.id, sales);
+  }
+
+  // "24/08/2026 · Maria" — é assim que a `/vendas` identifica um recibo na tela,
+  // e é o que o dono precisa achar lá para liberar a exclusão.
+  function reciboLabel(ref: { saleDate: number; customer: string }) {
+    return `${formatDate(ref.saleDate)} · ${ref.customer.trim() || "sem cliente"}`;
+  }
+
   async function remove(event: ProductionEvent) {
+    const held = soldReferences(event);
+    if (held.length > 0) {
+      const unidades = held.reduce((sum, ref) => sum + ref.qty, 0);
+      const nomes = held.map(reciboLabel).join(", ");
+      fail(
+        `Não dá para excluir “${event.productName || "impressão"}”: ` +
+          `${unidades === 1 ? "1 peça desta produção já foi vendida" : `${formatDecimal(unidades)} peças desta produção já foram vendidas`} ` +
+          `(${held.length === 1 ? "recibo" : "recibos"} ${nomes}). ` +
+          "Exclua ou edite a venda primeiro — só então a produção libera.",
+      );
+      return;
+    }
+
     const confirmed = await ask({
       title: `Excluir a produção “${event.productName || "impressão"}”?`,
       body: (

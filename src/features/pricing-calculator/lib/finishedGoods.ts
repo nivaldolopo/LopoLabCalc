@@ -432,8 +432,19 @@ export function addProductionLayers(
  * Estorno de um evento (excluir a produção, 05b): remove as camadas que aquele
  * evento criou, em todas as SKUs. Round-trip de `addProductionLayers`. SKUs que
  * ficam sem camada são MANTIDAS (o nome/histórico continua; somem da tela por
- * saldo 0) — o doc não precisa encolher, e assim o custo já vendido não some do
- * rastro se o passo 8 tiver drenado a camada.
+ * saldo 0) — o doc não precisa encolher.
+ *
+ * ⚠ TD-028 — o que este comentário dizia era FALSO. Ele afirmava que manter a
+ * SKU vazia fazia com que "o custo já vendido não some do rastro": medido,
+ * some. Produzir 10 un a R$ 100, vender 4 (saldo 6, valor 60) e excluir a
+ * produção deixava 0 camadas e valor 0 — e o `FinishedMove` que a venda guarda
+ * passava a apontar para uma camada inexistente, de modo que estornar o recibo
+ * devolvia NADA (o `shiftLayers` procurava pelo id, não achava, e devolvia o doc
+ * intacto). O conserto NÃO mora aqui: a remoção segue sendo cega de propósito, e
+ * quem decide se ela pode acontecer é o `finishedEventReferences` abaixo, que
+ * BARRA a exclusão nomeando o recibo (decisão do dono, 2026-08-24 — a mesma
+ * disciplina do `filamentReferences` na exclusão de cor). Chamar isto sem
+ * consultar aquele volta a abrir o buraco.
  */
 export function removeEventLayers(
   good: FinishedGood,
@@ -446,6 +457,84 @@ export function removeEventLayers(
       layers: sku.layers.filter((layer) => layer.sourceEventId !== eventId),
     })),
   };
+}
+
+// O mínimo de um recibo para o guarda do TD-028 lê-lo: quem drenou, quando e de
+// quem. Molde do `FilamentHolder`/`ProductLike` do `stock.ts` — a lib pura não
+// importa o tipo `Sale` inteiro só para ler três campos.
+export type FinishedDrainer = {
+  reciboId: string;
+  customer: string;
+  saleDate: number;
+  finishedMoves?: FinishedMove[];
+};
+
+// Um recibo que já bebeu das camadas de um evento de produção.
+export type FinishedEventReference = {
+  reciboId: string;
+  customer: string;
+  saleDate: number;
+  qty: number; // unidades tiradas das camadas DAQUELE evento
+};
+
+/**
+ * TD-028 — quem ainda aponta para as camadas deste evento de produção. É o
+ * guarda do EXCLUIR da `/producao`, e o espelho exato do `filamentReferences`
+ * (stock.ts): excluir só é liberado quando ninguém referencia mais.
+ *
+ * O `FinishedMove` que a venda congela guarda o `layerId`, e o estorno devolve
+ * POR CAMADA. Apagar a camada com um recibo vivo em cima dela não deixa rastro
+ * de erro em lugar nenhum: o estorno depois não acha o id e devolve o doc
+ * intacto, calado. Barrar aqui é o que impede o estado de existir — nunca há
+ * unidade vendida sem a produção que a explique.
+ *
+ * Agrupa por RECIBO (não por venda): um recibo tem vários itens, e é o recibo
+ * que a `/vendas` mostra e que o dono precisa apagar/editar para liberar.
+ * Ordenado do mais recente para o mais antigo, como o histórico.
+ */
+export function finishedEventReferences(
+  good: FinishedGood | null | undefined,
+  eventId: string,
+  sales: FinishedDrainer[],
+): FinishedEventReference[] {
+  if (!good) return [];
+  // Os ids são determinísticos (evento + SKU), mas quem manda é o DOC: camada
+  // que não está lá não pode ser drenada, e id derivado à mão erraria a cor.
+  const doEvento = new Set<string>();
+  for (const sku of good.skus) {
+    for (const layer of sku.layers) {
+      if (layer.sourceEventId === eventId) doEvento.add(layer.id);
+    }
+  }
+  if (doEvento.size === 0) return [];
+
+  const porRecibo = new Map<string, FinishedEventReference>();
+  for (const sale of sales) {
+    let qty = 0;
+    for (const move of sale.finishedMoves ?? []) {
+      // Mesma disciplina do `shiftLayers`: um recibo drena vários acabados e só
+      // os moves DESTE produto falam deste doc.
+      if (move.productId !== good.productId) continue;
+      if (!doEvento.has(move.layerId)) continue;
+      qty += num(move.qty);
+    }
+    if (qty <= 0) continue;
+    const existente = porRecibo.get(sale.reciboId);
+    if (existente) {
+      existente.qty += qty;
+      // O recibo é um só; a data que ele mostra é a mais recente dos itens.
+      existente.saleDate = Math.max(existente.saleDate, num(sale.saleDate));
+    } else {
+      porRecibo.set(sale.reciboId, {
+        reciboId: sale.reciboId,
+        customer: sale.customer,
+        saleDate: num(sale.saleDate),
+        qty,
+      });
+    }
+  }
+
+  return [...porRecibo.values()].sort((a, b) => b.saleDate - a.saleDate);
 }
 
 /**
@@ -614,17 +703,41 @@ function shiftLayers(
   }
   if (deltaByLayer.size === 0) return good;
 
-  return {
+  // ⚠ TD-028 — CONTAR a camada que não existe mais. Até aqui o `map` abaixo
+  // simplesmente não achava o id e devolvia o doc intacto: estornar um recibo
+  // cuja produção tinha sido excluída devolvia ZERO, sem erro e sem aviso. Com o
+  // guarda do `finishedEventReferences` no lugar, esse estado não nasce mais
+  // pela UI — e é justamente por isso que chegar aqui significa que o doc está
+  // corrompido, não que "não havia o que fazer". Silêncio é o que transformava a
+  // corrupção em número errado; a exceção transforma em recado.
+  const encontradas = new Set<string>();
+
+  const next = {
     ...good,
     skus: good.skus.map((sku) => ({
       ...sku,
       layers: sku.layers.map((layer) => {
         const delta = deltaByLayer.get(layer.id);
-        if (!delta) return layer;
+        // `=== undefined`, não `!delta`: delta 0 (moves que se anulam) é camada
+        // ACHADA, e tratá-la como ausente a acusaria de órfã.
+        if (delta === undefined) return layer;
+        encontradas.add(layer.id);
         return { ...layer, qty: num(layer.qty) + delta };
       }),
     })),
   };
+
+  const orfas = [...deltaByLayer.keys()].filter((id) => !encontradas.has(id));
+  if (orfas.length > 0) {
+    throw new Error(
+      `Estoque de produtos inconsistente em “${good.productName || good.productId}”: ` +
+        `${orfas.length} ${orfas.length === 1 ? "camada que esta venda drenou não existe" : "camadas que esta venda drenou não existem"} ` +
+        "mais (a produção que as criou foi excluída). O estorno foi cancelado " +
+        "para não devolver a quantidade errada.",
+    );
+  }
+
+  return next;
 }
 
 /**

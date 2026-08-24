@@ -11,6 +11,7 @@ import {
   consumeFifo,
   consumeWholeFifo,
   findSku,
+  finishedEventReferences,
   goodCostComposition,
   goodValue,
   partBalance,
@@ -1260,5 +1261,211 @@ describe("colorEntriesOf / colorRecordOf (FEAT-11 — formato persistido)", () =
     expect(colorEntriesOf(undefined)).toEqual([]);
     expect(colorRecordOf(undefined)).toEqual({});
     expect(colorRecordOf([{ part: "", colorKey: "x" }])).toEqual({});
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TD-028 — excluir uma produção JÁ VENDIDA
+//
+// O defeito: `removeEventLayers` apagava a camada sem perguntar se algum recibo
+// já tinha bebido dela. A venda continuava guardando um `FinishedMove` com o
+// `layerId`, e no estorno o `shiftLayers` procurava esse id, não achava e
+// devolvia o doc INTACTO — sem erro, sem aviso. Medido: 10 un/R$ 100 → vender 4
+// (saldo 6, valor 60) → excluir a produção (0 camadas, valor 0) → estornar o
+// recibo devolvia 0, quando deveriam voltar 4 un / R$ 40.
+//
+// A saída escolhida pelo dono (2026-08-24) foi BARRAR: quem decide é o
+// `finishedEventReferences`, e o `shiftLayers` deixou de ser mudo para o caso
+// que ele não deveria mais ver.
+// ---------------------------------------------------------------------------
+
+describe("finishedEventReferences (TD-028 — quem segura a exclusão)", () => {
+  // 10 un a R$ 10 do evento e1 = valor 100, o cenário medido no relatório.
+  const produzido = makeGood({
+    skus: [
+      {
+        name: "Boneco",
+        layers: [{ id: "e1__whole", at: 0, qty: 10, unitCost: 10, sourceEventId: "e1" }],
+      },
+    ],
+  });
+
+  const recibo = (
+    over: Partial<{
+      reciboId: string;
+      customer: string;
+      saleDate: number;
+      layerId: string;
+      qty: number;
+      productId: string;
+    }> = {},
+  ) => ({
+    reciboId: over.reciboId ?? "rec-1",
+    customer: over.customer ?? "Maria",
+    saleDate: over.saleDate ?? DIA,
+    finishedMoves: [
+      {
+        productId: over.productId ?? "prod-1",
+        layerId: over.layerId ?? "e1__whole",
+        qty: over.qty ?? 4,
+        unitCost: 10,
+        cost: (over.qty ?? 4) * 10,
+      },
+    ],
+  });
+
+  it("recibo que drenou a camada do evento é NOMEADO, com a quantidade", () => {
+    const refs = finishedEventReferences(produzido, "e1", [recibo()]);
+    expect(refs).toEqual([
+      { reciboId: "rec-1", customer: "Maria", saleDate: DIA, qty: 4 },
+    ]);
+  });
+
+  it("sem venda nenhuma, nada segura — a exclusão segue livre", () => {
+    expect(finishedEventReferences(produzido, "e1", [])).toEqual([]);
+  });
+
+  it("venda que drenou OUTRO evento não segura este", () => {
+    const dois = makeGood({
+      skus: [
+        {
+          name: "Boneco",
+          layers: [
+            { id: "e1__whole", at: 0, qty: 10, unitCost: 10, sourceEventId: "e1" },
+            { id: "e2__whole", at: DIA, qty: 5, unitCost: 12, sourceEventId: "e2" },
+          ],
+        },
+      ],
+    });
+    const vendaDoE2 = recibo({ layerId: "e2__whole", qty: 5 });
+    expect(finishedEventReferences(dois, "e1", [vendaDoE2])).toEqual([]);
+    expect(finishedEventReferences(dois, "e2", [vendaDoE2])).toHaveLength(1);
+  });
+
+  it("move de OUTRO produto passa batido (um recibo drena vários acabados)", () => {
+    const alheio = recibo({ productId: "prod-9" });
+    expect(finishedEventReferences(produzido, "e1", [alheio])).toEqual([]);
+  });
+
+  it("dois itens do MESMO recibo somam num só — é o recibo que o dono apaga", () => {
+    const refs = finishedEventReferences(produzido, "e1", [
+      recibo({ qty: 3 }),
+      recibo({ qty: 2, saleDate: DIA * 2 }),
+    ]);
+    expect(refs).toHaveLength(1);
+    expect(refs[0]).toMatchObject({ reciboId: "rec-1", qty: 5, saleDate: DIA * 2 });
+  });
+
+  it("ordena do recibo mais recente para o mais antigo (como o histórico)", () => {
+    const refs = finishedEventReferences(produzido, "e1", [
+      recibo({ reciboId: "velho", saleDate: DIA }),
+      recibo({ reciboId: "novo", saleDate: DIA * 5 }),
+    ]);
+    expect(refs.map((r) => r.reciboId)).toEqual(["novo", "velho"]);
+  });
+
+  it("cor importa: a camada da outra cor é outra SKU e outro id", () => {
+    const duasCores = makeGood({
+      skus: [
+        {
+          name: "Boneco",
+          colorKey: AZUL.key,
+          colorLabel: AZUL.label,
+          layers: [
+            { id: "e1__whole__fil_azul", at: 0, qty: 4, unitCost: 10, sourceEventId: "e1" },
+          ],
+        },
+        {
+          name: "Boneco",
+          colorKey: VERMELHO.key,
+          colorLabel: VERMELHO.label,
+          layers: [
+            { id: "e1__whole__fil_verm", at: 0, qty: 4, unitCost: 10, sourceEventId: "e1" },
+          ],
+        },
+      ],
+    });
+    // O mesmo evento credita as duas cores; vender só a vermelha já segura.
+    const refs = finishedEventReferences(duasCores, "e1", [
+      recibo({ layerId: "e1__whole__fil_verm", qty: 1 }),
+    ]);
+    expect(refs).toHaveLength(1);
+    expect(refs[0].qty).toBe(1);
+  });
+
+  it("doc ausente, evento sem camada e qty 0 não seguram nada", () => {
+    expect(finishedEventReferences(null, "e1", [recibo()])).toEqual([]);
+    expect(finishedEventReferences(produzido, "e9", [recibo()])).toEqual([]);
+    expect(finishedEventReferences(produzido, "e1", [recibo({ qty: 0 })])).toEqual([]);
+  });
+});
+
+describe("shiftLayers (TD-028 — a camada órfã deixou de ser silêncio)", () => {
+  const produzido = makeGood({
+    skus: [
+      {
+        name: "Boneco",
+        layers: [{ id: "e1__whole", at: 0, qty: 10, unitCost: 10, sourceEventId: "e1" }],
+      },
+    ],
+  });
+
+  it("o cenário medido: produzir 10, vender 4, excluir a produção, estornar", () => {
+    const venda = consumeFifo(produzido, undefined, AZUL.key, 4);
+    const vendido = applyFinishedConsumption(produzido, venda.moves);
+    expect(skuBalance(vendido.skus[0])).toBe(6);
+    expect(goodValue(vendido)).toBe(60);
+
+    // O que a exclusão da produção fazia (e que o guarda agora impede).
+    const semAProducao = removeEventLayers(vendido, "e1");
+    expect(semAProducao.skus[0].layers).toHaveLength(0);
+    expect(goodValue(semAProducao)).toBe(0);
+
+    // Antes: devolvia o doc intacto, 0 unidades, sem erro. Agora ACUSA.
+    expect(() =>
+      reverseFinishedConsumption(semAProducao, venda.moves),
+    ).toThrowError(/camada que esta venda drenou não existe/);
+  });
+
+  it("a baixa também acusa (não só o estorno)", () => {
+    const venda = consumeFifo(produzido, undefined, AZUL.key, 4);
+    const vazio = removeEventLayers(produzido, "e1");
+    expect(() => applyFinishedConsumption(vazio, venda.moves)).toThrowError(
+      /Estoque de produtos inconsistente/,
+    );
+  });
+
+  it("a mensagem conta QUANTAS camadas e nomeia o produto", () => {
+    const venda = consumeFifo(produzido, undefined, AZUL.key, 4);
+    const vazio = removeEventLayers(produzido, "e1");
+    try {
+      reverseFinishedConsumption(vazio, venda.moves);
+      expect.unreachable("deveria ter lançado");
+    } catch (err) {
+      expect((err as Error).message).toContain("Boneco");
+      expect((err as Error).message).toContain("1 camada");
+    }
+  });
+
+  it("contraponto: moves só de outro produto continuam mudos (e sem erro)", () => {
+    const venda = consumeFifo(produzido, undefined, AZUL.key, 1);
+    const alheio = venda.moves.map((m) => ({ ...m, productId: "outro" }));
+    expect(reverseFinishedConsumption(produzido, alheio)).toBe(produzido);
+  });
+
+  it("contraponto: delta 0 é camada ACHADA, não órfã", () => {
+    const zerado = [
+      { productId: "prod-1", layerId: "e1__whole", qty: 0, unitCost: 10, cost: 0 },
+    ];
+    const after = reverseFinishedConsumption(produzido, zerado);
+    expect(skuBalance(after.skus[0])).toBe(10);
+  });
+
+  it("contraponto: com a camada no lugar, o round-trip segue exato", () => {
+    const venda = consumeFifo(produzido, undefined, AZUL.key, 4);
+    const vendido = applyFinishedConsumption(produzido, venda.moves);
+    const volta = reverseFinishedConsumption(vendido, venda.moves);
+    expect(skuBalance(volta.skus[0])).toBe(10);
+    expect(goodValue(volta)).toBe(100);
   });
 });

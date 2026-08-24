@@ -9,6 +9,71 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ TD-028 (lote C da AUD-13) — excluir produção vendida virou uma RECUSA (2026-08-24)
+
+> O lote A **abriu** este caminho: enquanto o `[TD-026]` impedia excluir qualquer produção que
+> tivesse creditado acabado, o defeito ficava mascarado. Consertado o TD-026, ele passou a ser
+> alcançável por um clique.
+
+### O buraco: o estorno que devolvia zero e não reclamava
+
+`finishedForRemove` chamava `removeEventLayers` sem perguntar se alguma camada daquele evento já
+tinha sido drenada por venda. A camada sumia; a venda continuava guardando o `FinishedMove` com o
+`layerId`; e no estorno o `shiftLayers` procurava esse id, **não achava e devolvia o doc intacto** —
+sem erro, sem aviso, sem número errado visível em lugar nenhum. Medido no harness: produzir 10 un a
+R$ 100 → vender 4 (saldo 6, valor 60) → excluir a produção (0 camadas, valor 0) → estornar o recibo
+→ **0 un devolvidas**, quando deveriam voltar 4 un / R$ 40.
+
+De quebra, o comentário do próprio `removeEventLayers` afirmava que manter a SKU vazia servia para
+que *"o custo já vendido não some do rastro"*. Medido: some (valor 60 → 0). Mesma classe de
+armadilha que o `[TD-023]` levantou do outro lado do arquivo — comentário que promete garantia que o
+código não dá.
+
+### A decisão: BARRAR, não preservar (dono, 2026-08-24)
+
+Havia duas saídas. **(b) preservar** a camada drenada e remover só o saldo não vendido faria o
+comentário virar verdade, mas cria um estado que não se explica: estornar o recibo depois devolve a
+peça à prateleira **sem produção nenhuma por trás dela**. **(a) barrar** é a disciplina que o
+`/estoque` já usa para excluir cor (`filamentReferences`): excluir só é liberado quando ninguém
+referencia mais. O dono martelou (a). O ganho não é só o custo menor — é que o estado ambíguo
+**nunca nasce**.
+
+### O que entrou
+
+- **`finishedEventReferences(good, eventId, sales)`** (`finishedGoods.ts`) — espelho exato do
+  `filamentReferences`. Lê os ids de camada DAQUELE evento **do doc** (não derivados à mão: id
+  derivado erraria a cor), soma os moves de cada recibo que apontam para eles e **agrupa por
+  RECIBO**, não por venda — um recibo tem vários itens, e é o recibo que a `/vendas` mostra e que o
+  dono precisa apagar. Ordenado do mais recente para o mais antigo, como o histórico.
+- **`ProductionPage`** passou a ler `useSales` (leitura pura; quem mexe em venda é a `/vendas`) e o
+  `remove` recusa antes do diálogo, nomeando quem segura: *"1 peça desta produção já foi vendida
+  (recibo 24/08/2026 · sem cliente)"*.
+- **`shiftLayers` deixou de ser mudo.** Move deste produto cujo `layerId` não existe mais agora
+  **lança**. Com o guarda no lugar esse estado não nasce pela UI — e é exatamente por isso que
+  chegar lá significa doc corrompido, não "não havia o que fazer".
+  ⚠ Entrou junto a troca de `!delta` por `delta === undefined`: delta 0 (moves que se anulam) é
+  camada **ACHADA**, e o `!delta` a acusaria de órfã.
+
+**14 testes novos.** Revertido só o `shiftLayers`, os **3** do cenário medido falham (os outros 11
+cobrem a função nova, que não existia). `lint` ✅ · `build` ✅ · **711/711** ✅.
+
+### A prova ao vivo — e a limpeza `ZZ AUDIT` de carona
+
+Era o **único item da AUD-13 sem prova na UI**. O cenário já estava armado no banco real: a venda de
+R$ 18,41 drenava a camada da produção `ZZ AUDIT sonda D1`. Ida e volta inteira, nesta ordem:
+
+1. Excluir `sonda D1` → **RECUSOU**, nomeando o recibo. Sem diálogo, produção intacta.
+2. Excluir `sonda REV` (não vendida) → diálogo normal, excluída, **Laranja 1353 → 1363 g** (os 10 g).
+   O guarda não bloqueia demais.
+3. Excluir a venda → estorno ao centavo (48→47, −18,41 receita, −11,69 custo, −6,72 lucro). O
+   `shiftLayers` **achou** a camada — porque o guarda impediu que ela fosse apagada. É o buraco.
+4. Excluir `sonda D1` de novo → **LIBEROU**. Laranja 1363 → **1403 g**, os 50 g previstos.
+
+Os 2 produtos saíram do catálogo (99 → 97) e com eles o erro de chave React duplicada
+(`sub:4I1pyH6F9fcWV2OpJpq9:sub_1`) que era **dado** legado do `[CSV-32]`, não código. Sobraram só os
+**2 docs de `acabados`** (saldo 0, invisíveis): é o `[TD-030]` — não há caminho de UI, e o
+`deleteGood` é código morto.
+
 ## ✅ Lote B da AUD-13 — o que entrava calado na carga (2026-08-24)
 
 > Três itens, um tema: **dado que entra errado sem ninguém contar**. O `[CSV-32]` era o furo de

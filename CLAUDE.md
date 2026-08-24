@@ -14,25 +14,24 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-24): LOTE B da AUD-13 fechado — o que entrava calado na carga.**
-  `[CSV-32]` o fallback `sub_<índice>` do `parseSubitems` só usa id LIVRE na lista inteira (id
-  explícito repetido acende `subitem-id-repetido` e ganha id próprio) — era ele que fazia dois
-  subitens colidirem na mesma SKU e comerem R$ 4,06 de R$ 15,75 · `[TD-027]` o `addProductionLayers`
-  separou as duas perguntas: replay de evento se decide UMA vez por chamada, entrada repetida na
-  MESMA chamada **soma** (média ponderada, uma camada só) · `[UX-48]` id de máquina casa como
-  IDENTIDADE, antes do palpite (100 linhas `Maquina = A1` acendiam 100 avisos). **20 testes novos;
-  revertido o conserto, 14 falham.** `lint` ✅ · `build` ✅ · **697/697** ✅. Restam **14 itens**
-  da AUD-13 (lotes C–E).
-- ⚠ **A limpeza dos 7 documentos `ZZ AUDIT` está LIBERADA** (o `[TD-026]` a impedia): excluir as 2
-  produções pela UI devolve os 50 g da Laranja (1353 → 1403 g) e vale como conferência ao vivo.
+- **Última mudança (2026-08-24): LOTE C da AUD-13 fechado — o `[TD-028]`, com decisão do dono.**
+  Excluir uma produção cujas peças já foram vendidas apagava a camada e o estorno do recibo devolvia
+  **nada, em silêncio**. Escolha do dono: **BARRAR**. O `finishedEventReferences` novo (espelho do
+  `filamentReferences`) faz o `/producao` **recusar** nomeando o recibo, e o `shiftLayers` deixou de
+  ser mudo — move cujo `layerId` sumiu agora **lança**. **14 testes novos; revertido o `shiftLayers`,
+  os 3 do cenário medido falham.** `lint` ✅ · `build` ✅ · **711/711** ✅. ✅ **Provado ao vivo** (era
+  o único item da AUD-13 sem prova na UI). Restam **13 itens** da AUD-13 (lotes D e E).
+- ✅ **A limpeza dos 7 docs `ZZ AUDIT` está FEITA** (rodou junto da prova): catálogo 99 → 97,
+  produção 59 → 57, vendas 48 → 47, Laranja **1353 → 1403 g**. Sobraram os 2 docs de `acabados`
+  (saldo 0, invisíveis) — é o `[TD-030]`, sem caminho de UI.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — o LOTE C da AUD-13: o `[TD-028]`.** Sozinho porque **exige decisão do dono**
-  (barrar a exclusão nomeando o recibo, como a exclusão de cor faz; ou preservar a camada drenada e
-  remover só o saldo não vendido) — e porque foi o lote A que **abriu** este caminho. Depois D e E.
+- **▶ PRÓXIMA TAREFA — o LOTE D da AUD-13: `[TD-029]` + `[UX-49]`.** Nenhum toca lógica de negócio
+  e os dois se verificam na mesma sessão de navegador: 3 caminhos de escrita sem `guardOnline` (um
+  diz "Sincronizado" no vazio) e o ✕ dos 9 modais a 32×32 no celular. Depois o lote E (os 11 🟢).
   → A frente do DONO segue a mesma: cadastrar as cores e os insumos definitivos e passar os ids pro
   **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
   (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. A carga **não cria**

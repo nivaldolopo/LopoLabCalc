@@ -9,7 +9,7 @@
 > ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código NÃO está mais zerado (2026-08-23).** Vários
 > parágrafos abaixo dizem "está ZERADO"; eles descrevem o estado **antes** da varredura **AUD-12**
 > (a v2 da geral). **Vencido de novo em 2026-08-24: a varredura AUD-13 (a v3) abriu 18 itens**
-> (lotes **A** e **B** já fechados no mesmo dia — **14 restam**, lotes C, D e E) —
+> (lotes **A**, **B** e **C** já fechados no mesmo dia — **13 restam**, lotes D e E) —
 > a seção dela é a **última** deste arquivo, logo acima de "## Fechado", e ela **refuta parte da
 > AUD-12**: o lote D dela quebrou o `/producao` (`[TD-026]` 🔴). Leia aquela seção antes desta.
 > Ela abriu **17 itens** — o cabeçalho dizia 15, e a conta estava errada: o rótulo "4 🟡" vinha
@@ -1169,8 +1169,17 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
   **Saída:** separar as duas perguntas — idempotência por evento se resolve UMA vez por chamada (a
   SKU já tem camada com aquele `sourceEventId`?); entradas duplicadas na mesma chamada **somam**.
 
-- **[TD-028] Excluir uma produção já vendida apaga a camada — e o estorno do recibo devolve NADA.**
-  `finishedForRemove` chama `removeEventLayers` sem perguntar se alguma camada do evento já foi
+- ✅ **[TD-028] FEITO (lote C, 2026-08-24) — BARRAR (escolha do dono).** O `/producao` passou a ler
+  o histórico de vendas e a chamar o `finishedEventReferences` novo (`finishedGoods.ts`, espelho
+  exato do `filamentReferences`): recibo vivo em cima das camadas do evento **recusa** a exclusão
+  nomeando quem segura ("24/08/2026 · Maria") e quantas peças já saíram. E o `shiftLayers` deixou de
+  ser mudo — move deste produto cujo `layerId` não existe mais **lança** com a frase de estoque
+  inconsistente, em vez de devolver o doc intacto. O `delta === undefined` no lugar do `!delta`
+  entrou junto: delta 0 é camada ACHADA, e o `!delta` a acusaria de órfã. **14 testes novos;
+  revertido o `shiftLayers`, os 3 do cenário medido falham** (os outros 11 cobrem a função nova).
+  O comentário mentiroso do `removeEventLayers` foi reescrito no lugar. Descrição original:
+  **Excluir uma produção já vendida apaga a camada — e o estorno do recibo devolve NADA.**
+  `finishedForRemove` chamava `removeEventLayers` sem perguntar se alguma camada do evento já foi
   drenada por venda. A camada some; a venda continua guardando um `FinishedMove` apontando para ela;
   no estorno o `shiftLayers` procura pelo id, não acha e devolve o doc intacto — sem erro, sem aviso.
   **Medido (harness):** produzir 10 un/R$ 100 → vender 4 (saldo 6, valor 60, COGS 40) → excluir a
@@ -1270,7 +1279,7 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
 |---|---|---|---|
 | ~~**A — destravar a produção**~~ ✅ **FEITO (2026-08-24)** | ~~[TD-026]~~ | Era o único que deixava o app **inoperante**. O aviso do custo se confirmou: o conserto foi de 3 linhas, o teste é que exigiu montar o ciclo inteiro | — |
 | ~~**B — o que entra calado na carga**~~ ✅ **FEITO (2026-08-24)** | ~~[CSV-32] · [TD-027] · [UX-48]~~ | O diagnóstico se confirmou: consertar só o parser deixaria a bomba armada no `finishedGoods` — os dois foram no mesmo commit, com 20 testes novos (14 falham contra o código velho; os 6 restantes são os contrapontos) | — |
-| **C — o estorno que fica mudo** | **[TD-028]** | Sozinho porque exige DECISÃO do dono (barrar vs. preservar), e porque o lote A **abre** este caminho | baixo (barrar) ou médio (preservar) / baixo |
+| ~~**C — o estorno que fica mudo**~~ ✅ **FEITO (2026-08-24)** | ~~[TD-028]~~ | O dono martelou **barrar**. O custo bateu com o previsto (baixo): o guarda é uma função pura de 30 linhas + 5 linhas no `remove` — o que cresceu foi o teste, como no lote A | — |
 | **D — offline e o dedo no diálogo** | [TD-029] · [UX-49] | Nenhum toca lógica de negócio e os dois se verificam na mesma sessão de navegador | baixo / baixo (atenção à cascata do `@media`) |
 | **E — a poeira** | os 11 🟢 | Vale quebrar em duas sessões: CSS/alvo (UX-50, UX-51, A11Y-02) e parser (CSV-33, CSV-35, CSV-36, CSV-37); o código morto (TD-030, TD-031) vai de carona | baixo, mas somado não é desprezível |
 
@@ -1319,16 +1328,27 @@ sozinho sem arrastar a linha, total R$ 18,41 = a tela.
 - **Offline com a rede realmente caída** (fila do Firestore, Promise pendente, reconexão). Forcei
   `navigator.onLine`, que é o que o `guardOnline` lê — e é por isso que o contraste guardado × não
   guardado ficou nítido. Resíduo do antigo `[AUD-04]`, agora pela **quarta** varredura.
-- **O caminho da camada órfã na UI** — o `[TD-028]` está provado por harness e leitura, não ao vivo,
-  porque o `[TD-026]` impedia excluir a produção. ✅ **O lote A abriu esse caminho (2026-08-24)**: é
-  o **primeiro teste a rodar** agora, e continua sendo o único item da AUD-13 sem prova ao vivo.
+- ~~**O caminho da camada órfã na UI**~~ ✅ **RODADO ao vivo no lote C (2026-08-24)**, no banco real
+  e no cenário que já estava armado (a venda de R$ 18,41 drenava a camada da produção
+  `ZZ AUDIT sonda D1`). Ida e volta inteira: excluir a produção **recusou** nomeando o recibo →
+  a produção NÃO vendida (`sonda REV`) abriu o diálogo normal e excluiu, devolvendo os 10 g
+  (Laranja 1353 → 1363) → apagar a venda estornou ao centavo (48→47 itens, −18,41 receita,
+  −11,69 custo, −6,72 lucro) e o `shiftLayers` **achou** a camada, porque o guarda impediu que ela
+  fosse apagada → aí a `sonda D1` LIBEROU e excluiu (Laranja 1363 → **1403 g**). Não sobrou item da
+  AUD-13 sem prova ao vivo.
 - **Regras de segurança do Firestore** (exige 2ª conta Google) · **acima de 500 produtos** contra o
   banco · **duas abas gravando ao mesmo tempo** (a AUD-12 já fez; aqui o guarda `rev` foi exercitado
   e foi ele que denunciou o TD-026) · **Excel/Google Sheets de verdade** e o diálogo de arquivo do SO
   · **navegadores fora do Chromium embutido** e iOS Safari real · **importação/exportação de vendas,
   filtros e paginação do histórico**, e o `/maquinas` além da leitura.
 
-### Balanço do banco — 7 documentos criados, limpeza PARADA de propósito
+### Balanço do banco — 7 documentos criados, ✅ LIMPEZA FEITA no lote C (2026-08-24)
+
+> A limpeza rodou pela UI durante a prova ao vivo do `[TD-028]` e serviu de conferência: `products`
+> **99 → 97** · `producao` **59 → 57** · `vendas` **48 → 47** · `estoque` Laranja **1353 → 1403 g**,
+> exatamente os 50 g previstos. Sobraram só os **2 docs de `acabados`** (saldo 0, invisíveis na
+> tela): é o `[TD-030]` — não existe caminho de UI para apagá-los, e o `deleteGood` é código morto.
+> A tabela abaixo é o retrato de quando as sondas foram criadas.
 
 | Coleção | Antes | Depois | O quê | Sai pela UI? |
 |---|---|---|---|---|
