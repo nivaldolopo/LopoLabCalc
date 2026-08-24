@@ -21,10 +21,10 @@
   sobre científica lida CORRETAMENTE `[CSV-29]` · peça fracionária virou **reprovação**
   `[CSV-31]`. **D** `[TD-023]`: `addProductionLayers` confere `layer.id` e a idempotência prometida
   vira real — mas `shiftLayers` (baixa/estorno) é **DELTA** e ficou deliberadamente NÃO idempotente.
-  **E — toque e responsivo:** o corte de cartão subiu de 640 para
-  **760px** e a rolagem lateral zerou (`/catalogo` 68→0, `/vendas` 130→0 em 23 recibos) `[UX-45]` ·
-  `.icon-button` 28→32/44, o range 313×**4**→313×44, `.btn-sm` 29→32/44 e o stepper 14→28 no celular
-  `[UX-46]` — `/producao` foi de **25 → 0** abaixo da régua no desktop.
+  **E:** o corte de cartão subiu de 640 para **760px** e a rolagem lateral zerou
+  (`/catalogo` 68→0, `/vendas` 130→0 em 23 recibos) `[UX-45]` · `.icon-button` 28→32/44, o range
+  313×**4**→313×44, `.btn-sm` 29→32/44, stepper 14→28 no celular `[UX-46]` — `/producao` foi de
+  **25 → 0** abaixo da régua no desktop.
   `lint` ✅ · `build` ✅ · **672/672** ✅ (+19). Detalhe e as exceções medidas: `HISTORICO.md`.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
