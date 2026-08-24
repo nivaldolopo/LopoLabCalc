@@ -9,6 +9,66 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ TD-026 (lote A da AUD-13) — a produção destravou (2026-08-24)
+
+> **Regressão do próprio `[TD-022]`, de um dia antes.** A trava de concorrência entrou certa; o que
+> faltou foi o `rev` chegar até ela por dois dos três caminhos. Resultado na prática: cada produto
+> podia ser produzido para o estoque **uma única vez**, e nenhuma produção que tivesse creditado
+> acabado podia ser excluída — com uma mensagem de erro que **mentia** sobre a causa.
+
+### O mecanismo, em uma frase
+
+A transação confere `finished.payload.rev ?? 0` contra o `rev` que está no banco. Os dois
+construtores desse payload — `addProductionLayers` e o `finishedForRemove` da `ProductionPage` —
+montavam um objeto **novo**, campo a campo, e nenhum dos dois copiava o `rev`. Logo a versão
+esperada era **sempre 0**, e 0 só é verdade antes da primeira produção. A venda escapava por acaso:
+o `applyFinishedConsumption` faz `{...good}` e o `rev` pegava carona.
+
+É a **FORM-01 aplicada a metadado de documento** — a mesma classe do `supplyId` que sumia sem mover
+um centavo. E, como lá, o preço não era canário: o payload tinha as camadas certas, o custo certo e
+o saldo certo. O que faltava não aparecia em número nenhum na tela.
+
+### O conserto — um construtor, não dois remendos
+
+Havia **três** lugares montando `FinishedGoodPayload` a partir de um `FinishedGood`, e um deles (o
+`toPayload` do `saleReconciliation`) já estava certo, com o comentário explicando exatamente por quê
+— o que só provou que corrigir os outros dois na mão recriaria o problema na quarta vez. Então os
+três passaram a chamar **`finishedGoodToPayload`** (exportada do `finishedGoods.ts`), e o
+`addProductionLayers` ganhou `rev: good?.rev` no doc que devolve.
+
+⚠ O `rev` **não vai para o documento**: o `finishedGoodToDocument` o ignora de propósito e quem
+escreve o número novo é a transação. Ele viaja no payload só para dizer **contra qual versão este
+plano foi calculado**.
+
+### O teste — e por que ele NÃO é unitário
+
+A AUD-13 avisou que aqui estava o risco real ("baixo no código, **alto se o teste for unitário**"),
+e a medição confirma: um teste sobre `addProductionLayers` sozinho **passa com o bug dentro**. O
+defeito só existe no CICLO — gravar, o banco incrementar o `rev`, RELER, e planejar a gravação
+seguinte sobre o doc relido.
+
+`src/lib/firebase/productionRevRoundTrip.test.ts` monta esse ciclo: um Firestore de mentira em
+memória (as escritas ficam **em espera** até o corpo da transação terminar sem lançar, para que
+"nada foi gravado" seja verificável) e, por cima dele, o repositório de **verdade**
+(`saveProduction`/`removeProduction` com o `lerEConferirRevs` real) e os serializadores de verdade
+nos **dois** sentidos — o `toFinishedGood` e o `toStockFilament` foram exportados para fechar o
+round-trip. O que é falso é só o SDK.
+
+Cinco casos: 2ª produção · 3ª produção · "Excluir e estornar" das duas, com a cor voltando **1403 → 1323 →
+1363 → 1403 g** · produzir depois de excluir tudo · e o contraponto obrigatório — **plano calculado
+sobre versão velha continua sendo RECUSADO**, sem evento, sem camada e sem baixa. Revertendo o
+conserto, os 4 primeiros falham com a frase literal de produção (*"As peças prontas de … mudou
+enquanto esta tela estava aberta"*) e o 5º segue passando: o conserto não foi "parar de conferir".
+
+`lint` ✅ · `build` ✅ · **677/677** (672 + 5).
+
+### O que ficou de fora
+
+O `[TD-028]` — excluir uma produção **já vendida** apaga a camada e o estorno do recibo devolve
+nada. Ele estava **mascarado** por este item (nenhuma produção com acabado era excluível) e agora
+está **aberto**: é o lote C, e é a primeira coisa a rodar contra o banco. As 2 sondas `ZZ AUDIT`
+podem ser limpas pela UI agora — nenhuma delas foi vendida, então não passam por esse caminho.
+
 ## ✅ TD-022 — duas gravações simultâneas deixaram de se apagar (2026-08-23)
 
 > Único item da AUD-12 que estava marcado como *"mecanismo lido no código, NÃO reproduzido"*. O dono

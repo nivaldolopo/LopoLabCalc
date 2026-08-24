@@ -54,7 +54,10 @@ function toSku(data: DocumentData): FinishedSku {
   };
 }
 
-function toFinishedGood(id: string, data: DocumentData): FinishedGood {
+// Exportada para o teste do TD-026: é a metade LEITURA do round-trip com o
+// `finishedGoodToDocument`, e o defeito daquele item vivia exatamente na volta
+// (o doc trazia o `rev`, o payload remontado o perdia).
+export function toFinishedGood(id: string, data: DocumentData): FinishedGood {
   return {
     id,
     // TD-022: a versão do documento entra na leitura para viajar de carona nos

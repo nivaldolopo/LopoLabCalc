@@ -45,7 +45,9 @@ function toAdjustment(data: DocumentData): StockAdjustment {
   };
 }
 
-function toStockFilament(id: string, data: DocumentData): StockFilament {
+// Exportada para o teste do TD-026 (ver `toFinishedGood`): a produção repetida
+// só se reproduz relendo a cor do banco entre uma gravação e a seguinte.
+export function toStockFilament(id: string, data: DocumentData): StockFilament {
   return {
     id,
     // TD-022: a versão do documento entra na leitura para viajar de carona nos

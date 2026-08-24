@@ -14,25 +14,25 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-24): a varredura AUD-13 (v3 da geral) abriu 18 itens — nada corrigido
-  ainda.** Ela achou o que procurava: **a AUD-12 quebrou o `/producao`**. `[TD-026]` 🔴 — cada produto
-  só pode ser produzido para o estoque **UMA vez**; da 2ª em diante a transação é recusada com
-  mensagem FALSA de concorrência, e "Excluir e estornar" também (o payload do acabado é remontado
-  **sem o `rev`**). `[CSV-32]` 🔴 — id de subitem repetido entra calado na carga e **R$ 4,06 de
-  R$ 15,75 sumiram** do acabado. Mais 2 🟠, 3 🟡 e 11 🟢, com lotes A–E propostos: **o A vem primeiro
-  e o C tem ordem obrigatória**. `lint` ✅ · `build` ✅ · **672/672 ×4** ✅ · tudo no `BACKLOG.md`.
-- ⚠ **7 documentos `ZZ AUDIT` ficaram no banco de propósito** (dono, 2026-08-24): as 2 sondas são o
-  caso de reprodução do `[TD-026]`, e o próprio bug impede excluir as 2 produções. Fechado o lote A,
-  "Excluir e estornar" apaga os eventos **e** devolve os 50 g da Laranja (1403 → 1353 g).
+- **Última mudança (2026-08-24): LOTE A da AUD-13 fechado — o `/producao` destravou (`[TD-026]`).**
+  Os **três** construtores de payload do acabado passaram a chamar um só (`finishedGoodToPayload`), e
+  o `addProductionLayers` devolve o doc com `rev` — era ele que ficava para trás na remontagem, e por
+  isso a 2ª produção de qualquer produto e toda exclusão com acabado eram recusadas com mensagem
+  FALSA de concorrência. ⚠ O teste **não é unitário**: `productionRevRoundTrip.test.ts` monta o ciclo
+  gravar→reler→gravar sobre um Firestore falso, com o repositório de verdade. `lint` ✅ · `build` ✅ ·
+  **677/677** ✅ (672 + 5). Restam **17 itens** da AUD-13 no `BACKLOG.md` (lotes B–E).
+- ⚠ **A limpeza dos 7 documentos `ZZ AUDIT` está LIBERADA** — era o `[TD-026]` que a impedia. Excluir
+  as 2 produções pela UI devolve os 50 g da Laranja (1353 → 1403 g) e vale como conferência ao vivo.
+  ⚠ **O lote A ABRIU o `[TD-028]`** (excluir produção já vendida some com a camada e o estorno do
+  recibo devolve nada) — é o lote C, e exige DECISÃO do dono: barrar ou preservar.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — o LOTE A da AUD-13: `[TD-026]`.** Não é escolha de prioridade: é o único item
-  que deixa o app **inoperante** hoje, e é ele que destrava a limpeza das sondas. ⚠ O teste **não é
-  unitário** — tem de produzir 2× o mesmo produto e excluir a produção. Depois B (o que entra calado
-  na carga), C (o A **abre** o `[TD-028]`), D e E. **A carga em massa espera o LOTE B.**
+- **▶ PRÓXIMA TAREFA — o LOTE B da AUD-13: `[CSV-32]` + `[TD-027]` + `[UX-48]`.** É o que entra
+  **calado** na carga (id de subitem repetido comeu R$ 4,06 de R$ 15,75), e **a carga em massa espera
+  este lote**. Depois C (o `[TD-028]`, que o lote A abriu, com decisão do dono), D e E.
   → A frente do DONO segue a mesma: cadastrar as cores e os insumos definitivos e passar os ids pro
   **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
   (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. A carga **não cria**

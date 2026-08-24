@@ -1089,10 +1089,10 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
 > "fora de lote") deixou cada produto produzível **uma única vez**. Não foi pego porque o defeito só
 > aparece na SEGUNDA produção, e ninguém produziu duas vezes o mesmo produto depois de 2026-08-23.
 >
-> ⚠ **A limpeza do banco parou de propósito** (decisão do dono, 2026-08-24): o próprio `[TD-026]`
-> impede excluir as 2 produções das sondas. As duas sondas `ZZ AUDIT` **ficam no ar como caso de
-> reprodução**; quando o lote A fechar, o "Excluir e estornar" apaga os eventos E devolve os 50 g da
-> cor Laranja — a limpeza vira o teste de regressão do conserto. Balanço completo no fim da seção.
+> ✅ **A limpeza do banco está LIBERADA desde o lote A (2026-08-24).** Ela tinha parado de propósito
+> porque o próprio `[TD-026]` impedia excluir as 2 produções das sondas. Fechado o lote A, "Excluir e
+> estornar" apaga os eventos E devolve os 50 g da cor Laranja (1353 → 1403) — é o dono quem roda,
+> pela UI, e serve de conferência ao vivo do conserto. Balanço completo no fim da seção.
 >
 > ⚠ **Três falsos positivos MEUS, declarados:** (1) "a capacidade está 8% errada" — eu esqueci o
 > `Math.floor` por conjunto de máquinas; (2) "o `buildProductPayload` corrompe o `includeFixed`" — eu
@@ -1108,24 +1108,20 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
 
 ### 🔴 Entra calado na carga, ou trava a operação
 
-- **[TD-026] Cada produto pode ser produzido para o estoque UMA ÚNICA VEZ — depois o `/producao`
-  recusa para sempre.** *Regressão do `[TD-022]` (2026-08-23).*
-  **Mecanismo:** a trava de concorrência lê a versão esperada em `finished.payload.rev ?? 0`, mas os
-  dois construtores desse payload — `addProductionLayers` e `finishedForRemove` — montam um objeto
-  NOVO **sem copiar o `rev`**. A versão esperada é sempre 0, e 0 só existe antes da primeira
-  produção. A venda escapa por acaso: `applyFinishedConsumption` faz `{...good}` e o `rev` pega
-  carona — exatamente o mecanismo que o comentário do `revGuard.ts` promete.
-  **Medido ao vivo, 2× com produtos diferentes:** 1ª produção grava (56→57) · "Excluir e estornar"
-  **recusado** (57→57) · 2ª produção **recusada** (57→57) · e no controle SEM venda nenhuma
-  (`ZZ AUDIT sonda REV`): 1ª grava (57→58), 2ª **recusada** (58→58).
-  A mensagem na tela é **falsa** — *"mudou enquanto esta tela estava aberta (outra aba, outro
-  dispositivo…)"* — e recarregar/fechar abas/esperar não resolve: a causa não é estado velho, é uma
-  versão que nunca foi enviada. **Não há saída pela interface.**
-  **Onde:** `finishedGoods.ts:327-333` · `ProductionPage.tsx:435-440` ·
-  `productionRepository.ts:379`. Comparar com `salesRepository.ts:472-478`, que funciona.
-  **Saída:** os dois construtores carregam o `rev` do doc lido (`...(good ? { rev: good.rev } : {})`,
-  no mesmo molde do `createdAt` que já é preservado ali). ⚠ **O teste NÃO é unitário** — unitário
-  sobre a função pura não pega nada. Tem de produzir 2× o mesmo produto e excluir a produção.
+- ✅ **[TD-026] FEITO (lote A, 2026-08-24).** Os TRÊS construtores de payload do acabado passaram a
+  chamar um só — `finishedGoodToPayload` —, e o `addProductionLayers` devolve o doc com `rev`. Um dos
+  três (o `toPayload` do `saleReconciliation`) já estava certo, e é por isso que a venda escapava: a
+  correção foi unificar, não remendar dois. ⚠ O teste é o
+  `src/lib/firebase/productionRevRoundTrip.test.ts` — **não é unitário**, como a AUD-13 exigiu:
+  Firestore falso em memória + o repositório e os serializadores de verdade nos dois sentidos,
+  cobrindo 2ª/3ª produção, "Excluir e estornar" com a cor voltando a 1403 g, produzir depois de
+  excluir, e o contraponto (versão velha CONTINUA sendo recusada). Revertido o conserto, 4 dos 5
+  falham com a frase literal de produção. Writeup no [`HISTORICO.md`](HISTORICO.md).
+  ⚠ **Isto ABRE o `[TD-028]`** (lote C) — leia a ordem obrigatória lá.
+  ⚠ **As 2 sondas `ZZ AUDIT` já podem ser limpas pela UI** (nenhuma foi vendida, então não passam
+  pelo caminho do TD-028). Descrição original: **cada produto podia ser produzido para o estoque UMA
+  ÚNICA VEZ — depois o `/producao` recusava para sempre**, com mensagem FALSA de concorrência,
+  porque os dois construtores montavam o payload sem copiar o `rev` e a versão esperada era sempre 0.
 
 - **[CSV-32] Id de subitem repetido entra calado na carga e come um quarto do custo congelado.**
   **Mecanismo:** `parseSubitems` dá ao subitem sem id o nome `sub_<índice>`. Um id explícito `sub_1`
@@ -1250,7 +1246,7 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
 
 | Lote | Itens | Por que esses | Custo / risco |
 |---|---|---|---|
-| **A — destravar a produção** | **[TD-026]** | Sozinho e primeiro: é o único que deixa o app **inoperante** hoje, e é ele que impede a limpeza das sondas | baixo / baixo no código, **alto se o teste for unitário** |
+| ~~**A — destravar a produção**~~ ✅ **FEITO (2026-08-24)** | ~~[TD-026]~~ | Era o único que deixava o app **inoperante**. O aviso do custo se confirmou: o conserto foi de 3 linhas, o teste é que exigiu montar o ciclo inteiro | — |
 | **B — o que entra calado na carga** | **[CSV-32]** · [TD-027] · [UX-48] | Mesma sessão de teste: `parseSubitems` e `machineNameToId` no mesmo arquivo, e o TD-027 é o outro lado do CSV-32 (consertar só o parser deixa a bomba armada no `finishedGoods`) | médio / médio — fazer DEPOIS do A, no mesmo arquivo já quente |
 | **C — o estorno que fica mudo** | **[TD-028]** | Sozinho porque exige DECISÃO do dono (barrar vs. preservar), e porque o lote A **abre** este caminho | baixo (barrar) ou médio (preservar) / baixo |
 | **D — offline e o dedo no diálogo** | [TD-029] · [UX-49] | Nenhum toca lógica de negócio e os dois se verificam na mesma sessão de navegador | baixo / baixo (atenção à cascata do `@media`) |
@@ -1302,7 +1298,8 @@ sozinho sem arrastar a linha, total R$ 18,41 = a tela.
   `navigator.onLine`, que é o que o `guardOnline` lê — e é por isso que o contraste guardado × não
   guardado ficou nítido. Resíduo do antigo `[AUD-04]`, agora pela **quarta** varredura.
 - **O caminho da camada órfã na UI** — o `[TD-028]` está provado por harness e leitura, não ao vivo,
-  porque o `[TD-026]` impede excluir a produção. É o **primeiro teste a rodar depois do lote A**.
+  porque o `[TD-026]` impedia excluir a produção. ✅ **O lote A abriu esse caminho (2026-08-24)**: é
+  o **primeiro teste a rodar** agora, e continua sendo o único item da AUD-13 sem prova ao vivo.
 - **Regras de segurança do Firestore** (exige 2ª conta Google) · **acima de 500 produtos** contra o
   banco · **duas abas gravando ao mesmo tempo** (a AUD-12 já fez; aqui o guarda `rev` foi exercitado
   e foi ele que denunciou o TD-026) · **Excel/Google Sheets de verdade** e o diálogo de arquivo do SO
@@ -1314,11 +1311,11 @@ sozinho sem arrastar a linha, total R$ 18,41 = a tela.
 | Coleção | Antes | Depois | O quê | Sai pela UI? |
 |---|---|---|---|---|
 | `products` | 97 | **99** | `ZZ AUDIT sonda D1` = `4I1pyH6F9fcWV2OpJpq9` · `ZZ AUDIT sonda REV` = `KGFRWOheghVBdEUzVVEV` | sim |
-| `producao` | 56 | **58** | 2 eventos "ZZ AUDIT", 24/08/2026 | **não — é o TD-026** |
+| `producao` | 56 | **58** | 2 eventos "ZZ AUDIT", 24/08/2026 | ✅ **sim, desde o lote A** |
 | `acabados` | — | **+2** | id = o id do produto (os dois acima) | não existe caminho (TD-030) |
 | `vendas` | 47 · R$ 2.620,70 | **48** · R$ 2.639,11 | 1 recibo de R$ 18,41 | sim |
 | `orcamentos` | — | **+1** | Nº 0021 (contador 21 → 22, liberado pelo dono) | sim |
-| `estoque` Laranja | 1403 g | **1353 g** | −40 g e −10 g das 2 produções | volta sozinho quando o TD-026 for corrigido |
+| `estoque` Laranja | 1403 g | **1353 g** | −40 g e −10 g das 2 produções | ✅ volta ao excluir as 2 produções |
 
 Tudo o mais bate com o retrato inicial: **Bege 243 g / 5 rolos · Argola 198 un · Clicker Azul 108 un
 · `config/machines` intacto**. A alteração offline em `config/negocio` foi desfeita ainda offline e o

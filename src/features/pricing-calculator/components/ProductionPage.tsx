@@ -22,6 +22,7 @@ import { calculatePricing } from "../lib/calculatePricing";
 import { filamentTotalG } from "../lib/filaments";
 import {
   addProductionLayers,
+  finishedGoodToPayload,
   removeEventLayers,
   submissionEntries,
 } from "../lib/finishedGoods";
@@ -429,15 +430,12 @@ export function ProductionPage() {
       sku.layers.some((layer) => layer.sourceEventId === event.id),
     );
     if (!created) return null;
-    const reverted = removeEventLayers(good, event.id);
+    // TD-026: o payload sai do `finishedGoodToPayload`, não remontado à mão —
+    // era a remontagem que deixava o `rev` para trás e fazia a trava recusar
+    // TODA exclusão de produção que tivesse creditado acabado.
     return {
       productId: good.productId,
-      payload: {
-        productId: good.productId,
-        productName: good.productName,
-        skus: reverted.skus,
-        createdAt: good.createdAt,
-      },
+      payload: finishedGoodToPayload(removeEventLayers(good, event.id)),
     };
   }
 

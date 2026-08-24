@@ -260,6 +260,30 @@ export function colorsWithBalance(
 }
 
 /**
+ * O doc lido virando o payload que se grava. UM lugar só, porque são TRÊS os
+ * construtores de payload do acabado (esta função, o `addProductionLayers` e a
+ * exclusão do evento na `/producao`) e campo esquecido em um deles não aparece
+ * no preço nem na tela — FORM-01 aplicado a metadado de documento.
+ *
+ * ⚠ TD-026: o campo que some é o `rev`. Ele NÃO vai para o documento (o
+ * `finishedGoodToDocument` o ignora de propósito; quem escreve o número novo é a
+ * transação) — ele viaja no payload só para dizer à trava CONTRA QUAL VERSÃO
+ * este plano foi calculado. Payload sem `rev` promete "versão 0", que só existe
+ * antes da primeira produção: da segunda em diante a trava recusa a gravação com
+ * a mensagem — falsa — de que outra aba mexeu no documento. Foi assim que a
+ * `/producao` ficou produzindo cada produto uma única vez.
+ */
+export function finishedGoodToPayload(good: FinishedGood): FinishedGoodPayload {
+  return {
+    productId: good.productId,
+    productName: good.productName,
+    skus: good.skus,
+    createdAt: good.createdAt,
+    rev: good.rev,
+  };
+}
+
+/**
  * Incremento de UMA produção `estoque` no doc do acabado. PURA: devolve o doc
  * novo, não grava. Cria o doc quando `good` é null (1ª produção do produto).
  *
@@ -330,6 +354,9 @@ export function addProductionLayers(
     productName,
     skus,
     createdAt: good ? good.createdAt : num(at),
+    // TD-026: a versão do doc lido atravessa (ver `finishedGoodToPayload`).
+    // `undefined` quando o doc ainda não existe — e aí "versão 0" é a verdade.
+    rev: good?.rev,
   };
 }
 

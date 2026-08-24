@@ -5,6 +5,7 @@ import {
   applyFinishedConsumption,
   consumeFifo,
   consumeWholeFifo,
+  finishedGoodToPayload,
   reverseFinishedConsumption,
   WHOLE_PART_KEY,
 } from "./finishedGoods";
@@ -113,18 +114,6 @@ export type ReconContext = {
   // precisa bater com o doc; ver `newProductionId`). Fixo no preview.
   genId: () => string;
 };
-
-const toPayload = (good: FinishedGood): FinishedGoodPayload => ({
-  productId: good.productId,
-  productName: good.productName,
-  skus: good.skus,
-  createdAt: good.createdAt,
-  // TD-022: o `rev` precisa atravessar — é ele que a transação confere para não
-  // deixar duas gravações simultâneas do mesmo acabado se apagarem. Campo que
-  // esta função esquecesse viraria `undefined` e a trava não travaria (FORM-01
-  // aplicado a metadado de documento).
-  rev: good.rev,
-});
 
 // Estado mutável do estoque durante a reconciliação (cores + acabados), com o
 // conjunto do que foi TOCADO — é o que permite o estorno-e-reaplicação da edição
@@ -354,7 +343,7 @@ function collectSupplyUpdates(state: ReconState): Supply[] {
 
 function collectFinishedUpdates(state: ReconState): FinishedGoodPayload[] {
   return Array.from(state.touchedGoods).map((id) =>
-    toPayload(state.goodsById.get(id)!),
+    finishedGoodToPayload(state.goodsById.get(id)!),
   );
 }
 
@@ -467,7 +456,9 @@ export function reverseReciboReconciliation(
   const affectedGoods = new Set(finishedMoves.map((move) => move.productId));
   const finishedUpdates = goods
     .filter((good) => affectedGoods.has(good.productId))
-    .map((good) => toPayload(reverseFinishedConsumption(good, finishedMoves)));
+    .map((good) =>
+      finishedGoodToPayload(reverseFinishedConsumption(good, finishedMoves)),
+    );
 
   return {
     colorUpdates: reverseProduction(productionStockMoves, colors),
