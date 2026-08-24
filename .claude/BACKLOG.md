@@ -16,9 +16,10 @@
 >
 > ✅ **Fecharam em 2026-08-23:** os 5 🔴 (lotes A e B, com os três que entravam calados na carga), o
 > `[TD-022]` inteiro (reproduzido com escrita real), as duas guardas baratas `[TD-024]`/`[TD-025]`
-> e os lotes **C** (`[CSV-27]` `[CSV-28]` `[CSV-29]` `[CSV-31]`) e **D** (`[TD-023]`).
-> `[CSV-30]` e `[TD-021]` viraram **ressalva** por decisão do dono. Restam **2 abertos**, o lote E:
-> `[UX-45]` + `[UX-46]` (este com **escopo enxuto** — só os controles que o dedo busca).
+> e os lotes **C** (`[CSV-27]` `[CSV-28]` `[CSV-29]` `[CSV-31]`), **D** (`[TD-023]`) e **E**
+> (`[UX-45]` `[UX-46]`). `[CSV-30]` e `[TD-021]` viraram **ressalva** por decisão do dono.
+> **O cluster AUD-12 está ZERADO** — e com ele o backlog de código, de novo. O que sobrou virou o
+> `[UX-47]` (abaixo) e as ressalvas medidas dentro do UX-45/UX-46.
 >
 > **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15, as ondas 0–5 e o `[micro]` do
 > botão de 14px (2026-08-17) ✅ FECHADOS.** O
@@ -816,7 +817,7 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
 | **B — celular** | [UX-44] | CSS; `minmax(0, 1fr)` + fileira virando cartão | ✅ **FEITO (2026-08-23)** |
 | **C — qualidade do aviso** | [CSV-27] · [CSV-28] · [CSV-29] · [CSV-31] | falso positivo e conselho errado — o que ensina a ignorar aviso | ✅ **FEITO (2026-08-23)** |
 | **D — dívida barata** | ~~[TD-023]~~ · ~~[TD-024]~~ · ~~[TD-025]~~ | comentário que afirma garantia inexistente + 2 guardas | ✅ **FEITO (2026-08-23)** |
-| **E — toque e responsivo** | [UX-45] · [UX-46] | faixa 641–760px + os alvos abaixo de 44px; o maior dos cinco | aberto |
+| **E — toque e responsivo** | [UX-45] · [UX-46] | faixa 641–760px + os alvos abaixo de 44px; o maior dos cinco | ✅ **FEITO (2026-08-23)** |
 | **fora de lote** | ~~[TD-022]~~ · ~~[TD-021]~~ · ~~[CSV-30]~~ | TD-022 reproduzido e corrigido; CSV-30 e TD-021 viraram ressalva (dono) | ✅ **nada aberto aqui** |
 
 ### 🟠 Alto (não bloqueia a carga, mas morde)
@@ -843,7 +844,33 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   mesmo saldo e escrevem o mesmo resultado). ⚠ **Mecanismo lido no código, NÃO reproduzido** — exige
   escrita real, que ficou pendente de aval (plano no fim desta seção).
 
-- **[UX-46] Alvos de toque abaixo da régua — mais largo do que a ressalva antiga dizia.**
+- ✅ **[UX-46] FEITO (Lote E, 2026-08-23) — escopo ENXUTO, aprovado pelo dono: só os controles que o
+  dedo busca.** Quatro mudanças, todas medidas no DOM antes e depois:
+  · **`.icon-button` 28 → 32px** (a régua de desktop; o catálogo já corrigia isso localmente desde o
+  UX-15 — era o global que estava atrás) **e → 44px no celular**. O caso comum era o botão de
+  excluir SOLTO numa fileira: os quatro aglomerados que já subiam para 44 tinham regra própria,
+  quem estava sozinho não tinha ninguém.
+  · **`input[type="range"]` 313×4 → 313×44** (celular) / ×32 (desktop): os 4px viraram DESENHO
+  (`::-webkit-slider-runnable-track`), com margem negativa devolvendo o crescimento ao fluxo — a
+  linha do markup ocupava 14px e continua ocupando 14.
+  · **`.btn-sm` 29 → 32/44px** via `min-height`, sem mexer no `padding`.
+  · **`.num-spin` 14 → 28px no celular.** A trava dos 14px é do `[micro]` e a razão era medida — mas
+  a coluna de 64px que a motivou **não existe mais no celular** (o UX-44 virou a fileira em cartão).
+  Remedido: a pior folga vira 18px, no `13999`. No desktop fica em 14, onde a coluna estreita segue
+  existindo.
+  **Resultado medido:** `/producao` a 1280px **25 → 0** abaixo da régua de 32 · `/producao` a 375px
+  43 → 16 · `/estoque` 27 → 19 (os 8 `.btn-sm`) · `/orcamento` 67 → 27. `overflow` horizontal 0 e
+  **0 números cortados** em todas as medições.
+  ⚠ **Duas exceções DECLARADAS, com a conta:** `.accessory-row` e `.machine-edit-row` (na grade de 6
+  colunas, 641–760px) são fileiras de **trilha FIXA** e não têm de onde tirar — medido, o botão de 44
+  estourava a fileira de acessórios em 12px e jogava o Excluir para FORA da linha, que é o UX-44
+  reaberto pela porta dos fundos. Nelas o botão fica em 32 e o stepper em 14. Onde a fileira JÁ é
+  cartão (`.machine-edit-row` ≤640px) a exceção se desfaz e o 3º trilho sobe para 44 junto.
+  ⚠ **Armadilha nova, registrada:** `::-webkit-slider-runnable-track` e `::-moz-range-track` NÃO
+  podem ir na mesma lista de seletores — um pseudo-elemento desconhecido invalida a **regra inteira**,
+  e o Chrome descartava a pista (barra do markup sumia). Duas regras separadas.
+  Descrição original:
+  **Alvos de toque abaixo da régua — mais largo do que a ressalva antiga dizia.**
   A ressalva falava do *"slider de markup com ~15px de área real"*. **Medido:** o slider tem caixa
   de **313×4 px** com `padding: 0`. E a 375 px, contra os 44 px da regra do projeto:
   `/orcamento` **67** elementos abaixo · `/producao` **41** (25 deles `.icon-button.danger` de
@@ -855,7 +882,17 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
 
 ### 🟡 Médio
 
-- **[UX-45] Faixa 641–760 px: tabela rolando de lado em vez de virar cartão.**
+- ✅ **[UX-45] FEITO (Lote E, 2026-08-23).** O corte de cartão do catálogo e do recibo subiu de 640
+  para **760px**. Não é número novo: é a outra fronteira que o `responsive.css` já usa, e é o que o
+  comentário do `catalog.css` **já afirmava** (*"em 760 o layout já vira cartão"*) — o código é que
+  divergia da intenção escrita. **Medido a 700px, depois:** `/catalogo` 68 → **0** de rolagem;
+  `/vendas` 130 → **0** em 23 recibos. O editor de máquinas FICOU em 640 de propósito: a grade dele é
+  confortável de 641 a 760, e fronteira igual não é virtude quando as larguras mínimas diferem.
+  ⚠ **Resíduo medido (a válvula, não é regressão):** a `.recibo-items` pede `min-width: 800px`, então
+  de **761 a 841px** ela ainda rola — 81px a 761. É o mesmo desenho da válvula do catálogo (que rola
+  19px a 761 e zera em 782). Fica registrado; fechar exigiria cartão até ~842px, que é decisão do
+  dono. Descrição original:
+  **Faixa 641–760 px: tabela rolando de lado em vez de virar cartão.**
   *(era ressalva aberta; agora medida)*. A regra "vira cartão" só entra em `max-width: 640px`.
   **Medido a 700 px:** `/catalogo` → `.table-scroll` 672 → 740 = **68 px de rolagem**, com a célula
   de nome em 66 px para conteúdo de 99–135 px; `/vendas` → `.recibo-items-scroll` 670 → 800 =
@@ -948,6 +985,26 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   Export → import → export produz a mesma linha com a ordem das chaves de `Acessorios JSON` trocada
   (`subitemId`/`supplyId`). Os **dados** são idênticos (diff canônico limpo); só o texto difere.
   Importa apenas para quem comparar arquivos com `diff`.
+
+### Aberto — o que o Lote E deixou (2026-08-23)
+
+- **[UX-47] A fileira de acessórios devia virar CARTÃO no celular.** *(aberto pelo Lote E, com
+  medição)*. A `.accessory-row` é `1fr 60px 90px 32px` em **toda** largura — ela nunca virou cartão,
+  ao contrário de todas as outras fileiras do app. A 375px a conta fecha no talo: 77 + 60 + 90 + 32
+  + 3 folgas de 8 = **283px, exatamente a largura da linha**. Consequências medidas: o botão de
+  excluir não pode ir a 44px (estoura 12px e sai para fora da linha) · o stepper não pode ir a 28px
+  (a coluna de quantidade tem 60px, e sobrariam 16 para o número — o caso que o `[micro]` mediu) · o
+  campo de descrição fica com 77px. **A saída é a regra do projeto (UX-38/UX-40)**, a mesma receita
+  do `.fg-part` já usada em 4 lugares: abaixo dos ~300px úteis a linha quebra em faixas. Espremer
+  trilha não resolve — não há folga para espremer.
+- 📌 **Ressalva medida: o `.icon-button.edit` do `/vendas` renderiza 39×44** dentro do
+  `.recibo-head-side` (5px a menos na horizontal, contra 28×28 antes). O contêiner não estoura
+  (`overflow: 0`) e `flex: none` não muda o número — a compressão não vem do flex-shrink. Não vale
+  turno de investigação por 5px num botão que triplicou de área; fica registrado para não voltar
+  como achado novo.
+- 📌 **Ressalva: alvos a 1–4px da régua no celular.** Fora do escopo enxuto aprovado, porque todos
+  são LARGOS (fáceis de acertar) e falham em um eixo só: `.icon-label-button` 247×**43** (1px),
+  `.back-to-top` 42×42, a navbar 40×40, `.search-box-input` ×36, `.stock-tab` ×34.
 
 ### Ressalva que FECHA (não é mais item)
 

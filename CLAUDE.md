@@ -14,25 +14,27 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-23): lotes C e D da AUD-12.** **C — a QUALIDADE do aviso** (os quatro já
-  avisavam; o defeito era o *conteúdo*): `cor-sem-preco` dizia "não tem rolo" para cor que TEM rolo
-  a preço 0 `[CSV-27]` · coluna repetida saía como "nome não reconhecido", cujo conselho é renomear
-  uma coluna certa `[CSV-28]` · `isMilharAmbiguo` acendia sobre científica lida CORRETAMENTE
-  `[CSV-29]` · peça fracionária virou **reprovação** no `validateProduct`, não arredondamento
+- **Última mudança (2026-08-23): a AUD-12 fechou** — lotes C, D e E no mesmo dia.
+  **C — a QUALIDADE do aviso** (os quatro já avisavam; o defeito era o *conteúdo*): `cor-sem-preco`
+  dizia "não tem rolo" para cor que TEM rolo a preço 0 `[CSV-27]` · coluna repetida saía como "nome
+  não reconhecido", cujo conselho é renomear uma coluna certa `[CSV-28]` · `isMilharAmbiguo` acendia
+  sobre científica lida CORRETAMENTE `[CSV-29]` · peça fracionária virou **reprovação**
   `[CSV-31]`. **D** `[TD-023]`: `addProductionLayers` confere `layer.id` e a idempotência prometida
-  vira real — mas `shiftLayers` (baixa/estorno) é **DELTA** e ficou deliberadamente NÃO idempotente
-  (deduplicar ali faria o estorno de um recibo devolver o material de outro).
-  `lint` ✅ · `build` ✅ · **672/672** ✅ (+19). Antes, no mesmo dia: os 5 🔴 (lotes A+B), o
-  `[TD-022]` inteiro e as guardas `[TD-024]`/`[TD-025]`. Detalhe: `HISTORICO.md`.
+  vira real — mas `shiftLayers` (baixa/estorno) é **DELTA** e ficou deliberadamente NÃO idempotente.
+  **E — toque e responsivo:** o corte de cartão subiu de 640 para
+  **760px** e a rolagem lateral zerou (`/catalogo` 68→0, `/vendas` 130→0 em 23 recibos) `[UX-45]` ·
+  `.icon-button` 28→32/44, o range 313×**4**→313×44, `.btn-sm` 29→32/44 e o stepper 14→28 no celular
+  `[UX-46]` — `/producao` foi de **25 → 0** abaixo da régua no desktop.
+  `lint` ✅ · `build` ✅ · **672/672** ✅ (+19). Detalhe e as exceções medidas: `HISTORICO.md`.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — 2 frentes em paralelo:** (a) **minha:** só o **lote E** da AUD-12 —
-  `[UX-45]` (faixa 641–760px rolando de lado) + `[UX-46]` com **escopo enxuto** (só os controles que
-  o dedo busca). `[TD-021]` e `[CSV-30]` viraram **ressalva** por decisão do dono;
-  (b) **do DONO: cadastrar as cores e os insumos definitivos**, pegar
+- **▶ PRÓXIMA TAREFA — o backlog de código voltou a ZERAR.** Sobrou **um** item aberto, o `[UX-47]`
+  (a fileira de acessórios é a única do app que nunca virou cartão — a 375px a conta fecha no talo,
+  283px para 283px). Tudo o mais está bloqueado por fora (logo, Dashboard, `[AUD-08]`).
+  → **A frente que anda agora é do DONO: cadastrar as cores e os insumos definitivos**, pegar
   os ids e passá-los pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-
   modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. Só
   então a **CARGA EM MASSA** — que **não cria** cor nem insumo, e não tem "limpar catálogo".

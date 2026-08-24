@@ -282,17 +282,54 @@ input[type="date"].field-input {
   font-family: var(--font-jetbrains-mono), monospace;
 }
 
+/* UX-46 — a caixa do range ERA a pista: 313x4 px de área para o dedo, o menor
+   alvo do app inteiro. Os 4px agora são DESENHO (pseudo-elemento de pista) e a
+   caixa sobe para a régua — 32px no desktop, 44 no celular (em `responsive.css`).
+   A margem negativa devolve o crescimento AO FLUXO, receita do UX-28: a linha do
+   markup ocupava 14px (4 de pista + 10 de folga no topo) e continua ocupando 14.
+   ⚠ `background: transparent` no input é obrigatório junto — sem isso a cor
+   antiga pintaria os 32px inteiros e viraria uma barra grossa. */
 input[type="range"] {
   appearance: none;
   width: 100%;
+  height: var(--space-32);
+  background: transparent;
+  margin-top: calc(var(--space-10) - 14px);
+  margin-bottom: -14px;
+}
+
+/* ⚠ As duas pistas vão em regras SEPARADAS, nunca numa lista de seletores. Um
+   pseudo-elemento desconhecido invalida a REGRA INTEIRA (não só o seletor dele),
+   então `::-webkit-… , ::-moz-…` junto é descartado pelos dois navegadores.
+   Medido aqui mesmo: com a lista agrupada, o Chrome devolvia a pista com
+   `background: rgba(0,0,0,0)` — a barra do markup tinha sumido. */
+input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: var(--radius-xs);
   background: var(--field-border);
-  margin-top: var(--space-10);
 }
 
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: var(--radius-xs);
+  background: var(--field-border);
+}
+
+/* O thumb do webkit se apoia no TOPO da pista; sem o recuo ele ficaria pendurado
+   4px abaixo do fio. (4 - 16) / 2 = -6. O Firefox já centra sozinho. */
 input[type="range"]::-webkit-slider-thumb {
   appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+input[type="range"]::-moz-range-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -597,9 +634,18 @@ input[type="range"]::-webkit-slider-thumb {
   min-height: 32px;
 }
 
+/* UX-46 — 28 -> 32px, a régua de desktop do projeto. Medido antes: 25 botões de
+   28x28 só no `/producao` (todos `.danger`, o irreversível da lista) e o mesmo
+   tamanho em `/vendas`, `/estoque` e nos modais. O catálogo já corrigia isto
+   localmente (`td.col-actions .icon-button`) desde o UX-15 — era o global que
+   estava atrás. No celular sobe para 44 em `responsive.css`.
+   ⚠ Duas exceções DELIBERADAS continuam menores, cada uma com a sua medição no
+   `catalog.css`: `.sp-actions` (24px, o painel expandido não tem faixa
+   sobrando) e a fileira de 5 ações do catálogo no desktop (pista fixa de
+   196px). Nas duas o alvo cresce no celular, que é onde o dedo age. */
 .icon-button {
-  width: 28px;
-  height: 28px;
+  width: var(--space-32);
+  height: var(--space-32);
   border-radius: var(--radius-md);
   background: transparent;
 }

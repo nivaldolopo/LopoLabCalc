@@ -727,8 +727,14 @@
    de `.recibo-items td` — mesma especificidade (0,1,1), e `@media` não soma
    nada. Escrito antes daquela regra, perdia o desempate pela ordem e cada faixa
    ficava com o recuo de tabela (38px de altura em vez de 21px).
+   ⚠ UX-45 — o corte era 640px e subiu para 760px, junto com o do catálogo. De
+   641 a 760 a fileira ROLAVA DE LADO: medido a 700px, `.recibo-items-scroll` ia
+   de 670 para 800 = 130px de rolagem, repetidos em 6+ recibos da página. A
+   `.recibo-items` pede `min-width: 800px` (636 de faixas fixas + 164 de piso
+   para o nome), então a válvula do BUG-06 só se aposenta de verdade quando o
+   cartão alcança 800px — acima de 760 ela continua existindo, que é o desenho.
    --------------------------------------------------------------------------- */
-@media (max-width: 640px) {
+@media (max-width: 760px) {
   /* Sem tabela não há o que rolar: a válvula do BUG-06 se aposenta aqui. */
   .recibo-items-scroll {
     overflow-x: visible;

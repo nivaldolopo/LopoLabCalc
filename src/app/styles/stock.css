@@ -134,11 +134,29 @@
   gap: var(--space-6);
 }
 
+/* UX-46 — media 29px de altura contra os 32 da régua de desktop. O `min-height`
+   fecha a diferença sem mexer no `padding` (a densidade do texto é decisão do
+   dono, [micro] 2026-08-17): o `.btn` já é `inline-flex` e centrado, então os
+   3px entram como folga, não como deslocamento. No celular vai a 44 em
+   `responsive.css`. */
 .btn-sm {
   padding: var(--space-6) var(--space-10);
   font-size: var(--text-sm);
   border-radius: var(--radius-md);
   font-weight: 600;
+  min-height: var(--space-32);
+}
+
+/* ⚠ UX-46 — a régua do dedo MORA AQUI, e não no `responsive.css`, por ordem de
+   cascata. O `stock.css` é importado DEPOIS do `responsive.css` (ver o
+   `globals.css`), a especificidade é a mesma (0,1,0) e `@media` não soma nada:
+   escrito lá, o `min-height: 32px` acima vencia pela ordem e o botão continuava
+   em 32 no celular. Medido antes de mover: 8 `.btn-sm` a 375px, todos em 32.
+   É a mesma armadilha que já obrigou o bloco do recibo a mudar de arquivo. */
+@media (max-width: 760px) {
+  .btn-sm {
+    min-height: 44px;
+  }
 }
 
 /* UX-17b: o `.btn:disabled` que fechava esta dupla foi pro `forms.css`, junto

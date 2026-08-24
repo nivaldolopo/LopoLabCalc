@@ -105,10 +105,90 @@
      Sem override, a regra boa do `modal.css` vale desta largura para cima; de
      640px para baixo a fileira vira CARTÃO, no bloco de 640 logo abaixo. Duas
      regras, duas faixas, nenhuma cópia para divergir de novo. */
+
+  /* ── UX-46: a régua do DEDO (44px) ──────────────────────────────────────
+     Quatro aglomerados já subiam para 44 um a um (as 5 ações do catálogo, o
+     `.sp-actions`, o `.ri-actions` do recibo e nada mais) — cada um com a sua
+     medição. O que faltava era o CASO COMUM: o botão de excluir solto numa
+     fileira, que é a maioria. Medido no `/producao` a 375px: 25 `.icon-button`
+     de 28x28 com 81px de distância entre vizinhos — espaço de sobra, e nenhum
+     deles tinha regra própria porque nenhum estava num aglomerado.
+     As regras dos quatro aglomerados continuam onde estão: são mais
+     específicas (0,1,1 e 0,3,0) e vencem esta por especificidade, não por
+     ordem. Duas delas já dizem 44 — viraram redundância explícita, não
+     conflito. */
+  .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* ⚠ AS DUAS EXCEÇÕES, medidas — fileira de TRILHA FIXA não tem de onde tirar.
+     A `.accessory-row` é `1fr 60px 90px 32px` em TODA largura (ela nunca virou
+     cartão) e a `.machine-edit-row` mantém a grade de 6 colunas do desktop até
+     640. Medido a 375 com o botão em 44: a fileira de acessórios estourou 12px e
+     o Excluir saiu para FORA da linha (right 341 contra 329) — que é o bug do
+     UX-44 reaberto pela porta dos fundos. A conta não fecha por folga nenhuma:
+     77 + 60 + 90 + 32 + 3 folgas de 8 = 283, exatamente a largura da linha.
+     Os 14px extras do stepper caem junto pelo mesmo motivo: a coluna de
+     quantidade tem 60px e sobrariam 16 para o número — é literalmente o caso que
+     o [micro] de 2026-08-17 mediu ("750" no lugar de "7500").
+     → Fica registrado no BACKLOG que a saída de verdade para a `.accessory-row`
+     é virar CARTÃO (UX-38/UX-40), não espremer trilha. */
+  .accessory-row .icon-button,
+  .machine-edit-row .icon-button {
+    width: var(--space-32);
+    height: var(--space-32);
+  }
+
+  .accessory-row .num-spin,
+  .machine-edit-row .num-spin {
+    width: 14px;
+  }
+
+  .accessory-row .num-field input,
+  .machine-edit-row .num-field input {
+    padding-right: 16px;
+  }
+
+  /* A caixa do range sobe junto (ver `forms.css`): 44 - 14 - 14 = 16px... a
+     conta é a mesma, com a devolução calibrada para os 44. */
+  input[type="range"] {
+    height: 44px;
+    margin-top: calc(var(--space-10) - 20px);
+    margin-bottom: -20px;
+  }
+
+  /* UX-46 — o stepper do NumberInput. Os 14px são o [micro] de 2026-08-17 e a
+     razão era MEDIDA: a 18px o "7500" do editor de máquinas (coluna de 64px)
+     pedia 34px e tinha 28, e o dono lia "750". Só que aquela coluna de 64px NÃO
+     EXISTE MAIS no celular — o UX-44 transformou a fileira em cartão, e o campo
+     mede 106px. Remedido agora a 375px: a menor folga do app é 38px (justamente
+     o `13999`), então os 14px extras cabem com 24px sobrando. No desktop, onde a
+     coluna estreita continua existindo, o stepper fica em 14 — a trava original
+     segue valendo exatamente onde foi medida. */
+  .num-spin {
+    width: 28px;
+  }
+
+  .num-field input {
+    padding-right: 30px;
+  }
 }
 
 /* --- Catálogo vira lista de cartões no celular --- */
-@media (max-width: 640px) {
+/* UX-45 — o corte era 640px, e de 641 a 760px a tabela ROLAVA DE LADO em vez de
+   virar cartão: medido a 700px, `.table-scroll` ia de 672 para 740 = 68px de
+   rolagem, com a célula do Nome em 66px para conteúdo de 99–135px. 740px é o
+   `min-width` que os pisos da grade exigem (catalog.css), então abaixo disso a
+   linha ou rola ou corta número — e a regra do projeto (UX-38/UX-40) diz que
+   fileira que não cabe VIRA CARTÃO, porque rolar de lado esconde justamente a
+   coluna que se quer ler.
+   ⚠ 760 não é número novo: é a outra fronteira que este arquivo já usa (o bloco
+   do topo) e é o que o comentário do `catalog.css` JÁ AFIRMAVA — *"a faixa é
+   estreita (761…827px: em 760 o layout já vira cartão)"*. O código é que
+   divergia da intenção escrita. Com o corte aqui, a válvula de rolagem volta a
+   ser o que ela diz ser: 761…827px de viewport, e só. */
+@media (max-width: 760px) {
   .catalog-card {
     border: none;
     background: transparent;
@@ -285,16 +365,25 @@
   .subitem-price-row.total .sp-meta {
     display: none;
   }
+}
 
+/* --- "Gerenciar Máquinas" vira cartão --- */
+/* ⚠ UX-45: este bloco FICOU em 640px enquanto o catálogo subiu para 760, e a
+   divergência é de propósito. O comentário abaixo dizia "a mesma fronteira de
+   cartão que o resto do arquivo usa" — o argumento REAL nunca foi a simetria, e
+   sim que a grade de 6 colunas só é usável a partir de ~640px. De 641 a 760 ela
+   cabe e é confortável (medido: nada rola, nada corta), então subir o corte só
+   tiraria colunas de quem tem espaço para elas. Fronteira igual não é virtude
+   quando as duas grades têm larguras mínimas diferentes. */
+@media (max-width: 640px) {
   /* UX-44 — "Gerenciar Máquinas" era o único dos 9 modais que quebrava no
      celular: a 375px a grade tinha 285px para 326px de conteúdo (estouro de
      41px), o botão de excluir caía FORA da caixa do diálogo (right: 371 contra a
      borda em right: 355), `13999` aparecia como `1399` e `7500` como `750`.
      A conta: 64+54+52+66+32 = 268px fixos + 5 gaps de 8px = 308px consumidos
      antes de o Nome ganhar 1px — a grade de 6 colunas só cabe a partir de 416px
-     de viewport, e mesmo a 430px o Nome fica com 32px. Por isso o corte é 640px —
-     a mesma fronteira de cartão que o resto do arquivo usa — e não 416px: caber
-     não basta, o campo precisa ser usável. Medido no limiar de baixo: a 561px,
+     de viewport, e mesmo a 430px o Nome fica com 32px. Por isso o corte é 640px
+     e não 416px: caber não basta, o campo precisa ser usável. Medido no limiar de baixo: a 561px,
      com a grade em pé, o Nome ficava com 99px para 100px de conteúdo.
      A saída é a regra do projeto (UX-38/UX-40): a fileira VIRA CARTÃO, não
      rolagem — rolar de lado esconderia justamente a coluna que se quer ler. As
@@ -331,6 +420,29 @@
   .machine-edit-row .icon-button.danger {
     grid-area: 1 / 3;
     align-self: end;
+  }
+
+  /* UX-46 — aqui a fileira JÁ é cartão e a exceção de cima se desfaz: com duas
+     colunas flexíveis sobram 221px (110 cada) e o campo mede 106. Medido com o
+     stepper em 28: a pior folga do app é 24px, no `13999` — o número que deu
+     nome ao [micro]. Cabe, então a régua do dedo vale.
+     ⚠ O 3º trilho sobe junto, senão o botão de 44 estoura 12px para fora da
+     caixa do diálogo — exatamente o UX-44. */
+  .machine-edit-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+  }
+
+  .machine-edit-row .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .machine-edit-row .num-spin {
+    width: 28px;
+  }
+
+  .machine-edit-row .num-field input {
+    padding-right: 30px;
   }
 
   .machine-edit-row .me-field:nth-child(2) {
