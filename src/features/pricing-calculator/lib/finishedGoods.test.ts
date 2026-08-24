@@ -209,6 +209,145 @@ describe("addProductionLayers — idempotente por evento (TD-023)", () => {
   });
 });
 
+// TD-027 — o outro lado da mesma moeda. A idempotência do TD-023 respondia com
+// um `continue` a DUAS perguntas diferentes: "já apliquei este evento?" (sim,
+// ignore) e "esta chamada trouxe duas entradas para a mesma SKU?" (não, some).
+// Medido antes do conserto: 2 entries da mesma SKU, 2 un a R$ 30 cada, davam
+// saldo 2 e valor R$ 60 — metade da submissão sumia com a fatia de custo dela.
+describe("addProductionLayers — entrada repetida na MESMA chamada soma (TD-027)", () => {
+  const duasIguais = [
+    { name: "Boneco", color: AZUL, qty: 2, unitCost: 30 },
+    { name: "Boneco", color: AZUL, qty: 2, unitCost: 30 },
+  ];
+
+  it("as duas entram: saldo 4 e valor R$ 120, numa camada só", () => {
+    const doc = addProductionLayers(null, "prod-1", "Boneco", duasIguais, "EV1", DIA);
+    expect(doc.skus).toHaveLength(1);
+    expect(doc.skus[0].layers).toHaveLength(1);
+    expect(skuBalance(doc.skus[0])).toBe(4);
+    expect(skuValue(doc.skus[0])).toBeCloseTo(120, 10);
+  });
+
+  it("custos diferentes viram MÉDIA PONDERADA — o total é o submetido", () => {
+    const doc = addProductionLayers(
+      null,
+      "prod-1",
+      "Boneco",
+      [
+        { name: "Boneco", color: AZUL, qty: 1, unitCost: 10 },
+        { name: "Boneco", color: AZUL, qty: 3, unitCost: 20 },
+      ],
+      "EV1",
+      DIA,
+    );
+    expect(skuBalance(doc.skus[0])).toBe(4);
+    expect(doc.skus[0].layers[0].unitCost).toBeCloseTo(70 / 4, 10);
+    expect(skuValue(doc.skus[0])).toBeCloseTo(70, 10);
+  });
+
+  it("a camada fundida guarda UM id só — senão o estorno do evento se perde", () => {
+    const doc = addProductionLayers(null, "prod-1", "Boneco", duasIguais, "EV1", DIA);
+    const [layer] = doc.skus[0].layers;
+    expect(layer.id).toBe(`EV1____whole__::${AZUL.key}`);
+    expect(removeEventLayers(doc as unknown as FinishedGood, "EV1").skus[0].layers).toHaveLength(0);
+  });
+
+  it("o breakdown funde junto e continua somando o unitCost (FEAT-06)", () => {
+    const um: FrozenCostBreakdown = { ...ZERO_FROZEN, material: 10 };
+    const outro: FrozenCostBreakdown = { ...ZERO_FROZEN, material: 10, energy: 10 };
+    const doc = addProductionLayers(
+      null,
+      "prod-1",
+      "Boneco",
+      [
+        { name: "Boneco", color: AZUL, qty: 1, unitCost: 10, unitBreakdown: um },
+        { name: "Boneco", color: AZUL, qty: 1, unitCost: 20, unitBreakdown: outro },
+      ],
+      "EV1",
+      DIA,
+    );
+    const [layer] = doc.skus[0].layers;
+    expect(layer.costBreakdown?.material).toBeCloseTo(10, 10);
+    expect(layer.costBreakdown?.energy).toBeCloseTo(5, 10);
+    expect(sumFrozen(layer.costBreakdown!)).toBeCloseTo(layer.unitCost, 10);
+  });
+
+  it("meia composição não sobra pela metade: sem breakdown em TODAS, some", () => {
+    const doc = addProductionLayers(
+      null,
+      "prod-1",
+      "Boneco",
+      [
+        {
+          name: "Boneco",
+          color: AZUL,
+          qty: 1,
+          unitCost: 10,
+          unitBreakdown: { ...ZERO_FROZEN, material: 10 },
+        },
+        { name: "Boneco", color: AZUL, qty: 1, unitCost: 20 },
+      ],
+      "EV1",
+      DIA,
+    );
+    expect(doc.skus[0].layers[0].costBreakdown).toBeUndefined();
+    expect(doc.skus[0].layers[0].unitCost).toBeCloseTo(15, 10);
+  });
+
+  it("somar na mesma chamada NÃO reabre o replay: o mesmo evento 2x segue inerte", () => {
+    const uma = addProductionLayers(null, "prod-1", "Boneco", duasIguais, "EV1", DIA);
+    const duas = addProductionLayers(
+      uma as unknown as FinishedGood,
+      "prod-1",
+      "Boneco",
+      duasIguais,
+      "EV1",
+      DIA,
+    );
+    expect(JSON.stringify(duas)).toBe(JSON.stringify(uma));
+  });
+
+  it("SKU já aplicada é ignorada INTEIRA — reaplicar com outra quantidade não mexe", () => {
+    const uma = addProductionLayers(
+      null,
+      "prod-1",
+      "Boneco",
+      [{ name: "Boneco", color: AZUL, qty: 2, unitCost: 50 }],
+      "EV1",
+      DIA,
+    );
+    const duas = addProductionLayers(
+      uma as unknown as FinishedGood,
+      "prod-1",
+      "Boneco",
+      [
+        { name: "Boneco", color: AZUL, qty: 6, unitCost: 50 },
+        { name: "Boneco", color: AZUL, qty: 6, unitCost: 50 },
+      ],
+      "EV1",
+      DIA,
+    );
+    expect(skuBalance(duas.skus[0])).toBe(2);
+    expect(skuValue(duas.skus[0])).toBeCloseTo(100, 10);
+  });
+
+  it("duas entradas de SKUs distintas seguem em camadas distintas", () => {
+    const doc = addProductionLayers(
+      null,
+      "prod-1",
+      "Boneco",
+      [
+        { name: "Boneco", color: AZUL, qty: 2, unitCost: 30 },
+        { name: "Boneco", color: VERMELHO, qty: 2, unitCost: 30 },
+      ],
+      "EV1",
+      DIA,
+    );
+    expect(doc.skus).toHaveLength(2);
+    expect(doc.skus.map((sku) => skuBalance(sku))).toEqual([2, 2]);
+  });
+});
+
 // A assimetria deliberada do outro lado: `shiftLayers` é DELTA. Deduplicar por
 // `layerId` ali engoliria o 2o de dois recibos que drenam a mesma camada — e
 // estornar um devolveria o material do outro junto.

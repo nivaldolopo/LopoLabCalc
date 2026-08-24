@@ -1510,3 +1510,131 @@ describe("CSV-31 — peça fracionária é reprovada, não arredondada", () => {
     expect(achar(r.issues, "linha-invalida")).toBeUndefined();
   });
 });
+
+
+// CSV-32 — o id do subitem tem de sair único daqui. Misturar id explícito com id
+// ausente colidia na mesma `skuKey` (subitem+cor) e o acabado creditava UMA parte
+// no lugar de duas: medido ao vivo, produção de R$ 15,75 creditou R$ 11,69.
+describe("CSV-32 — id de subitem repetido não entra calado", () => {
+  const subitens = (lista: unknown[]) => ({
+    ...LINHA_BOA,
+    "Vende por Subitens": "sim",
+    "Subitens JSON": JSON.stringify(lista),
+  });
+
+  it("id explícito na posição 3 não é roubado pelo fallback da posição 1", () => {
+    const r = parseProductsCsv(
+      csv(
+        subitens([
+          { name: "Corpo", stageKeys: [] },
+          { name: "Tampa", stageKeys: [] },
+          { id: "sub_1", name: "Alça", stageKeys: [] },
+        ]),
+      ),
+      machines,
+      opcoes,
+    );
+    const ids = r.products[0].subitems?.map((s) => s.id) ?? [];
+    expect(new Set(ids).size).toBe(3);
+    expect(ids).toContain("sub_1"); // o explícito continua sendo dele
+    expect(ids[2]).toBe("sub_1");
+    // O acidente se resolve sozinho: não há nada para o dono corrigir.
+    expect(achar(r.issues, "subitem-id-repetido")).toBeUndefined();
+  });
+
+  it("o caso medido (sub_1 explícito + subitem sem id na posição 1) sai com 2 SKUs", () => {
+    const r = parseProductsCsv(
+      csv(
+        subitens([
+          { id: "sub_1", name: "Corpo", stageKeys: [] },
+          { name: "Tampa", stageKeys: [] },
+        ]),
+      ),
+      machines,
+      opcoes,
+    );
+    const ids = r.products[0].subitems?.map((s) => s.id) ?? [];
+    expect(ids).toEqual(["sub_1", "sub_2"]);
+    expect(achar(r.issues, "subitem-id-repetido")).toBeUndefined();
+  });
+
+  it("id explícito REPETIDO avisa nomeando os dois — e a peça não some", () => {
+    const r = parseProductsCsv(
+      csv(
+        subitens([
+          { id: "sub_1", name: "Corpo", stageKeys: [] },
+          { id: "sub_1", name: "Tampa", stageKeys: [] },
+        ]),
+      ),
+      machines,
+      opcoes,
+    );
+    const ids = r.products[0].subitems?.map((s) => s.id) ?? [];
+    expect(new Set(ids).size).toBe(2);
+    const issue = achar(r.issues, "subitem-id-repetido");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain("Corpo");
+    expect(issue?.exemplos[0]).toContain("Tampa");
+  });
+
+  it("lista sem id nenhum segue com sub_0, sub_1… e sem apontamento", () => {
+    const r = parseProductsCsv(
+      csv(
+        subitens([
+          { name: "Corpo", stageKeys: [] },
+          { name: "Tampa", stageKeys: [] },
+        ]),
+      ),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].subitems?.map((s) => s.id)).toEqual(["sub_0", "sub_1"]);
+    expect(achar(r.issues, "subitem-id-repetido")).toBeUndefined();
+  });
+});
+
+// UX-48 — o valor mais preciso que a planilha pode trazer é o ID da máquina, e
+// era justamente ele que caía no palpite por substring: 100 linhas com
+// `Maquina = A1` acendiam `maquina-por-aproximacao = 100` numa planilha CERTA.
+describe("UX-48 — id de máquina é identidade, não palpite", () => {
+  it.each(["a1", "A1", "x2d", "X2D", " A1 "])(
+    '"%s" casa pelo id, sem aviso',
+    (nome) => {
+      const r = parseProductsCsv(
+        csv({ ...LINHA_BOA, Maquina: nome }),
+        machines,
+        opcoes,
+      );
+      expect(r.products[0].machineId).toBe(nome.trim().toLowerCase());
+      expect(achar(r.issues, "maquina-por-aproximacao")).toBeUndefined();
+    },
+  );
+
+  it("espaço duplo no nome não é palpite — é o mesmo nome", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Maquina: "A1  Combo" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].machineId).toBe("a1");
+    expect(achar(r.issues, "maquina-por-aproximacao")).toBeUndefined();
+  });
+
+  it("em escala: 100 linhas com o id não acendem nada", () => {
+    const linhas = ["Produto;Maquina;Tempo (h)"];
+    for (let i = 0; i < 100; i += 1) linhas.push(`Caneca ${i};A1;2`);
+    const r = parseProductsCsv(linhas.join("\n"), machines, opcoes);
+    expect(r.products).toHaveLength(100);
+    expect(achar(r.issues, "maquina-por-aproximacao")).toBeUndefined();
+  });
+
+  it("o palpite de verdade (id DENTRO de um nome maior) continua avisando", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Maquina: "AnyCubic A1 Mini" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].machineId).toBe("a1");
+    expect(achar(r.issues, "maquina-por-aproximacao")?.linhas).toBe(1);
+  });
+});

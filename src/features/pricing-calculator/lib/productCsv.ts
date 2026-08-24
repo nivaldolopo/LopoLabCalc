@@ -637,13 +637,69 @@ function parseAccessories(
 
 // FEAT-01: subitens vendáveis. `markup` é OMITIDO quando ausente (herda o do
 // produto) — gravar `undefined` faria o Firestore recusar o lote.
+//
+// CSV-32 — o id de subitem tem de sair ÚNICO daqui, e a repetição tem de se
+// anunciar. O fallback era `sub_<índice>` cru: um id explícito `sub_1` em
+// qualquer posição da lista mais um subitem SEM id na posição 1 e os dois viram
+// `sub_1`. Ninguém precisa repetir id de propósito — basta MISTURAR id explícito
+// com id ausente, o acidente clássico de planilha gerada fora. `validateProduct`
+// passa, o preço fica certo e o diálogo mostra 0 avisos; o dano só aparece
+// depois, no acabado. Medido ao vivo: produção de R$ 15,75 creditou R$ 11,69 —
+// R$ 4,06 (25,8%) sumiram, e a SKU "Tampa" nunca existiu, porque `skuKey` é
+// subitem+cor e as duas partes colidiam na MESMA chave (ver `[TD-027]`, o outro
+// lado). O seletor da /producao ainda listava duas opções com o mesmo `value`:
+// escolher "Tampa" produzia "Corpo".
+//
+// Duas metades, como no CSV-23:
+//  · RECONHECER — o fallback varre os ids explícitos da lista INTEIRA primeiro e
+//    só usa `sub_<n>` que esteja livre. Isso mata o acidente sozinho, sem aviso:
+//    não há nada que o dono precise corrigir na planilha.
+//  · AVISAR — id explícito repetido é intenção (ou erro de verdade) do arquivo.
+//    O segundo recebe um id livre para a peça não sumir, e a classe
+//    `subitem-id-repetido` NOMEIA os dois subitens. Sem ela, a planilha que
+//    repete id segue entrando calada e o dono perde a parte sem saber.
 function parseSubitems(
   value: string | undefined,
   report?: NumReporter,
+  onDuplicado?: (idRepetido: string, primeiro: string, segundo: string, idNovo: string) => void,
 ): Subitem[] {
-  return parseJsonArray(value).flatMap((subitem, index) => {
-    const item = subitem as Partial<Subitem>;
-    const id = item.id ? String(item.id) : `sub_${index}`;
+  const itens = parseJsonArray(value).map((subitem) => subitem as Partial<Subitem>);
+  // Os explícitos da lista inteira, ANTES de gerar qualquer fallback — é o que
+  // impede `sub_1` gerado na posição 1 de colidir com um `sub_1` escrito na 3.
+  const explicitos = new Set(
+    itens.filter((item) => item.id).map((item) => String(item.id)),
+  );
+  const usados = new Set<string>();
+  // Primeiro `sub_<n>` que não esteja tomado nem reservado por um explícito.
+  const idLivre = (preferido: number): string => {
+    let n = Math.max(0, preferido);
+    while (explicitos.has(`sub_${n}`) || usados.has(`sub_${n}`)) n += 1;
+    return `sub_${n}`;
+  };
+
+  return itens.flatMap((item, index) => {
+    const nomeDe = (i: Partial<Subitem>, id: string) => i.name?.trim() || id;
+    let id: string;
+    if (item.id) {
+      const explicito = String(item.id);
+      if (usados.has(explicito)) {
+        id = idLivre(index);
+        const primeiro = itens.find(
+          (outro) => outro.id && String(outro.id) === explicito,
+        );
+        onDuplicado?.(
+          explicito,
+          nomeDe(primeiro ?? {}, explicito),
+          nomeDe(item, id),
+          id,
+        );
+      } else {
+        id = explicito;
+      }
+    } else {
+      id = idLivre(index);
+    }
+    usados.add(id);
     // CSV-06: `Number("2,5")` era NaN, e o `markup > 0` seguinte DESCARTAVA o
     // campo — o subitem herdava o markup do produto sem nada dizer que a
     // planilha pedia outro.
@@ -665,8 +721,9 @@ function parseSubitems(
   });
 }
 
-// Nome da máquina → id. Casa por nome exato e, falhando, pelo id contido no
-// nome ("Bambu Lab A1" → `a1`). Quando NADA casa, cai na primeira máquina — e
+// Nome da máquina → id. Casa pelo ID exato, depois pelo nome exato (espaços
+// colapsados) e, falhando os dois, pelo id contido no nome ("Bambu Lab A1" →
+// `a1`) — só este último é palpite. Quando NADA casa, cai na primeira máquina — e
 // avisa: um nome errado no CSV punha o produto na impressora errada em
 // silêncio, e energia/desgaste saem de lá (mesma disciplina do TD-009).
 //
@@ -691,8 +748,22 @@ function machineNameToId(
   const fallback = machines[0];
   if (!name?.trim()) return fallback?.id ?? "a1";
   const normalized = name.toLowerCase().trim();
+  // UX-48: o valor MAIS preciso que a planilha pode trazer é o próprio id, e
+  // ele caía no palpite por substring — `Maquina = A1` em 100 linhas acendia
+  // `maquina-por-aproximacao = 100` numa planilha CERTA, e o dono ou desiste da
+  // carga ou aprende a ignorar o aviso (o defeito que o CSV-24 existiu para
+  // evitar). Id inteiro é IDENTIDADE, não palpite: casa antes e não avisa.
+  const byId = machines.find(
+    (machine) => machine.id.toLowerCase() === normalized,
+  );
+  if (byId) return byId.id;
+  // UX-48, a outra metade: `A1  Combo` (espaço duplo, o acidente de quem monta
+  // o nome concatenando) não é nome errado — é o mesmo nome. Colapsar espaço
+  // nos DOIS lados da comparação tira essa linha do palpite.
+  const semEspacos = (texto: string) => texto.replace(/\s+/g, " ").trim();
+  const alvo = semEspacos(normalized);
   const exact = machines.find(
-    (machine) => machine.name.toLowerCase() === normalized,
+    (machine) => semEspacos(machine.name.toLowerCase()) === alvo,
   );
   if (exact) return exact.id;
   const fuzzy = machines
@@ -1212,7 +1283,19 @@ export function parseProductsCsv(
     );
     const subitems =
       indexSubitems >= 0
-        ? parseSubitems(columns[indexSubitems], reportNumero)
+        ? parseSubitems(columns[indexSubitems], reportNumero, (idRepetido, primeiro, segundo, idNovo) => {
+            // CSV-32: classe agrupada (não `warnings.push`), pela mesma razão do
+            // CSV-24 — planilha gerada fora repete id em BLOCO, e 100 avisos
+            // iguais escondem o resto do diálogo.
+            addIssue(
+              "subitem-id-repetido",
+              "Dois subitens da mesma linha com o MESMO id — o segundo entrou " +
+                "com um id novo para a peça não sumir. Confira: acessório " +
+                "atribuído a esse id ficou com o PRIMEIRO subitem",
+              `${ondeEstou}: id "${idRepetido}" em "${primeiro}" e "${segundo}" ` +
+                `— o segundo virou "${idNovo}"`,
+            );
+          })
         : [];
     // FEAT-02: cores da etapa principal quando o CSV as traz; senão os escalares
     // "Peso (g)"/"Filamento (R$/kg)" migram no cálculo (`normalizeFilaments`).

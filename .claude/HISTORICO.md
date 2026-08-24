@@ -9,6 +9,88 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Lote B da AUD-13 — o que entrava calado na carga (2026-08-24)
+
+> Três itens, um tema: **dado que entra errado sem ninguém contar**. O `[CSV-32]` era o furo de
+> verdade (dinheiro medido), o `[TD-027]` é o cano por onde ele escoava, e o `[UX-48]` é o oposto —
+> um aviso que gritava onde não havia problema, e que por isso ensinaria o dono a ignorar avisos.
+
+### [CSV-32] — `sub_<índice>` como fallback é uma colisão esperando o acidente
+
+O `parseSubitems` batizava o subitem sem id de `sub_<posição>`. Basta a planilha **misturar** um id
+explícito `sub_1` (em qualquer posição) com um subitem **sem** id na posição 1 e os dois saem daqui
+com o mesmo id. Ninguém precisa repetir id de propósito — é o acidente clássico de arquivo gerado
+fora, e a carga em massa é exatamente isso.
+
+E ele passa por tudo: `validateProduct` aprova, o preço fica **certo**, o diálogo da importação
+mostra **0 avisos**. O dano só se materializa dois passos adiante, no acabado, porque a `skuKey` é
+*subitem × cor* e as duas partes colidem na MESMA chave. Medido ao vivo: produção de custo
+**R$ 15,75** creditou **R$ 11,69** — **R$ 4,06 (25,8%)** sumiram, e a SKU "Tampa" nunca existiu. O
+seletor da `/producao` ainda listava duas opções com o mesmo `value` (escolher "Tampa" produzia
+"Corpo") e o de acabados oferecia a mesma peça física três vezes.
+
+O conserto tem **duas metades**, como no CSV-23, e elas respondem a perguntas diferentes:
+
+- **Reconhecer** — o fallback varre os ids explícitos da lista **inteira** antes de gerar qualquer
+  `sub_<n>`, e só usa número livre. Isso mata o acidente **sem aviso**, de propósito: não há nada
+  que o dono precise corrigir na planilha, e avisar aqui seria a mesma poluição do UX-48.
+- **Avisar** — id explícito **repetido** é outra coisa: é o arquivo dizendo algo impossível. O
+  segundo subitem recebe um id livre (a peça não some, que é o defeito original) e a classe nova
+  `subitem-id-repetido` **nomeia os dois**, dizendo também que o acessório atribuído àquele id ficou
+  com o PRIMEIRO — a consequência que o dono não teria como deduzir.
+
+⚠ O id do **formulário** (`sub_<timestamp>_<i>`, no `usePricingForm`) nunca colidiu. O defeito era
+só do parser, e a checagem disso é o motivo de o conserto não ter ido para o payload.
+
+### [TD-027] — um `continue` respondendo a duas perguntas
+
+O `[TD-023]` fechou a idempotência do `addProductionLayers` com
+`if (existing.layers.some((l) => l.id === layer.id)) continue;`. A `layerId` é *evento + SKU*, e
+esse `continue` não distingue **"reaplicaram o mesmo evento"** de **"esta chamada trouxe duas
+entradas para a mesma SKU"**. A segunda é descartada em silêncio, com a fatia de custo dela — 2
+entries de 2 un a R$ 30 davam saldo **2** e valor **R$ 60**, quando a submissão custou R$ 120.
+
+São duas perguntas, e agora têm duas respostas:
+
+- **"já apliquei este evento?"** se decide **uma vez por chamada**, contra o doc que CHEGOU (SKU com
+  camada carregando aquele `sourceEventId` é replay e se ignora inteira). Decidir isso dentro do
+  laço era o erro: as camadas que a própria chamada acabou de criar contaminavam a resposta.
+- **"a chamada trouxe a SKU duas vezes?"** → **soma**. `qty` acumula na mesma camada e o `unitCost`
+  vira a **média ponderada**, de modo que `qty × unitCost` continua sendo o custo submetido.
+
+Uma camada só, com o id determinístico intacto — duplicá-lo quebraria `removeEventLayers` e
+`shiftLayers`, que procuram camada por id. O `costBreakdown` funde pelo mesmo fator (`sumFrozen ===
+unitCost` sai de graça, a disciplina do FEAT-06) e **só sobrevive se todas as entradas o trouxerem**:
+meia composição mentiria sobre o total que ela deveria somar.
+
+Fechado o CSV-32, este caminho vira **latente** — e é justamente por isso que ele foi no mesmo
+commit. Consertar só o parser deixaria a bomba armada no `finishedGoods`, e um `continue` que
+descarta dado sem contar não é garantia: é a mesma armadilha que o próprio TD-023 levantou.
+
+### [UX-48] — o aviso que gritava na planilha certa
+
+O `machineNameToId` casava por NOME exato e, falhando, chutava por substring (com aviso, desde o
+CSV-24). Só que o valor **mais preciso** que a planilha pode trazer é o **id** da máquina — e ele
+caía no chute. Medido: `A1`, `a1`, `x2d`, `X2D`, `A1  Combo` e `combo a1` **todos avisavam**, todos
+resolvendo certo. Em escala: **100 linhas com `Maquina = A1` → 100 avisos**. O dono lê que 100% das
+linhas "foram adivinhadas" e ou desiste da carga ou aprende a ignorar o aviso — que é exatamente o
+defeito que o lote C da AUD-12 inteiro existiu para evitar.
+
+Agora o **id exato** casa primeiro e devolve sem chamar o `onFuzzy` (id inteiro é identidade, não
+palpite), e a comparação de nome colapsa espaços nos dois lados (`A1  Combo` é o mesmo nome, não um
+nome errado). O palpite de verdade — id **dentro** de um nome maior, `AnyCubic A1 Mini` — continua
+se anunciando, porque ali ele pode estar errado.
+
+### Verificação
+
+**20 testes novos** (677 → **697**), e a prova é a reversão: com os dois arquivos de código voltados
+ao estado anterior, **14 dos 20 falham**. Os 6 que passam são os contrapontos deliberados — replay
+do mesmo evento segue inerte, SKUs distintas seguem em camadas distintas, lista sem id nenhum segue
+com `sub_0, sub_1…`, palpite de substring segue avisando —, e é obrigatório que passem: o conserto
+não podia ser "parar de conferir" nem "parar de avisar".
+
+`lint` ✅ · `build` ✅ · **697/697** ✅.
+
 ## ✅ TD-026 (lote A da AUD-13) — a produção destravou (2026-08-24)
 
 > **Regressão do próprio `[TD-022]`, de um dia antes.** A trava de concorrência entrou certa; o que

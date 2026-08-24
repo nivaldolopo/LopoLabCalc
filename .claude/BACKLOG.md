@@ -8,7 +8,8 @@
 >
 > ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código NÃO está mais zerado (2026-08-23).** Vários
 > parágrafos abaixo dizem "está ZERADO"; eles descrevem o estado **antes** da varredura **AUD-12**
-> (a v2 da geral). **Vencido de novo em 2026-08-24: a varredura AUD-13 (a v3) abriu 18 itens** —
+> (a v2 da geral). **Vencido de novo em 2026-08-24: a varredura AUD-13 (a v3) abriu 18 itens**
+> (lotes **A** e **B** já fechados no mesmo dia — **14 restam**, lotes C, D e E) —
 > a seção dela é a **última** deste arquivo, logo acima de "## Fechado", e ela **refuta parte da
 > AUD-12**: o lote D dela quebrou o `/producao` (`[TD-026]` 🔴). Leia aquela seção antes desta.
 > Ela abriu **17 itens** — o cabeçalho dizia 15, e a conta estava errada: o rótulo "4 🟡" vinha
@@ -1123,7 +1124,15 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
   ÚNICA VEZ — depois o `/producao` recusava para sempre**, com mensagem FALSA de concorrência,
   porque os dois construtores montavam o payload sem copiar o `rev` e a versão esperada era sempre 0.
 
-- **[CSV-32] Id de subitem repetido entra calado na carga e come um quarto do custo congelado.**
+- ✅ **[CSV-32] FEITO (lote B, 2026-08-24), em duas metades.** (1) **Reconhecer** — o fallback
+  varre os ids explícitos da lista INTEIRA antes de gerar qualquer `sub_<n>` e só usa o que estiver
+  livre; o acidente clássico (id explícito + id ausente na mesma lista) morre aí, sem aviso, porque
+  não há nada que o dono precise corrigir na planilha. (2) **Avisar** — id explícito REPETIDO é
+  outra coisa: o segundo recebe um id livre (a peça não some) e a classe nova `subitem-id-repetido`
+  NOMEIA os dois subitens, dizendo também que acessório atribuído àquele id ficou com o PRIMEIRO.
+  ⚠ O id do formulário (`sub_<timestamp>_<i>`, em `usePricingForm`) nunca colidiu — o defeito era
+  só do parser. Descrição original: **Id de subitem repetido entra calado na carga e come um quarto
+  do custo congelado.**
   **Mecanismo:** `parseSubitems` dá ao subitem sem id o nome `sub_<índice>`. Um id explícito `sub_1`
   em qualquer posição + um subitem SEM id na posição 1 → os dois viram `sub_1`. Ninguém precisa
   repetir id: basta misturar id explícito com id ausente, o acidente clássico de planilha gerada
@@ -1141,7 +1150,14 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
 
 ### 🟠 Alto (não bloqueia a carga, mas morde)
 
-- **[TD-027] A idempotência do `[TD-023]` engole entrada legítima DENTRO da mesma chamada.**
+- ✅ **[TD-027] FEITO (lote B, 2026-08-24).** As duas perguntas se separaram: a idempotência por
+  evento se decide UMA vez por chamada, contra o doc que CHEGOU (SKU que já traz camada com aquele
+  `sourceEventId` é replay e se ignora inteira), e entrada repetida DENTRO da chamada **soma** —
+  `qty` acumula na mesma camada e o `unitCost` vira a média ponderada, para `qty × unitCost` seguir
+  sendo o custo submetido. Uma camada só, com o id determinístico intacto: duplicar o id quebraria
+  `removeEventLayers` e `shiftLayers`. O `costBreakdown` funde junto (`sumFrozen === unitCost` de
+  graça) e só sobrevive se TODAS as entradas o trouxerem — meia composição mentiria sobre o total.
+  Descrição original: **A idempotência do `[TD-023]` engole entrada legítima DENTRO da mesma chamada.**
   `if (existing.layers.some((l) => l.id === layer.id)) continue;` — a `layerId` é *evento + SKU*, e o
   `continue` não distingue "reaplicaram o mesmo evento" de "esta chamada trouxe duas entradas para a
   mesma SKU". A segunda é descartada em silêncio, com a fatia de custo dela.
@@ -1174,7 +1190,13 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
 
 ### 🟡 Médio
 
-- **[UX-48] O aviso `maquina-por-aproximacao` acende em 100% das linhas de uma planilha CERTA.**
+- ✅ **[UX-48] FEITO (lote B, 2026-08-24).** O `machineNameToId` casa pelo **id exato** antes de
+  qualquer palpite — id inteiro é identidade, e devolve sem chamar o `onFuzzy`. A comparação de NOME
+  passou a colapsar espaços nos dois lados, então `A1  Combo` também deixa de ser palpite. Medido no
+  teste: `a1`, `A1`, `x2d`, `X2D`, ` A1 `, `A1  Combo` e **100 linhas com `Maquina = A1`** → **0**
+  em `maquina-por-aproximacao`; o palpite de verdade (`AnyCubic A1 Mini`, id DENTRO de um nome maior)
+  continua avisando, como o CSV-24 quis. Descrição original: **O aviso `maquina-por-aproximacao`
+  acende em 100% das linhas de uma planilha CERTA.**
   O `machineNameToId` só casa por NOME exato antes de partir para o palpite por substring — e o valor
   mais preciso que a planilha pode trazer é o **id** da máquina.
   **Medido:** `A1`, `a1`, `x2d`, `X2D`, `A1  Combo` (espaço duplo) e `combo a1` **todos avisam**,
@@ -1247,7 +1269,7 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
 | Lote | Itens | Por que esses | Custo / risco |
 |---|---|---|---|
 | ~~**A — destravar a produção**~~ ✅ **FEITO (2026-08-24)** | ~~[TD-026]~~ | Era o único que deixava o app **inoperante**. O aviso do custo se confirmou: o conserto foi de 3 linhas, o teste é que exigiu montar o ciclo inteiro | — |
-| **B — o que entra calado na carga** | **[CSV-32]** · [TD-027] · [UX-48] | Mesma sessão de teste: `parseSubitems` e `machineNameToId` no mesmo arquivo, e o TD-027 é o outro lado do CSV-32 (consertar só o parser deixa a bomba armada no `finishedGoods`) | médio / médio — fazer DEPOIS do A, no mesmo arquivo já quente |
+| ~~**B — o que entra calado na carga**~~ ✅ **FEITO (2026-08-24)** | ~~[CSV-32] · [TD-027] · [UX-48]~~ | O diagnóstico se confirmou: consertar só o parser deixaria a bomba armada no `finishedGoods` — os dois foram no mesmo commit, com 20 testes novos (14 falham contra o código velho; os 6 restantes são os contrapontos) | — |
 | **C — o estorno que fica mudo** | **[TD-028]** | Sozinho porque exige DECISÃO do dono (barrar vs. preservar), e porque o lote A **abre** este caminho | baixo (barrar) ou médio (preservar) / baixo |
 | **D — offline e o dedo no diálogo** | [TD-029] · [UX-49] | Nenhum toca lógica de negócio e os dois se verificam na mesma sessão de navegador | baixo / baixo (atenção à cascata do `@media`) |
 | **E — a poeira** | os 11 🟢 | Vale quebrar em duas sessões: CSS/alvo (UX-50, UX-51, A11Y-02) e parser (CSV-33, CSV-35, CSV-36, CSV-37); o código morto (TD-030, TD-031) vai de carona | baixo, mas somado não é desprezível |

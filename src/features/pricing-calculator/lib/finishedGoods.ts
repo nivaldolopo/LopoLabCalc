@@ -292,6 +292,18 @@ export function finishedGoodToPayload(good: FinishedGood): FinishedGoodPayload {
  * SKU não soma nada (idempotente por evento). TD-023 — a conferência é nova; o
  * comentário afirmava a garantia desde o início, mas o código só fazia `push`.
  * Entries com qty ≤ 0 são ignoradas.
+ *
+ * ⚠ TD-027 — são DUAS perguntas, e o `continue` do TD-023 respondia as duas com
+ * a mesma resposta. "Já apliquei este evento?" se decide UMA vez por chamada,
+ * contra o doc que CHEGOU; "esta chamada trouxe duas entradas para a mesma SKU?"
+ * é outra coisa, e a resposta é SOMAR — não descartar. Medido: 2 entries da
+ * mesma SKU (2 un a R$ 30) davam saldo 2 numa camada e valor R$ 60, quando a
+ * submissão custou R$ 120; a segunda sumia com a fatia de custo dela, calada.
+ * Hoje o caminho era alcançável pelo `[CSV-32]` (dois subitens colidindo na
+ * mesma `skuKey`); fechado ele, isto vira latente — mas `continue` que descarta
+ * dado sem contar não é garantia, é armadilha, igual à que o próprio TD-023
+ * levantou. Somar preserva o total: `qty` acumula e o `unitCost` vira a MÉDIA
+ * PONDERADA, de modo que `qty × unitCost` continua sendo o custo submetido.
  */
 export function addProductionLayers(
   good: FinishedGood | null,
@@ -307,6 +319,27 @@ export function addProductionLayers(
     : [];
   const byKey = new Map(skus.map((sku) => [keyOfSku(sku), sku]));
 
+  // TD-027: a idempotência por evento se decide AQUI, contra o doc que chegou —
+  // não dentro do laço, onde as camadas que esta mesma chamada acabou de criar
+  // já contaminam a resposta. SKU que já carrega camada deste evento é replay:
+  // ignora-se a SKU inteira.
+  const jaAplicado = new Set(
+    skus
+      .filter((sku) => sku.layers.some((l) => l.sourceEventId === eventId))
+      .map(keyOfSku),
+  );
+  // As camadas criadas NESTA chamada, por SKU: a segunda entrada da mesma SKU
+  // soma nesta camada em vez de virar uma segunda camada com id idêntico (o id
+  // é evento+SKU, e duplicá-lo quebraria `removeEventLayers` e `shiftLayers`).
+  const novas = new Map<string, FinishedLayer>();
+  // Acumuladores da média ponderada, também por SKU. O breakdown só sobrevive à
+  // fusão se TODAS as entradas o trouxerem — meia composição mentiria sobre o
+  // `unitCost` que ela deveria somar.
+  const somas = new Map<
+    string,
+    { valor: number; breakdown: FrozenCostBreakdown | null }
+  >();
+
   for (const entry of entries) {
     const qty = num(entry.qty);
     if (qty <= 0) continue;
@@ -320,16 +353,51 @@ export function addProductionLayers(
       sourceEventId: eventId,
     };
     const key = skuKey(entry.subitemId, color.key);
+    // TD-023: o comentário lá em cima promete idempotência por evento, e até o
+    // TD-023 o código só fazia `push` — sem olhar o id. Medido: mesmo `eventId`
+    // aplicado 2× produzia DUAS camadas com o id idêntico e o saldo dobrava
+    // (4 → 8). Hoje é inalcançável pela UI (quem chama monta o doc inteiro e
+    // grava com `batch.set`, que sobrescreve), mas um comentário que afirma
+    // garantia inexistente é armadilha para quem confiar nela depois. Agora a
+    // garantia é do CÓDIGO: reaplicar o mesmo evento na mesma SKU não soma.
+    if (jaAplicado.has(key)) continue;
+
+    // TD-027: a mesma SKU pela 2ª vez NESTA chamada não é replay — é dado novo.
+    // Funde na camada já criada: `qty` soma e o `unitCost` vira a média
+    // ponderada, para o valor total (qty × unitCost) seguir sendo o que se
+    // submeteu.
+    const criada = novas.get(key);
+    if (criada) {
+      const acumulado = somas.get(key)!;
+      acumulado.valor += qty * num(entry.unitCost);
+      acumulado.breakdown =
+        acumulado.breakdown && entry.unitBreakdown
+          ? addFrozen(acumulado.breakdown, scaleFrozen(entry.unitBreakdown, qty))
+          : null;
+      criada.qty = num(criada.qty) + qty;
+      criada.unitCost = criada.qty !== 0 ? acumulado.valor / criada.qty : 0;
+      if (acumulado.breakdown && criada.qty !== 0) {
+        criada.costBreakdown = scaleFrozen(acumulado.breakdown, 1 / criada.qty);
+      } else {
+        delete criada.costBreakdown;
+      }
+      const alvo = byKey.get(key);
+      if (alvo) {
+        if (entry.name) alvo.name = entry.name;
+        if (color.label) alvo.colorLabel = color.label;
+      }
+      continue;
+    }
+    novas.set(key, layer);
+    somas.set(key, {
+      valor: qty * num(entry.unitCost),
+      breakdown: entry.unitBreakdown
+        ? scaleFrozen(entry.unitBreakdown, qty)
+        : null,
+    });
+
     const existing = byKey.get(key);
     if (existing) {
-      // TD-023: o comentário lá em cima promete idempotência por evento, e até
-      // aqui o código só fazia `push` — sem olhar o id. Medido: mesmo `eventId`
-      // aplicado 2× produzia DUAS camadas com o id idêntico e o saldo dobrava
-      // (4 → 8). Hoje é inalcançável pela UI (quem chama monta o doc inteiro e
-      // grava com `batch.set`, que sobrescreve), mas um comentário que afirma
-      // garantia inexistente é armadilha para quem confiar nela depois. Agora a
-      // garantia é do CÓDIGO: reaplicar o mesmo evento na mesma SKU não soma.
-      if (existing.layers.some((l) => l.id === layer.id)) continue;
       existing.layers.push(layer);
       if (entry.name) existing.name = entry.name;
       // O rótulo acompanha a cor viva: renomear "Azul" para "Azul Bebê" no
