@@ -10,6 +10,10 @@ type FixedCostsPanelProps = {
   summary: FixedCostSummary;
   fixedCostShare: number;
   onChange: (patch: Partial<FixedCostSettings>) => void;
+  // TD-029 — a última falha ao gravar a taxa no `config/negocio`. Estes campos
+  // alimentam o custo fixo por hora do catálogo INTEIRO: offline eles mudavam na
+  // tela, sem nada dizendo que o doc compartilhado não tinha mudado.
+  saveError?: string | null;
 };
 
 export function FixedCostsPanel({
@@ -17,6 +21,7 @@ export function FixedCostsPanel({
   summary,
   fixedCostShare,
   onChange,
+  saveError = null,
 }: FixedCostsPanelProps) {
   const fieldId = useId();
   return (
@@ -136,6 +141,11 @@ export function FixedCostsPanel({
               </span>
             </div>
           </div>
+          {saveError ? (
+            <p className="form-error" role="alert">
+              {saveError}
+            </p>
+          ) : null}
           {fixedCostShare > 30 ? (
             <div className="fc-warning">
               ⚠️ Custo fixo representa {fixedCostShare.toFixed(0)}% do custo

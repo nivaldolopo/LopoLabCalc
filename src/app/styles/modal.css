@@ -44,7 +44,9 @@
 }
 
 /* O ✕ que nenhum dos 8 modais tinha. Sai da rolagem junto com o cabeçalho —
-   fechar não pode depender de rolar de volta ao topo. */
+   fechar não pode depender de rolar de volta ao topo.
+   No celular ele sobe para 44px (UX-49, `responsive.css`): aqui é o alvo de
+   mouse, lá é o do dedo. */
 .modal-close {
   flex-shrink: 0;
   width: var(--space-32);

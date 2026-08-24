@@ -173,6 +173,24 @@
   .num-field input {
     padding-right: 30px;
   }
+
+  /* ── UX-49: o ✕ dos NOVE modais ─────────────────────────────────────────
+     A casca é uma só (`<Modal>`), e o fechar dela é classe PRÓPRIA — ficou de
+     fora quando o UX-46 levou o `.icon-button` a 44px. Medido no editor de
+     máquinas a 375px: 32×32. As duas alternativas que o `<Modal>` oferece não
+     existem num toque de dedo: Escape não tem tecla e o clique no overlay é
+     justamente o gesto que erra quando o alvo é pequeno.
+     ⚠ `padding` sozinho NÃO cresce nada aqui: o `box-sizing` é `border-box`
+     (base.css) e a classe fixa `width`/`height`. Quem cresce é a caixa, e a
+     margem negativa de metade da diferença ((44-32)/2 = 6px) devolve os 12px ao
+     fluxo — receita do UX-28/UX-37. O ✕ é `inline-flex` centralizado, então ele
+     não anda um pixel: o alvo cresce por fora, em cima do padding de 24px do
+     `.modal-head`, e o título ao lado fica onde estava. */
+  .modal-close {
+    width: 44px;
+    height: 44px;
+    margin: calc(-1 * var(--space-6));
+  }
 }
 
 /* --- Catálogo vira lista de cartões no celular --- */

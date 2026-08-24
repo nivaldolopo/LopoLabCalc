@@ -9,6 +9,101 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Lote D da AUD-13 — offline que grava calado, e o ✕ pequeno demais (2026-08-24)
+
+> Dois itens, nenhum tocando lógica de negócio, verificados na mesma sessão de navegador — que é
+> exatamente o critério com que o lote foi montado. Ambos com medição antes/depois.
+
+### [TD-029] — três caminhos de escrita sem `guardOnline`
+
+O `[TD-020]` fechou máquinas e taxas em 2026-08-22 e o padrão ficou escrito: **a checagem vem ANTES
+de qualquer `await`**, porque offline o Firestore enfileira a escrita e a Promise **nem resolve nem
+rejeita** — quem espera o resultado espera para sempre. Três caminhos ficaram de fora.
+
+O conserto não é um molde só; é **um molde por chamador**, e essa é a parte que não dá para copiar:
+
+| caminho | molde | por quê |
+|---|---|---|
+| `useBusinessSettings.saveFixedCostRate` | expõe `error`, **não lança** (igual `saveFees`) | é chamado **a cada tecla** e ninguém espera o resultado — um `throw` viraria unhandled rejection por dígito |
+| `useQuoteConfig.saveBusiness` | **devolve** a mensagem (igual `saveMachines`) | os 4 campos gravam no `onBlur` com `void`; quem reporta é a página, que já tem `FeedbackNote` |
+| `useQuotes.addQuote` / `deleteQuote` | **lançam** | os dois chamadores já esperam dentro de um `try` que reporta — guarda que não lança aqui seria trabalho a mais para o mesmo efeito |
+
+Dois detalhes de implementação que valem registro:
+
+- **`saveFixedCostRate` recebe um PATCH**, e o merge acontecia **dentro do updater de estado**
+  (`setFixedCostRate((cur) => { void persist({...cur, ...patch}); return next; })`). Gravar de dentro
+  do updater é efeito colateral em função que o React pode chamar duas vezes. O merge saiu para um
+  `useRef` que espelha o valor corrente.
+- **A semeadura (`:38`)** também ganhou o guarda, com uma diferença: se ela **não** gravou, o
+  `seededRef` volta a `false`. Marcar "semeado" sem ter semeado faria o app tratar como existente um
+  doc compartilhado que não existe.
+
+O `reserveQuoteNumber` estava na lista do item, mas **já estava guardado** — por uma 5ª cópia inline
+do `navigator.onLine` na `QuotePage`, com frase própria e **legítima** (lá o motivo é outro: o
+número precisa ser reservado no servidor). O que sobrou dela foi dedupe: `errors.ts` passou a
+exportar `isOffline()` + `OFFLINE_MESSAGE`, e as cópias da `QuotePage` e do `SaleModal` (que repetia
+a frase caractere a caractere) passaram a usá-los.
+
+#### ⚠ A repro escrita no item mirava o campo ERRADO
+
+O item dizia, com número: *"mudar Dias de impressão/mês 26→27 na calculadora — que é
+`config/negocio` — muda na tela, 0 avisos"*. Reproduzido: aquele campo é o do **`CapacityPanel`**, e
+ele é **simulação local por desenho** (TD-010) — não persiste, não muda preço, e a própria tela
+anuncia *"Simulando — os valores salvos do negócio (custos fixos) não mudaram"* assim que se mexe
+nele. Zero avisos ali é o comportamento **correto**.
+
+O defeito era real e estava a um painel de distância: quem grava `config/negocio` são os cinco
+campos do **`FixedCostsPanel`** (Aluguel, Outros, Máquinas operando, Horas/dia, Dias/mês). Fica a
+lição, que é a mesma do ciclo fechado que a AUD-13 existe para quebrar: **defeito lido no código +
+repro medida na tela podem apontar para lugares diferentes** — e foi só porque a repro foi refeita
+que o painel certo apareceu. O `FixedCostsPanel` ganhou a linha `.form-error` (`role="alert"`),
+onde a falha aparece.
+
+**Medido ao vivo** (dev server, `navigator.onLine` forçado a `false`):
+
+| ação, offline | antes | depois |
+|---|---|---|
+| Aluguel 1500 → 1501 (`/`) | valor novo na tela, **0 avisos**, badge "Sincronizado" | frase do offline no painel; valor local segue (não se desfaz o que o dono digitou) |
+| sair do campo Telefone (`/orcamento`) | nada | "Dados do negócio não foram salvos: …" |
+| "Excluir orçamento" nº 0001 | `await` pendente para sempre, **sem aviso** | erro nomeando o nº, e **21 → 21** orçamentos |
+
+De volta online, os três gravam em silêncio e o aviso do painel se apaga sozinho (`setError(null)`
+no sucesso). O aviso do excluir saía com **".."** — a frase do `guardOnline` termina em ponto e o
+template acrescentava outro; o ponto do template saiu.
+
+### [UX-49] — o ✕ dos nove modais
+
+`.modal-close` é classe própria e ficou de fora quando o UX-46 levou o `.icon-button` a 44px no
+celular. No `@media (max-width: 760px)` ele vai a **44×44** com
+`margin: calc(-1 * var(--space-6))` — os 12px de crescimento voltam ao fluxo, receita do
+UX-28/UX-37.
+
+⚠ **`padding` sozinho não cresceria nada aqui**: o `box-sizing` é `border-box` (base.css) e a classe
+fixa `width`/`height`. Quem cresce é a caixa; a margem negativa de metade da diferença é que devolve
+o espaço.
+
+**Medido a 375px, no mesmo diálogo, antes e depois:**
+
+| | antes | depois |
+|---|---|---|
+| `.modal-close` | 32×32 | **44×44**, `margin: -6px` |
+| altura do `.modal-head` | 84px | **84px** |
+| título e ✕, relativos ao topo do cabeçalho | 24px / 40px | **24px / 40px** |
+| desktop (1280px) | 32×32 | **32×32**, margem 0 |
+
+O teste que prova o **alvo**, e não só o número: `elementFromPoint` a 3px do canto superior-direito
+da caixa nova — ponto que está **fora** dos 32×32 antigos — devolve `BUTTON.modal-close`, e o clique
+ali fecha o diálogo.
+
+⚠ **A armadilha do lote não foi a cascata** (a ordem estava certa: `responsive.css` é importado
+depois do `modal.css`, e media query não muda especificidade). Foi o **CSS servido em cache**: a
+regra estava no arquivo baixado — conferida por `fetch` no próprio navegador — e o `getComputedStyle`
+continuava dizendo 32px. Só depois de recarregar a página o 44 apareceu. Fica o registro: **medição
+de CSS em dev vale depois do reload**, não no HMR.
+
+`lint` ✅ · `build` ✅ · **711/711** ✅ (nenhum teste novo: o lote inteiro é fiação de UI e CSS —
+o projeto não tem harness de componente, e a prova é a medição ao vivo acima, como no TD-020).
+
 ## ✅ TD-028 (lote C da AUD-13) — excluir produção vendida virou uma RECUSA (2026-08-24)
 
 > O lote A **abriu** este caminho: enquanto o `[TD-026]` impedia excluir qualquer produção que

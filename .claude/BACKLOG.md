@@ -9,7 +9,7 @@
 > ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código NÃO está mais zerado (2026-08-23).** Vários
 > parágrafos abaixo dizem "está ZERADO"; eles descrevem o estado **antes** da varredura **AUD-12**
 > (a v2 da geral). **Vencido de novo em 2026-08-24: a varredura AUD-13 (a v3) abriu 18 itens**
-> (lotes **A**, **B** e **C** já fechados no mesmo dia — **13 restam**, lotes D e E) —
+> (lotes **A**, **B**, **C** e **D** já fechados no mesmo dia — **11 restam**, o lote E) —
 > a seção dela é a **última** deste arquivo, logo acima de "## Fechado", e ela **refuta parte da
 > AUD-12**: o lote D dela quebrou o `/producao` (`[TD-026]` 🔴). Leia aquela seção antes desta.
 > Ela abriu **17 itens** — o cabeçalho dizia 15, e a conta estava errada: o rótulo "4 🟡" vinha
@@ -1216,7 +1216,23 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
   `filter/sort` — id inteiro é identidade, não palpite, e devolve sem chamar o `onFuzzy`. O espaço
   duplo se resolve normalizando espaços nos dois lados da comparação de nome.
 
-- **[TD-029] Três caminhos de escrita ficaram sem `guardOnline` — e um diz "Sincronizado" no vazio.**
+- ✅ **[TD-029] FEITO (lote D, 2026-08-24).** Os três ganharam o `guardOnline` **antes do
+  `await`**, cada um no molde que o chamador comporta: `saveFixedCostRate` expõe `error` e NÃO lança
+  (é a cada tecla — molde do `saveFees`), e o `FixedCostsPanel` recebeu a linha `.form-error`;
+  `saveBusiness` DEVOLVE a mensagem (molde do `saveMachines`), e os 4 `onBlur` da `/orcamento`
+  pararam de engolir a falha; `addQuote`/`deleteQuote` **lançam**, porque os dois chamadores já
+  esperam dentro de um `try` que reporta pelo `FeedbackNote`. O `reserveQuoteNumber` **já estava
+  guardado** — por uma 5ª cópia inline do `navigator.onLine`, com frase própria e legítima (lá o
+  motivo é o número no servidor). O que virou dedupe: `isOffline()` + `OFFLINE_MESSAGE` no
+  `errors.ts`, e as cópias da `QuotePage` e do `SaleModal` passaram a usá-los.
+  ⚠ **A repro escrita no item mirava o campo ERRADO** (registrado no `HISTORICO.md`): "Dias de
+  impressão/mês" é o `CapacityPanel`, simulação local por desenho (TD-010) — a tela até diz
+  *"Simulando — os valores salvos do negócio não mudaram"*. O defeito era real, mas mora nos campos
+  do **painel de custos fixos**. **Medido ao vivo** com `navigator.onLine = false`: Aluguel
+  1500 → 1501 agora acende a frase do offline no painel (antes: 0 avisos); "Dados do negócio não
+  foram salvos: …" ao sair do campo Telefone; e "Excluir orçamento" offline devolve erro nomeando o
+  nº **e não exclui** (21 → 21 orçamentos). Online, os três voltam a gravar em silêncio.
+  Descrição original: **Três caminhos de escrita ficaram sem `guardOnline`.**
   O `[TD-020]` fechou máquinas e taxas. Restaram: `useBusinessSettings.saveFixedCostRate`
   (`hooks/useBusinessSettings.ts:51-57`, `void persistFixedCostRate`, fire-and-forget — e `:38`, a
   semeadura) · `useQuoteConfig.saveBusiness` (`:28-31`) · `useQuotes.addQuote/deleteQuote` (`:31-37`)
@@ -1228,7 +1244,15 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
   dizendo **"Sincronizado"**. **Saída:** `guardOnline()` ANTES do `await` nos três; em
   `saveFixedCostRate`, que é chamada a cada tecla, o molde é o `saveFees` (expõe `error`, não lança).
 
-- **[UX-49] O ✕ dos NOVE modais mede 32×32 no celular — e no celular não há Escape.**
+- ✅ **[UX-49] FEITO (lote D, 2026-08-24).** No `@media (max-width: 760px)` o `.modal-close` vai a
+  **44×44** com `margin: calc(-1 * var(--space-6))` — os 12px de crescimento voltam ao fluxo
+  (receita UX-28/UX-37). ⚠ `padding` sozinho não cresceria nada: o `box-sizing` é `border-box` e a
+  classe fixa `width`/`height`. **Medido a 375px**, no mesmo diálogo, antes e depois: 32×32 → 44×44,
+  cabeçalho **84px nos dois**, título e ✕ **no mesmo lugar** (24px e 40px do topo do
+  `.modal-head`, idênticos); o ponto a 3px do canto superior-direito do alvo novo — **fora** dos
+  32×32 antigos — dá `elementFromPoint` = `BUTTON.modal-close` e fecha o diálogo. No desktop
+  (1280px) segue **32×32, margem 0**. Descrição original: **o ✕ mede 32×32 no celular — e no
+  celular não há Escape.**
   `.modal-close` tem largura/altura fixas em `var(--space-32)` e nenhum override em media query. O
   UX-46 levou o `.icon-button` a 44px no celular, mas o fechar do diálogo é classe própria e ficou de
   fora. **Medido** no modal de máquinas a 375px: **32×32**. Vale para os nove (a casca é uma só). As
@@ -1280,7 +1304,7 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
 | ~~**A — destravar a produção**~~ ✅ **FEITO (2026-08-24)** | ~~[TD-026]~~ | Era o único que deixava o app **inoperante**. O aviso do custo se confirmou: o conserto foi de 3 linhas, o teste é que exigiu montar o ciclo inteiro | — |
 | ~~**B — o que entra calado na carga**~~ ✅ **FEITO (2026-08-24)** | ~~[CSV-32] · [TD-027] · [UX-48]~~ | O diagnóstico se confirmou: consertar só o parser deixaria a bomba armada no `finishedGoods` — os dois foram no mesmo commit, com 20 testes novos (14 falham contra o código velho; os 6 restantes são os contrapontos) | — |
 | ~~**C — o estorno que fica mudo**~~ ✅ **FEITO (2026-08-24)** | ~~[TD-028]~~ | O dono martelou **barrar**. O custo bateu com o previsto (baixo): o guarda é uma função pura de 30 linhas + 5 linhas no `remove` — o que cresceu foi o teste, como no lote A | — |
-| **D — offline e o dedo no diálogo** | [TD-029] · [UX-49] | Nenhum toca lógica de negócio e os dois se verificam na mesma sessão de navegador | baixo / baixo (atenção à cascata do `@media`) |
+| ~~**D — offline e o dedo no diálogo**~~ ✅ **FEITO (2026-08-24)** | ~~[TD-029] · [UX-49]~~ | Confirmado: nenhum tocou lógica de negócio e os dois se verificaram na mesma sessão. A ressalva da cascata do `@media` se pagou ao contrário — a ordem estava certa (`responsive.css` vem depois), o que enganou foi o CSS **em cache no navegador**: só depois do reload o 44 apareceu | — |
 | **E — a poeira** | os 11 🟢 | Vale quebrar em duas sessões: CSS/alvo (UX-50, UX-51, A11Y-02) e parser (CSV-33, CSV-35, CSV-36, CSV-37); o código morto (TD-030, TD-031) vai de carona | baixo, mas somado não é desprezível |
 
 **O que eu deixaria de FORA de propósito (ressalva registrada, não item):** os alvos a 1–4px da

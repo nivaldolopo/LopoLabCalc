@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Boxes, Plus, Trash2 } from "lucide-react";
-import { guardOnline } from "@/lib/errors";
+import { guardOnline, isOffline, OFFLINE_MESSAGE } from "@/lib/errors";
 import { formatCurrency } from "@/lib/formatting/currency";
 import {
   toDateInput,
@@ -712,10 +712,8 @@ export function SaleModal({
     // Offline: o Firestore enfileira a escrita e a Promise fica pendente para
     // sempre (nem resolve, nem rejeita) — o botão travaria em "Registrando...".
     // Bloqueia com aviso claro em vez de pendurar (TD-004).
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setError(
-        "Sem conexão com a internet. Reconecte e tente de novo — nada foi salvo ainda.",
-      );
+    if (isOffline()) {
+      setError(OFFLINE_MESSAGE);
       return;
     }
 

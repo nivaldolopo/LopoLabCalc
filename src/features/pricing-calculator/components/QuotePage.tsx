@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Download, FileText, Plus, Trash2 } from "lucide-react";
-import { errorMessage } from "@/lib/errors";
+import { errorMessage, isOffline } from "@/lib/errors";
 import { formatCurrency } from "@/lib/formatting/currency";
 import { formatDate, todayInputValue, toTimestamp } from "@/lib/formatting/date";
 import {
@@ -234,7 +234,7 @@ export function QuotePage() {
     // O número é reservado no servidor (transação) ANTES do PDF, então precisa de
     // conexão. Offline: a transação ficaria pendente para sempre — bloqueia com
     // aviso antes de gerar qualquer coisa (o número precisa ser autoritativo).
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
+    if (isOffline()) {
       fail(
         "Sem conexão para gerar o orçamento (o número precisa ser reservado no servidor). Tente quando reconectar.",
       );
@@ -297,10 +297,22 @@ export function QuotePage() {
     // O PDF já baixou (client-side); a gravação no histórico pode falhar e antes
     // era fire-and-forget silenciosa. Agora aguarda e reporta (TD-004).
     try {
-      await Promise.all([addQuote(payload), saveBusiness(business)]);
+      // O `saveBusiness` não lança (TD-029): ele devolve a mensagem. São duas
+      // gravações independentes — o histórico pode entrar e o `config/orcamento`
+      // não, e nesse caso o aviso precisa dizer qual das duas ficou de fora.
+      const [, businessError] = await Promise.all([
+        addQuote(payload),
+        saveBusiness(business),
+      ]);
       // Volta a numeração a seguir o histórico (o novo registro puxa o próximo nº).
       numberEdited.current = false;
-      ok(`Orçamento nº ${numberStr} salvo no histórico.`);
+      if (businessError) {
+        fail(
+          `Orçamento nº ${numberStr} salvo no histórico, mas os dados do negócio não foram gravados: ${businessError}`,
+        );
+      } else {
+        ok(`Orçamento nº ${numberStr} salvo no histórico.`);
+      }
     } catch (err) {
       fail(
         `O PDF foi gerado (nº ${numberStr}), mas falhou ao salvar no histórico: ${errorMessage(err)}. Tente gerar de novo.`,
@@ -308,6 +320,13 @@ export function QuotePage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // TD-029 — os quatro campos do negócio gravam ao sair do campo, e a falha era
+  // engolida pelo `void`: offline o dado ficava só na tela, com o app calado.
+  async function persistBusiness(next: QuoteBusiness) {
+    const failure = await saveBusiness(next);
+    if (failure) fail(`Dados do negócio não foram salvos: ${failure}`);
   }
 
   function reDownload(quote: QuoteRecord) {
@@ -347,9 +366,9 @@ export function QuotePage() {
       await deleteQuote(quote.id);
       ok(`Orçamento nº ${quote.number} excluído do histórico.`);
     } catch (err) {
-      fail(
-        `Erro ao excluir o orçamento nº ${quote.number}: ${errorMessage(err)}.`,
-      );
+      // Sem ponto final no template: a frase do `guardOnline` já termina em
+      // ponto, e o aviso saía com ".." (medido ao vivo).
+      fail(`Erro ao excluir o orçamento nº ${quote.number}: ${errorMessage(err)}`);
     }
   }
 
@@ -385,7 +404,7 @@ export function QuotePage() {
               type="text"
               value={business.name}
               onChange={(event) => updateBusiness({ name: event.target.value })}
-              onBlur={() => void saveBusiness(business)}
+              onBlur={() => void persistBusiness(business)}
               placeholder="Nome do negócio"
             />
           </div>
@@ -402,7 +421,7 @@ export function QuotePage() {
                 onChange={(event) =>
                   updateBusiness({ phone: event.target.value })
                 }
-                onBlur={() => void saveBusiness(business)}
+                onBlur={() => void persistBusiness(business)}
                 placeholder="(00) 00000-0000"
               />
             </div>
@@ -418,7 +437,7 @@ export function QuotePage() {
                 onChange={(event) =>
                   updateBusiness({ instagram: event.target.value })
                 }
-                onBlur={() => void saveBusiness(business)}
+                onBlur={() => void persistBusiness(business)}
                 placeholder="@lopolab"
               />
             </div>
@@ -433,7 +452,7 @@ export function QuotePage() {
               type="text"
               value={business.email}
               onChange={(event) => updateBusiness({ email: event.target.value })}
-              onBlur={() => void saveBusiness(business)}
+              onBlur={() => void persistBusiness(business)}
               placeholder="contato@lopolab.com.br"
             />
           </div>

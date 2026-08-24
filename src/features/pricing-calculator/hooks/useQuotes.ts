@@ -6,6 +6,7 @@ import {
   removeQuote,
   subscribeQuotes,
 } from "@/lib/firebase/quotesRepository";
+import { guardOnline } from "@/lib/errors";
 import type { CloudStatus, QuoteRecord, QuoteRecordPayload } from "../types";
 
 export function useQuotes() {
@@ -28,11 +29,17 @@ export function useQuotes() {
     return unsubscribe;
   }, []);
 
+  // TD-029 — as duas LANÇAM (ao contrário do `saveBusiness` ao lado): os dois
+  // chamadores já esperam o resultado dentro de um `try` que reporta pelo
+  // `FeedbackNote`. Sem o guarda, offline o `await` do excluir ficava pendente
+  // para sempre e o orçamento sumia da lista (mutação local) sem aviso nenhum.
   async function addQuote(payload: QuoteRecordPayload) {
+    guardOnline();
     await createQuote(payload);
   }
 
   async function deleteQuote(quoteId: string) {
+    guardOnline();
     await removeQuote(quoteId);
   }
 

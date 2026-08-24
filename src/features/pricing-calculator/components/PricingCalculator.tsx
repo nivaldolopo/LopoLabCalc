@@ -41,7 +41,11 @@ import {
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
   const { machines, saveMachines } = useMachines();
-  const { fixedCostRate, saveFixedCostRate } = useBusinessSettings();
+  const {
+    fixedCostRate,
+    saveFixedCostRate,
+    error: fixedCostError,
+  } = useBusinessSettings();
   // UX-10: exibição da margem líquida no card de preço. Não entra no cálculo.
   const { fees } = useFees();
   // 7c: cores do Estoque para o dropdown de filamento e o preço vivo (D3). O
@@ -153,7 +157,9 @@ export function PricingCalculator() {
     if (patch.hoursDay !== undefined) ratePatch.hoursDay = patch.hoursDay;
     if (patch.daysMonth !== undefined) ratePatch.daysMonth = patch.daysMonth;
     if (Object.keys(ratePatch).length > 0) {
-      saveFixedCostRate(ratePatch);
+      // Não se espera o resultado (é a cada tecla): a falha vira o
+      // `fixedCostError`, que o painel mostra — TD-029.
+      void saveFixedCostRate(ratePatch);
     }
   }
 
@@ -386,6 +392,7 @@ export function PricingCalculator() {
             summary={fixedSummary}
             fixedCostShare={fixedCostShare}
             onChange={updateFixedCosts}
+            saveError={fixedCostError}
           />
         </div>
         <PricingResultCard
