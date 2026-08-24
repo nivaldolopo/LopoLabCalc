@@ -8,7 +8,9 @@
 >
 > ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código NÃO está mais zerado (2026-08-23).** Vários
 > parágrafos abaixo dizem "está ZERADO"; eles descrevem o estado **antes** da varredura **AUD-12**
-> (a v2 da geral — a seção dela é a **última** deste arquivo, logo acima de "## Fechado").
+> (a v2 da geral). **Vencido de novo em 2026-08-24: a varredura AUD-13 (a v3) abriu 18 itens** —
+> a seção dela é a **última** deste arquivo, logo acima de "## Fechado", e ela **refuta parte da
+> AUD-12**: o lote D dela quebrou o `/producao` (`[TD-026]` 🔴). Leia aquela seção antes desta.
 > Ela abriu **17 itens** — o cabeçalho dizia 15, e a conta estava errada: o rótulo "4 🟡" vinha
 > seguido de **cinco** nomes. São 5 🔴 (`[CSV-23]` `[CSV-24]` `[UX-44]` `[CSV-25]` `[CSV-26]`),
 > 2 🟠 (`[TD-022]` `[UX-46]`), **5** 🟡 (`[UX-45]` `[TD-023]` `[CSV-27]` `[CSV-28]` `[CSV-29]`) e
@@ -1063,6 +1065,264 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
 - **Acima de 500 produtos** (onde o batch deixa de ser atômico). Testei 200 linhas no parser; a carga
   prevista é ~100.
 - **Navegadores além do Chromium embutido**, e iOS Safari real.
+
+## Aberto — cluster da varredura AUD-13 (2026-08-24) — SISTEMA INTEIRO, 3ª passada
+
+> 6ª varredura (a **v3** da geral), pedida pelo dono **imediatamente antes da carga em massa**, para
+> quebrar o ciclo fechado da AUD-12 (mesmo agente escrevendo o conserto e o teste do conserto, 15
+> itens no mesmo dia). Regra: **nada é verdade até ser reproduzido** — inclusive os `✅ FEITO` deste
+> arquivo, os comentários do código, os nomes dos testes e **as duas listas da AUD-12** (15 defeitos
+> corrigidos + 64 verificações sãs). Reportado **sem correção**: o dono decide os lotes.
+>
+> **Relatório com todas as medições:**
+> <https://claude.ai/code/artifact/0eda95a1-d7d0-4a71-9c09-f5834953b6d4>
+>
+> **Método:** 10 arquivos de harness em vitest (previsão escrita ANTES, conta à mão em aritmética
+> decimal depois; apagados no fim) · sonda no DOM medindo **7 rotas × 2 temas × 8 larguras**
+> (375/430/700/759/761/800/841/1280), cada rota carregada num `<iframe>` de largura fixa · os 9
+> modais · **escrita real no Firestore de produção** com aval do dono: 2 produtos-sonda criados pela
+> importação, 2 produções, 1 venda editada e estornada, 1 orçamento com PDF · PDF lido do `Blob` pela
+> tabela WinAnsi · offline com `navigator.onLine` forçado.
+> `lint` ✅ · `build` ✅ · **672/672 em 4 execuções** ✅ (sem flake) · `git status` vazio.
+>
+> ⚠ **A varredura ACHOU O QUE PROCURAVA: a AUD-12 quebrou o `/producao`.** O `[TD-022]` (o item
+> "fora de lote") deixou cada produto produzível **uma única vez**. Não foi pego porque o defeito só
+> aparece na SEGUNDA produção, e ninguém produziu duas vezes o mesmo produto depois de 2026-08-23.
+>
+> ⚠ **A limpeza do banco parou de propósito** (decisão do dono, 2026-08-24): o próprio `[TD-026]`
+> impede excluir as 2 produções das sondas. As duas sondas `ZZ AUDIT` **ficam no ar como caso de
+> reprodução**; quando o lote A fechar, o "Excluir e estornar" apaga os eventos E devolve os 50 g da
+> cor Laranja — a limpeza vira o teste de regressão do conserto. Balanço completo no fim da seção.
+>
+> ⚠ **Três falsos positivos MEUS, declarados:** (1) "a capacidade está 8% errada" — eu esqueci o
+> `Math.floor` por conjunto de máquinas; (2) "o `buildProductPayload` corrompe o `includeFixed`" — eu
+> chamei a função com a assinatura errada; (3) "o catálogo esconde as ações no celular" — a linha
+> ABERTA entrega os 5 botões a 44×44, é o desenho declarado.
+>
+> ✅ **O que da AUD-12 SEGUROU** (refeito por fora): lotes A e B inteiros (`parseBool` nas 37
+> grafias, `linha-sem-nome` vs `";;"`, markup, modal de máquinas a 375/641/700/760 sem corte) · lote
+> C (`cor-sem-preco` nomeia certo os dois casos opostos; `isMilharAmbiguo` mudo sobre científica e
+> aceso no milhar real; peça fracionária reprova) · `TD-024`/`TD-025` · no desktop o lote E entrega
+> **0** alvos abaixo de 32px em `/catalogo`, `/vendas`, `/producao` e `/estoque`, e os resíduos
+> declarados batem (`/catalogo` 19px e `/vendas` 81px em 23 recibos, a 761px).
+
+### 🔴 Entra calado na carga, ou trava a operação
+
+- **[TD-026] Cada produto pode ser produzido para o estoque UMA ÚNICA VEZ — depois o `/producao`
+  recusa para sempre.** *Regressão do `[TD-022]` (2026-08-23).*
+  **Mecanismo:** a trava de concorrência lê a versão esperada em `finished.payload.rev ?? 0`, mas os
+  dois construtores desse payload — `addProductionLayers` e `finishedForRemove` — montam um objeto
+  NOVO **sem copiar o `rev`**. A versão esperada é sempre 0, e 0 só existe antes da primeira
+  produção. A venda escapa por acaso: `applyFinishedConsumption` faz `{...good}` e o `rev` pega
+  carona — exatamente o mecanismo que o comentário do `revGuard.ts` promete.
+  **Medido ao vivo, 2× com produtos diferentes:** 1ª produção grava (56→57) · "Excluir e estornar"
+  **recusado** (57→57) · 2ª produção **recusada** (57→57) · e no controle SEM venda nenhuma
+  (`ZZ AUDIT sonda REV`): 1ª grava (57→58), 2ª **recusada** (58→58).
+  A mensagem na tela é **falsa** — *"mudou enquanto esta tela estava aberta (outra aba, outro
+  dispositivo…)"* — e recarregar/fechar abas/esperar não resolve: a causa não é estado velho, é uma
+  versão que nunca foi enviada. **Não há saída pela interface.**
+  **Onde:** `finishedGoods.ts:327-333` · `ProductionPage.tsx:435-440` ·
+  `productionRepository.ts:379`. Comparar com `salesRepository.ts:472-478`, que funciona.
+  **Saída:** os dois construtores carregam o `rev` do doc lido (`...(good ? { rev: good.rev } : {})`,
+  no mesmo molde do `createdAt` que já é preservado ali). ⚠ **O teste NÃO é unitário** — unitário
+  sobre a função pura não pega nada. Tem de produzir 2× o mesmo produto e excluir a produção.
+
+- **[CSV-32] Id de subitem repetido entra calado na carga e come um quarto do custo congelado.**
+  **Mecanismo:** `parseSubitems` dá ao subitem sem id o nome `sub_<índice>`. Um id explícito `sub_1`
+  em qualquer posição + um subitem SEM id na posição 1 → os dois viram `sub_1`. Ninguém precisa
+  repetir id: basta misturar id explícito com id ausente, o acidente clássico de planilha gerada
+  fora. `validateProduct` passa, o preço fica certo, o diálogo da importação mostra **0 avisos**.
+  **Medido ao vivo, com dinheiro:** produção de custo **R$ 15,75** creditou **R$ 11,69** no acabado —
+  **R$ 4,06 (25,8%) sumiram** e a SKU "Tampa" nunca existiu. O seletor do `/producao` lista **duas
+  opções com o MESMO `value`** (`sub:…:sub_1` para "Corpo" e para "Tampa" — escolher Tampa produz
+  Corpo) e o seletor de acabados da venda oferece **a mesma peça física três vezes** ("inteiro",
+  "Corpo" e "Tampa", 1 em estoque cada). A tela ainda anuncia "2 subitens · 1 conjunto completo".
+  **Onde:** `productCsv.ts:646`; o dano se materializa em `finishedGoods.ts:308` (ver `[TD-027]`).
+  **Saída:** duas metades, como no CSV-23. **Reconhecer:** o fallback só usa `sub_<índice>` se o id
+  estiver livre na lista inteira (varre os explícitos primeiro). **Avisar:** classe nova
+  `subitem-id-repetido` nomeando os dois subitens — sem ela, planilha que repita id de propósito
+  segue entrando calada.
+
+### 🟠 Alto (não bloqueia a carga, mas morde)
+
+- **[TD-027] A idempotência do `[TD-023]` engole entrada legítima DENTRO da mesma chamada.**
+  `if (existing.layers.some((l) => l.id === layer.id)) continue;` — a `layerId` é *evento + SKU*, e o
+  `continue` não distingue "reaplicaram o mesmo evento" de "esta chamada trouxe duas entradas para a
+  mesma SKU". A segunda é descartada em silêncio, com a fatia de custo dela.
+  **Medido:** 2 entries da mesma SKU (2 un a R$ 30 cada) → saldo **2** em 1 camada e valor **R$ 60**,
+  quando a submissão custou R$ 120. E reaplicar o mesmo `eventId` com quantidade DIFERENTE (6 un,
+  custo 300) sobre uma camada de 2/R$ 100 não muda nada.
+  Hoje só alcançável pelo `[CSV-32]`; fechado o CSV-32 vira latente — mas continua sendo um
+  `continue` que descarta dado sem contar. **Onde:** `finishedGoods.ts:308`.
+  **Saída:** separar as duas perguntas — idempotência por evento se resolve UMA vez por chamada (a
+  SKU já tem camada com aquele `sourceEventId`?); entradas duplicadas na mesma chamada **somam**.
+
+- **[TD-028] Excluir uma produção já vendida apaga a camada — e o estorno do recibo devolve NADA.**
+  `finishedForRemove` chama `removeEventLayers` sem perguntar se alguma camada do evento já foi
+  drenada por venda. A camada some; a venda continua guardando um `FinishedMove` apontando para ela;
+  no estorno o `shiftLayers` procura pelo id, não acha e devolve o doc intacto — sem erro, sem aviso.
+  **Medido (harness):** produzir 10 un/R$ 100 → vender 4 (saldo 6, valor 60, COGS 40) → excluir a
+  produção (**0 camadas**, valor 0) → estornar o recibo → **0 un devolvidas**, quando deveriam voltar
+  4 un / R$ 40.
+  ⚠ De quebra, o comentário do `removeEventLayers` afirma que manter a SKU vazia serve para que *"o
+  custo já vendido não some do rastro"* — **medido, some** (valor 60 → 0). Mesma classe que o próprio
+  TD-023 levantou, do outro lado do arquivo.
+  ⚠ **ORDEM OBRIGATÓRIA:** hoje este defeito está **mascarado pelo `[TD-026]`** (nenhuma produção que
+  creditou acabado pode ser excluída). Consertar o TD-026 sem consertar este **abre** o caminho.
+  **Onde:** `ProductionPage.tsx:424-441` e `:508-541` (o diálogo de confirmação não menciona venda) ·
+  `finishedGoods.ts:336-354` e `:507-533`.
+  **Saída (decisão do dono):** **(a) barrar** — camada com `qty` menor que a original faz a exclusão
+  recusar nomeando o recibo, a disciplina que a exclusão de cor já usa (`filamentReferences`); ou
+  **(b) preservar** a camada drenada e remover só o saldo não vendido, o que faz o comentário virar
+  verdade. Nos dois casos, o `shiftLayers` precisa CONTAR o move que não achou camada.
+
+### 🟡 Médio
+
+- **[UX-48] O aviso `maquina-por-aproximacao` acende em 100% das linhas de uma planilha CERTA.**
+  O `machineNameToId` só casa por NOME exato antes de partir para o palpite por substring — e o valor
+  mais preciso que a planilha pode trazer é o **id** da máquina.
+  **Medido:** `A1`, `a1`, `x2d`, `X2D`, `A1  Combo` (espaço duplo) e `combo a1` **todos avisam**,
+  todos resolvendo certo. Em escala: **100 linhas com `Maquina = A1` → `maquina-por-aproximacao =
+  100`**. O dono vê que 100% das linhas "foram adivinhadas" e ou desiste da carga ou aprende a
+  ignorar o aviso — o defeito que o lote C inteiro existiu para evitar.
+  **Onde:** `productCsv.ts:696-703`. **Saída:** tentar `machine.id === normalizado` antes do
+  `filter/sort` — id inteiro é identidade, não palpite, e devolve sem chamar o `onFuzzy`. O espaço
+  duplo se resolve normalizando espaços nos dois lados da comparação de nome.
+
+- **[TD-029] Três caminhos de escrita ficaram sem `guardOnline` — e um diz "Sincronizado" no vazio.**
+  O `[TD-020]` fechou máquinas e taxas. Restaram: `useBusinessSettings.saveFixedCostRate`
+  (`hooks/useBusinessSettings.ts:51-57`, `void persistFixedCostRate`, fire-and-forget — e `:38`, a
+  semeadura) · `useQuoteConfig.saveBusiness` (`:28-31`) · `useQuotes.addQuote/deleteQuote` (`:31-37`)
+  + `reserveQuoteNumber` (`QuotePage.tsx:261`, que é `runTransaction`: offline a Promise não resolve
+  nem rejeita e o botão fica em "gerando" para sempre).
+  **Medido ao vivo com `navigator.onLine = false`:** `/producao` **bloqueia** com a frase certa
+  (eventos 58→58); mudar "Dias de impressão/mês" 26→27 na calculadora — que é `config/negocio` e
+  alimenta o custo fixo por hora do **catálogo inteiro** — muda na tela, **0 avisos**, e o badge segue
+  dizendo **"Sincronizado"**. **Saída:** `guardOnline()` ANTES do `await` nos três; em
+  `saveFixedCostRate`, que é chamada a cada tecla, o molde é o `saveFees` (expõe `error`, não lança).
+
+- **[UX-49] O ✕ dos NOVE modais mede 32×32 no celular — e no celular não há Escape.**
+  `.modal-close` tem largura/altura fixas em `var(--space-32)` e nenhum override em media query. O
+  UX-46 levou o `.icon-button` a 44px no celular, mas o fechar do diálogo é classe própria e ficou de
+  fora. **Medido** no modal de máquinas a 375px: **32×32**. Vale para os nove (a casca é uma só). As
+  alternativas que o `<Modal>` oferece — Escape e clique no overlay — não existem num toque de dedo.
+  **Onde:** `modal.css:48-51`. **Saída:** `padding` + margem negativa igual (UX-28/UX-37) dentro do
+  `@media (max-width: 760px)`, para o alvo crescer sem empurrar o cabeçalho do diálogo.
+
+### 🟢 Baixo / informativo (11 itens, todos com número)
+
+- **[UX-50] Controles 9–12px abaixo da régua no celular, fora da ressalva de "1–4px" da AUD-12:**
+  `select` do Arredondamento 178×**32** · `.link-button` ×**32** (3 em `/`, 2 em `/estoque`) · `.btn`
+  e `.icon-label-button` ×**34** · inputs do `.ci-item` ×**35** · `summary` ×27 · `.brand-reset` ×20.
+- **[UX-51] O stepper cresceu só na horizontal, e a justificativa escrita não se sustenta.** Cada
+  seta mede **28×19,5** no celular (o UX-46 mediu a largura). O comentário do `forms.css:746-750` diz
+  que *"o alvo de verdade é o campo, que passa dos 44px"* — **medido: `.field-input` = 42px** e os do
+  `.ci-item` = **35px**. **Onde:** `forms.css:719-751`. ⚠ Subir a altura da seta mexe na altura do
+  campo, que é a trava do `[micro]` de 14px.
+- **[A11Y-02] Botão só-ícone sem nome acessível** (a regra A11Y-01 do projeto): **20** em `/` e **4**
+  em `/orcamento` — as setas do stepper têm `tabindex="-1"` mas nem texto, nem `aria-label`, nem
+  `aria-hidden`. **Onde:** `NumberInput.tsx`.
+- **[TD-030] O doc de `acabados` nasce na produção e nunca sai.** `deleteGood`
+  (`useFinishedGoods.ts:44`) é exportado e **nenhum componente chama** — código morto. Excluir o
+  produto declara em texto que não toca o acabado; excluir a produção esvazia as camadas e mantém o
+  doc.
+- **[TD-031] CSS morto:** `.sales-table` e `.sales-table-wrap` (`sales.css:55-100`, ~45 linhas, com
+  um `min-width: 760px` que ninguém aplica) não são usados por componente nenhum.
+- **[CSV-33] `Pecas = 0` e `-1` viram 1 em silêncio.** Medido: `"0"` → 1, `"-1"` → 1, **0 avisos** —
+  enquanto `Markup = 0`/`-2` avisam (CSV-26). O `Math.max(1, …)` não distingue ausente de escrito.
+- **[CSV-34] O rótulo "N disp." do modal de venda não credita o recibo antigo** (o aviso credita).
+  Editando um recibo de 1 un sobre 1 produzida: rótulo diz **"0 disp."** enquanto a qtd 1 é aceita
+  sem aviso. O aviso do UX-42 está **certo** (qtd 2 → "1 além", qtd 3 → "2 além", medido ao vivo); o
+  rótulo é que ficou na conta antiga. **Onde:** `SaleModal.tsx`.
+- **[CSV-35] Coluna repetida com grafia VARIANTE ainda recebe o conselho errado.**
+  `Produto;Peso (g);Peso` → *"o nome não foi reconhecido"*, cujo conselho é renomear — e renomear
+  cria a duplicata exata. O CSV-28 só cobre igualdade do texto normalizado.
+  **Onde:** `productCsv.ts:475-486`.
+- **[CSV-36] Plural fixo no portão da carga:** "Importar **1 produtos** do CSV?" e "**1 produtos**
+  importados". **Onde:** `ProductCatalog.tsx`.
+- **[TD-032] Taxa de pagamento ≥ 100% multiplica o preço de repasse por 20.**
+  `grossUpForFee(100, 100)` → **1999,99** (o clamp do `feeFraction` é 0,95). Digitar `100` no editor
+  de taxas com repasse ligado. **Onde:** `paymentFees.ts:12-16`.
+- **[CSV-37] Markup `"5X0"` entra como 50** — o `replace` tira TODOS os "x", sem aviso. (`"X5"`,
+  `"5x"` e `"5 x"` → 5, o que é desejável.) **Onde:** `productCsv.ts:1124`.
+
+### Ordem proposta — lotes AUD-13 (aguardando o martelo do dono)
+
+| Lote | Itens | Por que esses | Custo / risco |
+|---|---|---|---|
+| **A — destravar a produção** | **[TD-026]** | Sozinho e primeiro: é o único que deixa o app **inoperante** hoje, e é ele que impede a limpeza das sondas | baixo / baixo no código, **alto se o teste for unitário** |
+| **B — o que entra calado na carga** | **[CSV-32]** · [TD-027] · [UX-48] | Mesma sessão de teste: `parseSubitems` e `machineNameToId` no mesmo arquivo, e o TD-027 é o outro lado do CSV-32 (consertar só o parser deixa a bomba armada no `finishedGoods`) | médio / médio — fazer DEPOIS do A, no mesmo arquivo já quente |
+| **C — o estorno que fica mudo** | **[TD-028]** | Sozinho porque exige DECISÃO do dono (barrar vs. preservar), e porque o lote A **abre** este caminho | baixo (barrar) ou médio (preservar) / baixo |
+| **D — offline e o dedo no diálogo** | [TD-029] · [UX-49] | Nenhum toca lógica de negócio e os dois se verificam na mesma sessão de navegador | baixo / baixo (atenção à cascata do `@media`) |
+| **E — a poeira** | os 11 🟢 | Vale quebrar em duas sessões: CSS/alvo (UX-50, UX-51, A11Y-02) e parser (CSV-33, CSV-35, CSV-36, CSV-37); o código morto (TD-030, TD-031) vai de carona | baixo, mas somado não é desprezível |
+
+**O que eu deixaria de FORA de propósito (ressalva registrada, não item):** os alvos a 1–4px da
+régua e o `.icon-button.edit` **38,6×44** do `/vendas` (reconfirmados, 23 ocorrências — uma por
+recibo) · o **overdraft de −370 g na cor Bege** (remedido idêntico: saldo 243 g com o rolo #5 em
+613 g; é furo de contagem física) · o **[UX-47]** (confirmado ao pixel, mas já é item aberto:
+`77px 60px 90px 32px` + 3 folgas de 8 = **283px** = exatamente a largura da linha a 375px) · e
+**acima de 500 produtos** (o `createProductsBatch` fatia em lotes de 500 e o erro já informa quantos
+entraram; li, não medi — provar exigiria criar 500+ documentos).
+
+### ✅ O que está SÃO — medido, não presumido
+
+A lista longa, com os números, vive no relatório (link no topo desta seção). O resumo:
+**matemática refeita à mão num cenário NOVO** (2 etapas em máquinas diferentes, 3 peças, falha 7%,
+markup 2,4×, acessório, fixo ligado, arredondamento `0.90`) — os 11 componentes batem com divergência
+máxima de **4,9×10⁻¹¹**: material 6,7695 · energia 0,2434166667 · desgaste 3,0941888889 · manut 0,35
+· labor 8,1666666667 · reserva 1,4017893070 · fixo 3,0408653846 · total **30,5664269139** · exato
+**56,8083062448** · arredondado 56,90. Os 7 modos de arredondamento, FIFO misto (R$ 19,60 = 120×0,090
++ 80×0,110) e overdraft D4 (R$ 85,60, shortfall 380 g) conferidos à mão · **estorno de filamento
+exato nas 5 quantidades**, e o rolo não é apagável pela UI, então o caminho do move órfão **não
+existe** do lado do filamento (ao contrário do acabado) · gross-up e margem líquida · **rateio de
+desconto: 20.000 sorteios, 0 falhas** nas duas invariantes · capacidade pelo gargalo com `floor` por
+conjunto (**641** peças/mês) · `marginTier` na régua do número arredondado (49,4 ruim / 49,5 ok /
+65,4 ok / 80 bom) · **round-trip documento→formulário→documento** fecha campo a campo (`doc1 ===
+doc2`, 24 chaves, 0 `undefined`) e **CSV export→parse→export dá arquivo IDÊNTICO com 0 avisos**,
+preservando `filamentId`/`supplyId`/`subitemId` · **600 linhas em 11,3 ms com 600 `createdAt`
+distintos** (o CSV-15 segura em escala) · **contraste WCAG AA: 0 falhas** em 7 rotas × 2 temas ·
+rolagem lateral 0 a 375/430/700px · o catálogo no celular entrega os **5 botões a 44×44** com
+`aria-label` na linha aberta · **venda ao vivo exata** (+18,41 receita, +11,69 custo, +6,72 lucro) e
+os **KPIs do `/vendas` atualizaram sem recarregar** (o `[TD-019]` verificado ao vivo pela 1ª vez) ·
+**UX-42 ao vivo**: qtd 1 não avisa, 2 avisa "1 além", 3 avisa "2 além" · **estorno de recibo ida e
+volta ao centavo** (acabado −1 e de volta a 0, contador de saldo negativo 1→2→1) · **PDF do
+`/orcamento` com dado real** (o buraco da AUD-12): 8.157 bytes, `/Encoding /WinAnsiEncoding`, **19
+strings e nenhuma em UTF-16**, travessão/aspas curvas/`·`/`½`/`‰` intactos, `‐` (U+2010) rebaixado
+sozinho sem arrastar a linha, total R$ 18,41 = a tela.
+
+### O que a AUD-13 NÃO cobriu
+
+- **Dump documento a documento do Firestore.** Eu ia ler o token de sessão para consultar a REST API
+  e o **classificador de segurança bloqueou a chamada** — corretamente, porque ler token de
+  autenticação do IndexedDB é indistinguível de exfiltração. Não retentei por outro caminho: o
+  retrato do banco saiu **pela própria UI** (contadores, saldos, extratos, rolos e lotes abertos um a
+  um). Isso prova os NÚMEROS, não a forma dos documentos — um campo que mudasse sem mover saldo
+  passaria batido.
+- **Offline com a rede realmente caída** (fila do Firestore, Promise pendente, reconexão). Forcei
+  `navigator.onLine`, que é o que o `guardOnline` lê — e é por isso que o contraste guardado × não
+  guardado ficou nítido. Resíduo do antigo `[AUD-04]`, agora pela **quarta** varredura.
+- **O caminho da camada órfã na UI** — o `[TD-028]` está provado por harness e leitura, não ao vivo,
+  porque o `[TD-026]` impede excluir a produção. É o **primeiro teste a rodar depois do lote A**.
+- **Regras de segurança do Firestore** (exige 2ª conta Google) · **acima de 500 produtos** contra o
+  banco · **duas abas gravando ao mesmo tempo** (a AUD-12 já fez; aqui o guarda `rev` foi exercitado
+  e foi ele que denunciou o TD-026) · **Excel/Google Sheets de verdade** e o diálogo de arquivo do SO
+  · **navegadores fora do Chromium embutido** e iOS Safari real · **importação/exportação de vendas,
+  filtros e paginação do histórico**, e o `/maquinas` além da leitura.
+
+### Balanço do banco — 7 documentos criados, limpeza PARADA de propósito
+
+| Coleção | Antes | Depois | O quê | Sai pela UI? |
+|---|---|---|---|---|
+| `products` | 97 | **99** | `ZZ AUDIT sonda D1` = `4I1pyH6F9fcWV2OpJpq9` · `ZZ AUDIT sonda REV` = `KGFRWOheghVBdEUzVVEV` | sim |
+| `producao` | 56 | **58** | 2 eventos "ZZ AUDIT", 24/08/2026 | **não — é o TD-026** |
+| `acabados` | — | **+2** | id = o id do produto (os dois acima) | não existe caminho (TD-030) |
+| `vendas` | 47 · R$ 2.620,70 | **48** · R$ 2.639,11 | 1 recibo de R$ 18,41 | sim |
+| `orcamentos` | — | **+1** | Nº 0021 (contador 21 → 22, liberado pelo dono) | sim |
+| `estoque` Laranja | 1403 g | **1353 g** | −40 g e −10 g das 2 produções | volta sozinho quando o TD-026 for corrigido |
+
+Tudo o mais bate com o retrato inicial: **Bege 243 g / 5 rolos · Argola 198 un · Clicker Azul 108 un
+· `config/machines` intacto**. A alteração offline em `config/negocio` foi desfeita ainda offline e o
+doc terminou com o valor original (26 dias). **Nenhum lançamento novo no rastro D6.**
 
 ## Fechado
 

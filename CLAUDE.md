@@ -14,33 +14,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-23): a AUD-12 fechou** — lotes C, D e E no mesmo dia.
-  **C — a QUALIDADE do aviso** (os quatro já avisavam; o defeito era o *conteúdo*): `cor-sem-preco`
-  dizia "não tem rolo" para cor que TEM rolo a preço 0 `[CSV-27]` · coluna repetida saía como "nome
-  não reconhecido", cujo conselho é renomear uma coluna certa `[CSV-28]` · `isMilharAmbiguo` acendia
-  sobre científica lida CORRETAMENTE `[CSV-29]` · peça fracionária virou **reprovação**
-  `[CSV-31]`. **D** `[TD-023]`: `addProductionLayers` confere `layer.id` e a idempotência prometida
-  vira real — mas `shiftLayers` (baixa/estorno) é **DELTA** e ficou deliberadamente NÃO idempotente.
-  **E:** o corte de cartão subiu de 640 para **760px** e a rolagem lateral zerou
-  (`/catalogo` 68→0, `/vendas` 130→0 em 23 recibos) `[UX-45]` · `.icon-button` 28→32/44, o range
-  313×**4**→313×44, `.btn-sm` 29→32/44, stepper 14→28 no celular `[UX-46]` — `/producao` foi de
-  **25 → 0** abaixo da régua no desktop.
-  `lint` ✅ · `build` ✅ · **672/672** ✅ (+19). Detalhe e as exceções medidas: `HISTORICO.md`.
+- **Última mudança (2026-08-24): a varredura AUD-13 (v3 da geral) abriu 18 itens — nada corrigido
+  ainda.** Ela achou o que procurava: **a AUD-12 quebrou o `/producao`**. `[TD-026]` 🔴 — cada produto
+  só pode ser produzido para o estoque **UMA vez**; da 2ª em diante a transação é recusada com
+  mensagem FALSA de concorrência, e "Excluir e estornar" também (o payload do acabado é remontado
+  **sem o `rev`**). `[CSV-32]` 🔴 — id de subitem repetido entra calado na carga e **R$ 4,06 de
+  R$ 15,75 sumiram** do acabado. Mais 2 🟠, 3 🟡 e 11 🟢, com lotes A–E propostos: **o A vem primeiro
+  e o C tem ordem obrigatória**. `lint` ✅ · `build` ✅ · **672/672 ×4** ✅ · tudo no `BACKLOG.md`.
+- ⚠ **7 documentos `ZZ AUDIT` ficaram no banco de propósito** (dono, 2026-08-24): as 2 sondas são o
+  caso de reprodução do `[TD-026]`, e o próprio bug impede excluir as 2 produções. Fechado o lote A,
+  "Excluir e estornar" apaga os eventos **e** devolve os 50 g da Laranja (1403 → 1353 g).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — o backlog de código voltou a ZERAR.** Sobrou **um** item aberto, o `[UX-47]`
-  (a fileira de acessórios é a única do app que nunca virou cartão — a 375px a conta fecha no talo,
-  283px para 283px). Tudo o mais está bloqueado por fora (logo, Dashboard, `[AUD-08]`).
-  → **A frente que anda agora é do DONO: cadastrar as cores e os insumos definitivos**, pegar
-  os ids e passá-los pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-
-  modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. Só
-  então a **CARGA EM MASSA** — que **não cria** cor nem insumo, e não tem "limpar catálogo".
-- ⚠ **Regra que a carga cria:** `filamentId`/`supplyId` são **auto-id do Firestore** — o de-para sai
-  pelo botão **"Copiar de-para"** do `/estoque` (TSV). Depois da carga, cor se **edita** (nome/preço/
-  arquivar preservam o id); **excluir e recriar gera id novo e mata o vínculo** de quem a usa.
+- **▶ PRÓXIMA TAREFA — o LOTE A da AUD-13: `[TD-026]`.** Não é escolha de prioridade: é o único item
+  que deixa o app **inoperante** hoje, e é ele que destrava a limpeza das sondas. ⚠ O teste **não é
+  unitário** — tem de produzir 2× o mesmo produto e excluir a produção. Depois B (o que entra calado
+  na carga), C (o A **abre** o `[TD-028]`), D e E. **A carga em massa espera o LOTE B.**
+  → A frente do DONO segue a mesma: cadastrar as cores e os insumos definitivos e passar os ids pro
+  **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
+  (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. A carga **não cria**
+  cor nem insumo, e não tem "limpar catálogo" — a regra de auto-id/de-para está no `BACKLOG.md`.
 - ⚠ **Ainda pendentes:** o dono precisa **cadastrar os insumos e religar os acessórios** (os de hoje
   entram no custo mas não dão baixa) · e o Dashboard fecha as duas ressalvas já na tela — payback do
   `/maquinas` sobre lucro **bruto** (UX-09) e paginar que resolveu a lista, não a análise (TD-006).
