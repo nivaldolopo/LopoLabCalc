@@ -9,6 +9,72 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ UX-47 + UX-52 — os dois últimos itens de código (2026-08-24)
+
+> Fecharam o backlog de código INTEIRO. Os dois são de UI, nenhum mexe em cálculo.
+> `lint` ✅ · `build` ✅ · **729/729** ✅ · medido no DOM em 4 larguras (375, 640, 641, 700, 1280) e
+> conferido ao vivo no banco real (sem gravar nada).
+
+### [UX-47] A fileira de acessórios virou cartão — e a exceção da régua de 44px morreu inteira
+
+**O que era.** A `.accessory-row` era a única fileira do app que nunca virou cartão: `1fr 60px 90px
+32px` em TODA largura. A 375px a conta fechava no talo — 77 + 60 + 90 + 32 + 3 folgas de 8 = **283px,
+exatamente a largura da linha**. Por isso ela e a `.machine-edit-row` eram as **duas exceções** à
+régua de 44px do UX-46: com o botão em 44 a fileira estourava 12px e o Excluir saía para fora da
+linha (right 341 contra 329), e o stepper de 28 deixava 16px para o número — o caso que o `[micro]`
+mediu. O campo mais usado dos três, a descrição, ficava com 77px.
+
+**A saída.** A receita do projeto (UX-38/UX-40), idêntica à que fechou o UX-44 no editor de
+máquinas: cada campo ganhou invólucro com rótulo próprio (`.acc-field`/`.acc-label`, gêmeos do
+`.me-field`/`.me-label`), a `.acc-header` some no celular e a fileira quebra em 2 faixas —
+descrição + excluir em cima, os dois números embaixo.
+
+**⚠ O que este item ensinou, e que o UX-44 não tinha ensinado: a exceção tinha DOIS pedaços de
+range, e cada um pede um remédio diferente.** Virar cartão resolve onde a fileira não cabe. De 641 a
+760 ela **cabe** — ali o problema não era falta de espaço, era trilha estreita demais para o dedo.
+O remédio certo naquela faixa é **alargar a trilha** (`minmax(0,1fr) 96px 110px 44px`), não encolher
+o alvo. Medido a 641 (o pior da faixa): descrição 275px, quantidade 96px com **53px** de folga de
+texto (o `[micro]` precisa de ~34), Excluir 44×44 dentro da linha, rolagem 0. Com os dois pedaços
+cobertos, **não sobrou range em que a `.accessory-row` precise de exceção** — ela saiu da regra do
+topo do `responsive.css` de vez.
+
+**⚠ Por que a fronteira do cartão é 640 e não os 760 do catálogo/recibo.** Foi medido nos dois
+cortes ANTES de escolher. A 700px o cartão dava 554px à descrição e **272px a cada campo de
+número**, com a fileira indo de 44 para 124px de altura: largura de sobra convertida em rolagem
+vertical. A regra é "fileira que NÃO CABE vira cartão", não "fileira estreita vira cartão" — o
+cartão entra onde a fileira realmente não cabe, e a 641…760 ela cabe. 640 é a mesma fronteira do
+`.machine-edit-row`, que é a fileira de trilha fixa irmã desta.
+
+**Medido a 375px (o caso do item):** descrição **77 → 229px** · Excluir **32 → 44×44**, agora com
+right 329 = a borda da linha (era 341, fora dela) · stepper **14 → 28px**, com **67px** de folga
+para o número (eram 16) · rolagem horizontal **0** · altura da fileira 44 → 124px, que é o preço do
+cartão. **Desktop inalterado:** `394px 60px 90px 32px`, altura 35, rótulos escondidos, cabeçalho em
+`grid` — a prova de que o invólucro novo não move pixel onde a fileira já servia.
+
+### [UX-52] O rótulo diz as duas coisas (escolha do dono)
+
+**O que era.** "Estoque de acabados (8 disp.)" no seletor de origem e "⚠ 4 além do estoque de
+acabados" no aviso, a 2cm de distância, os **dois certos** e medindo coisas diferentes: o rótulo é
+`partBalance`, que soma TODAS as cores de propósito (FEAT-11 — "a cor decide de onde tirar, não
+quantas existem"), e o aviso vem do `consumeFifo`, que drena da cor ESCOLHIDA. Não era bug de
+número; era leitura contraditória.
+
+**A saída** (o dono escolheu o rótulo, não o aviso): `Estoque de acabados (7 disp. · 3 nesta cor)`.
+Com o segundo número na tela a conta **fecha à vista** — o aviso de "4 além" para quantidade 7
+passa a ser 7 − 3, e não um número que aparece do nada. O parêntese só surge quando os dois
+DIVERGEM (peça em mais de uma cor); com uma cor só eles coincidem e ele seria ruído — que é por que
+ninguém tinha visto isto antes.
+
+**Conjunto multicor** diz "nestas cores" e usa o **mínimo entre as partes**, a mesma conta do
+`assemblableWholes`: o que limita um conjunto é a parte mais escassa. O `colorBalanceOf` só relê o
+saldo que o próprio seletor de cor já exibia — **nenhum cálculo mudou**, e por isso ele não virou
+função de `lib/`.
+
+**Prova ao vivo** (banco real, sem gravar: o modal foi fechado no Escape). Chaveiro Charmander,
+Laranja 4 · Bege 3, total 7. Com Laranja: "7 disp. · 4 nesta cor". Trocando para Bege: "7 disp. ·
+3 nesta cor". Quantidade 7 com Bege: aviso "⚠ 4 além" — **7 − 3 = 4**, as duas frases finalmente
+somando na mesma tela.
+
 ## ✅ Lote E da AUD-13 — "a poeira": os 11 🟢 (2026-08-24)
 
 > O lote de fechamento da 3ª varredura. Nenhum item sozinho valia uma sessão; somados, são o
@@ -715,6 +781,13 @@ transbordo lateral); 671px → lado a lado em x=14 e x=166, gap de 16.
   `minmax(0, 1fr)` junto** — ela não é herdada. Idem para compensação calibrada sobre token (o
   `padding` do `<input type="date">`, UX-22): token que muda por faixa exige compensação que muda
   junto. O `1fr` puro foi a causa das 3 quebras da auditoria de 2026-08-17.
+- **Fileira → cartão (UX-47):** a fronteira do cartão **se mede, não se copia**. A regra é
+  *fileira que NÃO CABE vira cartão* — não *fileira estreita vira cartão*: medido nos dois cortes
+  possíveis, a 700px o cartão dava 272px a cada campo de número e triplicava a altura da fileira,
+  largura de sobra virando rolagem. E quando uma fileira é exceção a uma régua de alvo, **a exceção
+  costuma ter dois pedaços de range com remédios diferentes**: onde não cabe, vira cartão; onde cabe
+  mas a trilha é estreita, **alarga-se a trilha**, nunca se encolhe o alvo. Cobrir só um pedaço
+  deixa a exceção viva com outro nome.
 - **Tabela → cartão:** ao desmontar uma `<table>` em grade, **todo seletor de elemento usa
   combinador de FILHO** (`> tbody`, `> td`) — há tabela dentro de dropdown, e `tbody` solto quebra o
   alinhamento dela. E **`@media` não soma especificidade**: bloco que reescreve regra-base vai

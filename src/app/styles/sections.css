@@ -103,6 +103,30 @@
   padding: 0 var(--space-2);
 }
 
+/* UX-47 — cada campo virou um invólucro com o próprio rótulo, para o modo
+   CARTÃO do celular (ver `responsive.css`). No desktop o rótulo mora na faixa
+   `.acc-header` e este some; o invólucro precisa então se comportar exatamente
+   como o campo que ele embrulha — daí o `minmax(0, …)` do item de grade e a
+   largura de 100% no que está dentro. (Mesmo desenho do `.me-field` do editor
+   de máquinas, que resolveu o UX-44.) */
+.acc-field {
+  display: block;
+  min-width: 0;
+}
+
+.acc-field > .num-field,
+.acc-field > input {
+  width: 100%;
+}
+
+.acc-label {
+  display: none;
+  font-size: var(--text-2xs);
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 .fixed-costs-banner {
   background: var(--fc-banner-bg);
   padding: var(--space-16) var(--space-20);

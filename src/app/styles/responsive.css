@@ -122,32 +122,46 @@
     height: 44px;
   }
 
-  /* ⚠ AS DUAS EXCEÇÕES, medidas — fileira de TRILHA FIXA não tem de onde tirar.
-     A `.accessory-row` é `1fr 60px 90px 32px` em TODA largura (ela nunca virou
-     cartão) e a `.machine-edit-row` mantém a grade de 6 colunas do desktop até
-     640. Medido a 375 com o botão em 44: a fileira de acessórios estourou 12px e
-     o Excluir saiu para FORA da linha (right 341 contra 329) — que é o bug do
-     UX-44 reaberto pela porta dos fundos. A conta não fecha por folga nenhuma:
-     77 + 60 + 90 + 32 + 3 folgas de 8 = 283, exatamente a largura da linha.
-     Os 14px extras do stepper caem junto pelo mesmo motivo: a coluna de
-     quantidade tem 60px e sobrariam 16 para o número — é literalmente o caso que
-     o [micro] de 2026-08-17 mediu ("750" no lugar de "7500").
-     → Fica registrado no BACKLOG que a saída de verdade para a `.accessory-row`
-     é virar CARTÃO (UX-38/UX-40), não espremer trilha. */
-  .accessory-row .icon-button,
+  /* ⚠ A EXCEÇÃO, medida — fileira de TRILHA FIXA não tem de onde tirar. A
+     `.machine-edit-row` mantém a grade de 6 colunas do desktop até 640, e nessa
+     faixa o botão de 44 estoura a caixa do diálogo (é o UX-44 reaberto pela
+     porta dos fundos); os 14px extras do stepper caem junto, porque a coluna de
+     quantidade tem 60px e sobrariam 16 para o número — o caso que o [micro] de
+     2026-08-17 mediu ("750" no lugar de "7500"). Abaixo de 640 ela vira cartão e
+     a exceção se desfaz (ver o bloco de 640 no fim do arquivo).
+     ⚠ UX-47 — a `.accessory-row` SAIU daqui. Ela era a segunda exceção porque
+     era `1fr 60px 90px 32px` em TODA largura: a 375px a conta fechava no talo
+     (77 + 60 + 90 + 32 + 3 folgas de 8 = 283, exatamente a largura da linha), o
+     Excluir de 44 saía para FORA da linha (right 341 contra 329) e o campo de
+     descrição ficava com 77px. Abaixo de 640 ela vira CARTÃO (bloco do UX-47, no
+     fim do arquivo); de 641 a 760 ela continua fileira, mas com a trilha
+     ALARGADA na regra logo abaixo — que é a diferença que desfaz a exceção:
+     naquela faixa sobra espaço, então o certo é dar largura à trilha, não tirar
+     tamanho do dedo. Em nenhum ponto do range da régua ela precisa de exceção. */
   .machine-edit-row .icon-button {
     width: var(--space-32);
     height: var(--space-32);
   }
 
-  .accessory-row .num-spin,
   .machine-edit-row .num-spin {
     width: 14px;
   }
 
-  .accessory-row .num-field input,
   .machine-edit-row .num-field input {
     padding-right: 16px;
+  }
+
+  /* UX-47 — a trilha da fileira de acessórios paga o que a régua do dedo pediu:
+     o Excluir vai de 32 para 44 e o stepper de 14 para 28 (as duas regras
+     globais desta faixa), então as colunas de número sobem junto. Medido a 700px
+     com a fileira em pé: o campo de descrição ainda fica com ~390px, ou seja o
+     espaço sai de onde sobra. Sem isto, a coluna de 60px ficaria com 96 − 28 − 30
+     = 30px para o número: o caso do [micro].
+     ⚠ Abaixo de 640 esta regra é substituída pela do cartão (mesma
+     especificidade, bloco posterior no arquivo — vence por ordem). */
+  .accessory-row,
+  .acc-header {
+    grid-template-columns: minmax(0, 1fr) 96px 110px 44px;
   }
 
   /* A caixa do range sobe junto (ver `forms.css`): 44 - 14 - 14 = 16px... a
@@ -230,11 +244,11 @@
      a AUD-13 listou), os do painel de custos fixos, os da fileira de acessórios
      e os 26 do editor de máquinas. Todos são a mesma caixa de campo dos outros,
      com a mesma régua.
-     ⚠ As duas fileiras de TRILHA FIXA entram aqui de propósito, e não é
-     contradição com a exceção medida lá em cima: aquela é de LARGURA (o botão
-     de 44 e o stepper de 28 estouravam os 283px da linha a 375px). Altura não
-     disputa a trilha — medido depois, a `.accessory-row` continua com o excluir
-     dentro da linha. */
+     ⚠ A fileira de máquinas entra aqui de propósito, e não é contradição com a
+     exceção medida lá em cima: aquela é de LARGURA (o botão de 44 e o stepper de
+     28 estouram a trilha fixa). Altura não disputa a trilha. A de acessórios
+     seguiu junto quando ainda era trilha fixa; hoje ela é cartão nesta faixa
+     (UX-47) e o piso vale igual — o campo é o mesmo. */
   .capacity-inputs input,
   .fc-item input,
   .accessory-row input,
@@ -591,6 +605,76 @@
   }
 
   .machine-edit-row .me-label {
+    display: block;
+    margin-bottom: var(--space-2);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   UX-47 — no celular a FILEIRA DE ACESSÓRIOS deixa de ser fileira.
+
+   Era a única do app que nunca virou cartão: `1fr 60px 90px 32px` em TODA
+   largura. A 375px a conta fechava no talo — 77 + 60 + 90 + 32 + 3 folgas de 8
+   = 283px, exatamente a largura da linha —, e por isso ela era EXCEÇÃO à régua
+   de 44px do dedo (bloco do topo): o Excluir de 44 saía para fora da linha
+   (right 341 contra 329) e o stepper de 28 deixava 16px para o número, que é o
+   caso do [micro]. Espremer trilha não resolvia: não havia folga para espremer.
+   O campo de descrição, o mais usado dos três, ficava com 77px.
+
+   A saída é a regra do projeto (UX-38/UX-40), a mesma receita do `.fg-part`, do
+   `.main-row`, da `.recibo-items` e do `.machine-edit-row`: a linha vira cartão
+   de 2 faixas, com o botão junto do que ele apaga.
+
+     [ Descrição ................................ ] [excluir]
+     [ Qtd/peça      ]  [ R$/un        ]
+
+   ⚠ A fronteira é 640px, a mesma do editor de máquinas — e NÃO os 760 do
+   catálogo/recibo. Foi medido nos dois cortes antes de escolher: a 700px o
+   cartão dá 554px ao campo de descrição e 272px a CADA campo de número, com a
+   fileira passando de 44 para 124px de altura — largura de sobra transformada em
+   rolagem. Naquela faixa a fileira cabe em pé; o que ela precisava era de trilha
+   mais larga para o dedo, e é o que a regra de 760 lá em cima faz. O cartão
+   entra onde a fileira REALMENTE não cabe.
+   --------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  /* Sem colunas alinhadas a faixa não tem o que rotular: cada campo passa a
+     carregar o próprio `.acc-label` (ver `sections.css`). */
+  .acc-header {
+    display: none;
+  }
+
+  .accessory-row {
+    /* Reescrita INTEIRA, com a guarda `minmax(0, …)` junto: dentro de media
+       query ela não é herdada do `sections.css`. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+    gap: var(--space-8) var(--space-10);
+    align-items: end;
+  }
+
+  /* A descrição ocupa a faixa inteira ao lado do botão que opera a fileira; os
+     dois números descem lado a lado.
+     ⚠ A colocação é EXPLÍCITA nos quatro, e não só nos das pontas: colocar o
+     botão em `1 / 3` não tira a coluna 3 do fluxo automático dos outros, e o
+     campo de preço cairia nela (o mesmo tropeço medido no UX-46). Item
+     posicionado não reserva trilha para os vizinhos. */
+  .accessory-row .acc-field-desc {
+    grid-area: 1 / 1 / 2 / 3;
+  }
+
+  .accessory-row .icon-button.danger {
+    grid-area: 1 / 3;
+    align-self: end;
+  }
+
+  .accessory-row .acc-field:nth-child(2) {
+    grid-area: 2 / 1;
+  }
+
+  .accessory-row .acc-field:nth-child(3) {
+    grid-area: 2 / 2;
+  }
+
+  .acc-label {
     display: block;
     margin-bottom: var(--space-2);
   }

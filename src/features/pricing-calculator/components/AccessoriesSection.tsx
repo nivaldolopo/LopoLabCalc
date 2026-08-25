@@ -74,7 +74,12 @@ export function AccessoriesSection({
           Ligue o acessório a um <strong>insumo do estoque</strong> para a
           produção dar baixa dele automaticamente.
         </div>
-        <div className="acc-header">
+        {/* UX-47: no celular esta faixa some e cada campo carrega o próprio
+            rótulo (o `.acc-label` abaixo) — a fileira vira CARTÃO, a mesma
+            receita do `.machine-edit-row`. Aqui ela é decorativa: quem nomeia o
+            campo para leitor de tela é o `aria-label` de cada input, que existe
+            nos dois modos. */}
+        <div className="acc-header" aria-hidden="true">
           <span>Descrição</span>
           <span>Qtd/peça</span>
           <span>R$/un</span>
@@ -101,35 +106,50 @@ export function AccessoriesSection({
                 ser <label> de nenhuma. Cada campo ganha o próprio `aria-label`;
                 antes os três não tinham nome nenhum. */}
             <div className="accessory-row">
-              <input
-                type="text"
-                aria-label="Descrição do acessório"
-                value={accessory.desc}
-                readOnly={Boolean(supply)}
-                title={supply ? "O nome vem do insumo do estoque" : undefined}
-                onChange={(event) =>
-                  onUpdateAccessory(accessory.id ?? "", {
-                    desc: event.target.value,
-                  })
-                }
-                placeholder="Ex: Argola"
-              />
-              <NumberInput
-                aria-label="Quantidade por peça"
-                min={0}
-                step={1}
-                value={accessory.qty}
-                onChange={(qty) => onUpdateAccessory(accessory.id ?? "", { qty })}
-              />
-              <NumberInput
-                aria-label="Preço unitário (R$)"
-                min={0}
-                step="0.01"
-                value={accessory.unitPrice}
-                onChange={(unitPrice) =>
-                  onUpdateAccessory(accessory.id ?? "", { unitPrice })
-                }
-              />
+              <span className="acc-field acc-field-desc">
+                <span className="acc-label" aria-hidden="true">
+                  Descrição
+                </span>
+                <input
+                  type="text"
+                  aria-label="Descrição do acessório"
+                  value={accessory.desc}
+                  readOnly={Boolean(supply)}
+                  title={supply ? "O nome vem do insumo do estoque" : undefined}
+                  onChange={(event) =>
+                    onUpdateAccessory(accessory.id ?? "", {
+                      desc: event.target.value,
+                    })
+                  }
+                  placeholder="Ex: Argola"
+                />
+              </span>
+              <span className="acc-field">
+                <span className="acc-label" aria-hidden="true">
+                  Qtd/peça
+                </span>
+                <NumberInput
+                  aria-label="Quantidade por peça"
+                  min={0}
+                  step={1}
+                  value={accessory.qty}
+                  onChange={(qty) => onUpdateAccessory(accessory.id ?? "", { qty })}
+                />
+              </span>
+              <span className="acc-field">
+                <span className="acc-label" aria-hidden="true">
+                  R$/un
+                </span>
+                <NumberInput
+                  aria-label="Preço unitário (R$)"
+                  min={0}
+                  step="0.01"
+                  value={accessory.unitPrice}
+                  onChange={(unitPrice) =>
+                    onUpdateAccessory(accessory.id ?? "", { unitPrice })
+                  }
+                />
+              </span>
               <button
                 className="icon-button danger"
                 type="button"

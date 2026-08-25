@@ -6,17 +6,19 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
-> ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código voltou ao MÍNIMO em 2026-08-24 (2 itens de
-> UI, nenhum de cálculo).** Vários
+> ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código está ZERADO desde 2026-08-24: nenhum item
+> aberto, nem de UI nem de cálculo.** Vários
 > parágrafos abaixo dizem "está ZERADO" descrevendo o estado **antes** da varredura **AUD-12** (a v2
 > da geral); a **AUD-13** (a v3) abriu 18 itens depois deles e **fechou os cinco lotes no mesmo
 > dia** — A, B, C, D e E (os 11 🟢). A seção dela é a **última** deste arquivo, logo acima de
 > "## Fechado", e vale reler por dois motivos: ela **refuta parte da AUD-12** (o lote D daquela
 > quebrou o `/producao`, `[TD-026]` 🔴) e ela deixa **ressalvas registradas** — os alvos a 1–4px da
-> régua, o overdraft de −370 g na cor Bege, o `[UX-47]`, o `[CSV-30]`/`[TD-021]` e o `[A11Y-02]`,
-> que fechou como **falso positivo declarado**. ABERTO de código sobraram **dois**, os dois de
-> UI: o `[UX-47]` e o `[UX-52]` (aberto pela prova ao vivo do lote E — o "N disp." soma as
-> cores e o aviso ao lado fala de uma cor só).
+> régua, o overdraft de −370 g na cor Bege, o `[CSV-30]`/`[TD-021]` e o `[A11Y-02]`, que fechou como
+> **falso positivo declarado**. Os dois últimos abertos — o `[UX-47]` (a fileira de acessórios) e o
+> `[UX-52]` (o "N disp." somando as cores contra um aviso de UMA cor) — **fecharam em 2026-08-24**,
+> medidos no DOM e ao vivo; a seção deles agora é a de fechados, logo antes de "## Fechado".
+> **Não sobrou item de código.** O que resta é a frente do DONO (cadastro de cores/insumos, religar
+> os acessórios) e o branding do `[FEAT-03]`, adiado por ele.
 >
 > **Da AUD-12 (a v2), para o registro:** ela abriu **17 itens** — o cabeçalho dizia 15, e a conta
 > estava errada: o rótulo "4 🟡" vinha
@@ -29,7 +31,7 @@
 > e os lotes **C** (`[CSV-27]` `[CSV-28]` `[CSV-29]` `[CSV-31]`), **D** (`[TD-023]`) e **E**
 > (`[UX-45]` `[UX-46]`). `[CSV-30]` e `[TD-021]` viraram **ressalva** por decisão do dono.
 > **O cluster AUD-12 está ZERADO** — e com ele o backlog de código, de novo. O que sobrou virou o
-> `[UX-47]` (abaixo) e as ressalvas medidas dentro do UX-45/UX-46.
+> `[UX-47]`, fechado em 2026-08-24, e as ressalvas medidas dentro do UX-45/UX-46.
 >
 > **Tier 0, Tier 1, Tier 4, o 7e, o cluster UI/UX de 2026-08-15, as ondas 0–5 e o `[micro]` do
 > botão de 14px (2026-08-17) ✅ FECHADOS.** O
@@ -996,31 +998,37 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   (`subitemId`/`supplyId`). Os **dados** são idênticos (diff canônico limpo); só o texto difere.
   Importa apenas para quem comparar arquivos com `diff`.
 
-### Aberto — o resíduo de UI (Lote E da AUD-12, 2026-08-23 · + `[UX-52]`, 2026-08-24)
+### ✅ Fechado — o resíduo de UI (2026-08-24): os dois últimos itens de código
 
-- **[UX-47] A fileira de acessórios devia virar CARTÃO no celular.** *(aberto pelo Lote E, com
-  medição)*. A `.accessory-row` é `1fr 60px 90px 32px` em **toda** largura — ela nunca virou cartão,
-  ao contrário de todas as outras fileiras do app. A 375px a conta fecha no talo: 77 + 60 + 90 + 32
-  + 3 folgas de 8 = **283px, exatamente a largura da linha**. Consequências medidas: o botão de
-  excluir não pode ir a 44px (estoura 12px e sai para fora da linha) · o stepper não pode ir a 28px
-  (a coluna de quantidade tem 60px, e sobrariam 16 para o número — o caso que o `[micro]` mediu) · o
-  campo de descrição fica com 77px. **A saída é a regra do projeto (UX-38/UX-40)**, a mesma receita
-  do `.fg-part` já usada em 4 lugares: abaixo dos ~300px úteis a linha quebra em faixas. Espremer
-  trilha não resolve — não há folga para espremer.
-- **[UX-52] O "N disp." soma as cores; o aviso ao lado fala de UMA cor — e os dois números
-  aparecem juntos.** *(aberto pela prova ao vivo do `[CSV-34]`, 2026-08-24, com medição)*. Medido no
-  recibo mais recente do `/vendas`: o rótulo diz **"Estoque de acabados (8 disp.)"** e o seletor de
-  cor logo abaixo lista **"Bege (4) · Laranja (4)"**; pondo quantidade **8**, o aviso responde
-  **"⚠ 4 além do estoque de acabados — o saldo fica negativo"**. Os dois estão CERTOS e medem coisas
-  diferentes: o rótulo é `partBalance` (FEAT-11 soma todas as cores de propósito — "a cor decide de
-  onde tirar, não quantas existem") e o aviso vem do `consumeFifo`, que drena da cor ESCOLHIDA. Não
-  é o CSV-34 (aquele era o rótulo não creditar o recibo em edição, e fechou — o delta bateu com o
-  que cada recibo drenou, recibo a recibo). É a leitura lado a lado que fica contraditória: "tenho
-  8" e "4 além" na mesma tela, a 2cm de distância.
-  **Saída provável (barata, escolha do dono):** o rótulo dizer as duas coisas — `8 disp. (4 nesta
-  cor)` — ou o aviso nomear a cor ("4 além do saldo de Bege"). Nenhuma das duas mexe em cálculo.
-  ⚠ Só aparece em produto que existe em MAIS DE UMA cor no acabado; em uma cor só os números
-  coincidem, que é por que ninguém viu antes.
+- ✅ **[UX-47] A fileira de acessórios virou CARTÃO no celular** *(fechado 2026-08-24, medido no
+  DOM)*. Era a única fileira do app que nunca virou: `1fr 60px 90px 32px` em TODA largura, com a
+  conta fechando no talo a 375px (77 + 60 + 90 + 32 + 3 folgas de 8 = 283px = a largura da linha).
+  Por isso ela era EXCEÇÃO à régua de 44px do dedo. Aplicada a receita do projeto (UX-38/UX-40), a
+  mesma do `.machine-edit-row` que fechou o UX-44: cada campo ganhou invólucro com rótulo próprio
+  (`.acc-field`/`.acc-label`), a `.acc-header` some no celular e a fileira quebra em 2 faixas
+  (descrição + excluir em cima, os dois números embaixo). **A exceção morreu inteira, nos dois
+  pedaços do range** — abaixo de 640 pelo cartão; de 641 a 760 alargando a TRILHA
+  (`minmax(0,1fr) 96px 110px 44px`), porque ali sobra espaço e o certo é dar largura, não tirar
+  tamanho do dedo. Medido a 375px: descrição **77 → 229px**, excluir **32 → 44×44** e agora DENTRO
+  da linha (right 329 = a borda, contra 341 de antes), stepper **14 → 28px** com **67px** de folga
+  para o número (eram 16 — o caso do `[micro]`), rolagem horizontal **0**. A 641 e a 700 a fileira
+  segue em pé, com 44px de altura e o excluir de 44 dentro da linha. Desktop **inalterado**
+  (`394px 60px 90px 32px`, altura 35, rótulos escondidos).
+  ⚠ **A fronteira do cartão é 640, não os 760 do catálogo/recibo** — e isso foi medido antes de
+  escolher: a 700px o cartão dava 554px à descrição e **272px a CADA campo de número**, com a
+  fileira indo de 44 para 124px de altura. Largura de sobra virando rolagem não é a regra; o cartão
+  entra onde a fileira realmente não cabe.
+- ✅ **[UX-52] O rótulo passou a dizer as DUAS coisas** *(fechado 2026-08-24, escolha do dono: o
+  rótulo, não o aviso)*. O seletor de origem agora lê **"Estoque de acabados (7 disp. · 3 nesta
+  cor)"**. Os dois números sempre foram certos e mediam coisas diferentes — `partBalance` soma
+  todas as cores (FEAT-11, de propósito) e o aviso vem do `consumeFifo`, que drena da cor ESCOLHIDA
+  —, mas lado a lado a leitura era contraditória. Com o segundo número na tela a conta FECHA à
+  vista: medido ao vivo no Chaveiro Charmander (Laranja 4 · Bege 3), com Bege escolhida e
+  quantidade 7, o rótulo diz "7 disp. · 3 nesta cor" e o aviso "⚠ 4 além" — **7 − 3 = 4**.
+  O parêntese só aparece quando os dois DIVERGEM (peça em mais de uma cor); com uma cor só eles
+  coincidem e ele seria ruído. Conjunto multicor diz "nestas cores" e usa o **mínimo entre as
+  partes**, a mesma conta do `assemblableWholes` — o que limita o conjunto é a parte mais escassa.
+  **Nenhum cálculo mudou**: o `colorBalanceOf` só lê o que o seletor de cor já mostrava.
 - 📌 **Ressalva medida: o `.icon-button.edit` do `/vendas` renderiza 39×44** dentro do
   `.recibo-head-side` (5px a menos na horizontal, contra 28×28 antes). O contêiner não estoura
   (`overflow: 0`) e `flex: none` não muda o número — a compressão não vem do flex-shrink. Não vale

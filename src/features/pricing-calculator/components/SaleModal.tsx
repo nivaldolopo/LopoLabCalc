@@ -354,6 +354,25 @@ export function SaleModal({
     return colorOptionsOf(item.source, partKey)[0]?.colorKey ?? NO_COLOR_KEY;
   }
 
+  // UX-52 — quantas peças existem NA COR escolhida. O "N disp." do seletor de
+  // origem é o saldo da peça somando TODAS as cores (FEAT-11, de propósito: a
+  // cor decide de onde tirar, não quantas existem), mas o aviso de estouro vem
+  // do `consumeFifo`, que drena da cor ESCOLHIDA. Sem este segundo número a tela
+  // dizia "8 disp." e "⚠ 4 além do estoque" a 2cm de distância, os dois certos e
+  // medindo coisas diferentes.
+  // Conjunto multicor: é o MÍNIMO entre as partes, a mesma conta do
+  // `assemblableWholes` — o que limita o conjunto é a parte mais escassa.
+  function colorBalanceOf(item: CestaItem): number {
+    const saldos = partsOf(item.source).map((part) => {
+      const key = colorOf(item, part.key);
+      return (
+        colorOptionsOf(item.source, part.key).find((c) => c.colorKey === key)
+          ?.balance ?? 0
+      );
+    });
+    return saldos.length > 0 ? Math.min(...saldos) : 0;
+  }
+
   // O mapa completo de cores de um item, como a reconciliação espera.
   function colorsOf(item: CestaItem): Record<string, string> {
     const map: Record<string, string> = {};
@@ -1249,6 +1268,16 @@ export function SaleModal({
           const itemProfit = fin.profit;
           const priceDelta = unitPrice - item.source.suggestedPrice;
           const balance = balanceForItem(item.source);
+          // UX-52: só aparece quando os dois números DIVERGEM — ou seja, quando
+          // a peça existe em mais de uma cor. Com uma cor só eles coincidem e o
+          // parêntese seria ruído.
+          const colorBal = colorBalanceOf(item);
+          const colorNote =
+            Math.round(colorBal) === Math.round(balance)
+              ? ""
+              : ` · ${Math.round(colorBal)} ${
+                  partsOf(item.source).length > 1 ? "nestas cores" : "nesta cor"
+                }`;
 
           return (
             <div className="cesta-item" key={item.key}>
@@ -1343,7 +1372,9 @@ export function SaleModal({
                   title="De onde sai esta peça: estoque de acabados (pronta) ou produzida agora (encomenda)."
                 >
                   <option value="acabado">
-                    Estoque de acabados ({Math.round(balance)} disp.)
+                    {`Estoque de acabados (${Math.round(
+                      balance,
+                    )} disp.${colorNote})`}
                   </option>
                   <option value="encomenda">Sob encomenda (produz agora)</option>
                 </select>
