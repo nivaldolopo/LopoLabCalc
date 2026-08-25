@@ -745,8 +745,14 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
   /* UX-28/UX-37 mandam 44px de alvo no celular, e aqui isso é impossível sem
      estourar a altura do campo — a régua não se aplica a um controle que é
-     ATALHO: o alvo de verdade é o campo (que aceita ↑↓ e digitação), e ele
-     passa dos 44px. Ver a nota do `[micro]` de 14px no HISTORICO. */
+     ATALHO: o alvo de verdade é o campo, que aceita ↑↓ e digitação.
+     ⚠ UX-51 — esta frase terminava em "e ele passa dos 44px", e isso era FALSO
+     quando foi escrita: medido a 375px, o `.field-input` dava 42 e os campos do
+     `.ci-item`, 35. A saída não foi reescrever a desculpa: o `responsive.css`
+     passou a levar os dois campos a 44, e aí a seta (metade da altura do campo,
+     ~21px) vira de fato o atalho de um alvo que existe. Ver a nota do `[micro]`
+     de 14px no HISTORICO — ela trava a LARGURA, e é por isso que a saída tinha
+     de vir pela altura do campo. */
   min-height: 0;
 }
 

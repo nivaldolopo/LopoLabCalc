@@ -170,3 +170,33 @@ describe("CSV-29 — isMilharAmbiguo não acende sobre notação científica", (
     expect(parseDecimalPtBr("2 e 5")).not.toBe(200000);
   });
 });
+
+// CSV-37 (AUD-13, lote E) — a limpeza apaga o que não é dígito e COLA o resto:
+// um erro de digitação virava outro número plausível, sem nada avisando.
+describe("CSV-37 — letra ENTRE dígitos não é número", () => {
+  it("o caso medido e os vizinhos dele", () => {
+    expect(parseDecimalPtBr("5X0")).toBeNull();
+    expect(parseDecimalPtBr("5x0")).toBeNull();
+    expect(parseDecimalPtBr("2h30")).toBeNull();
+    expect(parseDecimalPtBr("1.2a34")).toBeNull();
+  });
+
+  it("letra ANTES ou DEPOIS segue tolerada — é unidade e moeda", () => {
+    expect(parseDecimalPtBr("R$ 50")).toBe(50);
+    expect(parseDecimalPtBr("5 metros")).toBe(5);
+    expect(parseDecimalPtBr("5x")).toBe(5);
+    expect(parseDecimalPtBr("X5")).toBe(5);
+    expect(parseDecimalPtBr("50%")).toBe(50);
+    expect(parseDecimalPtBr("1.234,56 kg")).toBe(1234.56);
+  });
+
+  it("a científica sai ANTES da trava e continua sendo lida", () => {
+    expect(parseDecimalPtBr("1e3")).toBe(1000);
+    expect(parseDecimalPtBr("1,5E+03")).toBe(1500);
+    expect(parseDecimalPtBr("2E-05")).toBeCloseTo(0.00002, 12);
+  });
+
+  it('"2 e 5" era o exemplo do AUD-11/D-4 — agora é null, não 25', () => {
+    expect(parseDecimalPtBr("2 e 5")).toBeNull();
+  });
+});

@@ -28,6 +28,7 @@ import {
   colorRecordOf,
   colorsWithBalance,
   partBalance,
+  reverseFinishedConsumption,
   WHOLE_PART_KEY,
 } from "../lib/finishedGoods";
 import {
@@ -38,6 +39,7 @@ import {
 import {
   apportionDiscount,
   discountAmountOf,
+  MAX_FEE_PCT,
   resolveFeeRate,
   saleItemFinancials,
 } from "../lib/paymentFees";
@@ -254,13 +256,55 @@ export function SaleModal({
   const fieldId = useId();
   const isEdit = Boolean(editRecibo);
 
+  // ⚠ Declarado AQUI em cima, e não junto da reconciliação que o consome, porque
+  // o `goodsCreditados` logo abaixo também o lê — e o `stockItems`, que é um
+  // `useMemo`, roda antes daquele ponto do arquivo: const em zona morta temporal
+  // explodiria em ReferenceError.
+  // UX-42: isto vivia DENTRO do salvar. Como o preview não o tinha, ele calculava
+  // só o forward e acusava saldo negativo que a gravação não produzia — o que o
+  // recibo antigo já havia consumido nunca era creditado de volta na simulação.
+  const oldRecibo: OldReciboState | null = useMemo(
+    () =>
+      editRecibo
+        ? {
+            finishedMoves: editRecibo.items.flatMap(
+              (entry) => entry.finishedMoves ?? [],
+            ),
+            productionEvents: editRecibo.items
+              .flatMap((entry) => entry.productionEventIds ?? [])
+              .map((id) => production.find((event) => event.id === id))
+              .filter((event): event is ProductionEvent => Boolean(event))
+              .map((event) => ({ id: event.id, stockMoves: event.stockMoves })),
+          }
+        : null,
+    [editRecibo, production],
+  );
+
+  // CSV-34 — o saldo que a TELA mostra tem de ser o mesmo que o aviso usa. O
+  // aviso do UX-42 já credita o recibo antigo (é o `oldRecibo` acima, dentro da
+  // reconciliação); o rótulo "N disp." continuava lendo o `goods` cru. Editando
+  // um recibo de 1 un sobre 1 produzida, o seletor dizia "0 disp." enquanto a
+  // quantidade 1 era aceita sem um pio — dois números sobre o mesmo estoque,
+  // discordando na mesma tela. Aqui roda o MESMO estorno da gravação
+  // (`reverseFinishedConsumption`), sobre uma cópia: nada é gravado.
+  const goodsCreditados = useMemo(() => {
+    const moves = oldRecibo?.finishedMoves ?? [];
+    if (moves.length === 0) return goods;
+    const afetados = new Set(moves.map((move) => move.productId));
+    return goods.map((good) =>
+      afetados.has(good.productId)
+        ? reverseFinishedConsumption(good, moves)
+        : good,
+    );
+  }, [goods, oldRecibo]);
+
   // Saldo do acabado (a SKU = o subitem) deste item, e o caminho default: peça
   // pronta quando há saldo, senão encomenda (decisão do dono — por item).
   // BUG-05: o INTEIRO de um produto que vende por partes não tem SKU própria — o
   // saldo é quantos conjuntos dá para montar (min das partes), casando com a baixa
   // do `consumeWholeFifo` na reconciliação.
   function balanceForItem(source: SaleModalContext): number {
-    const good = goods.find((g) => g.productId === source.productId);
+    const good = goodsCreditados.find((g) => g.productId === source.productId);
     if (!source.subitemId) {
       const product = products.find((p) => p.id === source.productId);
       if (product?.sellBySubitems && product.subitems.length > 0) {
@@ -293,7 +337,9 @@ export function SaleModal({
 
   // As cores em que aquela parte existe hoje (as opções do seletor).
   function colorOptionsOf(source: SaleModalContext, partKey: string) {
-    const good = goods.find((g) => g.productId === source.productId);
+    // CSV-34: a mesma prateleira do `balanceForItem` — senão o seletor de cor
+    // esconde justamente a cor que o recibo em edição esvaziou.
+    const good = goodsCreditados.find((g) => g.productId === source.productId);
     return colorsWithBalance(
       good,
       partKey === WHOLE_PART_KEY ? undefined : partKey,
@@ -489,15 +535,23 @@ export function SaleModal({
     repriceItems(next, feeRatePct);
   }
 
+  // TD-032: a entrada da taxa clampa no MESMO teto que a conta usa. Sem isto o
+  // campo guardava 100% e o `feeFraction` usava 95% — o preço de repasse saía
+  // ×20 sem que a tela tivesse dito nada. O `max` no `<input type="number">` é
+  // só a seta do stepper; quem digita passa por aqui.
+  function clampFeePct(valueStr: string) {
+    return Math.min(MAX_FEE_PCT, Math.max(0, Number(valueStr) || 0));
+  }
+
   // Editor de taxas — planos (pix/dinheiro/outro) e a matriz de cartão por bandeira.
   function updateFlatFee(key: "pix" | "dinheiro" | "outro", valueStr: string) {
     if (!onFeesChange) return;
-    onFeesChange({ ...fees, [key]: Math.max(0, Number(valueStr) || 0) });
+    onFeesChange({ ...fees, [key]: clampFeePct(valueStr) });
   }
 
   function updateTierDebito(tier: CardBrandTier, valueStr: string) {
     if (!onFeesChange) return;
-    const value = Math.max(0, Number(valueStr) || 0);
+    const value = clampFeePct(valueStr);
     onFeesChange({
       ...fees,
       card: { ...fees.card, [tier]: { ...fees.card[tier], debito: value } },
@@ -506,7 +560,7 @@ export function SaleModal({
 
   function updateTierCredito(tier: CardBrandTier, index: number, valueStr: string) {
     if (!onFeesChange) return;
-    const value = Math.max(0, Number(valueStr) || 0);
+    const value = clampFeePct(valueStr);
     const credito = fees.card[tier].credito.map((v, i) => (i === index ? value : v));
     onFeesChange({
       ...fees,
@@ -548,9 +602,9 @@ export function SaleModal({
       catalogItems
         .map((source, index) => ({ source, index, balance: balanceForItem(source) }))
         .filter((entry) => entry.balance > 0),
-    // `balanceForItem` deriva de goods/products; catalogItems é a lista.
+    // `balanceForItem` deriva de goodsCreditados/products; catalogItems é a lista.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [catalogItems, goods, products],
+    [catalogItems, goodsCreditados, products],
   );
 
   function addFromStock(indexStr: string) {
@@ -591,26 +645,6 @@ export function SaleModal({
   // salvas + os `stockMoves` dos eventos de encomenda (resolvidos na coleção; um
   // evento já apagado à mão some sem estorno duplo).
   //
-  // UX-42: isto vivia DENTRO do salvar. Como o preview não o tinha, ele calculava
-  // só o forward e acusava saldo negativo que a gravação não produzia — o que o
-  // recibo antigo já havia consumido nunca era creditado de volta na simulação.
-  const oldRecibo: OldReciboState | null = useMemo(
-    () =>
-      editRecibo
-        ? {
-            finishedMoves: editRecibo.items.flatMap(
-              (entry) => entry.finishedMoves ?? [],
-            ),
-            productionEvents: editRecibo.items
-              .flatMap((entry) => entry.productionEventIds ?? [])
-              .map((id) => production.find((event) => event.id === id))
-              .filter((event): event is ProductionEvent => Boolean(event))
-              .map((event) => ({ id: event.id, stockMoves: event.stockMoves })),
-          }
-        : null,
-    [editRecibo, production],
-  );
-
   // Reconciliação viva: custo REAL por item (D3) + avisos, por caminho. Pura, não
   // grava; usa id fixo pois o custo independe do id do evento.
   const recon = useMemo(
@@ -1108,6 +1142,7 @@ export function SaleModal({
                 id={`${fieldId}-fee-pix`}
                 type="number"
                 min={0}
+                max={MAX_FEE_PCT}
                 step="0.1"
                 value={fees.pix ?? 0}
                 onChange={(event) => updateFlatFee("pix", event.target.value)}
@@ -1119,6 +1154,7 @@ export function SaleModal({
                 id={`${fieldId}-fee-dinheiro`}
                 type="number"
                 min={0}
+                max={MAX_FEE_PCT}
                 step="0.1"
                 value={fees.dinheiro ?? 0}
                 onChange={(event) => updateFlatFee("dinheiro", event.target.value)}
@@ -1130,6 +1166,7 @@ export function SaleModal({
                 id={`${fieldId}-fee-outro`}
                 type="number"
                 min={0}
+                max={MAX_FEE_PCT}
                 step="0.1"
                 value={fees.outro ?? 0}
                 onChange={(event) => updateFlatFee("outro", event.target.value)}
@@ -1148,6 +1185,7 @@ export function SaleModal({
                     id={`${fieldId}-fee-${tier.value}-debito`}
                     type="number"
                     min={0}
+                    max={MAX_FEE_PCT}
                     step="0.1"
                     value={fees.card[tier.value].debito ?? 0}
                     onChange={(event) =>
@@ -1164,6 +1202,7 @@ export function SaleModal({
                       id={`${fieldId}-fee-${tier.value}-${index}`}
                       type="number"
                       min={0}
+                      max={MAX_FEE_PCT}
                       step="0.1"
                       value={rate ?? 0}
                       onChange={(event) =>

@@ -6,13 +6,17 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
-> ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código NÃO está mais zerado (2026-08-23).** Vários
-> parágrafos abaixo dizem "está ZERADO"; eles descrevem o estado **antes** da varredura **AUD-12**
-> (a v2 da geral). **Vencido de novo em 2026-08-24: a varredura AUD-13 (a v3) abriu 18 itens**
-> (lotes **A**, **B**, **C** e **D** já fechados no mesmo dia — **11 restam**, o lote E) —
-> a seção dela é a **última** deste arquivo, logo acima de "## Fechado", e ela **refuta parte da
-> AUD-12**: o lote D dela quebrou o `/producao` (`[TD-026]` 🔴). Leia aquela seção antes desta.
-> Ela abriu **17 itens** — o cabeçalho dizia 15, e a conta estava errada: o rótulo "4 🟡" vinha
+> ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código voltou a ZERAR em 2026-08-24.** Vários
+> parágrafos abaixo dizem "está ZERADO" descrevendo o estado **antes** da varredura **AUD-12** (a v2
+> da geral); a **AUD-13** (a v3) abriu 18 itens depois deles e **fechou os cinco lotes no mesmo
+> dia** — A, B, C, D e E (os 11 🟢). A seção dela é a **última** deste arquivo, logo acima de
+> "## Fechado", e vale reler por dois motivos: ela **refuta parte da AUD-12** (o lote D daquela
+> quebrou o `/producao`, `[TD-026]` 🔴) e ela deixa **ressalvas registradas** — os alvos a 1–4px da
+> régua, o overdraft de −370 g na cor Bege, o `[UX-47]`, o `[CSV-30]`/`[TD-021]` e o `[A11Y-02]`,
+> que fechou como **falso positivo declarado**. O que continua ABERTO de código é só o `[UX-47]`.
+>
+> **Da AUD-12 (a v2), para o registro:** ela abriu **17 itens** — o cabeçalho dizia 15, e a conta
+> estava errada: o rótulo "4 🟡" vinha
 > seguido de **cinco** nomes. São 5 🔴 (`[CSV-23]` `[CSV-24]` `[UX-44]` `[CSV-25]` `[CSV-26]`),
 > 2 🟠 (`[TD-022]` `[UX-46]`), **5** 🟡 (`[UX-45]` `[TD-023]` `[CSV-27]` `[CSV-28]` `[CSV-29]`) e
 > 5 🟢 (`[CSV-31]` `[TD-021]` `[TD-024]` `[TD-025]` `[CSV-30]`).
@@ -1006,8 +1010,10 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   turno de investigação por 5px num botão que triplicou de área; fica registrado para não voltar
   como achado novo.
 - 📌 **Ressalva: alvos a 1–4px da régua no celular.** Fora do escopo enxuto aprovado, porque todos
-  são LARGOS (fáceis de acertar) e falham em um eixo só: `.icon-label-button` 247×**43** (1px),
-  `.back-to-top` 42×42, a navbar 40×40, `.search-box-input` ×36, `.stock-tab` ×34.
+  são LARGOS (fáceis de acertar) e falham em um eixo só. **Atualizada pelo lote E da AUD-13
+  (2026-08-24):** o `.icon-label-button` (43), o `.search-box-input` (36) e o `.stock-tab` (34)
+  **saíram da lista — estão em 44**; os três que sobram são `.back-to-top` 42×42 e a navbar
+  (`navbar-toggle` e `navbar-close`) 40×40, remedidos em todas as 7 rotas.
 
 ### Ressalva que FECHA (não é mais item)
 
@@ -1067,7 +1073,7 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
   prevista é ~100.
 - **Navegadores além do Chromium embutido**, e iOS Safari real.
 
-## Aberto — cluster da varredura AUD-13 (2026-08-24) — SISTEMA INTEIRO, 3ª passada
+## ✅ FECHADO — cluster da varredura AUD-13 (2026-08-24) — SISTEMA INTEIRO, 3ª passada
 
 > 6ª varredura (a **v3** da geral), pedida pelo dono **imediatamente antes da carga em massa**, para
 > quebrar o ciclo fechado da AUD-12 (mesmo agente escrevendo o conserto e o teste do conserto, 15
@@ -1260,44 +1266,76 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
   **Onde:** `modal.css:48-51`. **Saída:** `padding` + margem negativa igual (UX-28/UX-37) dentro do
   `@media (max-width: 760px)`, para o alvo crescer sem empurrar o cabeçalho do diálogo.
 
-### 🟢 Baixo / informativo (11 itens, todos com número)
+### 🟢 Baixo / informativo — ✅ OS 11 FECHADOS (lote E, 2026-08-24)
 
-- **[UX-50] Controles 9–12px abaixo da régua no celular, fora da ressalva de "1–4px" da AUD-12:**
+> Um deles fechou como **falso positivo declarado** (o `[A11Y-02]`), com o porquê medido. Writeup
+> completo dos 11 no [`HISTORICO.md`](HISTORICO.md); aqui fica só o veredito de cada um.
+
+- ✅ **[UX-50] FEITO (lote E).** Todos subiram para 44 no `@media (max-width: 760px)`, pela receita
+  UX-28/UX-37, e o custo foi medido rota a rota: `/` **+27px**, `/estoque` +18, `/vendas` +12,
+  `/producao` +12, `/orcamento` +10, `/catalogo` +8 e `/maquinas` **0**. **Nada mexeu em
+  `font-size`** — o `[micro]` recusou o `.btn` maior pela FONTE em cascata, e altura de alvo é outra
+  conta. Entraram também os que a varredura não viu porque mediu outra rota (`.catalog-actions
+  select` e `.search-box-input` 36, as 3 abas do `/estoque` 34, o `summary` do payback 36 e a família
+  inteira de campos que não é `.field-input`, incluindo as duas fileiras de trilha fixa — a exceção
+  delas é de LARGURA, e foi remedida: o excluir da `.accessory-row` continua terminando em 329px
+  dentro de uma linha que vai até 329). Desktop remedido a 1280: **inalterado**. Descrição original:
+  **Controles 9–12px abaixo da régua no celular, fora da ressalva de "1–4px" da AUD-12:**
   `select` do Arredondamento 178×**32** · `.link-button` ×**32** (3 em `/`, 2 em `/estoque`) · `.btn`
   e `.icon-label-button` ×**34** · inputs do `.ci-item` ×**35** · `summary` ×27 · `.brand-reset` ×20.
-- **[UX-51] O stepper cresceu só na horizontal, e a justificativa escrita não se sustenta.** Cada
-  seta mede **28×19,5** no celular (o UX-46 mediu a largura). O comentário do `forms.css:746-750` diz
-  que *"o alvo de verdade é o campo, que passa dos 44px"* — **medido: `.field-input` = 42px** e os do
-  `.ci-item` = **35px**. **Onde:** `forms.css:719-751`. ⚠ Subir a altura da seta mexe na altura do
-  campo, que é a trava do `[micro]` de 14px.
-- **[A11Y-02] Botão só-ícone sem nome acessível** (a regra A11Y-01 do projeto): **20** em `/` e **4**
-  em `/orcamento` — as setas do stepper têm `tabindex="-1"` mas nem texto, nem `aria-label`, nem
-  `aria-hidden`. **Onde:** `NumberInput.tsx`.
-- **[TD-030] O doc de `acabados` nasce na produção e nunca sai.** `deleteGood`
-  (`useFinishedGoods.ts:44`) é exportado e **nenhum componente chama** — código morto. Excluir o
-  produto declara em texto que não toca o acabado; excluir a produção esvazia as camadas e mantém o
-  doc.
-- **[TD-031] CSS morto:** `.sales-table` e `.sales-table-wrap` (`sales.css:55-100`, ~45 linhas, com
-  um `min-width: 760px` que ninguém aplica) não são usados por componente nenhum.
-- **[CSV-33] `Pecas = 0` e `-1` viram 1 em silêncio.** Medido: `"0"` → 1, `"-1"` → 1, **0 avisos** —
-  enquanto `Markup = 0`/`-2` avisam (CSV-26). O `Math.max(1, …)` não distingue ausente de escrito.
-- **[CSV-34] O rótulo "N disp." do modal de venda não credita o recibo antigo** (o aviso credita).
-  Editando um recibo de 1 un sobre 1 produzida: rótulo diz **"0 disp."** enquanto a qtd 1 é aceita
-  sem aviso. O aviso do UX-42 está **certo** (qtd 2 → "1 além", qtd 3 → "2 além", medido ao vivo); o
-  rótulo é que ficou na conta antiga. **Onde:** `SaleModal.tsx`.
-- **[CSV-35] Coluna repetida com grafia VARIANTE ainda recebe o conselho errado.**
-  `Produto;Peso (g);Peso` → *"o nome não foi reconhecido"*, cujo conselho é renomear — e renomear
-  cria a duplicata exata. O CSV-28 só cobre igualdade do texto normalizado.
-  **Onde:** `productCsv.ts:475-486`.
-- **[CSV-36] Plural fixo no portão da carga:** "Importar **1 produtos** do CSV?" e "**1 produtos**
-  importados". **Onde:** `ProductCatalog.tsx`.
-- **[TD-032] Taxa de pagamento ≥ 100% multiplica o preço de repasse por 20.**
-  `grossUpForFee(100, 100)` → **1999,99** (o clamp do `feeFraction` é 0,95). Digitar `100` no editor
-  de taxas com repasse ligado. **Onde:** `paymentFees.ts:12-16`.
-- **[CSV-37] Markup `"5X0"` entra como 50** — o `replace` tira TODOS os "x", sem aviso. (`"X5"`,
-  `"5x"` e `"5 x"` → 5, o que é desejável.) **Onde:** `productCsv.ts:1124`.
 
-### Ordem proposta — lotes AUD-13 (aguardando o martelo do dono)
+- ✅ **[UX-51] FEITO (lote E) — subiu o CAMPO, não a seta.** A justificativa escrita era falsa
+  (`.field-input` = 42, `.ci-item` = 35): agora os dois vão a 44 no celular e a frase fica de pé, com
+  a seta em 21px de altura como ATALHO de um alvo que existe. O comentário do `forms.css` foi
+  reescrito com a medição no lugar. Descrição original: **O stepper cresceu só na horizontal, e a
+  justificativa escrita não se sustenta.** Cada seta mede **28×19,5** no celular (o UX-46 mediu a
+  largura). ⚠ Subir a altura da seta mexe na altura do campo, que é a trava do `[micro]` de 14px.
+
+- ⚠ **[A11Y-02] FALSO POSITIVO (lote E) — nada a corrigir.** Os botões não têm nome porque o
+  `<span class="num-spin">` que os envolve tem `aria-hidden="true"`: pela especificação a subárvore
+  inteira sai da árvore de acessibilidade, e a sonda da varredura leu **elemento a elemento**. Dar
+  `aria-label` (tirando o `aria-hidden` do pai) poria **40 paradas novas** no leitor de tela, que é o
+  que o comentário do `NumberInput` já recusava. A régua A11Y-01 vale para botão que ESTÁ na árvore.
+  Descrição original: **Botão só-ícone sem nome acessível**: **20** em `/` e **4** em `/orcamento`.
+
+- ✅ **[TD-030] FEITO (lote E) — saiu o código morto INTEIRO.** `deleteGood`, `saveGood` e os dois do
+  repositório (`saveFinishedGood`/`removeFinishedGood`) nunca tiveram chamador; o hook virou leitura
+  pura. Quem escreve no acabado é sempre o `writeBatch` de outra coleção — atalho por fora seria a
+  porta para o saldo descolar do rastro. ⚠ **Consequência declarada:** doc de acabado com saldo 0
+  fica na coleção, invisível (inclusive os 2 das sondas da AUD-13), e **não há caminho de UI para
+  apagá-lo** — é o retrato certo do que aconteceu.
+
+- ✅ **[TD-031] FEITO (lote E).** `.sales-table`/`.sales-table-wrap` (~45 linhas) apagadas: eram a
+  tabela de antes de o histórico virar lista de recibos, e o `min-width: 760px` delas é o oposto da
+  regra de hoje (fileira que não cabe vira CARTÃO).
+
+- ✅ **[CSV-33] FEITO (lote E).** Classe nova `pecas-invalida`: `"0"` e `"-1"` entram como 1 **e
+  contam a linha**, citando a célula crua. Ausente/vazia seguem caladas, ilegível continua só com a
+  classe do CSV-09 e a fracionária > 1 segue com o dono dela (o `validateProduct`, CSV-31).
+
+- ✅ **[CSV-34] FEITO (lote E).** O rótulo passou a ler uma cópia creditada
+  (`reverseFinishedConsumption`, o mesmo estorno da gravação, sem gravar nada) — a mesma prateleira
+  que o aviso do UX-42 já usava; o seletor de cor foi junto. ⚠ O `oldRecibo` teve de subir para o
+  topo do componente: o `stockItems` o lê durante o render.
+
+- ✅ **[CSV-35] FEITO (lote E).** A sobra vira "coluna repetida" quando é o próprio needle ou uma
+  ABREVIAÇÃO do nome canônico (`"peso"` dentro de `"peso (g)"`). ⚠ Reusar o `includes(needle)` da
+  passada por pedaço quebrou o teste do AUD-11/D-3 — `"Tempo de cura (h)"` não é repetição, é outra
+  coluna, e continua em "nome não reconhecido".
+
+- ✅ **[CSV-36] FEITO (lote E).** As duas frases do portão flexionam. Os outros plurais fixos do app
+  foram conferidos e estão certos (só aparecem com contagem > 1).
+
+- ✅ **[TD-032] FEITO (lote E).** `MAX_FEE_PCT = 95` num lugar só, exportado do `paymentFees`, e o
+  editor clampa a ENTRADA nele (mais `max` nos 5 campos). O ×20 continua sendo a conta certa de uma
+  taxa de 95% — o defeito era chegar nele digitando 100 e a tela guardar um número que a conta não
+  usava.
+
+- ✅ **[CSV-37] FEITO (lote E).** A trava é uma linha no `parseDecimalPtBr`: **letra ENTRE dígitos →
+  `null`**. A culpa não era do `replace` do markup (ancorado no fim), era da limpeza que apaga e
+  COLA. `"5x"`, `"X5"` e `"5 x"` seguem valendo 5; `"2h30"` deixa de virar 230 em qualquer coluna.
+
+### Ordem dos lotes AUD-13 — ✅ OS CINCO FECHADOS (2026-08-24)
 
 | Lote | Itens | Por que esses | Custo / risco |
 |---|---|---|---|
@@ -1305,7 +1343,7 @@ E o cache `calc3d-machines` confirma que `config/machines` em produção é **id
 | ~~**B — o que entra calado na carga**~~ ✅ **FEITO (2026-08-24)** | ~~[CSV-32] · [TD-027] · [UX-48]~~ | O diagnóstico se confirmou: consertar só o parser deixaria a bomba armada no `finishedGoods` — os dois foram no mesmo commit, com 20 testes novos (14 falham contra o código velho; os 6 restantes são os contrapontos) | — |
 | ~~**C — o estorno que fica mudo**~~ ✅ **FEITO (2026-08-24)** | ~~[TD-028]~~ | O dono martelou **barrar**. O custo bateu com o previsto (baixo): o guarda é uma função pura de 30 linhas + 5 linhas no `remove` — o que cresceu foi o teste, como no lote A | — |
 | ~~**D — offline e o dedo no diálogo**~~ ✅ **FEITO (2026-08-24)** | ~~[TD-029] · [UX-49]~~ | Confirmado: nenhum tocou lógica de negócio e os dois se verificaram na mesma sessão. A ressalva da cascata do `@media` se pagou ao contrário — a ordem estava certa (`responsive.css` vem depois), o que enganou foi o CSS **em cache no navegador**: só depois do reload o 44 apareceu | — |
-| **E — a poeira** | os 11 🟢 | Vale quebrar em duas sessões: CSS/alvo (UX-50, UX-51, A11Y-02) e parser (CSV-33, CSV-35, CSV-36, CSV-37); o código morto (TD-030, TD-031) vai de carona | baixo, mas somado não é desprezível |
+| ~~**E — a poeira**~~ ✅ **FEITO (2026-08-24)** | ~~os 11 🟢~~ | Foi numa sessão só, não duas: o parser e o CSS não se cruzam, então o custo real foi a MEDIÇÃO (7 rotas × 375px, antes e depois) e não o código. Um item fechou como falso positivo declarado (`A11Y-02`) e 5 alvos que a varredura não tinha visto entraram de carona | — |
 
 **O que eu deixaria de FORA de propósito (ressalva registrada, não item):** os alvos a 1–4px da
 régua e o `.icon-button.edit` **38,6×44** do `/vendas` (reconfirmados, 23 ocorrências — uma por

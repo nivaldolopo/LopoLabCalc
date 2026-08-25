@@ -60,6 +60,15 @@ export function parseDecimalPtBr(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  // CSV-37: LETRA entre dígitos nunca é número — e a limpeza logo abaixo apaga
+  // a letra e COLA o que sobra, o que transforma um erro de digitação em outro
+  // número plausível. Medido: `Markup = "5X0"` entrava como **50** (o "x" do
+  // markup é sufixo, e o `replace` do productCsv só tira o do fim), `"2h30"`
+  // viraria 230. Letra ANTES ou DEPOIS dos dígitos continua tolerada, que é o
+  // que carrega unidade e moeda ("R$ 50", "5 metros", "X5", "5x"). A científica
+  // sai acima, antes desta trava, senão "1e3" morreria aqui.
+  if (/\d[^\d]*[A-Za-zÀ-ÿ][^\d]*\d/.test(raw)) return null;
+
   // Fora símbolo de moeda, espaço comum e os espaços não-separáveis (U+00A0 /
   // U+202F) que o Excel usa como milhar. Sobra dígito, sinal e separador.
   const limpo = raw.replace(/[^\d.,-]/g, "");

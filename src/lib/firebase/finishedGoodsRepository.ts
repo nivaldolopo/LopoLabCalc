@@ -1,9 +1,6 @@
 import {
   collection,
-  deleteDoc,
-  doc,
   onSnapshot,
-  setDoc,
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
@@ -129,18 +126,15 @@ export function subscribeFinishedGoods(
   );
 }
 
-// Grava (cria/atualiza) o doc de um produto. Id do doc = productId (setDoc, não
-// addDoc). Usado avulso; a baixa atômica junto do evento vem no repo da produção
-// (05b), reusando `serializeSkus`.
-export async function saveFinishedGood(
-  payload: FinishedGoodPayload,
-): Promise<void> {
-  await setDoc(
-    doc(finishedCollection, payload.productId),
-    finishedGoodToDocument(payload),
-  );
-}
-
-export async function removeFinishedGood(productId: string): Promise<void> {
-  await deleteDoc(doc(db, "acabados", productId));
-}
+// TD-030 — aqui moravam `saveFinishedGood` e `removeFinishedGood`, o par
+// "avulso" que nunca ganhou chamador: quem cria e mexe no doc de acabado é
+// SEMPRE o writeBatch de outra coleção (produção 05b, venda, estorno), e é isso
+// que mantém a baixa atômica. Um caminho solto de gravar/apagar o acabado por
+// fora seria a porta para o saldo divergir do rastro que o produziu, então o
+// código morto saiu em vez de ganhar botão. O que sobra deste arquivo é a
+// LEITURA viva (`subscribeFinishedGoods`) e os serializadores, que os dois
+// repositórios de escrita importam.
+// ⚠ Consequência declarada: doc de acabado com saldo 0 (produto excluído, ou
+// produção estornada) fica na coleção, invisível na tela. É o retrato certo do
+// que aconteceu — o produto foi excluído, o rastro do que já foi produzido
+// não.

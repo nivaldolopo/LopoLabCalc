@@ -7,12 +7,21 @@ import type {
   PaymentMethod,
 } from "../types";
 
-// Fração da taxa (0..0,95) a partir do percentual configurado. Clamp em 95%
-// para nunca explodir o gross-up (dividir por algo perto de zero).
+// TD-032: o teto da taxa, em PERCENTUAL, num lugar só. O clamp já existia aqui
+// dentro (0,95) para o gross-up não dividir por algo perto de zero — mas o
+// editor de taxas aceitava digitar `100`, e aí o número da tela e o número da
+// conta discordavam em silêncio: 100% guardado, 95% usado, preço de repasse
+// ×20 (`grossUpForFee(100, 100)` → 1999,99). Exportado para o editor clampar a
+// ENTRADA no mesmo número — o que se vê no campo é o que entra na conta, e uma
+// taxa de 95% exibida na frase "o preço sobe para cobrir a taxa de 95%" torna o
+// ×20 uma escolha visível em vez de um acidente.
+export const MAX_FEE_PCT = 95;
+
+// Fração da taxa (0..0,95) a partir do percentual configurado.
 export function feeFraction(feeRatePct: number): number {
   const pct = Number(feeRatePct);
   if (!Number.isFinite(pct) || pct <= 0) return 0;
-  return Math.min(0.95, pct / 100);
+  return Math.min(MAX_FEE_PCT / 100, pct / 100);
 }
 
 function posOrZero(value: unknown): number {

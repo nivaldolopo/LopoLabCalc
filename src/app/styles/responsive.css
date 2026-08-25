@@ -191,6 +191,117 @@
     height: 44px;
     margin: calc(-1 * var(--space-6));
   }
+
+  /* ── UX-50: os controles que ficaram 9–12px abaixo da régua ─────────────
+     O UX-46 subiu o `.icon-button` e o UX-49 o `.modal-close`; a varredura
+     AUD-13 mediu o que sobrou a 375px — e não é a ressalva de "1–4px" que a
+     AUD-12 deixou registrada, é gente de 32, 27 e 20px. Todos crescem pela
+     receita do UX-28/UX-37: `min-height` no `inline-flex`/na caixa que a classe
+     já tem, e margem negativa DE METADE da diferença onde o crescimento não
+     pode empurrar a linha.
+     ⚠ Nada aqui mexe em `font-size`: o [micro] (dono, 2026-08-17) recusou o
+     `.btn` maior por causa dos +57px na /vendas, e o custo de lá era a FONTE
+     subindo em cascata. Altura de alvo é outra conta — medida abaixo, um a um. */
+
+  /* Medido 178×32. É a caixa visível do controle (como o `.link-button.bordered`
+     do desktop): cresce de verdade, sem devolver nada ao fluxo. */
+  .rounding-control select {
+    min-height: 44px;
+  }
+
+  /* Os dois que a AUD-13 não listou porque mediu o `/` e o `/estoque`, e eles
+     moram no `/vendas`, no `/catalogo` e no `/producao`: medidos 36 os dois, a
+     mesma classe de defeito e a mesma receita. O `.catalog-actions select` está
+     na família de campos do `forms.css` e ficou fora do override desta faixa,
+     igual aos do `.ci-item`; a busca é caixa própria no `base.css`. */
+  .catalog-actions select,
+  .search-box-input {
+    min-height: 44px;
+  }
+
+  /* As 3 abas do `/estoque`, medidas 34 — mesma família do
+     `.icon-label-button` (o chip da NavBar), mesma régua. */
+  .stock-tab {
+    min-height: 44px;
+  }
+
+  /* Medido 35 — a família INTEIRA de campos que não é `.field-input` e por isso
+     ficou fora do override desta faixa: os três do painel de capacidade (os que
+     a AUD-13 listou), os do painel de custos fixos, os da fileira de acessórios
+     e os 26 do editor de máquinas. Todos são a mesma caixa de campo dos outros,
+     com a mesma régua.
+     ⚠ As duas fileiras de TRILHA FIXA entram aqui de propósito, e não é
+     contradição com a exceção medida lá em cima: aquela é de LARGURA (o botão
+     de 44 e o stepper de 28 estouravam os 283px da linha a 375px). Altura não
+     disputa a trilha — medido depois, a `.accessory-row` continua com o excluir
+     dentro da linha. */
+  .capacity-inputs input,
+  .fc-item input,
+  .accessory-row input,
+  .machine-edit-row input {
+    min-height: 44px;
+  }
+
+  /* Medido: `.btn.primary` 41 e os três `.btn-secondary` da barra de ações 34.
+     O recuo de 14px desta faixa já está aplicado — o que falta é o piso. */
+  .btn {
+    min-height: 44px;
+  }
+
+  /* Medido 35 nos 7 destinos da NavBar e 40 no par tema/sair do cabeçalho. Os 7
+     vivem DENTRO do painel que o hambúrguer abre (o `nav` mede 0 fechado), então
+     os 63px que eles ganham não custam altura de página nenhuma: só o menu
+     aberto fica mais alto, que é exatamente onde o dedo age. */
+  .icon-label-button {
+    min-height: 44px;
+  }
+
+  /* Medido 32 ("Gerenciar", "Adicionar cor", "detalhar refugo"). A regra do
+     `forms.css` já fazia 32 com `margin-block: -8px`; aqui o piso sobe e a
+     devolução acompanha: (44 − 16 de linha) / 2 = 14. O `.section-head` não
+     move um pixel — o alvo cresce por cima do que já existe. */
+  .link-button:not(.bordered):not(.add-line) {
+    min-height: 44px;
+    margin-block: -14px;
+  }
+
+  /* Estes dois são a caixa visível (têm borda e recuo próprios): sobem de
+     verdade, como no desktop. Medido: "Adicionar etapa" já estava em 44 e
+     "Adicionar cor" em 32. */
+  .link-button.bordered,
+  .link-button.add-line {
+    min-height: 44px;
+  }
+
+  /* Medido 27 — "Ver informações avançadas", o disclosure do card de resultado —
+     e 36 no irmão dele, o aviso de payback do `/maquinas` (o `.roi-warn`, que
+     copia este mesmo padrão). A devolução de 8px por lado deixa as duas linhas
+     na altura que já ocupavam. */
+  .result-advanced > summary,
+  .roi-warn > summary {
+    min-height: 44px;
+    margin-block: -8px;
+  }
+
+  /* Medido 20 — o "Lopo Lab ✦" do cabeçalho, que é BOTÃO (limpa o formulário).
+     Alvo de 20px para uma ação que descarta o que está na tela. A devolução de
+     12px por lado mantém a altura do cabeçalho. */
+  .brand-reset {
+    min-height: 44px;
+    margin-block: -12px;
+  }
+
+  /* ── UX-51: a justificativa escrita do stepper vira verdade ─────────────
+     O comentário do `forms.css` dizia que a régua não se aplica às setas porque
+     "o alvo de verdade é o campo, e ele passa dos 44px". Medido: `.field-input`
+     dava 42 e os do `.ci-item`, 35 — a frase estava errada nos dois. Subir a
+     SETA é o que não dá (ela é metade da altura do campo, e crescer estoura a
+     caixa que o [micro] de 14px trava); subir o CAMPO custa 2px e faz a frase
+     ficar de pé. Com 44 no campo, cada seta passa a medir 21 de altura por 28 de
+     largura, sobre um alvo primário que agora É de 44. */
+  .field-input {
+    min-height: 44px;
+  }
 }
 
 /* --- Catálogo vira lista de cartões no celular --- */

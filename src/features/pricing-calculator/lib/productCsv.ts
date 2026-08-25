@@ -478,12 +478,34 @@ function resolveColumns(headers: string[]): {
   // "nome não reconhecido". Medido com `Produto;Peso (g);Peso (g)`: o nome FOI
   // reconhecido, e a mensagem errada manda renomear uma coluna que está certa.
   // A comparação é sobre o texto NORMALIZADO, o mesmo que reclamou a primeira.
+  // CSV-35: a repetida quase nunca vem com o texto IDÊNTICO. `Peso (g);Peso` é
+  // a MESMA coluna escrita de dois jeitos — a igualdade normalizada não vê isso,
+  // então a segunda caía em "o nome não foi reconhecido", cujo conselho é
+  // RENOMEAR: seguir o conselho cria a duplicata exata, o erro que o CSV-28
+  // acabou de aprender a apontar.
+  // ⚠ O teste NÃO pode ser o mesmo `includes(needle)` da passada por pedaço: aí
+  // "Tempo de cura (h)" ao lado de "Tempo (h)" viraria "coluna repetida — apague
+  // a extra", e ela não é repetida, é outra coluna (o AUD-11/D-3 quis que essa
+  // fosse "ignorada"). O que caracteriza a variante é a direção da continência:
+  // a sobra é o próprio needle, ou uma ABREVIAÇÃO do nome canônico ("peso" ⊂
+  // "peso (g)"). Nome com palavra a MAIS continua sendo coluna desconhecida.
   const duplicadas = new Set<number>();
   normalized.forEach((header, i) => {
     if (claimed.has(i) || !header) return;
     if (normalized.some((outro, j) => claimed.has(j) && outro === header)) {
       duplicadas.add(i);
+      return;
     }
+    if (COLUNAS_CALCULADAS.includes(header)) return;
+    const variante = keys.some((key) => {
+      // Só conta quando a coluna JÁ TEM dono: sem dono, esta aqui seria
+      // reclamada por ela na passada por pedaço e nem chegaria neste ponto.
+      if (index[key] < 0) return false;
+      const alvo = normalizeText(COLUMN_SPECS[key].exact).trim();
+      const needle = normalizeText(COLUMN_SPECS[key].needle).trim();
+      return header === needle || alvo.includes(header);
+    });
+    if (variante) duplicadas.add(i);
   });
 
   return { index, claimed, aproximadas, duplicadas };
@@ -1276,6 +1298,28 @@ export function parseProductsCsv(
       );
     };
 
+    // CSV-33 — `Pecas` tinha o defeito que o CSV-26 acabou de tirar do markup:
+    // leitura, default e clamp espremidos em `Math.max(1, cellNumber(...) || 1)`.
+    // `"0"` e `"-1"` viravam 1 com ZERO aviso, enquanto o markup 0/−2 avisa —
+    // e peça é o divisor do custo por unidade, então o número errado sai calado
+    // no preço de cada peça. Ilegível ("abc") já é contado pelo `cellNumber`
+    // (classe `coluna-numero-nao-reconhecido`) e cai no default 1: usável, sem
+    // aviso repetido.
+    // Célula VAZIA ou coluna ausente seguem sendo ausência, não erro.
+    const piecesCell = indexPieces >= 0 ? columns[indexPieces]?.trim() ?? "" : "";
+    const piecesLido = cellNumber(
+      columns[indexPieces],
+      indexPieces >= 0,
+      "Pecas",
+      1,
+      reportColuna,
+    );
+    // O piso é 1 — dividir o custo por 0 (ou por −1) não tem leitura possível.
+    // Fracionária MAIOR que 1 passa aqui de propósito: quem a reprova é o
+    // `validateProduct` (CSV-31), com a mensagem certa sobre inteiro.
+    const piecesUsavel = piecesLido >= 1;
+    const piecesCount = piecesUsavel ? piecesLido : 1;
+
     const stages = parseStages(columns[indexStages], machineId, reportNumero);
     const accessories = parseAccessories(
       columns[indexAccessories],
@@ -1326,16 +1370,7 @@ export function parseProductsCsv(
           indexTimeMinutes >= 0,
           reportColuna,
         ),
-        piecesCount: Math.max(
-          1,
-          cellNumber(
-            columns[indexPieces],
-            indexPieces >= 0,
-            "Pecas",
-            1,
-            reportColuna,
-          ) || 1,
-        ),
+        piecesCount,
         energyTariff: cellNumber(
           columns[indexEnergy],
           indexEnergy >= 0,
@@ -1495,6 +1530,16 @@ export function parseProductsCsv(
         "Markup menor que 1x — o preço sai ABAIXO do custo. A linha entra " +
           "assim mesmo",
         `${ondeEstou}: "${markupCell}" → ${markupLido}x`,
+      );
+    }
+
+    // 3b-0) CSV-33: peça zero ou negativa. Mesma disciplina do markup: o texto
+    // do aviso diz o que ENTROU no documento, e cita a célula crua.
+    if (piecesCell && !piecesUsavel) {
+      addIssue(
+        "pecas-invalida",
+        'Peças por impressão zero ou negativa — a linha entra com 1',
+        `${ondeEstou}: "${piecesCell}"`,
       );
     }
 

@@ -1,21 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  removeFinishedGood,
-  saveFinishedGood,
-  subscribeFinishedGoods,
-} from "@/lib/firebase/finishedGoodsRepository";
-import type {
-  CloudStatus,
-  FinishedGood,
-  FinishedGoodPayload,
-} from "../types";
+import { subscribeFinishedGoods } from "@/lib/firebase/finishedGoodsRepository";
+import type { CloudStatus, FinishedGood } from "../types";
 
 // Estoque de Produtos / acabados em tempo real (um doc por produto, FEAT-05a).
-// Molde do `useStock`/`useProduction`: só assina a coleção `acabados` e expõe
-// gravar/excluir. O incremento atômico junto do evento de produção vai no repo da
-// produção (05b); este hook é a leitura viva (tela 05c) e os avulsos.
+// Molde do `useStock`/`useProduction`, menos a escrita: este hook é só LEITURA.
+// TD-030 — ele expunha `saveGood`/`deleteGood` e nenhum componente jamais os
+// chamou. Quem escreve no acabado é o `writeBatch` da produção (05b), o da venda
+// e o do estorno, sempre junto do evento que o justifica; um atalho de gravar
+// por fora só serviria para o saldo descolar do rastro.
 export function useFinishedGoods() {
   const [goods, setGoods] = useState<FinishedGood[]>([]);
   const [status, setStatus] = useState<CloudStatus>("connecting");
@@ -37,13 +31,5 @@ export function useFinishedGoods() {
     return unsubscribe;
   }, []);
 
-  async function saveGood(payload: FinishedGoodPayload) {
-    await saveFinishedGood(payload);
-  }
-
-  async function deleteGood(productId: string) {
-    await removeFinishedGood(productId);
-  }
-
-  return { goods, status, error, saveGood, deleteGood };
+  return { goods, status, error };
 }

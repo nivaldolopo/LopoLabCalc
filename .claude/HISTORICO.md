@@ -9,6 +9,148 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Lote E da AUD-13 — "a poeira": os 11 🟢 (2026-08-24)
+
+> O lote de fechamento da 3ª varredura. Nenhum item sozinho valia uma sessão; somados, são o
+> parser aceitando número que não é número, dois pedaços de código morto, um preço de repasse ×20
+> por digitação, um saldo que a tela e o aviso liam diferente, e **toda a régua de 44px do celular**.
+> `lint` ✅ · `build` ✅ · **729/729** ✅ (18 testes novos; **4 deles falham** contra o código velho —
+> os outros são contraponto) · medição no DOM em **7 rotas a 375px**, com o "antes" obtido
+> desligando as regras novas na própria página.
+>
+> ⚠ **Um item saiu como FALSO POSITIVO declarado: o `[A11Y-02]`.** Ver o fim desta seção.
+
+### Parser — CSV-33, CSV-35, CSV-37
+
+**[CSV-37] "5X0" entrava como 50.** A causa não era o `replace` do markup (o regex dele é ancorado
+no fim, `/x\s*$/i`, e não toca o "X" do meio): era a **limpeza do `parseDecimalPtBr`**, que apaga
+tudo que não é dígito/sinal/separador e **cola o que sobra**. Um erro de digitação virava outro
+número plausível, sem aviso. A trava nova é uma linha, e mora no `number.ts` porque o defeito é de
+lá: **letra ENTRE dígitos → `null`**. Letra antes ou depois segue tolerada, que é o que carrega
+unidade e moeda (`"R$ 50"`, `"5 metros"`, `"5x"`, `"X5"` — os três últimos são markup legítimo). A
+científica sai **antes** da trava, senão `"1e3"` morreria nela. Efeito colateral desejado: `"2h30"`
+deixa de virar 230 em qualquer coluna escalar, e o `null` cai no default **com a classe do CSV-09** —
+avisa, não engole. De quebra, o `"2 e 5"` do AUD-11/D-4 agora é `null` em vez de 25.
+
+**[CSV-33] `Pecas = 0` e `-1` viravam 1 em silêncio.** É o defeito que o CSV-26 tirou do markup, na
+coluna ao lado: leitura, default e clamp espremidos numa expressão só (`Math.max(1, cellNumber(…) ||
+1)`). Separado nos mesmos três nomes do markup (`piecesCell` crua para o aviso, `piecesLido`,
+`piecesUsavel`), o piso continua em 1 — dividir custo por 0 não tem leitura — e a classe
+`pecas-invalida` conta a linha. **Ausente e vazia seguem caladas** (é ausência, não erro), ilegível
+continua só com a classe do CSV-09 (sem aviso em dobro) e a **fracionária maior que 1 passa aqui de
+propósito**: quem a reprova é o `validateProduct`, com a mensagem sobre inteiro (CSV-31).
+⚠ Onde declarar o `piecesLido` importa: ele usa o `reportColuna`, que é `const` declarado mais
+abaixo — no lugar "natural" (junto do markup) seria zona morta temporal.
+
+**[CSV-35] a coluna repetida com grafia VARIANTE recebia o conselho oposto.** `Peso (g);Peso` caía em
+*"o nome não foi reconhecido"*, cujo conselho é **renomear** — e renomear cria a duplicata exata que
+o CSV-28 existe para apontar. A tentação era reusar o `includes(needle)` da passada por pedaço, e
+**isso quebrou um teste do AUD-11/D-3 na primeira tentativa**: `"Tempo de cura (h)"` ao lado de
+`"Tempo (h)"` virou "coluna repetida — apague a extra", e ela **não é repetida, é outra coluna**. O
+que caracteriza a variante é a **direção da continência**: a sobra é o próprio needle, ou uma
+abreviação do nome canônico (`"peso"` dentro de `"peso (g)"`). Nome com palavra a MAIS continua sendo
+coluna desconhecida. O teste que falhou virou o contraponto explícito da suíte.
+
+**[CSV-36]** "Importar **1 produtos**": o diálogo já flexionava "aviso/avisos" e "linha/linhas"; o
+portão da carga, o número mais lido dos três, não. As duas ocorrências (título e o "importados com
+sucesso") passaram a flexionar. Os outros plurais fixos do app foram conferidos e **estão certos** —
+`SaleModal` e `SalesPage` só mostram a contagem quando é > 1.
+
+### TD-032 — taxa ≥ 100% multiplicava o preço de repasse por 20
+
+`grossUpForFee(100, 100)` → **1999,99**. O ×20 **é a conta certa** para uma taxa de 95% (`1/(1−f)`);
+o defeito era **chegar nele digitando 100**: o editor guardava 100, o `feeFraction` clampava em 0,95
+e os dois números discordavam em silêncio. O teto virou **um número só** — `MAX_FEE_PCT = 95`,
+exportado do `paymentFees` — e o editor clampa a **entrada** nele (`clampFeePct`, mais `max` nos 5
+campos). Agora o que se lê no campo é o que entra na conta, e "o preço sobe para cobrir a taxa de
+95%" torna o ×20 uma escolha visível.
+
+### CSV-34 — a tela e o aviso liam saldos diferentes
+
+Editando um recibo de 1 un sobre 1 produzida, o rótulo dizia **"0 disp."** enquanto a quantidade 1
+era aceita sem um pio. O **aviso estava certo** (UX-42: a reconciliação credita o recibo antigo antes
+de simular); quem ficou na conta antiga foi o **rótulo**, que lia o `goods` cru. O conserto é o mesmo
+estorno da gravação (`reverseFinishedConsumption`) sobre uma **cópia** — `goodsCreditados` —, sem
+gravar nada; o `balanceForItem` e o `colorOptionsOf` passaram a ler dela.
+⚠ **Ordem de declaração de novo:** o `oldRecibo` (um `useMemo`) vivia depois do `stockItems`, que é
+outro `useMemo` e chama o `balanceForItem` **durante o render** — deixá-lo onde estava daria
+ReferenceError. Subiu para o topo do componente, com a razão escrita no lugar.
+
+### Código morto — TD-030 e TD-031
+
+**[TD-030]** o `deleteGood` do `useFinishedGoods` nunca teve chamador — e o `saveGood` ao lado dele
+também não, nem os dois do repositório (`saveFinishedGood`/`removeFinishedGood`). **Saíram os
+quatro.** Quem escreve no acabado é **sempre** o `writeBatch` de outra coleção (produção 05b, venda,
+estorno), e é isso que mantém a baixa atômica: um caminho solto de gravar/apagar por fora seria a
+porta para o saldo descolar do rastro que o produziu. O hook virou leitura pura.
+⚠ **Consequência declarada:** doc de acabado com saldo 0 (produto excluído, produção estornada) fica
+na coleção, invisível na tela — inclusive os 2 das sondas da AUD-13. É o retrato certo do que
+aconteceu, e **não existe caminho de UI para apagá-lo** (era este o item).
+
+**[TD-031]** `.sales-table`/`.sales-table-wrap` (~45 linhas) eram a tabela do histórico de **antes**
+de ele virar lista de recibos. Nenhum componente as aplicava, e o `min-width: 760px` delas é o
+oposto da regra de hoje (fileira que não cabe vira **cartão**, não rolagem).
+
+### UX-50 e UX-51 — a régua de 44px, medida rota a rota
+
+O UX-46 subiu o `.icon-button` e o UX-49 o `.modal-close`; a AUD-13 mediu **o que sobrou**, e não é a
+ressalva de "1–4px" da AUD-12 — é gente de 32, 27 e 20px. Todos cresceram pela receita
+**UX-28/UX-37** (`min-height` na caixa que a classe já tem + margem negativa de metade da diferença
+onde o crescimento não pode empurrar a linha), tudo dentro do `@media (max-width: 760px)`.
+
+**Nada mexeu em `font-size`** — o `[micro]` (dono, 2026-08-17) recusou o `.btn` maior porque a FONTE
+subindo em cascata custou +57px na `/vendas`. Altura de alvo é outra conta, e ela foi medida:
+
+| rota | altura antes → depois | custo | alvos < 44px depois |
+|---|---|---|---|
+| `/` | 2113 → 2140 | **+27px** | só as setas do stepper |
+| `/vendas` | 6214 → 6226 | +12px | — |
+| `/producao` | 4141 → 4153 | +12px | — |
+| `/catalogo` | 5734 → 5742 | +8px | — |
+| `/orcamento` | 3518 → 3528 | +10px | as 4 setas do stepper |
+| `/estoque` | 1205 → 1223 | +18px | — |
+| `/maquinas` | 1279 → **1279** | **0** | — |
+
+(Os 3 remanescentes de toda rota — `navbar-toggle` 40, `navbar-close` 40, `back-to-top` 42 — são a
+**ressalva de 1–4px** que a própria AUD-13 registrou como exclusão deliberada; não foram tocados.
+No desktop, remedido a 1280px, **nada mudou**: `brand-reset` 20, `.field-input` 35, `summary` 27,
+`.btn-secondary` 34, arredondamento 32 — os valores de sempre.)
+
+Além dos 6 nomes que o item listava, entraram **os que a varredura não viu porque mediu outra rota**:
+`.catalog-actions select` e `.search-box-input` (36 os dois), as **3 abas do `/estoque`** (34), o
+`summary` do aviso de payback do `/maquinas` (36) e a **família inteira de campos** que não é
+`.field-input` (35): `.fc-item`, `.accessory-row` e os 26 do editor de máquinas, além dos 3 do
+`.ci-item` que o item citava.
+
+⚠ **A `.accessory-row` e a `.machine-edit-row` entraram de propósito, e não contradizem a exceção
+medida do UX-46**: aquela é de **LARGURA** (o botão de 44 e o stepper de 28 estouravam os 283px da
+linha a 375px). Remedido depois da mudança, a 375px: a linha vai de 46 a 329 e o excluir termina em
+**329** — dentro, com os campos já em 44. Altura não disputa trilha. No editor de máquinas o modal
+foi de 679 para 690px de altura, sem estouro e sem rolagem lateral.
+
+**[UX-51]** o comentário do `forms.css` justificava a seta pequena dizendo que *"o alvo de verdade é
+o campo, e ele passa dos 44px"* — **medido, não passava**: `.field-input` dava 42 e os do `.ci-item`,
+35. A saída não foi reescrever a desculpa: subir a SETA é o que não dá (ela é metade da altura do
+campo, e a largura é a trava do `[micro]` de 14px), então **subiu o campo** — 2px — e a frase ficou
+de pé. Cada seta passou de 19,5 para **21px de altura sobre um alvo primário que agora É de 44**.
+
+### ⚠ [A11Y-02] — FALSO POSITIVO declarado, não corrigido
+
+O item dizia que as setas do stepper não têm "nem texto, nem `aria-label`, nem `aria-hidden`" (20 em
+`/`, 4 em `/orcamento`). **Os botões, sozinhos, realmente não têm — o `aria-hidden="true"` está no
+`<span class="num-spin">` que os envolve**, e pela especificação isso remove a subárvore inteira da
+árvore de acessibilidade. A sonda da varredura leu **elemento a elemento** e não viu o ancestral.
+
+Não foi "corrigido" porque as duas correções possíveis pioram o resultado real:
+
+- **dar `aria-label`** e tirar o `aria-hidden` do pai põe **40 paradas novas** no modo de navegação
+  do leitor de tela (2 por campo), justamente o que o comentário do `NumberInput` já recusava — e o
+  campo, que aceita ↑↓ e digitação, já é o controle nomeado;
+- **repetir `aria-hidden` no botão** é redundância que não muda a árvore.
+
+A régua A11Y-01 do projeto ("botão só-ícone precisa de `aria-label`") vale para botão que **está** na
+árvore. Fica registrado que a leitura por elemento vai reacender isso na próxima varredura.
+
 ## ✅ Lote D da AUD-13 — offline que grava calado, e o ✕ pequeno demais (2026-08-24)
 
 > Dois itens, nenhum tocando lógica de negócio, verificados na mesma sessão de navegador — que é

@@ -14,24 +14,23 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-24): LOTE D da AUD-13 fechado — `[TD-029]` + `[UX-49]`.**
-  Os 3 caminhos de escrita que gravavam calados offline ganharam `guardOnline` **antes do `await`**,
-  cada um no molde do seu chamador (taxa de custo fixo expõe `error`; `saveBusiness` devolve a
-  mensagem; `addQuote`/`deleteQuote` lançam) — e `isOffline()`/`OFFLINE_MESSAGE` no `errors.ts`
-  mataram as cópias inline da frase. O ✕ dos 9 modais vai a **44×44** no celular sem mover o
-  cabeçalho. ⚠ **A repro do TD-029 mirava o campo errado** — "Dias de impressão/mês" é simulação
-  local por desenho; quem grava é o painel de custos fixos (detalhe no `HISTORICO.md`).
-  `lint` ✅ · `build` ✅ · **711/711** ✅ · **medido ao vivo antes/depois** (sem teste novo: é fiação
-  de UI/CSS). Resta **o lote E** da AUD-13 — os **11 itens 🟢**.
+- **Última mudança (2026-08-24): LOTE E fechado — e com ele a AUD-13 INTEIRA e o backlog de
+  código.** Os 11 🟢: o parser parou de aceitar número que não é número (letra ENTRE dígitos vira
+  `null` — `"5X0"` entrava 50; `Pecas` 0/−1 avisa; coluna repetida com grafia VARIANTE recebe o
+  conselho certo; o portão flexiona "1 produto"), a taxa de pagamento ganhou **um teto só**
+  (`MAX_FEE_PCT`, clampado também na ENTRADA), o "N disp." passou a creditar o recibo em edição,
+  saíram 2 pedaços de **código morto** e a **régua de 44px do celular** subiu o que faltava.
+  ⚠ **`[A11Y-02]` fechou como FALSO POSITIVO** — o `aria-hidden` do pai já tira as setas da árvore.
+  `lint` ✅ · `build` ✅ · **729/729** ✅ (18 novos, 4 falham contra o código velho) · **medido no DOM
+  em 7 rotas a 375px** (`/` +27px de altura, o resto ≤ +18, `/maquinas` 0; desktop inalterado).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — o LOTE E da AUD-13, "a poeira": os 11 🟢.** Vale quebrar em duas sessões,
-  como o backlog propõe: CSS/alvo (`UX-50`, `UX-51`, `A11Y-02`) e parser (`CSV-33`, `CSV-35`,
-  `CSV-36`, `CSV-37`); o código morto (`TD-030`, `TD-031`) vai de carona, e sobram `CSV-34` e
-  `TD-032`. Baixo um a um, mas somado não é desprezível.
+- **▶ PRÓXIMA TAREFA — não há item de CÓDIGO aberto.** Sobrou o **`[UX-47]`** (a `.accessory-row`
+  virar CARTÃO no celular: é a única fileira que nunca virou, e a trilha fixa não tem folga para
+  espremer) e as ressalvas que o dono já decidiu deixar de fora. O que resta é a frente do DONO.
   → A frente do DONO segue a mesma: cadastrar as cores e os insumos definitivos e passar os ids pro
   **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
   (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. A carga **não cria**

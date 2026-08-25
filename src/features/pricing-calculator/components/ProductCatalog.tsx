@@ -267,8 +267,14 @@ export function ProductCatalog({
           return;
         }
 
+        // CSV-36: o diálogo já flexiona "aviso/avisos" e "linha/linhas" — o
+        // portão da carga, que é o número mais lido dos três, dizia
+        // "Importar 1 produtos".
+        const unico = importedProducts.length === 1;
         const confirmed = await ask({
-          title: `Importar ${importedProducts.length} produtos do CSV?`,
+          title: `Importar ${importedProducts.length} ${
+            unico ? "produto" : "produtos"
+          } do CSV?`,
           body: (
             <>
               <p>
@@ -350,7 +356,11 @@ export function ProductCatalog({
         // "Importando…" sem o dono saber se algo entrou.
         guardOnline();
         await onImportProducts(importedProducts);
-        ok(`${importedProducts.length} produtos importados com sucesso.`);
+        ok(
+          `${importedProducts.length} ${
+            unico ? "produto importado" : "produtos importados"
+          } com sucesso.`,
+        );
       } catch (error) {
         fail(error instanceof Error ? error.message : "CSV inválido.");
       }

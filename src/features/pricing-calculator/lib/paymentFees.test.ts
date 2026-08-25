@@ -4,6 +4,7 @@ import {
   discountAmountOf,
   feeFraction,
   grossUpForFee,
+  MAX_FEE_PCT,
   netMarginPct,
   resolveFeeRate,
   saleItemFinancials,
@@ -306,5 +307,36 @@ describe("TD-025 — quantidade zero não vende uma peça", () => {
     expect(r.totalRevenue).toBe(300);
     expect(r.totalCost).toBe(90);
     expect(r.profit).toBe(210);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TD-032 (AUD-13, lote E) — o teto da taxa é UM número, e é o mesmo dos dois
+// lados. O editor aceitava digitar 100%: o documento guardava 100, a conta usava
+// 95 e o preço de repasse saía ×20 sem que a tela tivesse dito nada.
+// ---------------------------------------------------------------------------
+
+describe("TD-032 — taxa acima do teto não vira preço fantasia calado", () => {
+  it("o teto do clamp É o MAX_FEE_PCT — um número, não dois", () => {
+    expect(feeFraction(MAX_FEE_PCT)).toBeCloseTo(MAX_FEE_PCT / 100, 12);
+    expect(feeFraction(MAX_FEE_PCT)).toBe(0.95);
+  });
+
+  it("acima do teto nada mais se move — 100%, 500% e 1e6% dão o MESMO preço", () => {
+    const teto = grossUpForFee(100, MAX_FEE_PCT);
+    expect(grossUpForFee(100, 100)).toBe(teto);
+    expect(grossUpForFee(100, 500)).toBe(teto);
+    expect(grossUpForFee(100, 1e6)).toBe(teto);
+    // O ×20 medido na varredura: ele é a CONSEQUÊNCIA correta de uma taxa de
+    // 95%. O defeito era chegar nele digitando 100 — por isso o editor agora
+    // clampa a ENTRADA no mesmo teto (SaleModal.clampFeePct), e o que se lê no
+    // campo é o que entra na conta.
+    expect(teto).toBeCloseTo(2000, 6);
+  });
+
+  it("abaixo do teto o gross-up segue exato", () => {
+    expect(grossUpForFee(100, 5)).toBeCloseTo(105.263157894, 8);
+    expect(grossUpForFee(100, 0)).toBe(100);
+    expect(grossUpForFee(100, -3)).toBe(100);
   });
 });

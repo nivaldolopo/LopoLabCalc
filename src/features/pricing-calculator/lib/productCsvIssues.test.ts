@@ -1638,3 +1638,153 @@ describe("UX-48 — id de máquina é identidade, não palpite", () => {
     expect(achar(r.issues, "maquina-por-aproximacao")?.linhas).toBe(1);
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// AUD-13, lote E — a poeira do parser (CSV-33, CSV-35, CSV-37).
+// ---------------------------------------------------------------------------
+
+describe("CSV-33 — Pecas zero ou negativa não entra calada", () => {
+  it('"0" e "-1" entram como 1 E acendem a classe', () => {
+    for (const bruto of ["0", "-1", "-3"]) {
+      const r = parseProductsCsv(
+        csv({ ...LINHA_BOA, Pecas: bruto }),
+        machines,
+        opcoes,
+      );
+      expect(r.products[0].piecesCount).toBe(1);
+      const issue = achar(r.issues, "pecas-invalida");
+      expect(issue?.linhas).toBe(1);
+      // O aviso cita a célula CRUA — o número que o dono procura na planilha.
+      expect(issue?.exemplos[0]).toContain(`"${bruto}"`);
+    }
+  });
+
+  it("coluna ausente e célula VAZIA seguem sendo ausência, não erro", () => {
+    const semColuna = parseProductsCsv(csv(LINHA_BOA), machines, opcoes);
+    expect(semColuna.products[0].piecesCount).toBe(1);
+    expect(achar(semColuna.issues, "pecas-invalida")).toBeUndefined();
+
+    const vazia = parseProductsCsv(
+      csv({ ...LINHA_BOA, Pecas: "" }),
+      machines,
+      opcoes,
+    );
+    expect(vazia.products[0].piecesCount).toBe(1);
+    expect(achar(vazia.issues, "pecas-invalida")).toBeUndefined();
+  });
+
+  it("ilegível continua com a classe do CSV-09, sem aviso em dobro", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Pecas: "abc" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].piecesCount).toBe(1);
+    expect(achar(r.issues, "coluna-numero-nao-reconhecido")?.linhas).toBe(1);
+    expect(achar(r.issues, "pecas-invalida")).toBeUndefined();
+  });
+
+  it("peça válida não acende nada — e a fracionária segue com o dono do CSV-31", () => {
+    const boa = parseProductsCsv(
+      csv({ ...LINHA_BOA, Pecas: "4" }),
+      machines,
+      opcoes,
+    );
+    expect(boa.products[0].piecesCount).toBe(4);
+    expect(achar(boa.issues, "pecas-invalida")).toBeUndefined();
+
+    // > 1 e fracionária: passa aqui de propósito, o validateProduct é que reprova.
+    const fracionaria = parseProductsCsv(
+      csv({ ...LINHA_BOA, Pecas: "1.234" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(fracionaria.issues, "pecas-invalida")).toBeUndefined();
+    expect(achar(fracionaria.issues, "linha-invalida")?.exemplos[0]).toContain(
+      "inteiro",
+    );
+  });
+});
+
+describe("CSV-35 — coluna repetida com grafia VARIANTE recebe o conselho certo", () => {
+  it('"Peso (g);Peso" é repetida, não "nome não reconhecido"', () => {
+    const r = parseProductsCsv(
+      // Sem as cores, o peso escalar é o que entra no documento (CSV/RT-01).
+      csv({ ...sem(LINHA_BOA, "Filamentos JSON"), "Peso (g)": "50", Peso: "80" }),
+      machines,
+      opcoes,
+    );
+    expect(r.warnings.join(" ")).toContain("Coluna(s) repetida(s)");
+    expect(r.warnings.join(" ")).not.toContain("não foi reconhecido");
+    // Vale a primeira da esquerda para a direita — a variante é descartada.
+    expect(r.products[0].weightG).toBe(50);
+  });
+
+  it("a abreviação sozinha continua sendo RECLAMADA, não descartada", () => {
+    const r = parseProductsCsv(
+      csv({ ...sem(LINHA_BOA, "Tempo (h)"), Tempo: "2" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].printHours).toBe(2);
+    expect(r.warnings.join(" ")).not.toContain("repetida");
+  });
+
+  it("⚠ nome com palavra a MAIS não é variante — segue 'ignorada'", () => {
+    // A trava do AUD-11/D-3: "Tempo de cura (h)" é OUTRA coluna, e o conselho
+    // "apague a coluna extra" seria errado.
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Tempo de cura (h)": "11" }),
+      machines,
+      opcoes,
+    );
+    expect(r.warnings.join(" ")).toContain("Coluna(s) ignorada(s)");
+    expect(r.warnings.join(" ")).not.toContain("repetida");
+  });
+
+  it("a duplicata EXATA do CSV-28 não regrediu", () => {
+    const cru = `Produto;Peso (g);Peso (g);Tempo (h)
+Caneca;50;80;2`;
+    const r = parseProductsCsv(cru, machines, opcoes);
+    expect(r.warnings.join(" ")).toContain("Coluna(s) repetida(s)");
+    expect(r.products[0].weightG).toBe(50);
+  });
+});
+
+describe("CSV-37 — letra no meio do número não vira outro número", () => {
+  it('Markup "5X0" não entra como 50 — acende o markup-invalido e usa 3x', () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, Markup: "5X0" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].markup).toBe(3);
+    expect(achar(r.issues, "markup-invalido")?.exemplos[0]).toContain("5X0");
+  });
+
+  it('"5x", "X5" e "5 x" continuam valendo 5 — o "x" é sufixo, não erro', () => {
+    for (const bruto of ["5x", "X5", "5 x", "5"]) {
+      const r = parseProductsCsv(
+        csv({ ...LINHA_BOA, Markup: bruto }),
+        machines,
+        opcoes,
+      );
+      expect(r.products[0].markup).toBe(5);
+      expect(achar(r.issues, "markup-invalido")).toBeUndefined();
+    }
+  });
+
+  it("a mesma trava vale para as colunas escalares", () => {
+    const r = parseProductsCsv(
+      csv({ ...sem(LINHA_BOA, "Filamentos JSON"), "Peso (g)": "2h30" }),
+      machines,
+      opcoes,
+    );
+    // Antes: 230 g calados. Agora cai no default da coluna, com a classe do CSV-09.
+    expect(achar(r.issues, "coluna-numero-nao-reconhecido")?.exemplos[0]).toContain(
+      "2h30",
+    );
+    expect(r.products[0].weightG).not.toBe(230);
+  });
+});
