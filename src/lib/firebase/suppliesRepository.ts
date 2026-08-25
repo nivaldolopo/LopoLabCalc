@@ -20,7 +20,7 @@ import { num } from "@/lib/number";
 
 // Estoque de INSUMOS (7e): um doc por insumo, com os lotes em array dentro —
 // mesma forma do `stockRepository` (D2), pelo mesmo motivo (poucos lotes cabem
-// no doc e a baixa da produção entra no mesmo `writeBatch`).
+// no doc e a baixa da produção entra na mesma transação).
 //
 // Coleção PRÓPRIA, não `estoque`: o `subscribeStock` devolve a coleção inteira
 // tipada como cor, e o estorno filtra por `stockId` — insumo no meio das cores
@@ -83,7 +83,7 @@ function lotToDocument(lot: SupplyLot): DocumentData {
 }
 
 // Serializa os lotes de um insumo. Exportado para a baixa da produção, que
-// atualiza só o campo `lots` do doc no mesmo `writeBatch` do evento — mesmo
+// atualiza só o campo `lots` do doc na mesma transação do evento — mesmo
 // papel do `serializeRolls`.
 export function serializeLots(lots: SupplyLot[]): DocumentData[] {
   return lots.map(lotToDocument);

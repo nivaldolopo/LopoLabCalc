@@ -388,7 +388,7 @@ export type OldReciboState = {
 };
 
 // Plano completo de escrita de um recibo — o que o `reconcileRecibo` grava num
-// único `writeBatch`. `productionDeleteIds` são os eventos das encomendas do
+// única transação. `productionDeleteIds` são os eventos das encomendas do
 // recibo antigo, apagados junto (idempotente se algum já sumiu).
 export type ReciboWritePlan = {
   items: ReconItemResult[];

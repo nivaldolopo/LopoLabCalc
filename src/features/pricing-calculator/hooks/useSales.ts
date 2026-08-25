@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { removeSale, subscribeSales } from "@/lib/firebase/salesRepository";
+import { subscribeSales } from "@/lib/firebase/salesRepository";
 import type { CloudStatus, Sale } from "../types";
 
 export function useSales() {
@@ -25,9 +25,10 @@ export function useSales() {
     return unsubscribe;
   }, []);
 
-  async function deleteSale(saleId: string) {
-    await removeSale(saleId);
-  }
-
-  return { sales, status, error, deleteSale };
+  // AUD-14 [D7] — o `deleteSale` daqui saiu junto com o `removeSale` do
+  // repositório: nenhum componente o destruturava, e apagar a venda sozinha
+  // deixaria filamento, insumo e acabado debitados sem a venda que os explica.
+  // Quem exclui recibo é o `reconcileRecibo` (via `SaleFlow`), que estorna tudo
+  // na mesma transação.
+  return { sales, status, error };
 }

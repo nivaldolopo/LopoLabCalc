@@ -22,6 +22,7 @@ import {
 import { catalogPricePerKg, filamentLabel } from "./stock";
 import type {
   FilamentUsage,
+  ProductionFilament,
   FrozenCostBreakdown,
   Machine,
   ProductionMode,
@@ -176,7 +177,7 @@ export function accessoryRows(
       supplyId: accessory.supplyId ?? null,
       name: accessory.desc || "Acessório",
       qty: num(accessory.qty) * scale,
-      unitPrice: num(accessory.unitPrice),
+      catalogUnitPrice: num(accessory.unitPrice),
     }))
     .filter((usage) => usage.qty > 0);
 }
@@ -475,6 +476,16 @@ export function planEventRows(
 
 // Fecha o payload gravável de cada evento planejado (comum à tela de produção e à
 // encomenda da venda). `at`/`outcome`/`mode`/`notes` vêm de fora do plano.
+// AUD-14 [D9] — a `FilamentUsage` do formulário vira a linha CONGELADA do evento:
+// o `id` de estado sai (mesma disciplina do `stripFilamentIds`) e o preço muda de
+// nome, porque no documento ele é o preço de CADASTRO da cor, não o que a
+// impressão pagou. O custo pago é o FIFO, e vai no `frozenBreakdown.material`.
+function toEventFilament(f: FilamentUsage): ProductionFilament {
+  const { id: _id, pricePerKg, ...rest } = f;
+  void _id;
+  return { ...rest, catalogPricePerKg: num(pricePerKg) };
+}
+
 export function buildProductionPayloads(
   built: PlannedEvent[],
   meta: {
@@ -496,7 +507,10 @@ export function buildProductionPayloads(
       machineId: e.machine?.id ?? e.row.machineId,
       machineName: e.machine?.name ?? "",
       printHours: num(e.row.printHours),
-      filaments: e.filaments,
+      // AUD-14 [D9] — `toEventFilament` renomeia o preço para `catalogPricePerKg`
+      // ao congelar: o que vai no documento é o preço de CADASTRO da cor, e o
+      // custo real (FIFO) fica no `frozenBreakdown.material`, logo abaixo.
+      filaments: e.filaments.map(toEventFilament),
       // 7e: snapshot do que foi consumido (nome + qtd + preço congelado), no
       // mesmo espírito de `filaments` — a leitura de "o que essa impressão
       // levou". O custo REAL (FIFO) não mora aqui: mora no `frozenCost`.

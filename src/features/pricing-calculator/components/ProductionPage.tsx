@@ -1237,11 +1237,12 @@ export function ProductionPage() {
                         <div className="db-label">Filamento por cor</div>
                         <div className="details-tags">
                           {event.filaments.map((fil, index) => (
-                            <span key={fil.id ?? index}>
+                            <span key={index}>
                               {fil.colorName || "(cor)"}{" "}
                               <em>
                                 {grams(filamentTotalG(fil))} ·{" "}
-                                {formatCurrency(fil.pricePerKg)}/kg
+                                {formatCurrency(fil.catalogPricePerKg)}/kg
+                                {" "}no cadastro
                               </em>
                             </span>
                           ))}

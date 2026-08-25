@@ -321,6 +321,20 @@
   cursor: pointer;
 }
 
+/* AUD-14 — 37px no celular, 7px abaixo da régua do dedo. Os campos vizinhos do
+   mesmo modal já sobem para 44 pelo `.field-input` do `responsive.css`; este
+   ficou de fora porque é `<input type="color">` com `height` FIXA, e altura fixa
+   não cede a `min-height`.
+   ⚠ A regra tem que morar AQUI, e não no `responsive.css`: este arquivo é o 15º
+   @import e aquele o 8º — a media query não soma especificidade, então o
+   `height: 37px` de cima venceria por ordem e o override não faria nada (a
+   lição do TD-013, medida ao vivo antes de escrever esta linha). */
+@media (max-width: 760px) {
+  .stock-hex-input {
+    height: 44px;
+  }
+}
+
 .field-hint {
   font-size: var(--text-xs);
   color: var(--muted2);

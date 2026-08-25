@@ -17,7 +17,7 @@ import type {
 
 // Registro de produção em tempo real (FEAT-04b). Molde do `useStock`/`useSales`:
 // só assina a coleção `producao` e expõe gravar/excluir. A baixa dos rolos vai
-// junto no mesmo `writeBatch` do repositório (atômica com os eventos).
+// junto na mesma transação do repositório (atômica com os eventos).
 export function useProduction() {
   const [events, setEvents] = useState<ProductionEvent[]>([]);
   const [status, setStatus] = useState<CloudStatus>("connecting");

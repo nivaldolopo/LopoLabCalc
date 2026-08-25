@@ -21,9 +21,9 @@ import { serializeLots } from "./suppliesRepository";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import { frozenFromDocument, frozenToDocument } from "./frozenCost";
 import type {
-  FilamentUsage,
   FinishedGoodPayload,
   ProductionEvent,
+  ProductionFilament,
   ProductionMode,
   ProductionOutcome,
   ProductionPayload,
@@ -36,12 +36,12 @@ import { num } from "@/lib/number";
 
 // Incremento/estorno do Estoque de Produtos junto do evento (FEAT-05b): o estado
 // FINAL do doc do acabado (já com a camada empilhada OU já sem as camadas do
-// evento), gravado no MESMO `writeBatch`. `null`/ausente quando a submissão não
+// evento), gravado na MESMA transação. `null`/ausente quando a submissão não
 // mexe em acabado (desfecho ≠ estoque, avulso, ou evento que não criou camada).
 export type FinishedUpdate = { productId: string; payload: FinishedGoodPayload };
 
 // Registro de Produção (FEAT-04): a coleção `producao` é a fonte da verdade do
-// consumo de filamento + hora. A baixa entra no MESMO `writeBatch` do evento
+// consumo de filamento + hora. A baixa entra na MESMA transação do evento
 // (atômica com ele), atualizando o campo `rolls` dos docs de `estoque` afetados
 // — exatamente como o passo 8 fará na venda. Um evento por doc.
 const productionCollection = collection(db, "producao");
@@ -59,11 +59,13 @@ const MODE_VALUES: ProductionMode[] = ["real", "historico"];
 // Serializa uma cor congelada campo a campo (o Firestore rejeita `undefined`, e
 // material/brand são congelados aqui — D7). Espelha `stripFilamentIds`, mas
 // MANTÉM material/brand (a venda os congela só no passo 8; a produção já aqui).
-function usageToDocument(f: FilamentUsage): DocumentData {
+function usageToDocument(f: ProductionFilament): DocumentData {
   return {
     filamentId: f.filamentId ?? null,
     colorName: f.colorName ?? "",
-    pricePerKg: num(f.pricePerKg),
+    // AUD-14 [D9] — o nome diz que é o preço do CADASTRO. O custo que a impressão
+    // pagou é FIFO e mora no `frozenBreakdown.material` do mesmo documento.
+    catalogPricePerKg: num(f.catalogPricePerKg),
     totalG: num(f.totalG),
     ...(f.modelG !== undefined ? { modelG: num(f.modelG) } : {}),
     ...(f.supportG !== undefined ? { supportG: num(f.supportG) } : {}),
@@ -74,11 +76,14 @@ function usageToDocument(f: FilamentUsage): DocumentData {
   };
 }
 
-function usageFromDocument(data: DocumentData): FilamentUsage {
+function usageFromDocument(data: DocumentData): ProductionFilament {
   return {
     filamentId: data.filamentId ?? null,
     colorName: data.colorName ?? "",
-    pricePerKg: num(data.pricePerKg),
+    // Sem migração (Diretriz 7): documento anterior ao [D9] tem `pricePerKg`, e a
+    // leitura o aceita como o que ele sempre foi — o preço de cadastro. Escrever,
+    // só com o nome novo.
+    catalogPricePerKg: num(data.catalogPricePerKg ?? data.pricePerKg),
     totalG: num(data.totalG),
     ...(data.modelG !== undefined ? { modelG: num(data.modelG) } : {}),
     ...(data.supportG !== undefined ? { supportG: num(data.supportG) } : {}),
@@ -96,7 +101,7 @@ function supplyUsageToDocument(usage: SupplyUsage): DocumentData {
     supplyId: usage.supplyId ?? null,
     name: usage.name ?? "",
     qty: num(usage.qty),
-    unitPrice: num(usage.unitPrice),
+    catalogUnitPrice: num(usage.catalogUnitPrice),
   };
 }
 
@@ -105,7 +110,8 @@ function supplyUsageFromDocument(data: DocumentData): SupplyUsage {
     supplyId: data.supplyId ?? null,
     name: data.name ?? "",
     qty: num(data.qty),
-    unitPrice: num(data.unitPrice),
+    // Mesma leitura tolerante do filamento: doc antigo grava `unitPrice`.
+    catalogUnitPrice: num(data.catalogUnitPrice ?? data.unitPrice),
   };
 }
 
@@ -130,7 +136,7 @@ function moveFromDocument(data: DocumentData): StockMove {
 }
 
 // Exportado para o batch da VENDA (passo 8): a encomenda grava eventos de produção
-// na coleção `producao` dentro do mesmo `writeBatch` do recibo, reusando esta
+// na coleção `producao` dentro da mesma transação do recibo, reusando esta
 // serialização para não divergir da escrita da /producao.
 export function productionToDocument(payload: ProductionPayload): DocumentData {
   return {

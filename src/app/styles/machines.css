@@ -125,14 +125,29 @@
   border-left: 3px solid var(--accent);
   padding-left: var(--space-10);
   margin-top: -12px;
+  /* ⚠ AUD-14 — `flow-root` é o que faz a margem negativa do `summary` abaixo
+     DEVOLVER a altura em vez de vazar. Sem ele o bloco não tem borda nem recuo
+     no eixo vertical, as margens do filho COLAPSAM através dele, e a caixa
+     crescia 7px (medido: 18 → 25) mesmo com a devolução escrita. Com o
+     `flow-root` a caixa fica nos mesmos 18px e o alvo vai a 32. */
+  display: flow-root;
 }
 
+/* ⚠ AUD-14 — medido 1047×18 a 1280px: era o único alvo do app abaixo da régua
+   de DESKTOP (32px), e ainda por cima o de maior largura, o que engana a vista —
+   parece uma faixa clicável enorme e é uma tira de 18px. O irmão dele
+   (`.result-advanced > summary`) já tinha `padding-block`, este nasceu sem.
+   A devolução é de metade da diferença ((32 − 18) / 2 = 7), então o aviso de
+   payback não muda de altura; no celular o `responsive.css` leva os dois a 44. */
 .roi-warn > summary {
   display: flex;
   align-items: center;
   gap: var(--space-6);
   cursor: pointer;
   list-style: none;
+  min-height: var(--space-32);
+  padding-block: 7px;
+  margin-block: -7px;
 }
 
 .roi-warn > summary::-webkit-details-marker {

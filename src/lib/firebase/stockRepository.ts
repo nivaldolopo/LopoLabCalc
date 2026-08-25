@@ -21,7 +21,7 @@ import { num } from "@/lib/number";
 // Estoque de filamento (item 3): um doc por COR, com os rolos em array dentro
 // (D2). São poucos rolos por cor, então cabem no doc e a escrita continua
 // atômica — o que importa quando a baixa da venda (passo 8) entrar no mesmo
-// `writeBatch` do recibo.
+// transação do recibo.
 const stockCollection = collection(db, "estoque");
 
 function toRoll(data: DocumentData): FilamentRoll {
@@ -84,7 +84,7 @@ function rollToDocument(roll: FilamentRoll): DocumentData {
 }
 
 // Serializa o array de rolos de uma cor. Exportado para a baixa da produção
-// (FEAT-04): ela atualiza só o campo `rolls` do doc da cor no mesmo `writeBatch`
+// (FEAT-04): ela atualiza só o campo `rolls` do doc da cor na mesma transação
 // do evento, e reusa esta serialização para não divergir da escrita normal.
 export function serializeRolls(rolls: FilamentRoll[]): DocumentData[] {
   return rolls.map(rollToDocument);

@@ -26,10 +26,18 @@ function hasBreakdown(data: Partial<FilamentUsage>): boolean {
   );
 }
 
+type FilamentWeights = Pick<
+  FilamentUsage,
+  "totalG" | "modelG" | "supportG" | "purgedG" | "towerG"
+>;
+
 // Peso total (g) de UMA cor: o `totalG` canônico. Fallback para a soma do
 // detalhe quando o total não veio (ex.: dado que só trouxe model/suporte/
 // purga/torre).
-export function filamentTotalG(f: FilamentUsage): number {
+// ⚠ Pede só os campos de PESO (não a `FilamentUsage` inteira) porque a linha de
+// cor do evento de produção é outro tipo desde o [D9] — ela não tem `pricePerKg`,
+// e a conta de gramas nunca precisou de preço.
+export function filamentTotalG(f: FilamentWeights): number {
   const total = num(f.totalG);
   if (total > 0) return total;
   return num(f.modelG) + num(f.supportG) + num(f.purgedG) + num(f.towerG);

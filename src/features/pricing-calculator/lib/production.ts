@@ -28,7 +28,7 @@ import type {
 // rolos), então a baixa da produção e a baixa da venda (passo 8) nunca divergem.
 //
 // Puro por construção: descreve o que gravar (evento + rolos novos), sem tocar
-// no Firestore. Quem persiste é o `productionRepository`, num único `writeBatch`.
+// no Firestore. Quem persiste é o `productionRepository`, numa única transação.
 
 // O que a produção precisa gravar para dar baixa de forma atômica e estornável.
 export type ProductionPlan = {
@@ -158,7 +158,7 @@ export const EMPTY_SUPPLY_PLAN: SupplyPlan = {
 /**
  * Planeja a baixa de INSUMOS de UM evento (7e). PURA, gêmea de `planProduction`.
  *
- * Modo `historico`: não toca lote — o custo sai do `unitPrice` congelado.
+ * Modo `historico`: não toca lote — o custo sai do `catalogUnitPrice` congelado.
  * Modo `real`: insumo ligado (`supplyId`) e existente é consumido via FIFO;
  * acessório AVULSO (sem `supplyId`) ou insumo removido do estoque cai no
  * fallback do preço congelado, SEM move — exatamente o caminho que a cor avulsa
@@ -176,7 +176,7 @@ export function planSupplies(
     return {
       ...EMPTY_SUPPLY_PLAN,
       cost: usages.reduce(
-        (sum, usage) => sum + num(usage.qty) * num(usage.unitPrice),
+        (sum, usage) => sum + num(usage.qty) * num(usage.catalogUnitPrice),
         0,
       ),
     };
@@ -199,7 +199,7 @@ export function planSupplies(
 
     if (!supply) {
       // Avulso ou insumo órfão (removido do Estoque): custo sim, baixa não.
-      cost += qty * num(usage.unitPrice);
+      cost += qty * num(usage.catalogUnitPrice);
       continue;
     }
 

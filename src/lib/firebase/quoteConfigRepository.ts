@@ -10,8 +10,14 @@ import type { QuoteBusiness } from "@/features/pricing-calculator/types";
 import { DEFAULT_QUOTE_BUSINESS } from "@/features/pricing-calculator/constants";
 
 // Dados do negócio do orçamento num doc de config, compartilhado entre aparelhos
-// (mesmo padrão do config/machines). A numeração NÃO fica aqui — é derivada do
-// histórico (maior número + 1), então zera sozinha quando o histórico esvazia.
+// (mesmo padrão do config/machines).
+// ⚠ AUD-14 [D7] — a numeração continua NÃO ficando aqui, mas o resto da frase
+// envelheceu: ela dizia que o número era "derivado do histórico (maior + 1), então
+// zera sozinha quando o histórico esvazia". Isso valia até o contador atômico. Hoje
+// ela é RESERVADA no servidor, em `config/orcamentoSeq` (ver `reserveQuoteNumber`,
+// quotesRepository), é monotônica de propósito — não decresce ao excluir orçamento —
+// e o histórico entra só como PISO na 1ª vez. Esvaziar o histórico não zera nada:
+// para zerar, apaga-se aquele doc.
 const quoteDoc = doc(db, "config", "orcamento");
 
 function toBusiness(data: DocumentData): QuoteBusiness {

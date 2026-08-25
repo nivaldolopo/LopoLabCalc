@@ -89,10 +89,21 @@
 
    A saída é a regra da casa (UX-38/UX-40): fileira que não cabe vira CARTÃO. E
    aqui ela se escreve SEM media query, porque o gatilho não é a largura da tela
-   — é a do modal: base flexível de 260px (os 241px do texto mais folga) com
-   `wrap`. Enquanto o select couber ao lado do custo, a fileira continua uma
-   linha só; quando não couber, ele toma a linha inteira e o custo desce. O corte
-   acontece exatamente onde o texto começaria a ser cortado. */
+   — é a do modal: base flexível de 260px com `wrap`. Quando o select não cabe ao
+   lado do custo, ele toma a linha inteira e o custo desce.
+   ⚠ DUAS correções medidas ao vivo depois de escrito (2026-08-25, a prova que o
+   lote 3 ficou devendo):
+   · **a fileira NÃO volta a ser uma linha no desktop** — e não por causa da base
+     de 260: o `.sale-modal` tem `max-width: 560px`, o que dá 469px de linha, e
+     uma linha só pediria 502 (244 do texto + 8 de gap + 250 do custo). Ou seja
+     ela quebra em TODA largura, e a alternativa seria voltar a espremer o
+     select. O cartão é o desenho certo; a frase é que estava otimista.
+   · **os "241px de texto" eram medida de fonte, não de `<select>`** — a caixa
+     nativa cobra a seta por cima: "Estoque de acabados (2 disp.)" pede 273px e
+     "Sob encomenda (produz agora)" 283, contra os 259 da linha a 375px. Então
+     91–95% do texto aparece, não 100%. O ganho real é 22px → 259px (9% → 95%);
+     o resto cai na ressalva já registrada de `<select>` que corta sem
+     reticências, que é decisão do dono. */
 .cesta-origem {
   display: flex;
   align-items: center;
@@ -270,6 +281,19 @@
   color: var(--muted);
   white-space: nowrap;
   cursor: pointer;
+}
+
+/* AUD-14 — 106,7×32 no celular: a receita do UX-28/UX-37 já estava aqui, só com
+   a régua do DESKTOP. No celular o piso é 44, e a devolução acompanha
+   ((44 − 16 de linha) / 2 = 14) — a fileira de custo não move um pixel.
+   ⚠ Mora aqui e não no `responsive.css` pelo mesmo motivo do `.stock-hex-input`:
+   este arquivo é o 12º @import e aquele o 8º. */
+@media (max-width: 760px) {
+  .cost-detail-trigger {
+    padding-block: var(--space-14);
+    margin-block: calc(-1 * var(--space-14));
+    min-height: 44px;
+  }
 }
 
 .cost-detail-trigger strong {
@@ -536,6 +560,18 @@
   display: flex;
   align-items: center;
   gap: var(--space-14);
+}
+
+/* AUD-14 — o Editar do cabeçalho do recibo media 38,6×44 no celular: 44 de
+   ALTURA (o `responsive.css` deu) e 5,4px a menos de largura, ×23 recibos na
+   tela. A causa não é tamanho, é FLEX: o botão é item desta fileira e o padrão é
+   `flex-shrink: 1`, então quando o nome do cliente + totais apertam a linha, o
+   único item de largura fixa é justamente quem cede. Um alvo de toque não é
+   folga de layout — quem deve ceder é o texto ao lado, que já tem reticências.
+   ⚠ Mora AQUI, no dono da fileira, e não no `responsive.css`: este arquivo é o
+   12º @import e aquele o 8º (mesma armadilha de ordem do `.stock-hex-input`). */
+.recibo-head-side .icon-button {
+  flex-shrink: 0;
 }
 
 .recibo-head-totals {

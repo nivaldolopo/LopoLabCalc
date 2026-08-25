@@ -581,6 +581,12 @@ td.col-actions .icon-button {
 /* UX-25 — `.icon-button.sale/.produce/.quote` saíram daqui para o `forms.css`,
    dono legítimo do `.icon-button`, junto das outras duas ações (TD-013). */
 
+/* ⚠ AUD-14 — medido 119×16: um link para site EXTERNO com 16px de altura, metade
+   da régua de desktop. Já era `inline-flex` centrado, então só faltava o piso.
+   Sem devolução negativa de propósito: a fileira tem `flex-wrap` com `gap` de
+   8px, e devolver a diferença faria as linhas de link se sobreporem — dois alvos
+   grandes que se encavalam são piores que um alvo pequeno. O painel de detalhes
+   cresce, e é o preço certo. No celular o `responsive.css` leva para 44. */
 .details-links a {
   color: var(--accent-text);
   font-size: var(--text-sm);
@@ -588,6 +594,7 @@ td.col-actions .icon-button {
   display: inline-flex;
   align-items: center;
   gap: var(--space-4);
+  min-height: var(--space-32);
 }
 
 th.col-actions,

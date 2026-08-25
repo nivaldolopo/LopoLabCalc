@@ -6,11 +6,12 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
-> ⚠ **LEIA ISTO ANTES DO RESTO — o backlog voltou a ter item: a varredura AUD-14 (2026-08-25, a
-> 7ª e v4 da geral) abriu 9 defeitos.** A seção deles está **logo abaixo deste cabeçalho**; os lotes 1
-> (`[D1]` `[D8]`), 2 (`[D2]` `[D3]`) e 3 (`[D4]` `[D5]` `[D6]`) fecharam no mesmo dia — **não há
-> mais 🔴 aberto**, e o que sobra é o lote 4 (`[D7]` `[D9]` + alvos de toque + 7 comentários
-> falsos). Tudo que os parágrafos seguintes chamam de "ZERADO"
+> ⚠ **LEIA ISTO ANTES DO RESTO — a varredura AUD-14 (2026-08-25, a 7ª e v4 da geral) abriu 9
+> defeitos e os 4 lotes FECHARAM no mesmo dia.** A seção deles está **logo abaixo deste cabeçalho**:
+> lote 1 (`[D1]` `[D8]`), 2 (`[D2]` `[D3]`), 3 (`[D4]` `[D5]` `[D6]`) e 4 (`[D7]` `[D9]` + alvos de
+> toque + as afirmações falsas, este com a prova ao vivo do lote 3 junto). **O backlog de código
+> voltou a ZERO** — o que sobra ali são as ressalvas (viram item só se o dono mandar) e a lista do
+> que a varredura não cobriu. Tudo que os parágrafos seguintes chamam de "ZERADO"
 > descreve o estado **até 2026-08-24** e continua valendo como registro do que fechou. Vários
 > parágrafos abaixo dizem "está ZERADO" descrevendo o estado **antes** da varredura **AUD-12** (a v2
 > da geral); a **AUD-13** (a v3) abriu 18 itens depois deles e **fechou os cinco lotes no mesmo
@@ -67,7 +68,11 @@
 > lote B foram fechados no mesmo dia. **O que falta antes da carga é do dono:** cadastrar as cores
 > e os insumos definitivos — só então eu gero a de-para e a planilha-modelo (lote C).
 
-## 🔴 ABERTO — cluster da varredura AUD-14 (2026-08-25) — a 7ª, v4 da geral
+## ✅ ZERADO — cluster da varredura AUD-14 (2026-08-25) — a 7ª, v4 da geral
+
+> **Os 4 lotes fecharam no mesmo dia (2026-08-25).** Não há item aberto de código nesta seção; o
+> que sobra são as **ressalvas** (que só viram item se o dono mandar) e a lista do que a varredura
+> não cobriu.
 
 > **A pergunta que ela existiu para responder:** *a Diretriz 7 pode expirar?* Resposta medida:
 > **sim, com uma trava** — havia um caminho que corrompia a carga **em silêncio** (o `[D1]`, que
@@ -89,8 +94,8 @@
 |---|---|---|---|
 | **1 — a planilha da carga** | `[D1]` · `[D8]` | Era o único que **bloqueava o recadastro**: corrompe no caminho exato que o dono desenhou (sistema externo gera → confere no Excel → reimporta) | ✅ **FEITO (2026-08-25)** |
 | **2 — a escrita que evapora** | `[D2]` · `[D3]` | Quiosque tem rede ruim, e o app afirma "Sincronizado" enquanto perde o produto. Cada clique repetido enfileira outra escrita | ✅ **FEITO (2026-08-25)** |
-| **3 — a tela que informa errado** | `[D4]` · `[D5]` · `[D6]` | Não corrompem dado; informam errado uma decisão de negócio | ✅ **FEITO (2026-08-25)** — ⚠ sem prova ao vivo |
-| **4 — poeira e verdade escrita** | `[D7]` · `[D9]` + alvos de toque + as 7 afirmações falsas | Inerte hoje; é o padrão nº 10 (código morto que volta a ser chamado) e o comentário que envelhece | ▶ **próximo** (leva junto a medição pendente do lote 3) |
+| **3 — a tela que informa errado** | `[D4]` · `[D5]` · `[D6]` | Não corrompem dado; informam errado uma decisão de negócio | ✅ **FEITO (2026-08-25)** — medido ao vivo no lote 4, **com 2 correções** |
+| **4 — poeira e verdade escrita** | `[D7]` · `[D9]` + alvos de toque + as afirmações falsas | Inerte hoje; é o padrão nº 10 (código morto que volta a ser chamado) e o comentário que envelhece | ✅ **FEITO (2026-08-25)** — com a prova ao vivo do lote 3 junto |
 
 ### ✅ FECHADOS no lote 1 (2026-08-25)
 
@@ -156,10 +161,11 @@
 
 ### ✅ FECHADOS no lote 3 (2026-08-25)
 
-> ⚠ **Os três foram entregues com `lint` ✅, `build` ✅ e 761/761 ✅, mas SEM prova ao vivo.** O painel
-> do navegador embutido recusou **toda** navegação naquela sessão (testado até com `example.com`) e
-> não havia Chrome conectado. As medições marcadas **[medir]** abaixo continuam devendo — elas vão
-> junto do lote 4.
+> ✅ **A prova ao vivo saiu no lote 4** (mesmo dia, sessão seguinte — o painel do navegador voltou a
+> navegar). As medições que faltavam estão abaixo, e **duas afirmações do lote 3 não bateram**: o
+> `[D4]` **não** volta a ser uma linha no desktop, e os "241px de texto" eram medida de FONTE, não
+> de `<select>` (a caixa nativa cobra a seta por cima). As duas viraram correção no comentário do
+> `cesta-recibo.css` — e entram na conta como a 8ª e a 9ª afirmação falsa da varredura.
 
 - ✅ **[D4] FEITO — a fileira vira CARTÃO, e sem media query.** O defeito era o padrão nº 8 na forma
   flex: `flex: 1 1 0%` com `min-width: auto` contra um vizinho rígido (o `CostDetail`, 242–250px),
@@ -171,8 +177,18 @@
   ⚠ O `min-width: 0` é obrigatório e vem junto: sem ele o mínimo implícito do flex é o min-content,
   o `<select>` não encolhe, e a base de 260 viraria piso de 241 — a mesma armadilha da coluna `1fr`
   pura nas grades.
-  **[medir]** a 375px: largura do select e % do texto visível; e que a fileira volta a ser UMA linha
-  no desktop.
+  **✅ MEDIDO ao vivo (375×812)**: a fileira quebrou, o select ficou com a **linha inteira — 259px**
+  (contra os **22,0px** de antes) e o `CostDetail` desceu para a linha de baixo. O texto que ele
+  mostra passou de **9% para 95%**.
+  ⚠ **Duas correções do que o lote 3 escreveu**, as duas medidas:
+  · **no desktop ela também é cartão** — o `.sale-modal` tem `max-width: 560px`, ou seja 469px de
+    linha, e uma linha só pediria **502** (244 do texto + 8 de gap + 250 do custo). A fileira quebra
+    em TODA largura, e a alternativa seria voltar a espremer o select. O desenho está certo; a frase
+    "volta a ser uma linha no desktop" é que estava otimista.
+  · **os 241px eram medida de FONTE** — a caixa nativa cobra a seta por cima: "Estoque de acabados
+    (2 disp.)" pede **273px** e "Sob encomenda (produz agora)" **283**, contra os 259 da linha. Então
+    sobra **5 a 9% cortado**, não zero — e isso cai na ressalva já registrada dos `<select>` que
+    cortam sem reticências, que é decisão do dono.
 
 - ✅ **[D5] FEITO — a ordem parcial passou a se declarar, e dá pra completá-la.** Não dá para
   empurrar o ranking ao servidor: a receita do recibo é a **soma dos itens** dele, agrupada no
@@ -189,9 +205,11 @@
   por conta própria**.
   ⚠ Com filtro de PRODUTO o `hasMore` é sempre `false` (a consulta traz o conjunto inteiro), então
   ali não há o que avisar — e é o desenho, não um furo.
-  **[medir]** com 41 recibos: que "Receita (maior)" com 25 carregados mostra a faixa, e que depois
-  do "Carregar tudo e reordenar" o topo passa de `386,41 · 294,36 · 88,00 · 87,59` para
-  `386,41 · 294,36 · 159,34 · 105,30`.
+  **✅ MEDIDO ao vivo**: com a janela de 25 documentos = **23 recibos**, "Receita (maior)" acende a
+  faixa `--warn` por extenso — *"Esta ordem vale só para os 23 recibos já carregados — há mais
+  vendas no histórico"* + "Carregar tudo e reordenar". Um clique: **41 recibos**, faixa some, e o
+  topo passa de `386,41 · 294,36 · 88,00 · 87,59` para `386,41 · 294,36 · 159,34 · 105,30` — os dois
+  recibos que a janela escondia (159,34 e 105,30) sobem para o lugar que era deles.
 
 - ✅ **[D6] FEITO — "não tem" deixou de ser a mesma coisa que "tem, e eu não consigo ler".**
   `readFinishedColors` (em `finishedGoods.ts`, ao lado do par `colorEntriesOf`/`colorRecordOf`, e
@@ -206,35 +224,98 @@
   estorno não tinha prateleira de onde devolver. Rótulo sem lista agora **não aparece** — a ausência
   é a informação honesta. Some junto um `console.warn` (fora de produção) com o id do recibo.
   ⚠ A lição é do leitor, não do documento: os 2 docs concretos morrem no recadastro.
+  ⚠ **Sem prova ao vivo, e de propósito:** produzir o sintoma exigiria gravar à mão um documento no
+  formato ANTIGO no banco de produção. Os 4 testes de unidade cobrem os quatro casos (ausente ·
+  vazio · mapa · lista podre) e o `finishedColorLabel` cai junto no teste.
 
-### 🟡 Médio — ABERTOS
+### ✅ FECHADOS no lote 4 (2026-08-25) — o último
 
-- 🟡 **[D7] Código morto com armadilha embutida.** `saveRecibo` (`salesRepository`) — **0 chamadores,
-  nem em teste** — grava com `writeBatch` **só** na coleção `vendas`, sem `lerEConferirRevs`, sem
-  reconciliação de estoque, e com `batch.set(ref, payload)` **cru**, sem passar pelo
-  `saleToDocument`. `useSales.deleteSale` → `removeSale` → `deleteDoc` puro: sem estorno e sem
-  guarda; nenhum componente destrutura. Quem reencontrar o `saveRecibo` vai achar que é o caminho de
-  gravar recibo. Junto vão **os comentários que mentem**: o do `serializeSkus` (diz que é exportado
-  para a baixa da produção — só tem chamador **dentro do próprio arquivo**), o do `shiftLayers`/
-  TD-028 (descreve o retorno antigo; hoje **lança erro**) e o do `quoteConfigRepository` (diz que a
-  numeração é derivada do histórico; hoje é `config/orcamentoSeq`).
+- ✅ **[D7] FEITO — o código morto SAIU, e os comentários que mentiam foram refeitos.**
+  · **`saveRecibo` (salesRepository) apagado** — 0 chamadores, nem em teste. Sozinho ele era uma
+  armadilha esperando quem o reencontrasse: escrevia `batch.set(ref, payload)` **cru**, sem passar
+  pelo `saleToDocument` (o passo 8 sairia sem origem/moves/ids) e sem o `lerEConferirRevs`.
+  · **`removeSale` + `useSales.deleteSale` apagados junto** — a cadeia inteira era morta (nenhum
+  componente destruturava o `deleteSale`), e ela apagava a venda **sem estornar** filamento, insumo
+  nem acabado. Quem exclui recibo é o `reconcileRecibo`, que ajusta as 4 coleções na mesma
+  transação. Mesma decisão do TD-030 no `finishedGoodsRepository`: o morto sai em vez de esperar um
+  botão que o ressuscite. No lugar dos dois ficou o registro do **porquê não voltam**.
+  · **`serializeSkus` deixou de ser exportada** — o comentário dizia que a exportação existia "para
+  a baixa da produção reusar esta serialização". Medido: **0 importadores fora do arquivo**, nem em
+  teste. Quem os dois repositórios de escrita importam é o `finishedGoodToDocument`, que já a
+  embrulha. API pública que ninguém usa é convite a divergir da escrita normal — justo o que o
+  comentário dizia evitar.
+  · **as 4 outras afirmações falsas em comentário:** o `finishedEventReferences` dizia, no presente,
+  que o estorno "não acha o id e devolve o doc intacto, calado" — isso é o código de ANTES do
+  TD-028; hoje o `shiftLayers` **lança erro** · o `quoteConfigRepository` dizia que a numeração é
+  "derivada do histórico, então zera sozinha quando o histórico esvazia" — hoje é **reservada no
+  servidor** (`config/orcamentoSeq`), **monotônica**, e o histórico entra só como piso · o
+  `ReciboWrite` dizia "num ÚNICO `writeBatch`" e é `runTransaction` desde o TD-022 · o rabicho do
+  TD-030 dizia "os serializadores, que os dois repositórios importam" — é **um** serializador.
+  · ⚠ **E o `writeBatch` era um bando, não um caso:** grep no fonte achou o nome em **15 comentários**
+  de 10 arquivos descrevendo escritas que viraram `runTransaction` no TD-022 — quem lesse e fosse
+  procurar o `writeBatch` não acharia nada. Todos passaram a dizer "transação". Ficaram de fora, de
+  propósito, os três que estão CERTOS: o `createProductsBatch` (que usa `writeBatch` de verdade), o
+  `revGuard` (que descreve a semântica dele) e a própria nota do TD-022. Os 2 do `CLAUDE.md` foram
+  junto.
 
-- 🟡 **[D9] O evento de produção guarda dois preços de filamento diferentes.** No mesmo documento,
-  `filaments[0].pricePerKg` traz o preço de **catálogo** (rolo mais novo) e o
-  `frozenBreakdown.material` traz o custo **FIFO real** — e nada diz qual é qual. **Medido** em
-  `producao/32Fa5M0jFy2wvCe7dDod`: Laranja 40 g a `pricePerKg: 85` → Σ = R$ 3,40, contra
-  `material: 4,40` (40 g × R$ 110/kg, o rolo que o FIFO consumiu): **R$ 1,00 de divergência no mesmo
-  documento**. É por design, mas vira armadilha para o **sistema externo** que for ler esses
-  documentos — renomear o campo (ex.: `catalogPricePerKg`) resolve.
+- ✅ **[D9] FEITO — o campo passou a dizer qual dos dois preços ele é.**
+  `ProductionFilament` é tipo próprio do evento (a `FilamentUsage` sem o `id` de formulário), e o
+  preço lá se chama **`catalogPricePerKg`**. O gêmeo do insumo veio junto — `SupplyUsage.unitPrice`
+  → **`catalogUnitPrice`** — porque tinha o mesmo defeito e o mesmo comentário mentiroso ("resolvido
+  no momento, FIFO real ou congelado"). O custo que a impressão pagou continua onde sempre esteve: o
+  `frozenBreakdown.material`.
+  **3 testes travam o cenário medido** (`productionPlan.test.ts`): rolo velho a R$ 110/kg + rolo novo
+  a R$ 85/kg, 40 g → a linha do evento grava **85** (catálogo) e o `frozenBreakdown.material` **4,40**
+  (FIFO), **R$ 1,00 de divergência no mesmo documento**, exatamente como em
+  `producao/32Fa5M0jFy2wvCe7dDod`. Um terceiro fixa que no modo `historico` os dois coincidem (não há
+  rolo a consumir). O `pricePerKg` e o `id` **não sobrevivem** à travessia — é o que o teste afirma,
+  campo a campo.
+  ⚠ **Sem migração (Diretriz 7), mas a LEITURA é tolerante**: doc anterior aceita `pricePerKg` /
+  `unitPrice` como o que eles sempre foram (preço de cadastro). Escrever, só com o nome novo.
+  ⚠ A tela do `/producao` passou a dizer **"R$ 85,00/kg no cadastro"** na etiqueta de cor — o número
+  sozinho era metade da informação.
+
+- ✅ **ALVOS DE TOQUE — a régua voltou a valer nos dois eixos, nas 7 rotas.**
+  A ressalva herdada falava em "1–4px"; a faixa real ia de **2 a 24px**, e o método mudou: em vez de
+  conferir uma lista, **varri o DOM inteiro de cada rota** (`button, a, input, select, summary,
+  [role=button], textarea`) atrás de qualquer caixa abaixo da régua — 44px a 375×812, 32px a 1280.
+  Isso achou **alvos que a varredura não tinha listado**.
+  · **canto do cabeçalho, 40×40** (☰ + tema + sair, nas 7 rotas): 44×44, e a reserva do `.header`
+  acompanhou (144 → 156px, a mesma folga de antes). O `.header-utils` era o caso mais traiçoeiro —
+  **40 de largura por 44 de altura**, porque a altura vinha do `min-height` do `responsive.css` e a
+  largura continuava presa no `width: 40px` do `header.css`.
+  · **`.back-to-top` 42×42** — os 2px que ele economizava no celular não devolviam espaço a ninguém
+  (é `position: fixed`). O override saiu; quem afasta do canto é o `right`/`bottom`, e esses ficam.
+  · **`.skip-link` 162,6×32** (só no foco) · **`.collapse-head` 311×41** · **`.stock-hex-input`
+  285×37** · **`.icon-button.edit` 38,6×44 no `/vendas`, ×23** — este não era tamanho, era **FLEX**:
+  o botão é item de uma fileira e o padrão é `flex-shrink: 1`, então quando o nome do cliente
+  apertava a linha, o único item de largura fixa era justamente quem cedia.
+  · **os que a varredura não listou:** `.cost-detail-trigger` 106,7×32 (aba Produtos do `/estoque`)
+  · `.details-links a` **119×16** — link para site EXTERNO, o pior do app · e no DESKTOP o
+  `.brand-reset` 111×20 (o botão que LIMPA o formulário) e o `.result-advanced > summary` 313×27,
+  além do `.roi-warn > summary` **1047×18** que a varredura já tinha achado.
+  ⚠ **Duas armadilhas medidas, e as duas viraram comentário no código:**
+  · **ORDEM de @import vence media query** — o `.stock-hex-input` (`stock.css`, 15º) e o
+  `.cost-detail-trigger`/`.icon-button` do recibo (`cesta-recibo.css`, 12º) **ignoraram** o override
+  escrito no `responsive.css` (8º). Media query não soma especificidade. As regras foram para o dono
+  legítimo de cada um — a lição do TD-013, medida de novo.
+  · **margem negativa COLAPSA através do pai** — no `.roi-warn` a devolução de −7px não devolvia
+  nada (caixa 18 → **25px**), porque o bloco não tem borda nem recuo no eixo vertical. `display:
+  flow-root` no pai conserta: caixa de volta aos 18px, alvo em 32.
+  ⚠ **A exceção que FICA:** as setinhas do stepper (28×20/21). É a decisão do UX-51 — o alvo de
+  verdade é o campo, e ele agora É de 44px.
+  ⚠ **Onde o alvo cresce SEM devolução, e por quê:** `.details-links a`. A fileira tem `flex-wrap`
+  com `gap` de 8px, e devolver a diferença faria duas linhas de link se sobreporem — dois alvos de
+  44px a 24px de distância é pior que o alvo pequeno. O painel de detalhes cresce, e é o preço certo.
+  **Medição final, com recarga antes de cada leitura:** 375×812 → **0 alvos abaixo de 44** nas 7
+  rotas (fora a exceção); 1280×800 → **0 abaixo de 32**. Nenhuma rota ganhou rolagem lateral
+  (`scrollWidth` = 375 em todas).
 
 ### ⚠️ Ressalvas da AUD-14 (não são itens; viram item se o dono mandar)
 
-- **A régua de 44px NÃO perdeu a exceção inteira** — a afirmação do `CLAUDE.md` era minha e está
-  errada. Medido a 375×812, com recarga antes: `navbar-toggle` **40×40** nas 7 rotas (falta 4px nos
-  2 eixos) · `.icon-button.edit` **38,6×44** no `/vendas` (×24) · `.icon-label-button` **40×44** ·
-  `.back-to-top` **42×42** · `.collapse-head` 294×**41** · `.stock-hex-input` 285×**37** ·
-  `.skip-link` 162,6×**32** (só no foco) · `summary` no desktop 1047×**18** (régua 32). A ressalva
-  herdada falava em "1–4px": **a faixa real vai de 2 a 24px**. Entra no lote 4.
+- ✅ **A régua de 44px** — era ressalva, **virou item e fechou no lote 4** (acima). Fica o registro
+  do diagnóstico: a afirmação do `CLAUDE.md` de que a régua já valia era minha e estava errada, e a
+  ressalva herdada falava em "1–4px" quando a faixa real ia de **2 a 24px**.
 - **Nome acessível por `title`, não por `aria-label`** — nos 48 botões só-ícone do `/vendas` e nos 5
   do `/catalogo`, `aria-label` é `null`. Satisfaz a WCAG (o `title` é fonte válida de nome), mas
   contraria a regra escrita do projeto e **não aparece no toque**. A AUD-13 afirmou "com
@@ -242,6 +323,12 @@
 - **Os `<select>` cortam texto sem reticências** — no `/` a 375px o seletor de cor tem 135px úteis
   para 186px de texto (51px cortados, `text-overflow: clip`). Importa porque o dono vai cadastrar
   **muitas cores**.
+  ⚠ **A ressalva ficou maior no lote 4:** o `.cesta-origem` do modal de venda cai no mesmo caso
+  MESMO depois do `[D4]` — "Estoque de acabados (2 disp.)" pede 273px e "Sob encomenda (produz
+  agora)" 283, contra 259 de linha a 375px (5 a 9% cortado). E a caixa nativa **cobra a seta por
+  cima do texto**, o que faz toda medição feita só com a largura da FONTE subestimar o que o
+  `<select>` precisa. Quem for mexer nisso mede com um `<select>` clone em `width: max-content`, não
+  com `measureText`.
 - **Lixo que o recadastro leva embora** (registrado só para não voltar como achado novo): 18 dos 97
   produtos carregam um campo `id` **dentro** do documento, e um deles aponta para **outro produto**
   (resíduo do "salvar como novo") · 65 dos 97 ainda têm `markupOnFixed`, morto desde a DEC-01 · **4**

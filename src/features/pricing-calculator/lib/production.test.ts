@@ -426,7 +426,7 @@ function makeSupply(
 }
 
 function supplyUse(over: Partial<SupplyUsage> & { qty: number }): SupplyUsage {
-  return { supplyId: "ima", name: "Ímã", unitPrice: 0.5, ...over };
+  return { supplyId: "ima", name: "Ímã", catalogUnitPrice: 0.5, ...over };
 }
 
 describe("planSupplies", () => {
@@ -458,7 +458,7 @@ describe("planSupplies", () => {
 
   it("acessório AVULSO entra no custo mas NÃO gera move", () => {
     const plan = planSupplies(
-      [supplyUse({ qty: 3, supplyId: null, unitPrice: 2 })],
+      [supplyUse({ qty: 3, supplyId: null, catalogUnitPrice: 2 })],
       [ima()],
       "e1",
       "real",
@@ -470,7 +470,7 @@ describe("planSupplies", () => {
 
   it("insumo órfão (removido do estoque) cai no fallback congelado", () => {
     const plan = planSupplies(
-      [supplyUse({ qty: 2, supplyId: "sumiu", unitPrice: 1.5 })],
+      [supplyUse({ qty: 2, supplyId: "sumiu", catalogUnitPrice: 1.5 })],
       [ima()],
       "e1",
       "real",

@@ -372,9 +372,15 @@ h4 {
    o campo focado por Tab lia `outline: none`. */
 
 /* UX-29 — pular a navegação. Só existe pro teclado: fica fora da tela até
-   receber foco, e aí desce pro canto. É o primeiro nó focável da página. */
+   receber foco, e aí desce pro canto. É o primeiro nó focável da página.
+   ⚠ AUD-14 — media 162,6×32 quando focado, 12px abaixo da régua. É `position:
+   absolute`, então crescer não empurra nada: `inline-flex` + `min-height` sobem
+   o alvo sem mover o texto (que fica centrado), e sem devolução negativa. */
 .skip-link {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   left: var(--space-8);
   top: calc(-1 * var(--space-40));
   z-index: 200;
@@ -508,13 +514,15 @@ h4 {
   }
 }
 
-/* Encosta um pouco em telas estreitas para não cobrir conteúdo/rodapé. */
+/* Encosta um pouco em telas estreitas para não cobrir conteúdo/rodapé.
+   ⚠ AUD-14 — o `width`/`height` de 42px SAIU daqui. O botão é `position: fixed`:
+   os 2px que ele economizava não devolviam espaço a conteúdo nenhum, e ainda
+   deixavam o alvo abaixo da régua de 44 justamente na tela do dedo. Quem afasta
+   do canto é o `right`/`bottom`, e esses ficam. */
 @media (max-width: 640px) {
   .back-to-top {
     right: 14px;
     bottom: 14px;
-    width: 42px;
-    height: 42px;
   }
 }
 

@@ -316,6 +316,37 @@
   .field-input {
     min-height: 44px;
   }
+
+  /* ── AUD-14: o que ficou de 2 a 24px abaixo da régua ────────────────────
+     A ressalva herdada dizia "1–4px" e por isso parecia poeira. Medido a
+     375×812, com recarga antes de cada leitura, a faixa real vai de 2 a 24px —
+     e os quatro maiores são justamente os que se atravessam no caminho. Os do
+     canto do cabeçalho (☰, tema, sair) e o `.back-to-top` foram corrigidos no
+     dono legítimo de cada um (header.css e base.css); aqui ficam os dois que
+     são desta faixa. */
+
+  /* Medido 311×41 (as duas seções recolhíveis do `/`). É a caixa VISÍVEL do
+     controle — a faixa clicável inteira da seção, com borda e fundo próprios —
+     então cresce de verdade, como o `.link-button.bordered`, sem devolução. */
+  .collapse-head {
+    min-height: 44px;
+  }
+
+  /* Medido 119,2×16 — os links do produto no `/catalogo` ("📦 Modelo original",
+     "🎨 Cor sugerida"), que abrem site EXTERNO num toque. Já são `inline-flex`
+     centrado, então só falta o piso. Aqui NÃO entra margem negativa de volta: a
+     fileira tem `flex-wrap` com `gap` de 8px, e devolver 14px por lado faria as
+     linhas de link se sobreporem umas às outras — dois alvos de 44px a 24px de
+     distância é pior do que o alvo pequeno. O painel de detalhes cresce, e é o
+     preço certo (a mesma escolha do `.link-button.bordered`). */
+  .details-links a {
+    min-height: 44px;
+  }
+
+  /* ⚠ O seletor de cor do `/estoque` (285×37) É desta faixa, mas a regra dele
+     NÃO pode morar aqui: o `stock.css` é o 15º @import e este é o 8º, então
+     `height: 37px` venceria por ORDEM (media query não soma especificidade).
+     Ela ficou no dono legítimo — a lição do TD-013, medida de novo. */
 }
 
 /* --- Catálogo vira lista de cartões no celular --- */

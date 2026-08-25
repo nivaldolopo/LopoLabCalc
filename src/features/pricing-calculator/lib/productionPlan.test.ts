@@ -10,7 +10,7 @@ import {
 } from "./productionPlan";
 import { NO_COLOR } from "./filaments";
 import { sumFrozen } from "./production";
-import type { SavedProduct, Supply } from "../types";
+import type { SavedProduct, StockFilament, Supply } from "../types";
 
 // Foco: a escala dos INSUMOS (7e), que é o ponto onde as unidades se cruzam —
 // `Accessory.qty` é POR PEÇA, a linha-evento é POR PLACA, e a submissão são N
@@ -53,8 +53,8 @@ describe("accessoryRows", () => {
   it("converte qtd POR PEÇA em qtd por PLACA (× peças)", () => {
     const rows = accessoryRows(product, 4);
     expect(rows).toEqual([
-      { supplyId: "ima", name: "Ímã", qty: 8, unitPrice: 0.5 },
-      { supplyId: null, name: "Argola", qty: 4, unitPrice: 0.3 },
+      { supplyId: "ima", name: "Ímã", qty: 8, catalogUnitPrice: 0.5 },
+      { supplyId: null, name: "Argola", qty: 4, catalogUnitPrice: 0.3 },
     ]);
   });
 
@@ -238,6 +238,114 @@ describe("FEAT-06 — frozenBreakdown no plano", () => {
     });
     expect(payload.frozenBreakdown).toBeDefined();
     expect(sumFrozen(payload.frozenBreakdown!)).toBeCloseTo(payload.frozenCost, 6);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AUD-14 [D9] — os dois preços do mesmo documento, e qual é qual
+// ---------------------------------------------------------------------------
+// O evento congela DUAS coisas de material: a linha de cor (preço de CATÁLOGO,
+// para se ler "o que essa impressão levou") e o custo de verdade, que é FIFO e
+// mora no `frozenBreakdown.material`. Enquanto a linha se chamava `pricePerKg`,
+// nada no documento dizia que os dois números não eram o mesmo — e quem lesse de
+// fora somaria gramas × preço achando que reconstruía o custo.
+//
+// O cenário é o medido na varredura, em `producao/32Fa5M0jFy2wvCe7dDod`: catálogo
+// (rolo mais novo) R$ 85/kg, FIFO (rolo que o estoque tinha) R$ 110/kg, 40 g.
+describe("AUD-14 [D9] — preço de catálogo × custo FIFO no evento", () => {
+  const laranja: StockFilament = {
+    id: "fil_laranja",
+    colorName: "Laranja",
+    archived: false,
+    // Dois rolos: o VELHO é o que o FIFO consome (R$ 110/kg) e o NOVO é o que
+    // define o preço de catálogo da cor (R$ 85/kg — a última compra). É esta
+    // ordem que faz os dois números divergirem, e ela é o caso comum: o rolo
+    // barato chegou depois.
+    rolls: [
+      {
+        id: "rolo-velho",
+        purchaseDate: 1,
+        initialG: 1000,
+        remainingG: 1000,
+        pricePerKg: 110,
+      },
+      {
+        id: "rolo-novo",
+        purchaseDate: 2,
+        initialG: 1000,
+        remainingG: 1000,
+        pricePerKg: 85,
+      },
+    ],
+    adjustments: [],
+    createdAt: 0,
+  };
+
+  const product = makeProduct({
+    printHours: 1,
+    // O preço aqui é irrelevante de propósito: a linha-evento resolve o preço
+    // VIVO da cor (o do rolo mais novo). O que o produto guarda é só o vínculo.
+    filaments: [
+      { filamentId: "fil_laranja", colorName: "Laranja", pricePerKg: 0, totalG: 40 },
+    ],
+  });
+
+  function payloadDoEvento() {
+    const rows = wholeEventRows(product, DEFAULT_MACHINES, [laranja]);
+    const planned = planEventRows(
+      rows,
+      "real",
+      [laranja],
+      [],
+      DEFAULT_MACHINES,
+      () => "e1",
+    );
+    const [{ payload }] = buildProductionPayloads(planned.built, {
+      at: 0,
+      outcome: "estoque",
+      mode: "real",
+      createdAt: 0,
+    });
+    return payload;
+  }
+
+  it("a linha de cor guarda o preço do CADASTRO, com o nome dizendo isso", () => {
+    const payload = payloadDoEvento();
+    expect(payload.filaments[0].catalogPricePerKg).toBe(85);
+    // O `pricePerKg` não sobrevive à travessia: o campo antigo era justamente o
+    // que fazia os dois números parecerem a mesma coisa.
+    expect("pricePerKg" in payload.filaments[0]).toBe(false);
+    // Nem o `id` de estado do formulário.
+    expect("id" in payload.filaments[0]).toBe(false);
+  });
+
+  it("o custo real é o FIFO, e diverge do catálogo dentro do MESMO documento", () => {
+    const payload = payloadDoEvento();
+    const catalogo =
+      (payload.filaments[0].totalG / 1000) * payload.filaments[0].catalogPricePerKg;
+    expect(catalogo).toBeCloseTo(3.4, 6); // 40 g × R$ 85/kg
+    expect(payload.frozenBreakdown!.material).toBeCloseTo(4.4, 6); // 40 g × R$ 110/kg
+    expect(payload.frozenBreakdown!.material - catalogo).toBeCloseTo(1, 6);
+  });
+
+  it("no modo historico não há rolo a consumir, e os dois coincidem", () => {
+    const rows = wholeEventRows(product, DEFAULT_MACHINES, [laranja]);
+    const planned = planEventRows(
+      rows,
+      "historico",
+      [laranja],
+      [],
+      DEFAULT_MACHINES,
+      () => "e1",
+    );
+    const [{ payload }] = buildProductionPayloads(planned.built, {
+      at: 0,
+      outcome: "historico",
+      mode: "historico",
+      createdAt: 0,
+    });
+    expect(payload.frozenBreakdown!.material).toBeCloseTo(3.4, 6);
+    expect(payload.filaments[0].catalogPricePerKg).toBe(85);
   });
 });
 

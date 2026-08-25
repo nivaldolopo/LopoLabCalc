@@ -388,11 +388,16 @@
   padding-top: var(--space-4);
 }
 
+/* ⚠ AUD-14 — medido 313×27 no desktop, 5px abaixo da régua de 32. O
+   `padding-block` de 6px já existia; o que faltava era o piso. A devolução de
+   2,5px por lado deixa a linha na altura que já ocupava. */
 .result-advanced > summary {
   display: flex;
   align-items: center;
   gap: var(--space-6);
   cursor: pointer;
+  min-height: var(--space-32);
+  margin-block: -2.5px;
   padding: var(--space-6) 0;
   font-size: var(--text-sm);
   font-weight: 600;

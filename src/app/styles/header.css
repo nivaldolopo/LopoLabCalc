@@ -40,6 +40,11 @@
   color: var(--accent-text);
 }
 
+/* ⚠ AUD-14 — media 111×20 no DESKTOP (régua 32). O UX-50 subiu este botão para
+   44 no celular e a versão de desktop ficou para trás: é o controle que LIMPA o
+   formulário inteiro, numa tira de 20px de altura. Receita do UX-28/UX-37, com a
+   régua daqui: piso de 32 e devolução de metade da diferença ((32 − 20) / 2 = 6),
+   então o cabeçalho não muda de altura. */
 .brand-reset {
   font: inherit;
   color: inherit;
@@ -52,6 +57,8 @@
   align-items: center;
   gap: var(--space-6);
   line-height: inherit;
+  min-height: var(--space-32);
+  margin-block: -6px;
 }
 
 .brand-reset:hover {
@@ -172,11 +179,15 @@
   /* Garante que a faixa do cabeçalho seja ao menos a altura do botão, para ele
      nunca invadir o primeiro card em páginas de título curto. */
   /* UX-33: a reserva subiu de 52px (só o ☰) para 144px — o canto agora tem
-     TRÊS controles de 40px: tema, sair e o ☰. */
+     TRÊS controles: tema, sair e o ☰.
+     ⚠ AUD-14 — os três eram de 40px e ficavam 4px abaixo da régua do dedo nos
+     DOIS eixos. Com 44 a pegada do canto passa a 44×3 + 6×2 de gap = 144px, e a
+     reserva sobe junto (156 = 144 + a mesma folga de 12px que existia antes)
+     para o <h1> não correr por baixo. */
   .header {
-    min-height: 40px;
+    min-height: 44px;
     margin-bottom: var(--space-12);
-    padding-right: 144px;
+    padding-right: 156px;
   }
 
   .navbar-toggle,
@@ -185,8 +196,10 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 40px;
-    height: 40px;
+    /* AUD-14 — 40 → 44 (a régua do dedo, UX-46). O ☰ é o ÚNICO caminho para as 7
+       rotas no celular: alvo abaixo da régua aqui custa a navegação inteira. */
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: 1.5px solid var(--field-border);
     border-radius: var(--radius-md);
@@ -270,13 +283,18 @@
   .header-utils {
     position: absolute;
     top: var(--wrap-pad-top);
-    right: calc(var(--wrap-pad-x) + 48px);
+    /* Encosta à esquerda do ☰: 44 do botão + 8 de respiro (era 40 + 8). */
+    right: calc(var(--wrap-pad-x) + 52px);
     gap: var(--space-6);
   }
 
+  /* ⚠ AUD-14 — media 40×44: a ALTURA já vinha do `min-height: 44px` que o
+     `responsive.css` dá ao `.icon-label-button` (min-height vence height, não é
+     questão de especificidade), e a LARGURA continuava presa nos 40 daqui. Um
+     alvo de 40 de largura por 44 de altura é a régua cumprida pela metade. */
   .header-utils .icon-label-button {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     justify-content: center;
   }

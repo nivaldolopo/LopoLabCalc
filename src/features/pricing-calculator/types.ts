@@ -723,11 +723,18 @@ export type SupplyConsumptionMove = {
 // O insumo CONSUMIDO por um evento de produção, congelado (gêmeo do
 // `FilamentUsage`). Sem `supplyId` é o acessório AVULSO: entra no custo, mas não
 // tem de onde dar baixa — mesmo caminho da cor avulsa.
+// ⚠ AUD-14 [D9] — o campo de preço se chamava `unitPrice` e o comentário dizia
+// "resolvido no momento (FIFO real ou congelado)". Metade era falsa: no modo
+// `real` ele traz o preço de CATÁLOGO do acessório cadastrado, enquanto o custo
+// que entra na conta é o FIFO, guardado no `frozenBreakdown.supplies` do mesmo
+// documento. Dois números diferentes, sem nada dizendo qual era qual — armadilha
+// para quem for LER estes documentos de fora (o sistema externo do dono). O nome
+// agora diz o que é. No modo `historico` não há FIFO e o custo sai daqui mesmo.
 export type SupplyUsage = {
   supplyId?: string | null;
   name: string;
   qty: number; // unidades TOTAIS do evento
-  unitPrice: number; // R$/unidade resolvido no momento (FIFO real ou congelado)
+  catalogUnitPrice: number; // R$/unidade do CADASTRO (≠ custo FIFO real)
 };
 
 export type SupplyConsumptionResult = {
@@ -743,7 +750,7 @@ export type SupplyConsumptionResult = {
 // inclusive teste/falha/brinde, que nunca geram receita e por isso NÃO poderiam
 // ter a baixa presa à venda (senão nunca deduziriam, e o estoque físico mentiria).
 // A venda (passo 8) deixa de ser o ponto de baixa e vira reconciliação. Coleção
-// `producao`; a baixa entra no MESMO `writeBatch` do evento (atômica), reusando
+// `producao`; a baixa entra na MESMA transação do evento (atômica), reusando
 // o FIFO de `lib/stock.ts`. Granularidade = subitem (FEAT-01).
 // ---------------------------------------------------------------------------
 
@@ -765,6 +772,14 @@ export type ProductionOutcome =
 // congelado (mesmo fallback do "Avulso").
 export type ProductionMode = "real" | "historico";
 
+// A linha de cor de um evento de produção (AUD-14 [D9]). É a `FilamentUsage` sem
+// o `id` de formulário e com o preço RENOMEADO: o que o evento congela é o preço
+// de catálogo da cor no dia, não o custo que a impressão pagou. Quem paga é o
+// FIFO, e ele está no `frozenBreakdown.material`.
+export type ProductionFilament = Omit<FilamentUsage, "id" | "pricePerKg"> & {
+  catalogPricePerKg: number;
+};
+
 // Um evento de produção CONGELADO no momento da impressão (foto, como a venda):
 // não referencia o produto vivo. `frozenCost` é o custo de produção do dia
 // (material FIFO + energia + depreciação + manutenção + labor); a parcela de
@@ -784,9 +799,17 @@ export type ProductionInput = {
   machineName: string;
   printHours: number;
   // Cores consumidas, CONGELADAS: pesos por impressão (incluindo torre/purga) e
-  // material/marca por cor (D7). `pricePerKg` = o resolvido no momento (custo
-  // misto FIFO no modo real; avulso no historico).
-  filaments: FilamentUsage[];
+  // material/marca por cor (D7).
+  // ⚠ AUD-14 [D9] — aqui dizia que o `pricePerKg` era "o resolvido no momento
+  // (custo misto FIFO no modo real)". Medido e FALSO: em
+  // `producao/32Fa5M0jFy2wvCe7dDod`, Laranja 40 g gravava `pricePerKg: 85` (o
+  // rolo mais novo do catálogo) contra `frozenBreakdown.material: 4,40` (40 g ×
+  // R$ 110/kg, o rolo que o FIFO de fato consumiu) — R$ 1,00 de divergência no
+  // MESMO documento, e nada dizendo qual era qual. Por isso o evento tem tipo
+  // próprio: o campo se chama `catalogPricePerKg` e o custo real continua no
+  // `frozenBreakdown.material`. Só no modo `historico` os dois coincidem, porque
+  // ali não há rolo a consumir.
+  filaments: ProductionFilament[];
   // 7e: insumos consumidos, CONGELADOS (espelha `filaments`). `qty` é o TOTAL do
   // evento (já × peças × placas), não por peça. Ausente em evento antigo e em
   // produto sem acessório.

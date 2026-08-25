@@ -98,6 +98,7 @@ const { planProduction, reverseProduction } = await import(
 
 import type {
   FilamentUsage,
+  ProductionFilament,
   FinishedGood,
   ProductionEvent,
   ProductionPayload,
@@ -144,8 +145,16 @@ const lerAcabado = (): FinishedGood | null => {
 const saldoG = (color: StockFilament) =>
   color.rolls.reduce((sum, roll) => sum + roll.remainingG, 0);
 
-const filamentos = (): FilamentUsage[] => [
+// A cor como a TELA a tem (entrada do planejamento).
+const filamentosForm = (): FilamentUsage[] => [
   { filamentId: COR, colorName: "Laranja", pricePerKg: 100, totalG: GRAMAS },
+];
+
+// A mesma cor já CONGELADA no evento: AUD-14 [D9] — no documento o preço é o de
+// CADASTRO, e o nome do campo passou a dizer isso (o custo real é FIFO e mora no
+// `frozenBreakdown.material`).
+const filamentos = (): ProductionFilament[] => [
+  { filamentId: COR, colorName: "Laranja", catalogPricePerKg: 100, totalG: GRAMAS },
 ];
 
 const eventoPayload = (
@@ -170,7 +179,7 @@ const eventoPayload = (
  * tela monta: LÊ o estado atual do banco, planeja em cima dele e grava.
  */
 async function produzir(eventId: string) {
-  const plano = planProduction(filamentos(), [lerCor()], eventId, "real");
+  const plano = planProduction(filamentosForm(), [lerCor()], eventId, "real");
   const acabado = addProductionLayers(
     lerAcabado(),
     PRODUTO,
@@ -266,7 +275,7 @@ describe("TD-026 — produzir o mesmo produto duas vezes, e desfazer", () => {
     const fotoVelha = lerAcabado(); // null: o doc ainda não existe
     await produzir("ev-1");
 
-    const plano = planProduction(filamentos(), [lerCor()], "ev-2", "real");
+    const plano = planProduction(filamentosForm(), [lerCor()], "ev-2", "real");
     const payloadVelho = addProductionLayers(
       fotoVelha,
       PRODUTO,

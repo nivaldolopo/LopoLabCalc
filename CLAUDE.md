@@ -13,29 +13,26 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-25): AUD-14, lote 3 — `[D4]` `[D5]` `[D6]`, a tela que informa errado.**
-  `[D4]` a fileira "Origem desta peça" virou **cartão sem media query** (base flexível de 260px +
-  `wrap` + `min-width: 0`: o corte é a largura do MODAL, não a da tela) · `[D5]` toda ordem que
-  **não** é "Mais recentes" é ranking sobre a janela de 25, e ganhou **faixa `--warn` + "Carregar
-  tudo e reordenar"** (`loadAll` mira o `totals.count`; o `hasMore` do servidor segura a honestidade
-  se ficar curto) · `[D6]` `readFinishedColors` separa **"não tem" de "tem e não dá pra ler"** —
-  mapa antigo recusado, avisado, e **derrubando junto o `finishedColorLabel`** (rótulo sem lista era
-  a tela discordando do estorno). `lint` ✅ · `build` ✅ · **761/761** ✅ · ⚠ **sem prova ao vivo**: o
-  painel do navegador recusou TODA navegação nesta sessão (até `example.com`) e não há Chrome.
+- **Última mudança (2026-08-25): AUD-14, lote 4 — a varredura ZEROU (os 4 lotes no mesmo dia).**
+  `[D7]` saiu o **código morto que gravava recibo por fora da reconciliação** (`saveRecibo` +
+  `removeSale` + `useSales.deleteSale`), e 7 comentários que descreviam código antigo foram refeitos
+  · `[D9]` o evento de produção guardava **dois preços** sem dizer qual: o de catálogo virou
+  **`catalogPricePerKg`** (insumo idem, `catalogUnitPrice`) e o real segue no `frozenBreakdown` ·
+  **alvos de toque**: varri o DOM das 7 rotas em vez de conferir lista — **0 abaixo de 44 a 375px e
+  0 abaixo de 32 a 1280**. A **prova ao vivo do lote 3** veio junto e **refutou 2 frases minhas** do
+  `[D4]` (medições no `BACKLOG.md`). `lint` ✅ · `build` ✅ · **764/764** ✅.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — AUD-14, lote 4, o último (poeira e verdade escrita; **sem 🔴 aberto**).**
-  Nada dele quebra hoje: `[D7]` o `saveRecibo` **sem chamador** que grava recibo pela metade · `[D9]`
-  o evento de produção com **dois preços de filamento** sem dizer qual é qual · os **alvos de toque**
-  de 2 a 24px abaixo da régua (a faixa real, não os "1–4px" de antes) · as **7 afirmações falsas**
-  em comentário. Medições no `BACKLOG.md`; **um commit por lote** (dono). **Junto vai a prova ao
-  vivo do lote 3**, que esta sessão não conseguiu tirar.
-  → A frente do DONO segue a mesma: cadastrar cores/insumos definitivos e passar os ids pro
-  **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app** (dono,
-  2026-08-23): a spec é escrita **comigo no chat** depois do cadastro (regras no `BACKLOG.md`).
+- **▶ PRÓXIMA TAREFA — nenhuma de código: o backlog voltou a ZERO.** A frente é do DONO —
+  cadastrar cores/insumos definitivos e passar os ids pro **sistema externo dele**, que **gera** a
+  planilha. **Sem botão de planilha-modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no
+  chat** depois do cadastro (regras no `BACKLOG.md`).
+  ⚠ **Se ele pedir código antes disso**, o que sobra são **ressalvas** da AUD-14 (viram tarefa só se
+  ele mandar): nome acessível por `title` e não `aria-label` · `<select>` que corta sem reticências ·
+  o lixo que o recadastro leva embora. Medições no `BACKLOG.md`.
 - ⚠ **Ainda pendentes (dono):** **cadastrar os insumos e religar os acessórios** (os de hoje entram
   no custo mas não dão baixa) · o Dashboard fecha as ressalvas de UX-09 e TD-006 já na tela.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
@@ -96,10 +93,10 @@ src/
     firebase/               # client.ts (init + db) · frozenCost.ts (o mesmo objeto vai p/ 3
                             #   coleções) · um repositório por coleção: products · machines
                             #   (config/machines) · quoteConfig · quotes · fees ·
-                            #   sales (`vendas`; reconcileRecibo = batch atômico das 4 coleções) ·
+                            #   sales (`vendas`; reconcileRecibo = 1 transação p/ as 4 coleções) ·
                             #   stock (`estoque`, doc por COR) · supplies (`insumos`, doc por
-                            #   INSUMO) · production (`producao`, N eventos + baixa no mesmo
-                            #   writeBatch) · finishedGoods (`acabados`, doc por PRODUTO)
+                            #   INSUMO) · production (`producao`, N eventos + baixa na mesma
+                            #   transação) · finishedGoods (`acabados`, doc por PRODUTO)
     errors.ts               # guardOnline (barra ANTES do await) + withWriteTimeout (12s, na BORDA
                             #   do repositório — escrita nova passa por ele) + errorMessage
     clipboard.ts            # copyText — erro EXPLÍCITO quando o navegador não libera

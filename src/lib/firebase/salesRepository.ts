@@ -1,7 +1,6 @@
 import {
   collection,
   count,
-  deleteDoc,
   doc,
   getAggregateFromServer,
   getDocs,
@@ -12,7 +11,6 @@ import {
   runTransaction,
   sum,
   where,
-  writeBatch,
   type DocumentData,
   type QueryConstraint,
 } from "firebase/firestore";
@@ -355,26 +353,16 @@ export async function fetchSalesTotals(
   };
 }
 
-// Grava um recibo inteiro (cria e/ou edita) numa transação atômica. Cada upsert
-// sem `id` vira um doc novo; com `id`, atualiza o doc existente. Os `removedIds`
-// são itens que saíram do recibo na edição. Todos os itens de um recibo
-// compartilham o mesmo `reciboId` (definido pelo chamador). Ou entra tudo, ou
-// nada. Serve tanto para registrar uma venda nova quanto para editar uma já feita.
-export async function saveRecibo(
-  upserts: ReciboUpsert[],
-  removedIds: string[] = [],
-): Promise<void> {
-  if (upserts.length === 0 && removedIds.length === 0) return;
-  const batch = writeBatch(db);
-  for (const { id, payload } of upserts) {
-    const ref = id ? doc(db, "vendas", id) : doc(salesCollection);
-    batch.set(ref, payload);
-  }
-  for (const id of removedIds) {
-    batch.delete(doc(db, "vendas", id));
-  }
-  await withWriteTimeout(batch.commit());
-}
+// AUD-14 [D7] — aqui moravam `saveRecibo` e (no fim do arquivo) `removeSale`, o
+// par que gravava/apagava recibo POR FORA da reconciliação. Nenhum dos dois
+// tinha chamador, nem em teste: quem grava e apaga recibo é sempre o
+// `reconcileRecibo` abaixo, que ajusta as 4 coleções no mesmo `runTransaction`.
+// Sozinhos eles eram uma armadilha esperando quem os reencontrasse — o
+// `saveRecibo` escrevia `batch.set(ref, payload)` CRU, sem passar pelo
+// `saleToDocument` (o passo 8 sairia sem origem/moves/ids) e sem o
+// `lerEConferirRevs`; o `removeSale` apagava a venda sem estornar filamento,
+// insumo nem acabado. Mesma decisão do TD-030 no `finishedGoodsRepository`: o
+// código morto SAI, em vez de esperar um botão que o ressuscite.
 
 // Serializa um FinishedMove campo a campo (o Firestore rejeita `undefined`, e
 // `subitemId` é opcional — a SKU do inteiro não o tem).
@@ -411,7 +399,7 @@ function saleToDocument(payload: ReciboUpsert["payload"]): DocumentData {
   };
 }
 
-// Tudo que a reconciliação de um recibo grava num ÚNICO `writeBatch` (passo 8):
+// Tudo que a reconciliação de um recibo grava numa ÚNICA transação (passo 8):
 // vendas (upsert/delete) + producao das encomendas (criar/apagar) + estoque de
 // filamento (rolos) + acabados (SKUs). Ou entra tudo, ou nada — a baixa nunca fica
 // sem a venda que a explica, nem o contrário. Vem pronto de `reconcileReciboWrite`.
@@ -516,8 +504,4 @@ export async function reconcileRecibo(write: ReciboWrite): Promise<void> {
     });
   });
   await withWriteTimeout(gravacao);
-}
-
-export async function removeSale(saleId: string): Promise<void> {
-  await withWriteTimeout(deleteDoc(doc(db, "vendas", saleId)));
 }

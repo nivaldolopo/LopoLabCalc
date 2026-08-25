@@ -19,7 +19,7 @@ import { num } from "@/lib/number";
 
 // Estoque de Produtos / acabados (FEAT-05): um doc por PRODUTO, id do doc =
 // productId (DETERMINÍSTICO — a baixa da produção acha o doc sem query e grava no
-// MESMO `writeBatch` do evento, 05b). As SKUs (subitens) e suas camadas FIFO ficam
+// MESMA transação do evento, 05b). As SKUs (subitens) e suas camadas FIFO ficam
 // dentro do doc; são poucas por produto, então cabem e a escrita continua atômica
 // — o que importa quando o incremento entra junto do evento de produção.
 const finishedCollection = collection(db, "acabados");
@@ -95,10 +95,16 @@ function skuToDocument(sku: FinishedSku): DocumentData {
   };
 }
 
-// Serializa o array de SKUs. Exportado para a baixa da produção (FEAT-05b): ela
-// grava o doc do acabado no mesmo `writeBatch` do evento e reusa esta serialização
-// para não divergir da escrita normal (molde do `serializeRolls`).
-export function serializeSkus(skus: FinishedSku[]): DocumentData[] {
+// Serializa o array de SKUs.
+// ⚠ AUD-14 [D7] — o comentário daqui dizia que a exportação existia "para a baixa
+// da produção reusar esta serialização, no mesmo writeBatch do evento". Medido: 0
+// importadores fora deste arquivo, nem em teste. Quem os outros dois repositórios
+// de escrita importam é o `finishedGoodToDocument` abaixo, que já embrulha esta
+// função; o `export` sobrou de quando a produção montava o doc do acabado campo a
+// campo. Sem chamador de fora, ela deixou de ser exportada — API pública que
+// ninguém usa é convite a divergir da escrita normal, que é justo o que o
+// comentário dizia evitar.
+function serializeSkus(skus: FinishedSku[]): DocumentData[] {
   return skus.map(skuToDocument);
 }
 
@@ -128,12 +134,12 @@ export function subscribeFinishedGoods(
 
 // TD-030 — aqui moravam `saveFinishedGood` e `removeFinishedGood`, o par
 // "avulso" que nunca ganhou chamador: quem cria e mexe no doc de acabado é
-// SEMPRE o writeBatch de outra coleção (produção 05b, venda, estorno), e é isso
+// SEMPRE a transação de outra coleção (produção 05b, venda, estorno), e é isso
 // que mantém a baixa atômica. Um caminho solto de gravar/apagar o acabado por
 // fora seria a porta para o saldo divergir do rastro que o produziu, então o
 // código morto saiu em vez de ganhar botão. O que sobra deste arquivo é a
-// LEITURA viva (`subscribeFinishedGoods`) e os serializadores, que os dois
-// repositórios de escrita importam.
+// LEITURA viva (`subscribeFinishedGoods`) e o `finishedGoodToDocument`, que os
+// dois repositórios de escrita importam.
 // ⚠ Consequência declarada: doc de acabado com saldo 0 (produto excluído, ou
 // produção estornada) fica na coleção, invisível na tela. É o retrato certo do
 // que aconteceu — o produto foi excluído, o rastro do que já foi produzido

@@ -16,7 +16,7 @@ import type {
 // filamento (`lib/stock.ts`), INVERTIDO: a produção EMPILHA camadas (como a compra
 // de rolo) e a venda CONSOME (passo 8). Puro por construção: descreve o doc novo,
 // sem tocar no Firestore — quem persiste é o `finishedGoodsRepository`, e a baixa
-// da produção (05b) grava no mesmo `writeBatch` do evento.
+// da produção (05b) grava na mesma transação do evento.
 //
 // Todas as funções são imutáveis: devolvem um doc/SKU novo, nunca mexem no
 // recebido.
@@ -523,10 +523,13 @@ export type FinishedEventReference = {
  * (stock.ts): excluir só é liberado quando ninguém referencia mais.
  *
  * O `FinishedMove` que a venda congela guarda o `layerId`, e o estorno devolve
- * POR CAMADA. Apagar a camada com um recibo vivo em cima dela não deixa rastro
- * de erro em lugar nenhum: o estorno depois não acha o id e devolve o doc
- * intacto, calado. Barrar aqui é o que impede o estado de existir — nunca há
- * unidade vendida sem a produção que a explique.
+ * POR CAMADA. Apagar a camada com um recibo vivo em cima dela quebra o estorno:
+ * ⚠ AUD-14 [D7] — este parágrafo dizia, no presente, que o estorno "não acha o
+ * id e devolve o doc intacto, calado". Isso descrevia o código de ANTES do
+ * TD-028; hoje o `shiftLayers` LANÇA erro nomeando o produto e cancela o
+ * estorno inteiro. Barrar aqui continua sendo o ponto: a exceção protege o
+ * número, mas quem impede o estado de existir é este guarda — nunca há unidade
+ * vendida sem a produção que a explique.
  *
  * Agrupa por RECIBO (não por venda): um recibo tem vários itens, e é o recibo
  * que a `/vendas` mostra e que o dono precisa apagar/editar para liberar.
