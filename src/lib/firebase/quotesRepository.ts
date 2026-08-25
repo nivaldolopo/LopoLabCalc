@@ -8,6 +8,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { withWriteTimeout } from "@/lib/errors";
 import type {
   QuoteBusiness,
   QuoteItemSnapshot,
@@ -83,7 +84,7 @@ export async function reserveQuoteNumber(
   historyFloor: number,
   preferred?: number,
 ): Promise<number> {
-  return runTransaction(db, async (tx) => {
+  const reserva = runTransaction(db, async (tx) => {
     const snap = await tx.get(seqRef);
     const stored = snap.exists() ? num(snap.data().last) : 0;
     const last = Math.max(stored, Math.max(0, num(historyFloor)));
@@ -91,12 +92,13 @@ export async function reserveQuoteNumber(
     tx.set(seqRef, { last: Math.max(last, next) }, { merge: true });
     return next;
   });
+  return withWriteTimeout(reserva);
 }
 
 export async function createQuote(payload: QuoteRecordPayload): Promise<void> {
-  await addDoc(quotesCollection, payload);
+  await withWriteTimeout(addDoc(quotesCollection, payload));
 }
 
 export async function removeQuote(quoteId: string): Promise<void> {
-  await deleteDoc(doc(db, "orcamentos", quoteId));
+  await withWriteTimeout(deleteDoc(doc(db, "orcamentos", quoteId)));
 }

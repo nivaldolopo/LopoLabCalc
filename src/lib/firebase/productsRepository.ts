@@ -9,6 +9,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { BATCH_TIMEOUT_SECONDS, withWriteTimeout } from "@/lib/errors";
 import type {
   ProductPayload,
   SavedProduct,
@@ -84,7 +85,9 @@ export function subscribeProducts(
 // num clique) precisa dele imediatamente para semear a venda ou a rota, sem
 // esperar o produto voltar pela assinatura.
 export async function createProduct(payload: ProductPayload): Promise<string> {
-  const ref = await addDoc(productsCollection, { ...payload, rev: 1 });
+  const ref = await withWriteTimeout(
+    addDoc(productsCollection, { ...payload, rev: 1 }),
+  );
   return ref.id;
 }
 
@@ -107,7 +110,7 @@ export async function createProductsBatch(
       batch.set(doc(productsCollection), { ...payload, rev: 1 });
     }
     try {
-      await batch.commit();
+      await withWriteTimeout(batch.commit(), BATCH_TIMEOUT_SECONDS);
       imported += chunk.length;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
@@ -161,7 +164,7 @@ export async function saveProduct(
   expectedRev: number,
 ): Promise<number> {
   const ref = doc(db, "products", productId);
-  return runTransaction(db, async (tx) => {
+  const gravacao = runTransaction(db, async (tx) => {
     const snapshot = await tx.get(ref);
     // Produto apagado em outra ponta: a mesma conversa, não uma recriação
     // silenciosa do documento.
@@ -172,8 +175,9 @@ export async function saveProduct(
     tx.update(ref, { ...payload, rev: proxima });
     return proxima;
   });
+  return withWriteTimeout(gravacao);
 }
 
 export async function removeProduct(productId: string): Promise<void> {
-  await deleteDoc(doc(db, "products", productId));
+  await withWriteTimeout(deleteDoc(doc(db, "products", productId)));
 }

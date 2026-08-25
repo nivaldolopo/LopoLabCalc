@@ -46,6 +46,9 @@ type PricingResultCardProps = {
   canSave: boolean;
   editingProductId: string | null;
   saved: boolean;
+  // AUD-14 [D2]: gravação em curso. Apaga as 4 ações (todas gravam o MESMO
+  // produto) e troca o rótulo — sem isto o clique repetido enfileirava escrita.
+  saving: boolean;
   saveError?: string | null;
   onSave: () => void;
   onSaveAsNew: () => void;
@@ -70,6 +73,7 @@ export function PricingResultCard({
   canSave,
   editingProductId,
   saved,
+  saving,
   saveError,
   onSave,
   onSaveAsNew,
@@ -173,12 +177,12 @@ export function PricingResultCard({
       <div className="result-actions">
         <button
           className={`btn primary ${saved ? "saved" : ""}`}
-          disabled={!canSave}
+          disabled={!canSave || saving}
           type="button"
           onClick={onSave}
         >
           <Save size={16} />
-          {saved ? "✓ Salvo!" : "Salvar"}
+          {saving ? "Salvando..." : saved ? "✓ Salvo!" : "Salvar"}
         </button>
         {/* UX-32 — a linha só aparece quando o botão está apagado, e diz o que
             falta. Cobre as 4 ações do bloco: todas dependem do mesmo `canSave`. */}
@@ -186,12 +190,14 @@ export function PricingResultCard({
           <div className="disabled-why">
             dê um nome ao produto para salvar
           </div>
+        ) : saving ? (
+          <div className="disabled-why">gravando no servidor...</div>
         ) : null}
 
         <div className="result-actions-row">
           <button
             className="btn btn-secondary"
-            disabled={!canSave}
+            disabled={!canSave || saving}
             type="button"
             onClick={onRegisterSale}
             title="Salva o produto e abre o registro de venda"
@@ -201,7 +207,7 @@ export function PricingResultCard({
           </button>
           <button
             className="btn btn-secondary"
-            disabled={!canSave}
+            disabled={!canSave || saving}
             type="button"
             onClick={onProduce}
             title="Salva o produto e abre a produção"
@@ -211,7 +217,7 @@ export function PricingResultCard({
           </button>
           <button
             className="btn btn-secondary"
-            disabled={!canSave}
+            disabled={!canSave || saving}
             type="button"
             onClick={onQuote}
             title="Salva o produto e abre o orçamento"
@@ -233,11 +239,12 @@ export function PricingResultCard({
             </button>
             <button
               className="btn btn-secondary"
+              disabled={saving}
               type="button"
               onClick={onSaveAsNew}
             >
               <Plus size={15} />
-              Salvar como novo
+              {saving ? "Salvando..." : "Salvar como novo"}
             </button>
           </div>
         ) : null}

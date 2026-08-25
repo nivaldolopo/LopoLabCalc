@@ -7,8 +7,8 @@
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
 > ⚠ **LEIA ISTO ANTES DO RESTO — o backlog voltou a ter item: a varredura AUD-14 (2026-08-25, a
-> 7ª e v4 da geral) abriu 9 defeitos.** A seção deles está **logo abaixo deste cabeçalho**; `[D1]` e
-> `[D8]` fecharam no mesmo dia (lote 1). Tudo que os parágrafos seguintes chamam de "ZERADO"
+> 7ª e v4 da geral) abriu 9 defeitos.** A seção deles está **logo abaixo deste cabeçalho**; o lote 1
+> (`[D1]` `[D8]`) e o lote 2 (`[D2]` `[D3]`) fecharam no mesmo dia — **não há mais 🔴 aberto**. Tudo que os parágrafos seguintes chamam de "ZERADO"
 > descreve o estado **até 2026-08-24** e continua valendo como registro do que fechou. Vários
 > parágrafos abaixo dizem "está ZERADO" descrevendo o estado **antes** da varredura **AUD-12** (a v2
 > da geral); a **AUD-13** (a v3) abriu 18 itens depois deles e **fechou os cinco lotes no mesmo
@@ -86,8 +86,8 @@
 | Lote | Itens | Por que esses | Estado |
 |---|---|---|---|
 | **1 — a planilha da carga** | `[D1]` · `[D8]` | Era o único que **bloqueava o recadastro**: corrompe no caminho exato que o dono desenhou (sistema externo gera → confere no Excel → reimporta) | ✅ **FEITO (2026-08-25)** |
-| **2 — a escrita que evapora** | `[D2]` · `[D3]` | Quiosque tem rede ruim, e o app afirma "Sincronizado" enquanto perde o produto. Cada clique repetido enfileira outra escrita | ▶ **próximo** |
-| **3 — a tela que informa errado** | `[D4]` · `[D5]` · `[D6]` | Não corrompem dado; informam errado uma decisão de negócio | aberto |
+| **2 — a escrita que evapora** | `[D2]` · `[D3]` | Quiosque tem rede ruim, e o app afirma "Sincronizado" enquanto perde o produto. Cada clique repetido enfileira outra escrita | ✅ **FEITO (2026-08-25)** |
+| **3 — a tela que informa errado** | `[D4]` · `[D5]` · `[D6]` | Não corrompem dado; informam errado uma decisão de negócio | ▶ **próximo** |
 | **4 — poeira e verdade escrita** | `[D7]` · `[D9]` + alvos de toque + as 7 afirmações falsas | Inerte hoje; é o padrão nº 10 (código morto que volta a ser chamado) e o comentário que envelhece | aberto |
 
 ### ✅ FECHADOS no lote 1 (2026-08-25)
@@ -122,27 +122,35 @@
   não o lê de volta — dumpar cru escrevia um id que o round-trip descartava calado.
   ⚠ O `productCsvRoundTrip` não pegava isto: lá a origem é o **parser** (ordem fixa), não o banco.
 
-### 🔴 Crítico — ABERTOS
+### ✅ FECHADOS no lote 2 (2026-08-25)
 
-- 🔴 **[D2] Offline, o app diz "Sincronizado" e o clique some sem deixar rastro.** Com a rede caída
-  mas o **Wi-Fi conectado** (portal cativo / DNS que engole — o caso comum num quiosque),
-  `navigator.onLine` continua `true`, então o `guardOnline` **não dispara**, o
-  `await productsApi.addProduct(...)` **pendura** e o `saveCurrentProduct` **não tem estado de
-  "salvando"** — o botão nunca muda de "Salvar". **Medido:** modo 1 (a rede pendura) → 4 cliques,
-  mensagem `null`, status "Sincronizado", reload → **as 4 escritas evaporaram**; modo 2 (a rede
-  rejeita) → religou a rede, o formulário **limpou sozinho** e a escrita entrou **atrasada**
-  (97 → 98 produtos). Cada clique repetido enfileira outra escrita.
-  **Saída proposta:** estado "Salvando…" + **timeout** na promessa (o SDK enfileira e nunca rejeita),
-  com mensagem explícita e o formulário **não** limpando. Decidir se o helper cobre só o salvar
-  produto ou os 15 caminhos.
+- ✅ **[D2] FEITO — a espera tem prazo, e o botão para de mentir.** Duas metades, porque o defeito
+  também era duplo:
+  · **o prazo** — `withWriteTimeout` (`src/lib/errors.ts`), **12s** (45s na importação em lote).
+  A decisão do "só o salvar ou os 15 caminhos" foi pelos **15**: o timeout mora na **borda do
+  repositório**, e as **21** escritas exportadas passam por ele (`addDoc`/`setDoc`/`deleteDoc`/
+  `runTransaction`/`batch.commit`). Deixar 14 fora seria o mesmo defeito com outro botão, e na UI
+  seriam 15 diffs em vez de 12 linhas.
+  ⚠ **A frase é diferente da do `guardOnline` de propósito.** O guarda barra ANTES do `await` e por
+  isso pode prometer "nada foi salvo ainda"; o timeout **não pode** — ele desiste da espera, mas a
+  escrita **continua enfileirada** no SDK e pode entrar sozinha (foi o modo 2 da varredura: 97 → 98,
+  atrasado). Então ela manda **conferir**, não repetir. Um teste trava essa diferença.
+  · **o botão** — a calculadora era a única tela que gravava sem estado de "salvando". Agora um
+  `saving` só apaga as **4** ações que gravam o mesmo produto (Salvar · Vender · Produzir · Orçar),
+  e o `saveAsNewProduct` — a única gravação da tela **sem `try/catch`** — ganhou o dele. **O
+  formulário não é mais limpo quando a gravação falha.**
+  **Medido ao vivo** (rede pendurada na página, `navigator.onLine` = `true`, ou seja o modo 1):
+  t=2,0s o botão vira **"Salvando…" + desabilitado** (os 2 cliques seguintes não fazem nada) e
+  t=14,2s (12,2s depois) sai a frase do timeout, com o **nome ainda no campo**. Online, o mesmo
+  caminho: "Salvando…" → "✓ Salvo!" em ~350 ms; catálogo **99 → 100**.
 
-- 🔴 **[D3] Excluir produto é o único dos 15 caminhos de escrita sem `guardOnline`.**
-  `ProductCatalog.confirmDelete` → `useProducts.deleteProduct` → `removeProduct` → `deleteDoc` puro.
-  O **mesmo arquivo** guarda a importação (`ProductCatalog.tsx:357`). Os outros 14 (StockPage 5×,
-  SuppliesTab 5×, ProductionPage 2×, SalesPage, SaleModal 2×, PricingCalculator, `useMachines`,
-  `useFees`, `useQuoteConfig`, `useQuotes`, `useBusinessSettings`) têm o guarda em algum nível.
-  ⚠ Ressalva de honestidade da varredura: a ausência do guarda é **fato medido**; o comportamento ao
-  vivo foi reproduzido no `addDoc` (D2), não no `deleteDoc`.
+- ✅ **[D3] FEITO — o 15º caminho ganhou a guarda.** `guardOnline()` no `useProducts.deleteProduct`,
+  e não no `ProductCatalog`: vale para qualquer chamador, e o catálogo já mostrava o erro no `fail`.
+  **Medido ao vivo** (com `navigator.onLine` forçado a `false`): a exclusão é **recusada**, o
+  catálogo continua em **99** e a mensagem sai por extenso ("Não foi possível excluir "…": Sem
+  conexão com a internet…"). Com a rede de volta, excluir funciona: **100 → 99**.
+  ⚠ A ressalva de honestidade da varredura vale ao contrário agora: o que se mediu foi a guarda
+  **funcionando**; o comportamento do `deleteDoc` no código velho continua não reproduzido ao vivo.
 
 ### 🟠 Alto — ABERTOS
 

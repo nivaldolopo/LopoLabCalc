@@ -14,6 +14,7 @@ import {
   type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "./client";
+import { withWriteTimeout } from "@/lib/errors";
 import { lerEConferirRevs } from "./revGuard";
 import { serializeRolls } from "./stockRepository";
 import { serializeLots } from "./suppliesRepository";
@@ -325,7 +326,7 @@ export async function saveProduction(
   // produção grava exatamente os mesmos três documentos que a venda, e sem a
   // trava uma produção salva no mesmo instante que uma venda apagava a baixa da
   // outra. Atomicidade idêntica à do batch; o que entra é o isolamento.
-  await runTransaction(db, async (tx) => {
+  const gravacao = runTransaction(db, async (tx) => {
     const revs = await escreverEstoqueNaTransacao(
       tx,
       colorUpdates,
@@ -337,6 +338,7 @@ export async function saveProduction(
     }
     revs();
   });
+  await withWriteTimeout(gravacao);
 }
 
 // A leitura+conferência e a escrita da trinca (cores, insumos, acabado), que é
@@ -420,13 +422,13 @@ export async function removeProduction(
   supplyUpdates: Supply[] = [],
 ): Promise<void> {
   if (colorUpdates.length === 0 && supplyUpdates.length === 0 && !finished) {
-    await deleteDoc(doc(db, "producao", eventId));
+    await withWriteTimeout(deleteDoc(doc(db, "producao", eventId)));
     return;
   }
   // TD-022: mesma transação da criação — o ESTORNO tem ainda mais motivo para
   // travar, porque devolver ao estoque um saldo calculado sobre uma foto velha
   // repõe grama que outra baixa já tinha tirado.
-  await runTransaction(db, async (tx) => {
+  const estorno = runTransaction(db, async (tx) => {
     const escrever = await escreverEstoqueNaTransacao(
       tx,
       colorUpdates,
@@ -436,4 +438,5 @@ export async function removeProduction(
     tx.delete(doc(db, "producao", eventId));
     escrever();
   });
+  await withWriteTimeout(estorno);
 }

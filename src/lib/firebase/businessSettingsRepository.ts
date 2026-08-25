@@ -5,6 +5,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { withWriteTimeout } from "@/lib/errors";
 import type { FixedCostRate } from "@/features/pricing-calculator/types";
 
 // Configurações do negócio compartilhadas entre aparelhos (mesmo padrão de
@@ -43,5 +44,7 @@ export function subscribeFixedCostRate(
 }
 
 export async function persistFixedCostRate(rate: FixedCostRate): Promise<void> {
-  await setDoc(businessDoc, { fixedCosts: rate }, { merge: true });
+  await withWriteTimeout(
+    setDoc(businessDoc, { fixedCosts: rate }, { merge: true }),
+  );
 }

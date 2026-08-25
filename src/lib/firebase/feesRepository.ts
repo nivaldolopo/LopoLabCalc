@@ -5,6 +5,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { withWriteTimeout } from "@/lib/errors";
 import type {
   CardTierRates,
   PaymentFeeSettings,
@@ -65,5 +66,5 @@ export function subscribeFees(
 }
 
 export async function persistFees(fees: PaymentFeeSettings): Promise<void> {
-  await setDoc(feesDoc, { fees }, { merge: true });
+  await withWriteTimeout(setDoc(feesDoc, { fees }, { merge: true }));
 }

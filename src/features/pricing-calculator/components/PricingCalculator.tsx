@@ -95,6 +95,14 @@ export function PricingCalculator() {
   const [saleOpen, setSaleOpen] = useState(false);
   const [saleSeed, setSaleSeed] = useState<SaleModalContext | null>(null);
   const [saved, setSaved] = useState(false);
+  // AUD-14 [D2] — a calculadora era a única tela que gravava SEM estado de
+  // "salvando": o botão continuava dizendo "Salvar" durante o await, e com a
+  // rede pendurada (Wi-Fi sem internet) 4 cliques viraram 4 escritas
+  // enfileiradas, sem mensagem nenhuma. Um estado só para os 4 caminhos que
+  // gravam produto (Salvar, Salvar como novo, e o save embutido de
+  // Vender/Produzir/Orçar): é sempre o MESMO documento, então travar um trava
+  // todos, que é exatamente o que se quer.
+  const [saving, setSaving] = useState(false);
   // Aviso de validação do formulário (inline, no lugar do window.alert).
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -201,6 +209,7 @@ export function PricingCalculator() {
   }
 
   async function saveCurrentProduct() {
+    if (saving) return;
     const error = validateProduct({
       ...form.product,
       includeFixed: fixedCosts.enabled,
@@ -215,6 +224,7 @@ export function PricingCalculator() {
     // TD-022: a gravação pode ser RECUSADA quando outra aba já salvou este
     // produto — e recusar é o ponto. O formulário fica como está (nada se
     // perde), e a frase do erro diz o que fazer.
+    setSaving(true);
     try {
       if (form.editingProductId) {
         await productsApi.updateProduct(
@@ -226,8 +236,13 @@ export function PricingCalculator() {
         await productsApi.addProduct(buildPayload(true));
       }
     } catch (err) {
+      // O formulário NÃO é limpo aqui: o `withWriteTimeout` desiste da espera,
+      // mas a escrita segue enfileirada no SDK. Limpar a tela neste ponto era
+      // o que fazia o dono perder o que digitou sem saber se entrou.
       setSaveError(errorMessage(err));
       return;
+    } finally {
+      setSaving(false);
     }
 
     setSaved(true);
@@ -236,6 +251,7 @@ export function PricingCalculator() {
   }
 
   async function saveAsNewProduct() {
+    if (saving) return;
     const error = validateProduct(form.product);
     if (error) {
       setSaveError(error);
@@ -243,7 +259,17 @@ export function PricingCalculator() {
     }
     setSaveError(null);
     if (blockedOffline()) return;
-    await productsApi.addProduct(buildPayload(true));
+    // AUD-14 [D2]: era a única gravação da tela SEM try/catch — a falha virava
+    // rejeição não tratada no console, e o dono via só o botão parado.
+    setSaving(true);
+    try {
+      await productsApi.addProduct(buildPayload(true));
+    } catch (err) {
+      setSaveError(errorMessage(err));
+      return;
+    } finally {
+      setSaving(false);
+    }
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1200);
     resetFormKeepingFixedCosts();
@@ -296,6 +322,7 @@ export function PricingCalculator() {
   // aqui o formulário NÃO é limpo: fica editando o produto (recém-criado ou
   // não), pra quem volta de /producao continuar de onde parou.
   async function ensureSavedProductId(): Promise<string | null> {
+    if (saving) return null;
     const error = validateProduct({
       ...form.product,
       includeFixed: fixedCosts.enabled,
@@ -307,6 +334,7 @@ export function PricingCalculator() {
     setSaveError(null);
     if (blockedOffline()) return null;
 
+    setSaving(true);
     try {
       if (form.editingProductId) {
         // A versão nova volta e fica guardada: sem isso, este mesmo formulário
@@ -327,6 +355,8 @@ export function PricingCalculator() {
     } catch (err) {
       setSaveError(errorMessage(err));
       return null;
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -414,6 +444,7 @@ export function PricingCalculator() {
           canSave={form.product.name.trim().length > 0}
           editingProductId={form.editingProductId}
           saved={saved}
+          saving={saving}
           saveError={saveError}
           onSave={saveCurrentProduct}
           onSaveAsNew={saveAsNewProduct}

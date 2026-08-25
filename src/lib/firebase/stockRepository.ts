@@ -8,6 +8,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { withWriteTimeout } from "@/lib/errors";
 import { EstoqueDesatualizadoError } from "./revGuard";
 import type {
   FilamentRoll,
@@ -132,7 +133,9 @@ export function subscribeStock(
 export async function createStockFilament(
   payload: StockFilamentPayload,
 ): Promise<void> {
-  await addDoc(stockCollection, { ...toDocument(payload), rev: 1 });
+  await withWriteTimeout(
+    addDoc(stockCollection, { ...toDocument(payload), rev: 1 }),
+  );
 }
 
 // TD-022: a edição manual da cor (novo rolo, ajuste D6, arquivar, renomear)
@@ -148,7 +151,7 @@ export async function saveStockFilament(
 ): Promise<void> {
   const ref = doc(db, "estoque", filamentId);
   const esperado = payload.rev ?? 0;
-  await runTransaction(db, async (tx) => {
+  const gravacao = runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) {
       throw new EstoqueDesatualizadoError(`A cor "${payload.colorName}"`);
@@ -159,8 +162,9 @@ export async function saveStockFilament(
     }
     tx.update(ref, { ...toDocument(payload), rev: atual + 1 });
   });
+  await withWriteTimeout(gravacao);
 }
 
 export async function removeStockFilament(filamentId: string): Promise<void> {
-  await deleteDoc(doc(db, "estoque", filamentId));
+  await withWriteTimeout(deleteDoc(doc(db, "estoque", filamentId)));
 }

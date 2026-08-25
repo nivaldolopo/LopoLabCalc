@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { guardOnline } from "@/lib/errors";
 import {
   createProduct,
   createProductsBatch,
@@ -47,7 +48,13 @@ export function useProducts() {
     return saveProduct(productId, payload, expectedRev);
   }
 
+  // AUD-14 [D3] — era o ÚNICO dos 15 caminhos de escrita sem a guarda: o
+  // `deleteDoc` ia direto. Offline o Firestore aceita a exclusão localmente e
+  // a Promise nunca resolve: o produto some da tela pelo cache e a confirmação
+  // verde nunca chega. O guarda mora aqui (e não no `ProductCatalog`) para
+  // valer para qualquer chamador; o catálogo já mostra o erro no `fail`.
   async function deleteProduct(productId: string) {
+    guardOnline();
     await removeProduct(productId);
   }
 

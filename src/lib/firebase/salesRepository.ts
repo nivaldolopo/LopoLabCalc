@@ -17,6 +17,7 @@ import {
   type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "./client";
+import { withWriteTimeout } from "@/lib/errors";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import { productionToDocument } from "./productionRepository";
 import { frozenFromDocument, frozenToDocument } from "./frozenCost";
@@ -366,7 +367,7 @@ export async function saveRecibo(
   for (const id of removedIds) {
     batch.delete(doc(db, "vendas", id));
   }
-  await batch.commit();
+  await withWriteTimeout(batch.commit());
 }
 
 // Serializa um FinishedMove campo a campo (o Firestore rejeita `undefined`, e
@@ -433,7 +434,7 @@ export type ReciboWrite = {
 // ninguém. Offline a Promise não resolve — mas todo caminho que chega aqui passa
 // antes pelo `guardOnline` (TD-020).
 export async function reconcileRecibo(write: ReciboWrite): Promise<void> {
-  await runTransaction(db, async (tx) => {
+  const gravacao = runTransaction(db, async (tx) => {
     const cores = write.colorUpdates.map((color) => ({
       color,
       ref: doc(db, "estoque", color.id),
@@ -508,8 +509,9 @@ export async function reconcileRecibo(write: ReciboWrite): Promise<void> {
       });
     });
   });
+  await withWriteTimeout(gravacao);
 }
 
 export async function removeSale(saleId: string): Promise<void> {
-  await deleteDoc(doc(db, "vendas", saleId));
+  await withWriteTimeout(deleteDoc(doc(db, "vendas", saleId)));
 }

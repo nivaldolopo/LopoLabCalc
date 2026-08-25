@@ -8,6 +8,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { withWriteTimeout } from "@/lib/errors";
 import { EstoqueDesatualizadoError } from "./revGuard";
 import type {
   Supply,
@@ -125,7 +126,9 @@ export function subscribeSupplies(
 }
 
 export async function createSupply(payload: SupplyPayload): Promise<void> {
-  await addDoc(suppliesCollection, { ...toDocument(payload), rev: 1 });
+  await withWriteTimeout(
+    addDoc(suppliesCollection, { ...toDocument(payload), rev: 1 }),
+  );
 }
 
 // TD-022: idêntico ao `saveStockFilament` — ver a nota lá. Todo escritor do doc
@@ -136,7 +139,7 @@ export async function saveSupply(
 ): Promise<void> {
   const ref = doc(db, "insumos", supplyId);
   const esperado = payload.rev ?? 0;
-  await runTransaction(db, async (tx) => {
+  const gravacao = runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) {
       throw new EstoqueDesatualizadoError(`O insumo "${payload.name}"`);
@@ -147,8 +150,9 @@ export async function saveSupply(
     }
     tx.update(ref, { ...toDocument(payload), rev: atual + 1 });
   });
+  await withWriteTimeout(gravacao);
 }
 
 export async function removeSupply(supplyId: string): Promise<void> {
-  await deleteDoc(doc(db, "insumos", supplyId));
+  await withWriteTimeout(deleteDoc(doc(db, "insumos", supplyId)));
 }

@@ -5,6 +5,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { withWriteTimeout } from "@/lib/errors";
 import type { QuoteBusiness } from "@/features/pricing-calculator/types";
 import { DEFAULT_QUOTE_BUSINESS } from "@/features/pricing-calculator/constants";
 
@@ -44,5 +45,5 @@ export function subscribeQuoteBusiness(
 export async function persistQuoteBusiness(
   business: QuoteBusiness,
 ): Promise<void> {
-  await setDoc(quoteDoc, { business }, { merge: true });
+  await withWriteTimeout(setDoc(quoteDoc, { business }, { merge: true }));
 }

@@ -1,11 +1,10 @@
 # LopoLabCalc — Orientações para o chat
 
-> Este arquivo é lido automaticamente pelo Claude Code no início de cada conversa.
-> Leia as **Diretrizes de trabalho** antes de qualquer ação.
-> **Três arquivos, três papéis** (ver Diretriz 8): este `CLAUDE.md` = foto do AGORA + próxima tarefa
-> (auto, todo turno) · [`.claude/BACKLOG.md`](.claude/BACKLOG.md) = a-fazer/roadmap (leia pra escolher
-> tarefa; curto) · [`.claude/HISTORICO.md`](.claude/HISTORICO.md) = feito + decisões D1–D8 + auditoria
-> (leia sob demanda pro *porquê*; pesado). **Não** traga o conteúdo desses dois de volta pra cá.
+> Lido automaticamente a cada conversa. Leia as **Diretrizes de trabalho** antes de qualquer ação.
+> **Três arquivos, três papéis** (Diretriz 8): este `CLAUDE.md` = foto do AGORA + próxima tarefa
+> (auto, todo turno) · [`BACKLOG.md`](.claude/BACKLOG.md) = a-fazer (curto; leia pra escolher tarefa)
+> · [`HISTORICO.md`](.claude/HISTORICO.md) = feito + D1–D8 + auditoria (sob demanda, pro *porquê*;
+> pesado). **Não** traga o conteúdo desses dois de volta pra cá.
 
 ## Status atual (contexto de continuidade)
 
@@ -14,28 +13,28 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-25): AUD-14, lote 1 — `[D1]` + `[D8]`, a planilha da carga.** O CSV do
-  catálogo virou **pt-BR inteiro**: 9 colunas escalares saíam com PONTO decimal, e o Excel pt-BR lê
-  ponto como milhar — `5.283333333333333` voltava `5.283.333.333.333.330` (6 dos 97 produtos, preço
-  a R$ 220 quatrilhões, `warnings: []`). A importação passou a **acusar** o ponto repetido (classe
-  `milhar-multiplo`, 10 colunas + dentro do JSON), e o export escreve `Acessorios/Subitens JSON` com
-  **ordem de chave fixa** (fecha o `[CSV-30]`). `lint` ✅ · `build` ✅ · **749/749** em 3 rodadas ✅ ·
-  **14 testes novos falham contra o código velho** · **round-trip real no Excel 16 pt-BR (COM)**:
-  formato velho → os 6 valores inflados e o aviso acende; novo → horas intactas, 0 avisos.
+- **Última mudança (2026-08-25): AUD-14, lote 2 — `[D2]` + `[D3]`, a escrita que evaporava.** Wi-Fi
+  conectado **sem internet** deixa o `navigator.onLine` em `true`: nenhuma guarda dispara e a
+  Promise do Firestore fica pendente **para sempre**. A espera ganhou prazo — `withWriteTimeout`
+  (12s; 45s na importação) na **borda do repositório**, nas **21** escritas exportadas, e a frase
+  **manda conferir, não repetir** (a escrita segue enfileirada e pode entrar sozinha). A calculadora
+  ganhou o **"Salvando…"** (apaga as 4 ações do mesmo produto) e **não limpa mais o formulário** na
+  falha; o excluir produto ganhou o `guardOnline` que faltava. `lint` ✅ · `build` ✅ · **757/757** ✅ ·
+  **ao vivo**: rede pendurada → trava em "Salvando…" e a frase sai 12,2s depois, campo intacto;
+  offline → excluir recusado (99); online → 99 → 100 → 99.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — AUD-14, lote 2 (o offline).** `[D2]` a escrita que **evapora** com Wi-Fi
-  conectado sem internet (o app diz "Sincronizado", o botão nunca vira "Salvando…" e o clique some)
-  e `[D3]` o excluir produto, **único dos 15 caminhos sem `guardOnline`**. Depois o lote 3 (`[D4]`
-  `[D5]` `[D6]`) e o 4 (`[D7]` `[D9]` + alvos de toque + 7 afirmações falsas), **um commit por
-  lote** (dono, 2026-08-25); mecanismo e medição de cada um no `BACKLOG.md`.
-  → A frente do DONO segue a mesma: cadastrar as cores e os insumos definitivos e passar os ids pro
-  **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
-  (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. A carga **não cria**
-  cor nem insumo, e não tem "limpar catálogo" — a regra de auto-id/de-para está no `BACKLOG.md`.
+- **▶ PRÓXIMA TAREFA — AUD-14, lote 3 (a tela que informa errado; **não há mais 🔴 aberto**).** Os
+  três informam errado uma decisão de negócio, sem corromper dado: `[D4]` o seletor "Origem desta
+  peça" com **22px** no celular, `[D5]` "Receita (maior)" ordenando só os **25 carregados** e
+  `[D6]` o `finishedColors` antigo **descartado em silêncio**. Depois o lote 4 (`[D7]` `[D9]` +
+  alvos de toque + 7 afirmações falsas), **um commit por lote** (dono); medições no `BACKLOG.md`.
+  → A frente do DONO segue a mesma: cadastrar cores/insumos definitivos e passar os ids pro
+  **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app** (dono,
+  2026-08-23): a spec é escrita **comigo no chat** depois do cadastro (regras no `BACKLOG.md`).
 - ⚠ **Ainda pendentes (dono):** **cadastrar os insumos e religar os acessórios** (os de hoje entram
   no custo mas não dão baixa) · o Dashboard fecha as ressalvas de UX-09 e TD-006 já na tela.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
@@ -100,7 +99,8 @@ src/
                             #   stock (`estoque`, doc por COR) · supplies (`insumos`, doc por
                             #   INSUMO) · production (`producao`, N eventos + baixa no mesmo
                             #   writeBatch) · finishedGoods (`acabados`, doc por PRODUTO)
-    errors.ts               # guardOnline (offline trava a escrita) + errorMessage
+    errors.ts               # guardOnline (barra ANTES do await) + withWriteTimeout (12s, na BORDA
+                            #   do repositório — escrita nova passa por ele) + errorMessage
     clipboard.ts            # copyText — erro EXPLÍCITO quando o navegador não libera
     formatting/             # currency.ts (formatCurrency/formatDecimal) · date.ts (ponte
                             #   timestamp ↔ <input type="date">)

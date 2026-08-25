@@ -5,6 +5,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { withWriteTimeout } from "@/lib/errors";
 import type { Machine } from "@/features/pricing-calculator/types";
 import { defaultMaintenanceForId } from "@/features/pricing-calculator/constants";
 
@@ -54,7 +55,7 @@ export function subscribeMachines(
 }
 
 export async function persistMachines(machines: Machine[]): Promise<void> {
-  await setDoc(machinesDoc, {
+  const gravacao = setDoc(machinesDoc, {
     items: machines.map((machine) => ({
       id: machine.id,
       name: machine.name,
@@ -64,4 +65,5 @@ export async function persistMachines(machines: Machine[]): Promise<void> {
       maintenancePerHour: machine.maintenancePerHour,
     })),
   });
+  await withWriteTimeout(gravacao);
 }
