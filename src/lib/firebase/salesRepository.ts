@@ -21,6 +21,7 @@ import { withWriteTimeout } from "@/lib/errors";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import { productionToDocument } from "./productionRepository";
 import { frozenFromDocument, frozenToDocument } from "./frozenCost";
+import { readFinishedColors } from "@/features/pricing-calculator/lib/finishedGoods";
 import { lerEConferirRevs } from "./revGuard";
 import { serializeRolls } from "./stockRepository";
 import { serializeLots } from "./suppliesRepository";
@@ -66,6 +67,16 @@ function toFinishedMove(data: DocumentData): FinishedMove {
 
 function toSale(id: string, data: DocumentData): Sale {
   const breakdown = data.costBreakdown ?? {};
+  // AUD-14 [D6]: o campo tem forma antiga em parte do banco (mapa em vez de
+  // lista) e o leitor de antes o descartava calado — ver `readFinishedColors`.
+  const colors = readFinishedColors(data.finishedColors);
+  if (colors.malformed && process.env.NODE_ENV !== "production") {
+    console.warn(
+      `[vendas] recibo "${id}": campo \`finishedColors\` em formato ` +
+        "ilegível (esperado: lista de {part, colorKey}). A cor congelada foi " +
+        "descartada, e o rótulo dela não será exibido.",
+    );
+  }
   // Repartição por máquina (vendas novas). Ausente nas antigas → deixa undefined
   // e o ROI cai no fallback (tudo na máquina principal). Filtra entradas inválidas.
   const machineUsage = Array.isArray(data.machineUsage)
@@ -169,17 +180,12 @@ function toSale(id: string, data: DocumentData): Sale {
     // usa para reaplicar a baixa na mesma prateleira; o rótulo é exibição.
     // Lista e não mapa porque a parte viraria nome de campo, e o Firestore
     // recusa `__whole__` (ver `FinishedColorEntry`).
-    ...(Array.isArray(data.finishedColors) && data.finishedColors.length > 0
-      ? {
-          finishedColors: data.finishedColors
-            .filter((entry: DocumentData) => entry?.part)
-            .map((entry: DocumentData) => ({
-              part: String(entry.part),
-              colorKey: String(entry.colorKey ?? ""),
-            })),
-        }
-      : {}),
-    ...(data.finishedColorLabel
+    ...(colors.entries.length > 0 ? { finishedColors: colors.entries } : {}),
+    // ⚠ O rótulo NÃO sobrevive sozinho (AUD-14 [D6]). Ele é exibição; a lista é
+    // o que a reedição usa para devolver a peça na mesma prateleira. Exibir
+    // "Cor vendida: Azul" sem a lista é afirmar na tela algo que o estorno não
+    // vai honrar — a ausência é a informação honesta.
+    ...(data.finishedColorLabel && !colors.malformed
       ? { finishedColorLabel: String(data.finishedColorLabel) }
       : {}),
     ...(Array.isArray(data.productionEventIds) &&

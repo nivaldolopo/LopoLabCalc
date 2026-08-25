@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useMemo, useState } from "react";
-import { Edit3, Plus, Trash2 } from "lucide-react";
+import { Edit3, Plus, TriangleAlert, Trash2 } from "lucide-react";
 import { errorMessage, guardOnline } from "@/lib/errors";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import {
@@ -191,8 +191,15 @@ export function SalesPage() {
     }),
     [filterProductId, startStr, endStr],
   );
-  const { sales, totals: salesTotals, hasMore, loadMore, status, error } =
-    useSalesPage(salesFilter);
+  const {
+    sales,
+    totals: salesTotals,
+    hasMore,
+    loadMore,
+    loadAll,
+    status,
+    error,
+  } = useSalesPage(salesFilter);
   const { products } = useProducts();
   const { machines } = useMachines();
   const { fixedCostRate } = useBusinessSettings();
@@ -360,6 +367,13 @@ export function SalesPage() {
 
   const hasServerFilter =
     filterProductId !== "" || startStr !== "" || endStr !== "";
+
+  // AUD-14 [D5]: só "Mais recentes" sobrevive à janela paginada — é a ordem da
+  // própria consulta (`saleDate desc`), então os 25 carregados SÃO os 25 do
+  // topo. Todas as outras reordenam o que desceu e chamam o resultado de
+  // ranking do histórico. `hasMore` é falso quando há filtro de produto (ali a
+  // consulta traz o conjunto inteiro), e aí não há o que avisar.
+  const partialRanking = hasMore && sortMode !== "recent";
 
   // TD-006: os cards somam o histórico INTEIRO via aggregation query
   // (`salesTotals`), não a janela paginada. Só a margem é derivada aqui.
@@ -591,6 +605,26 @@ export function SalesPage() {
           </button>
         </div>
       </div>
+
+      {/* AUD-14 [D5]: a ordem escolhida vale só para o que já desceu do banco.
+          "Mais recentes" é a única que não mente com a janela cortada — é a
+          ordem da própria consulta, então o topo dela É o topo do histórico.
+          Qualquer outra é um RANKING (ou uma varredura ao contrário, no caso de
+          "Mais antigas"), e sobre 25 de 41 recibos ela promete o que não tem.
+          Medido: `386,41 · 294,36 · 88,00 · 87,59` virava
+          `386,41 · 294,36 · 159,34 · 105,30` com o histórico inteiro. */}
+      {partialRanking ? (
+        <div className="sort-partial" role="status">
+          <TriangleAlert size={15} />
+          <span>
+            Esta ordem vale só para os {recibos.length} recibos já
+            carregados — há mais vendas no histórico.
+          </span>
+          <button className="link-button" type="button" onClick={loadAll}>
+            Carregar tudo e reordenar
+          </button>
+        </div>
+      ) : null}
 
       <HistoryFilterBar
         products={productOptions}

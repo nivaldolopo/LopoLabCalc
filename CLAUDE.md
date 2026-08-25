@@ -13,25 +13,26 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-25): AUD-14, lote 2 — `[D2]` + `[D3]`, a escrita que evaporava.** Wi-Fi
-  conectado **sem internet** deixa o `navigator.onLine` em `true`: nenhuma guarda dispara e a
-  Promise do Firestore fica pendente **para sempre**. A espera ganhou prazo — `withWriteTimeout`
-  (12s; 45s na importação) na **borda do repositório**, nas **21** escritas exportadas, e a frase
-  **manda conferir, não repetir** (a escrita segue enfileirada e pode entrar sozinha). A calculadora
-  ganhou o **"Salvando…"** (apaga as 4 ações do mesmo produto) e **não limpa mais o formulário** na
-  falha; o excluir produto ganhou o `guardOnline` que faltava. `lint` ✅ · `build` ✅ · **757/757** ✅ ·
-  **ao vivo**: rede pendurada → trava em "Salvando…" e a frase sai 12,2s depois, campo intacto;
-  offline → excluir recusado (99); online → 99 → 100 → 99.
+- **Última mudança (2026-08-25): AUD-14, lote 3 — `[D4]` `[D5]` `[D6]`, a tela que informa errado.**
+  `[D4]` a fileira "Origem desta peça" virou **cartão sem media query** (base flexível de 260px +
+  `wrap` + `min-width: 0`: o corte é a largura do MODAL, não a da tela) · `[D5]` toda ordem que
+  **não** é "Mais recentes" é ranking sobre a janela de 25, e ganhou **faixa `--warn` + "Carregar
+  tudo e reordenar"** (`loadAll` mira o `totals.count`; o `hasMore` do servidor segura a honestidade
+  se ficar curto) · `[D6]` `readFinishedColors` separa **"não tem" de "tem e não dá pra ler"** —
+  mapa antigo recusado, avisado, e **derrubando junto o `finishedColorLabel`** (rótulo sem lista era
+  a tela discordando do estorno). `lint` ✅ · `build` ✅ · **761/761** ✅ · ⚠ **sem prova ao vivo**: o
+  painel do navegador recusou TODA navegação nesta sessão (até `example.com`) e não há Chrome.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — AUD-14, lote 3 (a tela que informa errado; **não há mais 🔴 aberto**).** Os
-  três informam errado uma decisão de negócio, sem corromper dado: `[D4]` o seletor "Origem desta
-  peça" com **22px** no celular, `[D5]` "Receita (maior)" ordenando só os **25 carregados** e
-  `[D6]` o `finishedColors` antigo **descartado em silêncio**. Depois o lote 4 (`[D7]` `[D9]` +
-  alvos de toque + 7 afirmações falsas), **um commit por lote** (dono); medições no `BACKLOG.md`.
+- **▶ PRÓXIMA TAREFA — AUD-14, lote 4, o último (poeira e verdade escrita; **sem 🔴 aberto**).**
+  Nada dele quebra hoje: `[D7]` o `saveRecibo` **sem chamador** que grava recibo pela metade · `[D9]`
+  o evento de produção com **dois preços de filamento** sem dizer qual é qual · os **alvos de toque**
+  de 2 a 24px abaixo da régua (a faixa real, não os "1–4px" de antes) · as **7 afirmações falsas**
+  em comentário. Medições no `BACKLOG.md`; **um commit por lote** (dono). **Junto vai a prova ao
+  vivo do lote 3**, que esta sessão não conseguiu tirar.
   → A frente do DONO segue a mesma: cadastrar cores/insumos definitivos e passar os ids pro
   **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app** (dono,
   2026-08-23): a spec é escrita **comigo no chat** depois do cadastro (regras no `BACKLOG.md`).

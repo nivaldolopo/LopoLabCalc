@@ -15,6 +15,7 @@ import {
   goodCostComposition,
   goodValue,
   partBalance,
+  readFinishedColors,
   removeEventLayers,
   reverseFinishedConsumption,
   skuBalance,
@@ -1261,6 +1262,58 @@ describe("colorEntriesOf / colorRecordOf (FEAT-11 — formato persistido)", () =
     expect(colorEntriesOf(undefined)).toEqual([]);
     expect(colorRecordOf(undefined)).toEqual({});
     expect(colorRecordOf([{ part: "", colorKey: "x" }])).toEqual({});
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AUD-14 [D6] — o leitor que descartava CALADO.
+//
+// Dois dos 47 docs de `vendas` tinham o campo, e um deles na forma ANTIGA
+// (mapa). O `Array.isArray(...) ? … : {}` do `toSale` fazia o mapa cair fora do
+// spread: o campo sumia sem contar, e o `finishedColorLabel` — que é OUTRO campo
+// — continuava na tela. O rótulo dizia a cor; o estorno não tinha prateleira.
+// ---------------------------------------------------------------------------
+
+describe("readFinishedColors (AUD-14 [D6] — ausente ≠ ilegível)", () => {
+  it("campo ausente não é perda: nada a lamentar na venda pré-FEAT-11", () => {
+    expect(readFinishedColors(undefined)).toEqual({ entries: [], malformed: false });
+    expect(readFinishedColors(null)).toEqual({ entries: [], malformed: false });
+  });
+
+  it("a lista atual atravessa inteira, normalizada", () => {
+    expect(
+      readFinishedColors([
+        { part: WHOLE_PART_KEY, colorKey: "fil_azul" },
+        { part: "corpo" },
+      ]),
+    ).toEqual({
+      entries: [
+        { part: WHOLE_PART_KEY, colorKey: "fil_azul" },
+        { part: "corpo", colorKey: "" },
+      ],
+      malformed: false,
+    });
+  });
+
+  it("o MAPA (forma antiga) é recusado — e ACUSADO, não descartado calado", () => {
+    // O doc real medido na varredura: parte → chave de cor, sem lista.
+    expect(readFinishedColors({ corpo: "fil_azul" })).toEqual({
+      entries: [],
+      malformed: true,
+    });
+  });
+
+  it("lista VAZIA é ausência, mas lista que não sobrevive à leitura é perda", () => {
+    expect(readFinishedColors([])).toEqual({ entries: [], malformed: false });
+    expect(readFinishedColors([{ colorKey: "fil_azul" }])).toEqual({
+      entries: [],
+      malformed: true,
+    });
+    // Uma entrada boa entre lixo NÃO é perda total: o que dá para reaplicar volta.
+    expect(readFinishedColors([{ part: "" }, { part: "corpo", colorKey: "x" }])).toEqual({
+      entries: [{ part: "corpo", colorKey: "x" }],
+      malformed: false,
+    });
   });
 });
 

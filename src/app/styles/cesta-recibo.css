@@ -77,16 +77,36 @@
   color: var(--muted);
 }
 
-/* Passo 8: origem do item (acabado vs encomenda) + custo real + avisos. */
+/* Passo 8: origem do item (acabado vs encomenda) + custo real + avisos.
+
+   AUD-14 [D4] — a fileira que espremia o controle mais decisivo do modal.
+   É ele que decide se a venda DRENA o acabado ou manda imprimir de novo, e a
+   375px ele saía com 22,0px de largura para 241px de texto: 9% visível. A conta
+   era a de sempre — `flex: 1 1 0%` com `min-width: auto` contra um vizinho
+   rígido (o `CostDetail`, 242–250px): 22 + 8 + 250 = 280 dentro de 259px de
+   linha. O app já pré-seleciona "Estoque de acabados" quando há saldo, então o
+   risco não era escolher errado; era não conseguir CONFERIR nem trocar.
+
+   A saída é a regra da casa (UX-38/UX-40): fileira que não cabe vira CARTÃO. E
+   aqui ela se escreve SEM media query, porque o gatilho não é a largura da tela
+   — é a do modal: base flexível de 260px (os 241px do texto mais folga) com
+   `wrap`. Enquanto o select couber ao lado do custo, a fileira continua uma
+   linha só; quando não couber, ele toma a linha inteira e o custo desce. O corte
+   acontece exatamente onde o texto começaria a ser cortado. */
 .cesta-origem {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-8);
   margin-top: var(--space-8);
 }
 
+/* ⚠ `min-width: 0` junto: sem ele o mínimo implícito do flex é o min-content, e
+   um `<select>` NÃO encolhe — a base de 260 viraria piso de 241 e a fileira
+   estouraria de novo, que é a mesma armadilha da coluna `1fr` pura nas grades. */
 .cesta-origem select {
-  flex: 1;
+  flex: 1 1 260px;
+  min-width: 0;
 }
 
 /* FEAT-11: de qual COR tirar a peça pronta. Só aparece quando a peça existe em

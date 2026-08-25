@@ -95,5 +95,21 @@ export function useSalesPage(filter: SalesQuery) {
     setPageLimit((current) => current + PAGE_SIZE);
   }
 
-  return { sales, totals, hasMore, loadMore, status, error };
+  // AUD-14 [D5]: ordenar por receita/lucro/margem é um RANKING, e ranking sobre
+  // a janela paginada mente (medido: com 23 de 41 recibos, duas das quatro
+  // maiores vendas estavam escondidas). Não dá para empurrar essa ordem para o
+  // servidor — a receita do recibo é a SOMA dos itens dele, agrupada no cliente,
+  // e o Firestore não ordena por agregado. Então a saída é abrir a janela.
+  //
+  // O alvo é o `totals.count`, que vem da aggregation query e conta os
+  // DOCUMENTOS do filtro — a mesma unidade do `limit`, porque cada item de venda
+  // é um doc. Se ele vier atrasado ou curto, o `hasMore` continua dizendo a
+  // verdade no snapshot seguinte (ele é `docs.length > pageLimit`, medido no
+  // servidor), e o aviso da tela não some sozinho: o passo mínimo de uma página
+  // garante que clicar de novo sempre avança.
+  function loadAll() {
+    setPageLimit((current) => Math.max(totals.count, current + PAGE_SIZE));
+  }
+
+  return { sales, totals, hasMore, loadMore, loadAll, status, error };
 }

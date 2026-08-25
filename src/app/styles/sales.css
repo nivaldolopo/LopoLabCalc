@@ -77,3 +77,47 @@
   color: var(--accent-text);
 }
 
+
+/* AUD-14 [D5] — o aviso de que a ORDEM é parcial.
+   A `/vendas` pagina de 25 em 25 e reordena no cliente, então "Receita (maior)"
+   entregava o ranking dos 25 carregados chamando-o de ranking do histórico
+   (medido: `386,41 · 294,36 · 88,00 · 87,59` com 23 de 41 recibos, contra
+   `386,41 · 294,36 · 159,34 · 105,30` com os 41 — duas das quatro maiores
+   estavam escondidas). Não dá para empurrar a ordem ao servidor: a receita do
+   recibo é a soma dos itens dele, agrupada aqui.
+   É `--warn` e não `--danger`: nada está errado nem foi perdido, o que a tela
+   mostra apenas não é a lista inteira.
+   ⚠ O botão não ganha regra de alvo própria — o `.link-button` já sobe para 44px
+   no celular pela regra do `responsive.css` (UX-50), com a devolução junto. */
+.sort-partial {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-md);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-line);
+  color: var(--warn);
+  font-size: var(--text-md);
+}
+
+/* O ícone não encolhe nem estica; a frase é quem cede — e cede QUEBRANDO para a
+   linha de baixo (base flexível), não cortando. */
+.sort-partial > svg {
+  flex: 0 0 auto;
+}
+
+.sort-partial > span {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+/* Herda a cor do aviso: laranja de link dentro de faixa laranja de alerta seria
+   a mesma cor com dois significados (regra dos 3 papéis do laranja). */
+.sort-partial .link-button {
+  flex: 0 0 auto;
+  color: inherit;
+  text-decoration: underline;
+}

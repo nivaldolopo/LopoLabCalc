@@ -7,8 +7,10 @@
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
 > ⚠ **LEIA ISTO ANTES DO RESTO — o backlog voltou a ter item: a varredura AUD-14 (2026-08-25, a
-> 7ª e v4 da geral) abriu 9 defeitos.** A seção deles está **logo abaixo deste cabeçalho**; o lote 1
-> (`[D1]` `[D8]`) e o lote 2 (`[D2]` `[D3]`) fecharam no mesmo dia — **não há mais 🔴 aberto**. Tudo que os parágrafos seguintes chamam de "ZERADO"
+> 7ª e v4 da geral) abriu 9 defeitos.** A seção deles está **logo abaixo deste cabeçalho**; os lotes 1
+> (`[D1]` `[D8]`), 2 (`[D2]` `[D3]`) e 3 (`[D4]` `[D5]` `[D6]`) fecharam no mesmo dia — **não há
+> mais 🔴 aberto**, e o que sobra é o lote 4 (`[D7]` `[D9]` + alvos de toque + 7 comentários
+> falsos). Tudo que os parágrafos seguintes chamam de "ZERADO"
 > descreve o estado **até 2026-08-24** e continua valendo como registro do que fechou. Vários
 > parágrafos abaixo dizem "está ZERADO" descrevendo o estado **antes** da varredura **AUD-12** (a v2
 > da geral); a **AUD-13** (a v3) abriu 18 itens depois deles e **fechou os cinco lotes no mesmo
@@ -87,8 +89,8 @@
 |---|---|---|---|
 | **1 — a planilha da carga** | `[D1]` · `[D8]` | Era o único que **bloqueava o recadastro**: corrompe no caminho exato que o dono desenhou (sistema externo gera → confere no Excel → reimporta) | ✅ **FEITO (2026-08-25)** |
 | **2 — a escrita que evapora** | `[D2]` · `[D3]` | Quiosque tem rede ruim, e o app afirma "Sincronizado" enquanto perde o produto. Cada clique repetido enfileira outra escrita | ✅ **FEITO (2026-08-25)** |
-| **3 — a tela que informa errado** | `[D4]` · `[D5]` · `[D6]` | Não corrompem dado; informam errado uma decisão de negócio | ▶ **próximo** |
-| **4 — poeira e verdade escrita** | `[D7]` · `[D9]` + alvos de toque + as 7 afirmações falsas | Inerte hoje; é o padrão nº 10 (código morto que volta a ser chamado) e o comentário que envelhece | aberto |
+| **3 — a tela que informa errado** | `[D4]` · `[D5]` · `[D6]` | Não corrompem dado; informam errado uma decisão de negócio | ✅ **FEITO (2026-08-25)** — ⚠ sem prova ao vivo |
+| **4 — poeira e verdade escrita** | `[D7]` · `[D9]` + alvos de toque + as 7 afirmações falsas | Inerte hoje; é o padrão nº 10 (código morto que volta a ser chamado) e o comentário que envelhece | ▶ **próximo** (leva junto a medição pendente do lote 3) |
 
 ### ✅ FECHADOS no lote 1 (2026-08-25)
 
@@ -152,31 +154,58 @@
   ⚠ A ressalva de honestidade da varredura vale ao contrário agora: o que se mediu foi a guarda
   **funcionando**; o comportamento do `deleteDoc` no código velho continua não reproduzido ao vivo.
 
-### 🟠 Alto — ABERTOS
+### ✅ FECHADOS no lote 3 (2026-08-25)
 
-- 🟠 **[D4] No celular o seletor "Origem desta peça" fica com 22px.** É o controle que decide se a
-  venda **drena o acabado** ou imprime de novo. **Medido no DOM:** 375px → select **22,0×44**, texto
-  precisa de 241px (**9% visível**); 430px → 63,8px (27%); 641px → 233,8px (97%). A causa é
-  `.cesta-origem` (`display:flex`, `gap:8`, `flex-wrap:nowrap`, 259px) com o select em
-  `flex: 1 1 0%` / `min-width: auto` contra um botão de 242–250px: 22+8+250 = **280 > 259**.
-  **Atenuante medido:** o app **já pré-seleciona** "Estoque de acabados" quando há saldo — o risco
-  não é escolher errado, é não conseguir **conferir** nem trocar. É o padrão nº 8 na forma flex, e a
-  saída é a regra da casa: **fileira que não cabe vira CARTÃO** abaixo de 640.
+> ⚠ **Os três foram entregues com `lint` ✅, `build` ✅ e 761/761 ✅, mas SEM prova ao vivo.** O painel
+> do navegador embutido recusou **toda** navegação naquela sessão (testado até com `example.com`) e
+> não havia Chrome conectado. As medições marcadas **[medir]** abaixo continuam devendo — elas vão
+> junto do lote 4.
 
-- 🟠 **[D5] Ordenar o histórico ordena só a janela carregada.** "Receita (maior)" promete ranking do
-  histórico e entrega o ranking dos **25 mais recentes**. **Medido ao vivo:** com 23 de 41 recibos,
-  o topo saía `386,41 · 294,36 · 88,00 · 87,59`; com os 41, `386,41 · 294,36 · 159,34 · 105,30` —
-  **duas vendas maiores estavam escondidas**. O botão "Carregar mais vendas" continuava na tela, mas
-  nada dizia que o ranking era **parcial**. Com 47 itens o erro é pequeno; com 500 fica errado quase
-  sempre.
+- ✅ **[D4] FEITO — a fileira vira CARTÃO, e sem media query.** O defeito era o padrão nº 8 na forma
+  flex: `flex: 1 1 0%` com `min-width: auto` contra um vizinho rígido (o `CostDetail`, 242–250px),
+  em 259px de linha — 22 + 8 + 250 = 280, e o select ficava com **22,0px** para 241px de texto.
+  A saída é a regra da casa (UX-38/UX-40), mas escrita **sem `@media`**: `flex-wrap: wrap` no
+  `.cesta-origem` e `flex: 1 1 260px; min-width: 0` no select. **O gatilho certo aqui não é a
+  largura da TELA, é a do MODAL** — e a base de 260px (os 241 do texto mais folga) faz a quebra
+  acontecer exatamente onde o texto começaria a ser cortado, em vez de num número escolhido a dedo.
+  ⚠ O `min-width: 0` é obrigatório e vem junto: sem ele o mínimo implícito do flex é o min-content,
+  o `<select>` não encolhe, e a base de 260 viraria piso de 241 — a mesma armadilha da coluna `1fr`
+  pura nas grades.
+  **[medir]** a 375px: largura do select e % do texto visível; e que a fileira volta a ser UMA linha
+  no desktop.
 
-- 🟠 **[D6] `finishedColors` tem duas formas no banco, e a antiga é descartada em silêncio.**
-  2 dos 47 docs de `vendas` têm o campo: um em **array** (forma atual), outro em **mapa** (antiga).
-  O `salesRepository.toSale` só espalha quando `Array.isArray(...)` — o mapa **cai fora do spread**,
-  o campo some sem aviso, o `colorRecordOf` nunca roda e o `colorOf` cai em `NO_COLOR_KEY`. O
-  `finishedColorLabel` **continua sendo lido e exibido**, então o rótulo na tela discorda do que o
-  estorno faria. O caso concreto morre no recadastro; o que sobrevive é a lição — leitor que
-  descarta campo malformado **sem contar**.
+- ✅ **[D5] FEITO — a ordem parcial passou a se declarar, e dá pra completá-la.** Não dá para
+  empurrar o ranking ao servidor: a receita do recibo é a **soma dos itens** dele, agrupada no
+  cliente, e o Firestore não ordena por agregado. Então a tela ficou honesta em duas metades:
+  · **o aviso** — `partialRanking = hasMore && sortMode !== "recent"` acende uma faixa `--warn`
+  ("Esta ordem vale só para os N recibos já carregados"). **"Mais recentes" é a única isenta**, e
+  por um motivo, não por gentileza: é a ordem da própria consulta (`saleDate desc`), então os 25
+  carregados **são** os 25 do topo. Todas as outras — inclusive **"Mais antigas"**, que o achado não
+  citava — reordenam a janela e chamam o resultado de ranking do histórico.
+  · **a saída** — `loadAll()` no `useSalesPage` mira o `totals.count` (a aggregation query conta
+  DOCUMENTOS, a mesma unidade do `limit`, porque cada item de venda é um doc), com piso de uma
+  página a mais. Se o count vier atrasado ou curto, o `hasMore` — que é medido no servidor
+  (`docs.length > pageLimit`) — mantém o aviso na tela e outro clique avança. O aviso **não some
+  por conta própria**.
+  ⚠ Com filtro de PRODUTO o `hasMore` é sempre `false` (a consulta traz o conjunto inteiro), então
+  ali não há o que avisar — e é o desenho, não um furo.
+  **[medir]** com 41 recibos: que "Receita (maior)" com 25 carregados mostra a faixa, e que depois
+  do "Carregar tudo e reordenar" o topo passa de `386,41 · 294,36 · 88,00 · 87,59` para
+  `386,41 · 294,36 · 159,34 · 105,30`.
+
+- ✅ **[D6] FEITO — "não tem" deixou de ser a mesma coisa que "tem, e eu não consigo ler".**
+  `readFinishedColors` (em `finishedGoods.ts`, ao lado do par `colorEntriesOf`/`colorRecordOf`, e
+  coberta por 4 testes) devolve `{ entries, malformed }`. Campo ausente e lista vazia → `malformed:
+  false` (a venda de encomenda, a venda pré-FEAT-11: não há nada a lamentar); **mapa** ou lista cujos
+  itens não sobrevivem → `malformed: true`.
+  · **Sem migração, de propósito** (Diretriz 7): a forma de mapa nem consegue representar a peça
+  INTEIRA — o Firestore recusa `__whole__` como nome de campo, que é a razão de a lista existir.
+  Aceitá-la seria ressuscitar um formato que o app não sabe escrever.
+  · **O que mudou de verdade é o `finishedColorLabel`**: ele deixou de sobreviver sozinho. Era outro
+  campo, era lido e exibido, e com a lista descartada a tela dizia "Cor vendida: Azul" enquanto o
+  estorno não tinha prateleira de onde devolver. Rótulo sem lista agora **não aparece** — a ausência
+  é a informação honesta. Some junto um `console.warn` (fora de produção) com o id do recibo.
+  ⚠ A lição é do leitor, não do documento: os 2 docs concretos morrem no recadastro.
 
 ### 🟡 Médio — ABERTOS
 

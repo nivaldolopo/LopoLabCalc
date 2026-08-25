@@ -160,6 +160,46 @@ export function colorRecordOf(
   return record;
 }
 
+// AUD-14 [D6] — o LEITOR do campo persistido, e a diferença entre "não tem" e
+// "tem, e eu não consigo ler".
+//
+// O `toSale` fazia `Array.isArray(data.finishedColors) ? … : {}`: um documento
+// gravado na forma ANTIGA (mapa parte→cor, de antes de a lista existir) caía
+// fora do spread e o campo sumia SEM AVISO. O `finishedColorLabel`, que é outro
+// campo, continuava sendo lido e exibido — a tela dizia "Cor vendida: Azul"
+// enquanto o estorno não tinha de que prateleira devolver.
+//
+// Não há migração aqui de propósito (Diretriz 7: o dado de hoje é descartável, e
+// a forma de mapa nem consegue representar a peça INTEIRA — o Firestore recusa
+// `__whole__` como nome de campo, que é o motivo de a lista existir). O que muda
+// é que a perda passa a ser CONTADA: `malformed` diz que havia algo ali, e quem
+// chama decide o que fazer com o rótulo que sobrou.
+export type FinishedColorsRead = {
+  entries: FinishedColorEntry[];
+  // `true` só quando o campo EXISTE no documento e nada de útil saiu dele.
+  // Campo ausente (a venda de encomenda, a venda pré-FEAT-11) é `false`: ali
+  // não há nada a lamentar.
+  malformed: boolean;
+};
+
+export function readFinishedColors(raw: unknown): FinishedColorsRead {
+  if (raw == null) return { entries: [], malformed: false };
+  if (!Array.isArray(raw)) return { entries: [], malformed: true };
+  const entries: FinishedColorEntry[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const part = (item as { part?: unknown }).part;
+    if (!part) continue;
+    entries.push({
+      part: String(part),
+      colorKey: String((item as { colorKey?: unknown }).colorKey ?? ""),
+    });
+  }
+  // Lista vazia gravada é o mesmo caso do campo ausente (nada a reaplicar);
+  // lista COM itens que não sobreviveram à leitura é perda, e conta como tal.
+  return { entries, malformed: raw.length > 0 && entries.length === 0 };
+}
+
 // A chave de uma SKU já materializada.
 function keyOfSku(sku: FinishedSku): string {
   return skuKey(sku.subitemId, sku.colorKey);
