@@ -1,5 +1,9 @@
 import { formatDecimal } from "@/lib/formatting/currency";
-import { isMilharAmbiguo, parseDecimalPtBr } from "@/lib/formatting/number";
+import {
+  isMilharAmbiguo,
+  isMilharMultiplo,
+  parseDecimalPtBr,
+} from "@/lib/formatting/number";
 import { normalizeText } from "@/lib/text";
 import type {
   Accessory,
@@ -191,7 +195,7 @@ function parseNumber(value: string | undefined): number {
 // O `kind` existe por causa do CSV-12: o mesmo reporter agora carrega duas
 // notícias diferentes sobre o mesmo campo — "não consegui ler" e "li, mas o
 // ponto pode ser milhar". Quem recebe é que decide a classe de aviso.
-type NumIssueKind = "ilegivel" | "milhar";
+type NumIssueKind = "ilegivel" | "milhar" | "milhar-multiplo";
 type NumReporter = (campo: string, bruto: string, kind?: NumIssueKind) => void;
 
 function numFromJson(
@@ -211,7 +215,15 @@ function numFromJson(
   // porque 1,234 > 0. Aqui não há a ambiguidade que obrigou o CSV-07 a excluir
   // colunas: no JSON o decimal é escrito com PONTO por quem exporta, mas um
   // número com 3 casas exatas continua sendo o formato de milhar do Excel.
-  if (isMilharAmbiguo(value)) report?.(campo, String(value), "milhar");
+  // AUD-14/D1: e o ponto REPETIDO, que aqui dentro chega pelo mesmo caminho —
+  // uma célula JSON que alguém colou de volta depois de a planilha passar pelo
+  // Excel. Classe própria porque o conselho é outro: não há leitura a escolher,
+  // o número está corrompido.
+  if (isMilharMultiplo(value)) {
+    report?.(campo, String(value), "milhar-multiplo");
+  } else if (isMilharAmbiguo(value)) {
+    report?.(campo, String(value), "milhar");
+  }
   return parsed;
 }
 
@@ -799,6 +811,25 @@ function machineNameToId(
   return fallback?.id ?? "a1";
 }
 
+// AUD-14/D1 — o arquivo é pt-BR INTEIRO, sem exceção. Onze colunas de dinheiro
+// já saíam pelo `formatDecimal` ("1.234,56"); nove escalares saíam pelo
+// `String(number)` do `join`, ou seja com PONTO decimal. Misturar os dois
+// formatos no mesmo arquivo é o que arma a bomba: o Excel pt-BR lê o ponto como
+// separador de milhar e reescreve agrupando, e `5.283333333333333` volta da
+// planilha como `5.283.333.333.333.330` — 5,28 h viram 5,3 quatrilhões, o preço
+// vai a R$ 220 quatrilhões e a importação não tinha o que apontar (o aviso de
+// milhar exigia UM grupo; ali havia cinco). Medido na AUD-14: 6 dos 97 produtos,
+// só na coluna `Tempo (h)`, porque é a única com muitas casas — mas `Tarifa
+// Energia = 0.8`, `Markup = 2.4x` e `Filamento (R$/kg) = 104.5` corriam pelo
+// mesmo cano.
+//
+// Sem agrupar o milhar de propósito: agrupar reintroduz a ambiguidade do CSV-07
+// no arquivo do próprio app. Vírgula decimal e mais nada — que é exatamente o
+// que o `parseDecimalPtBr` lê de volta sem perder um dígito.
+function numeroPtBr(value: number | string | undefined): string {
+  return String(value ?? "").replace(".", ",");
+}
+
 export function exportProductsCsv(
   products: SavedProduct[],
   machines: Machine[],
@@ -825,12 +856,49 @@ export function exportProductsCsv(
       filaments: stripFilamentIds(normalizeFilaments(stage)),
     }));
 
+    // AUD-14/D8 (e o `[CSV-30]`, agora com número) — a mesma disciplina das
+    // etapas, pelo mesmo motivo, nas duas colunas que faltavam. `Acessorios
+    // JSON` e `Subitens JSON` eram dumpadas CRUAS do documento, e o Firestore
+    // não preserva ordem de chave em mapa: duas exportações do mesmo banco, sem
+    // nada ter mudado, davam arquivos diferentes. Medido na AUD-14: 24 células
+    // diferentes (18 acessórios + 5 subitens), **0 com dado diferente** — só
+    // ordem, `{"unitPrice","qty","desc"}` virando `{"desc","unitPrice","qty"}`.
+    // Importa porque quem conferir a planilha da carga com `diff` vai ver 24
+    // linhas de ruído escondendo a mudança de verdade.
+    // ⚠ O `productCsvRoundTrip` não pegava isto: lá a origem é o parser, que já
+    // monta com ordem fixa. Quem varia é o BANCO, e ele não entra naquele teste.
+    //
+    // A ordem é a que a importação produz — de novo "o que sai é o que entra".
+    // Consequência declarada: o `id` do acessório não é exportado, porque o
+    // `parseAccessories` não o lê de volta (o campo é chave de React, não
+    // identidade de negócio). Dumpar cru escrevia um id que o round-trip
+    // descartava calado.
+    const exportedAccessories = (product.accessories ?? []).map(
+      (accessory) => ({
+        desc: accessory.desc ?? "",
+        qty: accessory.qty,
+        unitPrice: accessory.unitPrice,
+        supplyId: accessory.supplyId ?? null,
+        subitemId: accessory.subitemId ?? null,
+      }),
+    );
+    const exportedSubitems = (product.subitems ?? []).map((subitem, index) => ({
+      id: subitem.id ?? `sub_${index}`,
+      name: subitem.name ?? "",
+      stageKeys: subitem.stageKeys ?? [],
+      // Omitido quando ausente, como no `parseSubitems`: escrever `markup:null`
+      // faria a volta ler 0 e o subitem perderia a herança do markup do produto.
+      ...(subitem.markup !== undefined && subitem.markup > 0
+        ? { markup: subitem.markup }
+        : {}),
+    }));
+
     return [
       csvCell(product.name),
       csvCell(product.mainStageName || ""),
       result.machine.name,
       formatDecimal(filamentsTotalG(mainFilaments)),
-      product.printHours,
+      numeroPtBr(product.printHours),
       product.piecesCount || 1,
       formatDecimal(result.materialCost),
       formatDecimal(result.energyCost),
@@ -844,25 +912,25 @@ export function exportProductsCsv(
       formatDecimal(result.totalCost),
       formatDecimal(result.suggestedPrice),
       product.roundingMode ?? "exact",
-      result.margin.toFixed(1),
-      `${product.markup}x`,
-      product.failureRate ?? DEFAULT_FAILURE_RATE,
-      mainFilaments[0]?.pricePerKg ?? 0,
-      product.energyTariff,
-      product.laborMinutes,
-      product.laborRate,
+      numeroPtBr(result.margin.toFixed(1)),
+      `${numeroPtBr(product.markup)}x`,
+      numeroPtBr(product.failureRate ?? DEFAULT_FAILURE_RATE),
+      numeroPtBr(mainFilaments[0]?.pricePerKg ?? 0),
+      numeroPtBr(product.energyTariff),
+      numeroPtBr(product.laborMinutes),
+      numeroPtBr(product.laborRate),
       includeFixed ? "sim" : "nao",
       csvCell(product.linkModel || ""),
       csvCell(product.linkCompetitor || ""),
       csvCell(product.linkFile || ""),
       csvCell(JSON.stringify(exportedStages)),
-      csvCell(JSON.stringify(product.accessories || [])),
+      csvCell(JSON.stringify(exportedAccessories)),
       csvCell(JSON.stringify(mainFilaments)),
       // FEAT-01: a flag vai SEPARADA do array de propósito — desligar a venda
       // por subitens não apaga os subitens salvos, então "desligado com partes
       // guardadas" é um estado real que inferir de `subitems.length` perderia.
       product.sellBySubitems ? "sim" : "nao",
-      csvCell(JSON.stringify(product.subitems || [])),
+      csvCell(JSON.stringify(exportedSubitems)),
     ].join(";");
   });
 
@@ -1251,6 +1319,17 @@ export function parseProductsCsv(
     // CSV-06: todo número dentro dos 4 JSONs passa a ser lido em pt-BR, e o que
     // não der para ler vira aviso NOMEANDO o campo — em vez de virar 0 calado.
     const reportNumero: NumReporter = (campo, bruto, kind = "ilegivel") => {
+      if (kind === "milhar-multiplo") {
+        addIssue(
+          "milhar-multiplo-json",
+          "Número com VÁRIOS pontos de milhar dentro de uma célula JSON — " +
+            "valor grande demais para qualquer campo deste app. Quase sempre é " +
+            "um decimal que passou pelo Excel; confira a célula no arquivo de " +
+            "origem",
+          `${ondeEstou}: ${campo} = "${bruto}" → ${parseDecimalPtBr(bruto)}`,
+        );
+        return;
+      }
       if (kind === "milhar") {
         // Classe própria, e não a `milhar-ambiguo` das colunas: o conselho é
         // outro. Na coluna a saída é escrever com vírgula decimal; dentro do
@@ -1589,6 +1668,49 @@ export function parseProductsCsv(
         addIssue(
           "milhar-ambiguo",
           'Número com ponto e 3 casas foi lido como DECIMAL — se era separador de milhar, use vírgula decimal ("1234,00")',
+          `${ondeEstou}: coluna "${coluna}" = "${bruto}" → ${parseNumber(bruto)}`,
+        );
+      }
+    });
+
+    // 3b-2) AUD-14/D1 — o ponto de milhar REPETIDO, que é outra história e por
+    // isso outra lista. Aqui não há leitura a escolher: `parseDecimalPtBr` lê
+    // como milhar e acerta a regra; o que está errado é o número, que só existe
+    // porque um decimal com ponto passou pelo Excel pt-BR e voltou agrupado.
+    //
+    // Por isso a lista é TODA coluna que entra no documento, inclusive as duas
+    // que a checagem de 3b exclui de propósito. O argumento que tirou
+    // `Tempo (h)` de lá — "2375 h são 99 dias, absurdo, não há ambiguidade" —
+    // é justamente o que traz a coluna para cá: absurdo é o que se quer
+    // apontar. E `Taxa Falha (%)`, clampada em 95, entra porque o clamp
+    // ESCONDE o estrago: 5.283.333 vira 95 e o produto sai com reserva de falha
+    // de 95% sem nada dizer que a célula estava corrompida.
+    //
+    // Medido na AUD-14, antes desta trava: `Tempo (h)` = "5.283.333.333.333.330"
+    // em 6 dos 97 produtos, `warnings: []`, `issues: [cor-avulsa,
+    // nome-duplicado]` — nada sobre o número. O preço do "Chronicles of
+    // Drunagor" foi de R$ 604,90 para R$ 220.229.124.579.124.670.
+    ([
+      [indexWeight, "Peso (g)"],
+      [indexTime, tempoEmMinutos ? "Tempo (min)" : "Tempo (h)"],
+      [indexTimeMinutes, "Tempo (min)"],
+      [indexPieces, "Pecas"],
+      [indexFilament, "Filamento (R$/kg)"],
+      [indexMarkup, "Markup"],
+      [indexFailure, "Taxa Falha (%)"],
+      [indexLaborMinutes, "Mao de obra (min)"],
+      [indexLaborRate, "Valor-hora (R$)"],
+      [indexEnergy, "Tarifa Energia"],
+    ] as const).forEach(([index, coluna]) => {
+      if (index < 0) return;
+      const bruto = columns[index]?.trim();
+      if (bruto && isMilharMultiplo(bruto)) {
+        addIssue(
+          "milhar-multiplo",
+          "Número com VÁRIOS pontos de milhar — valor grande demais para " +
+            "qualquer coluna deste app. Quase sempre é um decimal que passou " +
+            'pelo Excel pt-BR ("5,28" vira "5.283.333.333.333.330"); escreva ' +
+            "com vírgula decimal e confira a célula no arquivo de origem",
           `${ondeEstou}: coluna "${coluna}" = "${bruto}" → ${parseNumber(bruto)}`,
         );
       }

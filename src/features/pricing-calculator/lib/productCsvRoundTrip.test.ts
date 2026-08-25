@@ -446,3 +446,91 @@ describe("importação — arquivo escrito à mão", () => {
     expect(produtos.map((p) => p.name)).toEqual(["Chaveiro", "Caneca"]);
   });
 });
+
+// AUD-14/D1 — o arquivo é pt-BR inteiro. Onze colunas de dinheiro já saíam
+// assim; nove escalares saíam com PONTO decimal, e é o ponto que o Excel pt-BR
+// lê como separador de milhar.
+describe("AUD-14/D1 — nenhuma coluna escalar sai com ponto decimal", () => {
+  const csvExportado = exportProductsCsv([cobaia], machines, fixedCosts, stock);
+  const { headers, body } = rows(csvExportado);
+  const celula = (coluna: string) => body[0][headers.indexOf(coluna)];
+
+  it("as 9 colunas que saíam com ponto, uma a uma", () => {
+    expect(celula("Tempo (h)")).toBe("4,75");
+    expect(celula("Tarifa Energia")).toBe("1,07");
+    expect(celula("Valor-hora (R$)")).toBe("55,5");
+    expect(celula("Markup")).toBe("2,8x");
+    expect(celula("Filamento (R$/kg)")).toBe("118,9");
+    expect(celula("Mao de obra (min)")).toBe("42");
+    expect(celula("Taxa Falha (%)")).toBe("7");
+    expect(celula("Pecas")).toBe("3");
+    expect(celula("Margem (%)")).not.toContain(".");
+  });
+
+  it("varredura: fora dos 4 JSONs, nenhuma célula tem ponto", () => {
+    // O ponto dentro do JSON é o decimal do próprio JSON e tem de ficar —
+    // trocá-lo por vírgula quebraria o `JSON.parse`.
+    // `Arredondamento` também fica: "0.90" ali é o NOME do modo (um enum), não
+    // um número — e a volta já aceita as duas grafias (`normalizeRounding`
+    // troca vírgula por ponto antes de comparar com a lista).
+    const NAO_NUMERICAS = [...JSON_COLS, "Arredondamento"];
+    const comPonto = headers
+      .map((h, i) => [h, body[0][i]] as const)
+      .filter(([h, v]) => !NAO_NUMERICAS.includes(h) && !h.startsWith("Link") && v.includes("."));
+    expect(comPonto).toEqual([]);
+  });
+
+  it("o caso que corrompeu: 5,283333333333333 h sobrevive ao round-trip", () => {
+    // O produto real "Insert Emberheart Luiz", cujo 5.283333333333333 voltou do
+    // Excel como 5.283.333.333.333.330.
+    const horas = 5.283333333333333;
+    const csvA = exportProductsCsv(
+      [{ ...cobaia, printHours: horas }], machines, fixedCosts, stock,
+    );
+    expect(rows(csvA).body[0][rows(csvA).headers.indexOf("Tempo (h)")]).toBe(
+      "5,283333333333333",
+    );
+    expect(reimport(csvA)[0].printHours).toBe(horas);
+  });
+});
+
+// AUD-14/D8 — o `[CSV-30]` com número: 24 células mudavam de texto sem mudar de
+// dado, porque `Acessorios JSON` e `Subitens JSON` eram dumpadas CRUAS e o
+// Firestore não preserva ordem de chave em mapa.
+describe("AUD-14/D8 — o export não depende da ordem de chave do banco", () => {
+  // O MESMO produto, com as chaves dos mapas em outra ordem: é o que o
+  // Firestore devolve numa segunda leitura.
+  const embaralhado: SavedProduct = {
+    ...cobaia,
+    accessories: cobaia.accessories?.map((a) => ({
+      subitemId: a.subitemId, unitPrice: a.unitPrice, supplyId: a.supplyId,
+      desc: a.desc, qty: a.qty,
+    })),
+    subitems: cobaia.subitems?.map((s) => ({
+      stageKeys: s.stageKeys, ...(s.markup !== undefined ? { markup: s.markup } : {}),
+      name: s.name, id: s.id,
+    })),
+  };
+
+  it("as duas exportações dão o MESMO texto, byte a byte", () => {
+    const a = exportProductsCsv([cobaia], machines, fixedCosts, stock);
+    const b = exportProductsCsv([embaralhado], machines, fixedCosts, stock);
+    expect(b).toBe(a);
+  });
+
+  it("e a ordem escrita é a que a importação produz", () => {
+    const { headers, body } = rows(exportProductsCsv([cobaia], machines, fixedCosts, stock));
+    const acessorio = JSON.parse(body[0][headers.indexOf("Acessorios JSON")])[0];
+    expect(Object.keys(acessorio)).toEqual([
+      "desc", "qty", "unitPrice", "supplyId", "subitemId",
+    ]);
+    const subitem = JSON.parse(body[0][headers.indexOf("Subitens JSON")])[1];
+    expect(Object.keys(subitem)).toEqual(["id", "name", "stageKeys", "markup"]);
+  });
+
+  it("markup ausente segue OMITIDO — null viraria 0 na volta", () => {
+    const { headers, body } = rows(exportProductsCsv([cobaia], machines, fixedCosts, stock));
+    const primeiro = JSON.parse(body[0][headers.indexOf("Subitens JSON")])[0];
+    expect(Object.keys(primeiro)).toEqual(["id", "name", "stageKeys"]);
+  });
+});

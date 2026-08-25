@@ -14,21 +14,24 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-24): `[UX-47]` + `[UX-52]` — e com eles o BACKLOG DE CÓDIGO ZEROU.**
-  A **fileira de acessórios virou CARTÃO no celular** (a última que faltava) e a régua de 44px
-  **perdeu a exceção inteira**: abaixo de 640 pelo cartão, de 641 a 760 **alargando a trilha** (onde
-  sobra espaço, dá-se largura; não se encolhe o alvo). E o **"N disp." diz as duas coisas** —
-  `7 disp. · 3 nesta cor` —, então o aviso de "4 além" fecha à vista. `lint` ✅ · `build` ✅ ·
-  **729/729** ✅ · **medido no DOM em 5 larguras** (375: descrição 77→229px, excluir 32→44 e DENTRO
-  da linha, stepper 14→28; 641/700 em pé; **desktop inalterado**) e conferido ao vivo no banco real.
+- **Última mudança (2026-08-25): AUD-14, lote 1 — `[D1]` + `[D8]`, a planilha da carga.** O CSV do
+  catálogo virou **pt-BR inteiro**: 9 colunas escalares saíam com PONTO decimal, e o Excel pt-BR lê
+  ponto como milhar — `5.283333333333333` voltava `5.283.333.333.333.330` (6 dos 97 produtos, preço
+  a R$ 220 quatrilhões, `warnings: []`). A importação passou a **acusar** o ponto repetido (classe
+  `milhar-multiplo`, 10 colunas + dentro do JSON), e o export escreve `Acessorios/Subitens JSON` com
+  **ordem de chave fixa** (fecha o `[CSV-30]`). `lint` ✅ · `build` ✅ · **749/749** em 3 rodadas ✅ ·
+  **14 testes novos falham contra o código velho** · **round-trip real no Excel 16 pt-BR (COM)**:
+  formato velho → os 6 valores inflados e o aviso acende; novo → horas intactas, 0 avisos.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — não há item de código aberto.** A AUD-13 fechou inteira e os dois últimos
-  resíduos de UI (`[UX-47]`, `[UX-52]`) fecharam em 2026-08-24. Resta a **frente do DONO** (abaixo)
-  e o `[FEAT-03]`/branding, adiado por ele.
+- **▶ PRÓXIMA TAREFA — AUD-14, lote 2 (o offline).** `[D2]` a escrita que **evapora** com Wi-Fi
+  conectado sem internet (o app diz "Sincronizado", o botão nunca vira "Salvando…" e o clique some)
+  e `[D3]` o excluir produto, **único dos 15 caminhos sem `guardOnline`**. Depois o lote 3 (`[D4]`
+  `[D5]` `[D6]`) e o 4 (`[D7]` `[D9]` + alvos de toque + 7 afirmações falsas), **um commit por
+  lote** (dono, 2026-08-25); mecanismo e medição de cada um no `BACKLOG.md`.
   → A frente do DONO segue a mesma: cadastrar as cores e os insumos definitivos e passar os ids pro
   **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
   (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. A carga **não cria**

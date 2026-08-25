@@ -1788,3 +1788,95 @@ describe("CSV-37 — letra no meio do número não vira outro número", () => {
     expect(r.products[0].weightG).not.toBe(230);
   });
 });
+
+// AUD-14/D1 — a reprodução do defeito, do jeito que ele apareceu: o CSV
+// exportado abriu no Excel 16 pt-BR, foi salvo e reimportado. Seis dos 97
+// produtos voltaram com `Tempo (h)` multiplicado por 10¹⁵ e a importação
+// devolveu `warnings: []` — nenhum aviso sobre o número.
+describe("AUD-14/D1 — o decimal que o Excel transformou em milhar", () => {
+  it("o valor medido acende a classe, citando a célula crua e o que entrou", () => {
+    const resultado = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Tempo (h)": "5.283.333.333.333.330" }),
+      machines,
+      opcoes,
+    );
+    const issue = achar(resultado.issues, "milhar-multiplo");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain('"5.283.333.333.333.330"');
+    expect(issue?.exemplos[0]).toContain("5283333333333330");
+    // A classe de UM grupo não se mete: as duas leituras não são plausíveis
+    // aqui, e o conselho é outro.
+    expect(achar(resultado.issues, "milhar-ambiguo")).toBeUndefined();
+  });
+
+  it("`Tempo (h)` estava FORA da checagem de 3b — é a coluna do defeito", () => {
+    // O argumento que excluía a coluna de lá ("2375 h são 99 dias, absurdo") é
+    // o que a traz para cá: absurdo é justamente o que se quer apontar.
+    const antes = parseProductsCsv(csv({ ...LINHA_BOA, "Tempo (h)": "2.375" }), machines, opcoes);
+    expect(achar(antes.issues, "milhar-multiplo")).toBeUndefined();
+    expect(achar(antes.issues, "milhar-ambiguo")).toBeUndefined();
+  });
+
+  it("`Taxa Falha (%)` entra porque o clamp de 95 ESCONDE o estrago", () => {
+    const resultado = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Taxa Falha (%)": "5.283.333" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(resultado.issues, "milhar-multiplo")?.linhas).toBe(1);
+    // O produto entra com 95% de reserva de falha; sem o aviso, nada dizia que
+    // a célula estava corrompida.
+    expect(resultado.products[0].failureRate).toBe(95);
+  });
+
+  it("as outras colunas que entram no documento", () => {
+    const colunas: Record<string, string> = {
+      "Peso (g)": "1.234.567",
+      Pecas: "1.234.567",
+      "Filamento (R$/kg)": "1.234.567",
+      Markup: "1.234.567x",
+      "Mao de obra (min)": "1.234.567",
+      "Valor-hora (R$)": "1.234.567",
+      "Tarifa Energia": "1.234.567",
+      "Tempo (min)": "1.234.567",
+    };
+    Object.entries(colunas).forEach(([coluna, valor]) => {
+      const resultado = parseProductsCsv(csv({ ...LINHA_BOA, [coluna]: valor }), machines, opcoes);
+      expect(
+        achar(resultado.issues, "milhar-multiplo"),
+        `coluna "${coluna}" não acendeu`,
+      ).toBeDefined();
+    });
+  });
+
+  it("dentro do JSON tem classe própria — lá o conselho é outro", () => {
+    const resultado = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: "cor_laranja", colorName: "Laranja", pricePerKg: 110, totalG: "1.234.567" },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(resultado.issues, "milhar-multiplo-json")?.linhas).toBe(1);
+    expect(achar(resultado.issues, "milhar-ambiguo-json")).toBeUndefined();
+  });
+
+  it("contraponto: a linha boa não acende nenhuma das duas", () => {
+    const resultado = parseProductsCsv(csv(LINHA_BOA), machines, opcoes);
+    expect(achar(resultado.issues, "milhar-multiplo")).toBeUndefined();
+    expect(achar(resultado.issues, "milhar-multiplo-json")).toBeUndefined();
+  });
+
+  it("o decimal em pt-BR que o export passou a escrever atravessa intacto", () => {
+    const resultado = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Tempo (h)": "5,283333333333333" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(resultado.issues, "milhar-multiplo")).toBeUndefined();
+    expect(resultado.products[0].printHours).toBe(5.283333333333333);
+  });
+});

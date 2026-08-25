@@ -6,8 +6,10 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
-> ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código está ZERADO desde 2026-08-24: nenhum item
-> aberto, nem de UI nem de cálculo.** Vários
+> ⚠ **LEIA ISTO ANTES DO RESTO — o backlog voltou a ter item: a varredura AUD-14 (2026-08-25, a
+> 7ª e v4 da geral) abriu 9 defeitos.** A seção deles está **logo abaixo deste cabeçalho**; `[D1]` e
+> `[D8]` fecharam no mesmo dia (lote 1). Tudo que os parágrafos seguintes chamam de "ZERADO"
+> descreve o estado **até 2026-08-24** e continua valendo como registro do que fechou. Vários
 > parágrafos abaixo dizem "está ZERADO" descrevendo o estado **antes** da varredura **AUD-12** (a v2
 > da geral); a **AUD-13** (a v3) abriu 18 itens depois deles e **fechou os cinco lotes no mesmo
 > dia** — A, B, C, D e E (os 11 🟢). A seção dela é a **última** deste arquivo, logo acima de
@@ -62,6 +64,178 @@
 > **Atualização 2026-08-23:** os 3 bloqueantes da AUD-09 ([CSV-09], [CSV-10], [CSV-11]) e os 4 do
 > lote B foram fechados no mesmo dia. **O que falta antes da carga é do dono:** cadastrar as cores
 > e os insumos definitivos — só então eu gero a de-para e a planilha-modelo (lote C).
+
+## 🔴 ABERTO — cluster da varredura AUD-14 (2026-08-25) — a 7ª, v4 da geral
+
+> **A pergunta que ela existiu para responder:** *a Diretriz 7 pode expirar?* Resposta medida:
+> **sim, com uma trava** — havia um caminho que corrompia a carga **em silêncio** (o `[D1]`, que
+> fechou no lote 1). Relatório completo, com as medições cruas:
+> [artifact 99e19ac1](https://claude.ai/code/artifact/99e19ac1-7b0b-4d05-8640-2fb3217eab71).
+> Números de base: **729/729 em 4 execuções sem flake** · divergência máxima contra a conta à mão
+> **8,0×10⁻¹²** · 1.902 medições de contraste, 0 falhas · backup de **251 documentos**, **0 docs com
+> dado alterado ao fim** · **32 afirmações anteriores refeitas: 25 bateram, 7 não** (4 delas são
+> comentários no código descrevendo comportamento que mudou).
+>
+> **Os 6 erros que entram CALADOS** (a 2ª pergunta do dono): `[D1]` horas ×10¹⁵ · `[D2]` escrita
+> perdida offline · `[D3]` exclusão offline · `[D6]` `finishedColors` em formato antigo · `[D5]`
+> ranking parcial · `[D9]` preço divergente no evento. Três deles (`[D2]` `[D3]` `[D6]`) são
+> invisíveis **mesmo depois**.
+
+### Ordem dos lotes AUD-14 (dono, 2026-08-25: "lote 1 e ir aos outros depois, um commit por lote")
+
+| Lote | Itens | Por que esses | Estado |
+|---|---|---|---|
+| **1 — a planilha da carga** | `[D1]` · `[D8]` | Era o único que **bloqueava o recadastro**: corrompe no caminho exato que o dono desenhou (sistema externo gera → confere no Excel → reimporta) | ✅ **FEITO (2026-08-25)** |
+| **2 — a escrita que evapora** | `[D2]` · `[D3]` | Quiosque tem rede ruim, e o app afirma "Sincronizado" enquanto perde o produto. Cada clique repetido enfileira outra escrita | ▶ **próximo** |
+| **3 — a tela que informa errado** | `[D4]` · `[D5]` · `[D6]` | Não corrompem dado; informam errado uma decisão de negócio | aberto |
+| **4 — poeira e verdade escrita** | `[D7]` · `[D9]` + alvos de toque + as 7 afirmações falsas | Inerte hoje; é o padrão nº 10 (código morto que volta a ser chamado) e o comentário que envelhece | aberto |
+
+### ✅ FECHADOS no lote 1 (2026-08-25)
+
+- ✅ **[D1] FEITO — o arquivo é pt-BR INTEIRO, e o ponto repetido passou a ACUSAR.**
+  Duas metades, porque a planilha da carga é **gerada por máquina que o app não controla**:
+  · **o export** — 11 colunas de dinheiro já saíam pelo `formatDecimal`; **9 escalares** saíam pelo
+  `String(number)` do `join`, ou seja com PONTO decimal (`Tempo (h)`, `Tarifa Energia`,
+  `Valor-hora`, `Markup`, `Filamento (R$/kg)`, `Mao de obra (min)`, `Taxa Falha`, `Pecas`,
+  `Margem`). Agora todas saem com vírgula, **sem agrupar o milhar** (agrupar reintroduziria a
+  ambiguidade do CSV-07 no arquivo do próprio app).
+  · **a importação** — classe nova `milhar-multiplo` (+ `milhar-multiplo-json`): **2 grupos ou mais**
+  de milhar não é ambiguidade a resolver, é número corrompido, e **nenhuma coluna deste app tem
+  valor plausível acima de 999.999**. A lista é TODA coluna que entra no documento, inclusive as
+  duas que o `isMilharAmbiguo` exclui de propósito — `Tempo (h)` (a coluna do defeito) e
+  `Taxa Falha (%)`, onde o **clamp de 95 ESCONDE o estrago**.
+  **Medido no Excel 16 pt-BR de verdade (COM), com os 6 valores reais da varredura:** formato velho
+  → `5.283333333333333` volta `5.283.333.333.333.330`, `printHours` = 5283333333333330 e o aviso
+  **acende 6×** citando a célula crua; formato novo → `5,283333333`, **0 avisos**. A truncagem do
+  Excel na volta custa **3,3×10⁻¹⁰ h** (1,2 µs), não os 10¹⁵ de antes.
+  ⚠ **Para a spec da planilha:** o número vai com **vírgula decimal**. Dentro dos JSONs continua
+  ponto (é o decimal do JSON — vírgula quebraria o `JSON.parse`), e `Arredondamento = 0.90` é
+  **nome de modo**, não número.
+  ⚠ O CSV do `/vendas` foi conferido junto e **não tem o defeito**: escreve tudo por `formatDecimal`.
+
+- ✅ **[D8] FEITO — o export não depende mais da ordem de chave do banco (fecha o `[CSV-30]`).**
+  `Acessorios JSON` e `Subitens JSON` eram dumpadas **cruas** do documento, e o Firestore não
+  preserva ordem de chave em mapa: duas exportações do mesmo banco, sem nada mudar, davam arquivos
+  diferentes — **24 células** (18 + 5), **0 com dado diferente**. Agora são remontadas campo a campo
+  na ordem que a importação produz, como as etapas já eram.
+  ⚠ **Consequência declarada:** o `id` do acessório **não é exportado**, porque o `parseAccessories`
+  não o lê de volta — dumpar cru escrevia um id que o round-trip descartava calado.
+  ⚠ O `productCsvRoundTrip` não pegava isto: lá a origem é o **parser** (ordem fixa), não o banco.
+
+### 🔴 Crítico — ABERTOS
+
+- 🔴 **[D2] Offline, o app diz "Sincronizado" e o clique some sem deixar rastro.** Com a rede caída
+  mas o **Wi-Fi conectado** (portal cativo / DNS que engole — o caso comum num quiosque),
+  `navigator.onLine` continua `true`, então o `guardOnline` **não dispara**, o
+  `await productsApi.addProduct(...)` **pendura** e o `saveCurrentProduct` **não tem estado de
+  "salvando"** — o botão nunca muda de "Salvar". **Medido:** modo 1 (a rede pendura) → 4 cliques,
+  mensagem `null`, status "Sincronizado", reload → **as 4 escritas evaporaram**; modo 2 (a rede
+  rejeita) → religou a rede, o formulário **limpou sozinho** e a escrita entrou **atrasada**
+  (97 → 98 produtos). Cada clique repetido enfileira outra escrita.
+  **Saída proposta:** estado "Salvando…" + **timeout** na promessa (o SDK enfileira e nunca rejeita),
+  com mensagem explícita e o formulário **não** limpando. Decidir se o helper cobre só o salvar
+  produto ou os 15 caminhos.
+
+- 🔴 **[D3] Excluir produto é o único dos 15 caminhos de escrita sem `guardOnline`.**
+  `ProductCatalog.confirmDelete` → `useProducts.deleteProduct` → `removeProduct` → `deleteDoc` puro.
+  O **mesmo arquivo** guarda a importação (`ProductCatalog.tsx:357`). Os outros 14 (StockPage 5×,
+  SuppliesTab 5×, ProductionPage 2×, SalesPage, SaleModal 2×, PricingCalculator, `useMachines`,
+  `useFees`, `useQuoteConfig`, `useQuotes`, `useBusinessSettings`) têm o guarda em algum nível.
+  ⚠ Ressalva de honestidade da varredura: a ausência do guarda é **fato medido**; o comportamento ao
+  vivo foi reproduzido no `addDoc` (D2), não no `deleteDoc`.
+
+### 🟠 Alto — ABERTOS
+
+- 🟠 **[D4] No celular o seletor "Origem desta peça" fica com 22px.** É o controle que decide se a
+  venda **drena o acabado** ou imprime de novo. **Medido no DOM:** 375px → select **22,0×44**, texto
+  precisa de 241px (**9% visível**); 430px → 63,8px (27%); 641px → 233,8px (97%). A causa é
+  `.cesta-origem` (`display:flex`, `gap:8`, `flex-wrap:nowrap`, 259px) com o select em
+  `flex: 1 1 0%` / `min-width: auto` contra um botão de 242–250px: 22+8+250 = **280 > 259**.
+  **Atenuante medido:** o app **já pré-seleciona** "Estoque de acabados" quando há saldo — o risco
+  não é escolher errado, é não conseguir **conferir** nem trocar. É o padrão nº 8 na forma flex, e a
+  saída é a regra da casa: **fileira que não cabe vira CARTÃO** abaixo de 640.
+
+- 🟠 **[D5] Ordenar o histórico ordena só a janela carregada.** "Receita (maior)" promete ranking do
+  histórico e entrega o ranking dos **25 mais recentes**. **Medido ao vivo:** com 23 de 41 recibos,
+  o topo saía `386,41 · 294,36 · 88,00 · 87,59`; com os 41, `386,41 · 294,36 · 159,34 · 105,30` —
+  **duas vendas maiores estavam escondidas**. O botão "Carregar mais vendas" continuava na tela, mas
+  nada dizia que o ranking era **parcial**. Com 47 itens o erro é pequeno; com 500 fica errado quase
+  sempre.
+
+- 🟠 **[D6] `finishedColors` tem duas formas no banco, e a antiga é descartada em silêncio.**
+  2 dos 47 docs de `vendas` têm o campo: um em **array** (forma atual), outro em **mapa** (antiga).
+  O `salesRepository.toSale` só espalha quando `Array.isArray(...)` — o mapa **cai fora do spread**,
+  o campo some sem aviso, o `colorRecordOf` nunca roda e o `colorOf` cai em `NO_COLOR_KEY`. O
+  `finishedColorLabel` **continua sendo lido e exibido**, então o rótulo na tela discorda do que o
+  estorno faria. O caso concreto morre no recadastro; o que sobrevive é a lição — leitor que
+  descarta campo malformado **sem contar**.
+
+### 🟡 Médio — ABERTOS
+
+- 🟡 **[D7] Código morto com armadilha embutida.** `saveRecibo` (`salesRepository`) — **0 chamadores,
+  nem em teste** — grava com `writeBatch` **só** na coleção `vendas`, sem `lerEConferirRevs`, sem
+  reconciliação de estoque, e com `batch.set(ref, payload)` **cru**, sem passar pelo
+  `saleToDocument`. `useSales.deleteSale` → `removeSale` → `deleteDoc` puro: sem estorno e sem
+  guarda; nenhum componente destrutura. Quem reencontrar o `saveRecibo` vai achar que é o caminho de
+  gravar recibo. Junto vão **os comentários que mentem**: o do `serializeSkus` (diz que é exportado
+  para a baixa da produção — só tem chamador **dentro do próprio arquivo**), o do `shiftLayers`/
+  TD-028 (descreve o retorno antigo; hoje **lança erro**) e o do `quoteConfigRepository` (diz que a
+  numeração é derivada do histórico; hoje é `config/orcamentoSeq`).
+
+- 🟡 **[D9] O evento de produção guarda dois preços de filamento diferentes.** No mesmo documento,
+  `filaments[0].pricePerKg` traz o preço de **catálogo** (rolo mais novo) e o
+  `frozenBreakdown.material` traz o custo **FIFO real** — e nada diz qual é qual. **Medido** em
+  `producao/32Fa5M0jFy2wvCe7dDod`: Laranja 40 g a `pricePerKg: 85` → Σ = R$ 3,40, contra
+  `material: 4,40` (40 g × R$ 110/kg, o rolo que o FIFO consumiu): **R$ 1,00 de divergência no mesmo
+  documento**. É por design, mas vira armadilha para o **sistema externo** que for ler esses
+  documentos — renomear o campo (ex.: `catalogPricePerKg`) resolve.
+
+### ⚠️ Ressalvas da AUD-14 (não são itens; viram item se o dono mandar)
+
+- **A régua de 44px NÃO perdeu a exceção inteira** — a afirmação do `CLAUDE.md` era minha e está
+  errada. Medido a 375×812, com recarga antes: `navbar-toggle` **40×40** nas 7 rotas (falta 4px nos
+  2 eixos) · `.icon-button.edit` **38,6×44** no `/vendas` (×24) · `.icon-label-button` **40×44** ·
+  `.back-to-top` **42×42** · `.collapse-head` 294×**41** · `.stock-hex-input` 285×**37** ·
+  `.skip-link` 162,6×**32** (só no foco) · `summary` no desktop 1047×**18** (régua 32). A ressalva
+  herdada falava em "1–4px": **a faixa real vai de 2 a 24px**. Entra no lote 4.
+- **Nome acessível por `title`, não por `aria-label`** — nos 48 botões só-ícone do `/vendas` e nos 5
+  do `/catalogo`, `aria-label` é `null`. Satisfaz a WCAG (o `title` é fonte válida de nome), mas
+  contraria a regra escrita do projeto e **não aparece no toque**. A AUD-13 afirmou "com
+  `aria-label`" no catálogo: **não bate**.
+- **Os `<select>` cortam texto sem reticências** — no `/` a 375px o seletor de cor tem 135px úteis
+  para 186px de texto (51px cortados, `text-overflow: clip`). Importa porque o dono vai cadastrar
+  **muitas cores**.
+- **Lixo que o recadastro leva embora** (registrado só para não voltar como achado novo): 18 dos 97
+  produtos carregam um campo `id` **dentro** do documento, e um deles aponta para **outro produto**
+  (resíduo do "salvar como novo") · 65 dos 97 ainda têm `markupOnFixed`, morto desde a DEC-01 · **4**
+  docs de `acabados` órfãos com saldo 0 (a AUD-13 disse 2; eram 3, e o 4º é da própria AUD-14) · um
+  acabado com saldo **−1** (`teste 3 avisos etapa 8`, −R$ 13,07) · dois contadores de orçamento
+  (`config/orcamentoSeq.last = 21`, o vivo, e `config/orcamento.lastNumber = 2`, lixo).
+  ⚠ **A mecânica que sobrevive ao recadastro:** `saveProduct` usa `tx.update`, que faz **merge** —
+  campo que o `buildProductPayload` deixe de gravar fica no documento **para sempre**.
+- **`roundPrice("0.90")` devolve 48,899999999999998579** em vez de 48,90 exato — ruído de ponto
+  flutuante abaixo do centavo, mas é assim que vai para o `suggestedPrice`.
+- **Reconferidas e idênticas:** o **overdraft de −370 g na Bege** (saldo 243 g = −370 do rolo de
+  18/07 + 613 do de 10/08; furo de contagem física, o D4 preserva de propósito) · o **`[A11Y-02]`**
+  continua **falso positivo**, agora confirmado no fonte · o **`[TD-021]`** segue ressalva do dono.
+
+### O que a AUD-14 NÃO cobriu
+
+- **Dos 7 buracos herdados, 4 fecharam** (offline real → virou o `[D2]` · duas abas com o guarda
+  `rev` → passou · forma dos documentos no Firestore → virou o `[D6]` e três ressalvas · `/maquinas`
+  além da leitura → watts editados, 60 produtos recalculados, tudo restaurado). **Seguem abertos:**
+  **escala acima de 500 produtos** (o dono não autorizou as 1.040 escritas; o corte de 500 do
+  `createProductsBatch`, onde o lote pode entrar pela metade, segue **sem prova**) · **regras de
+  segurança do Firestore** (5ª varredura seguida, exige 2ª conta Google) · **Google Sheets** (o
+  Excel fechou; o Sheets exigiria login e envio de arquivo).
+- Importação/exportação de **vendas** (o botão "Exportar CSV" do `/vendas` existe e não foi
+  exercitado) · navegadores fora do Chromium embutido e **iOS Safari real** · o **modal de máquinas
+  nas larguras de celular** · a exclusão de produto **offline ao vivo** · **screenshots** (o painel
+  não estava compondo quadros; toda medição visual saiu do DOM).
+- ⚠ **Armadilha nova, para a próxima varredura:** a regra do projeto sobre `transition` na leitura
+  de cor tem forma pior que a documentada — **quando o painel não está compondo quadros, a transição
+  não avança nunca**, e esperar não resolve. Só `transition: none` antes de ler devolve o valor
+  real. Custou um falso positivo (147 falsas falhas de contraste em 7 rotas).
 
 ## Ordem de prioridade — ondas (dono, 2026-08-16)
 

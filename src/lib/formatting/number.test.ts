@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMilharAmbiguo, parseDecimalPtBr } from "./number";
+import { isMilharAmbiguo, isMilharMultiplo, parseDecimalPtBr } from "./number";
 
 describe("parseDecimalPtBr", () => {
   it("lê o pt-BR do dia a dia", () => {
@@ -198,5 +198,53 @@ describe("CSV-37 — letra ENTRE dígitos não é número", () => {
 
   it('"2 e 5" era o exemplo do AUD-11/D-4 — agora é null, não 25', () => {
     expect(parseDecimalPtBr("2 e 5")).toBeNull();
+  });
+});
+
+// AUD-14/D1 — o ponto de milhar REPETIDO. Não é ambiguidade: é o retrato de um
+// decimal que passou pelo Excel pt-BR e voltou agrupado.
+describe("isMilharMultiplo — o número que o Excel inflou", () => {
+  it("os 6 valores medidos na AUD-14, crus do arquivo salvo pelo Excel", () => {
+    expect(isMilharMultiplo("5.283.333.333.333.330")).toBe(true);
+    expect(isMilharMultiplo("52.666.666.666.666.600")).toBe(true);
+    expect(isMilharMultiplo("25.833.333.333.333.300")).toBe(true);
+    expect(isMilharMultiplo("6.183.333.333.333.330")).toBe(true);
+    expect(isMilharMultiplo("3.506.666.666.666.660")).toBe(true);
+    expect(isMilharMultiplo("7.366.666.666.666.660")).toBe(true);
+  });
+
+  it("dois grupos já bastam — 1.234.567 não é valor de nenhuma coluna daqui", () => {
+    expect(isMilharMultiplo("1.234.567")).toBe(true);
+    expect(isMilharMultiplo("R$ 1.234.567")).toBe(true);
+    expect(isMilharMultiplo("-1.234.567")).toBe(true);
+  });
+
+  it("UM grupo continua sendo do isMilharAmbiguo, e não daqui", () => {
+    expect(isMilharMultiplo("1.234")).toBe(false);
+    expect(isMilharAmbiguo("1.234")).toBe(true);
+  });
+
+  it("não acende no que o próprio export escreve", () => {
+    // Depois do D1 o export escreve vírgula; antes escrevia ponto decimal, e
+    // nenhuma das duas formas casa o padrão.
+    expect(isMilharMultiplo("5,283333333333333")).toBe(false);
+    expect(isMilharMultiplo("5.283333333333333")).toBe(false);
+    expect(isMilharMultiplo("2,5")).toBe(false);
+    expect(isMilharMultiplo("1.234,56")).toBe(false);
+    expect(isMilharMultiplo("")).toBe(false);
+    expect(isMilharMultiplo(5.28)).toBe(false);
+  });
+
+  it("científica sai antes, como no irmão (CSV-29)", () => {
+    expect(isMilharMultiplo("1.234.567E+03")).toBe(false);
+  });
+
+  it("grupo de tamanho errado não é milhar", () => {
+    expect(isMilharMultiplo("1.23.456")).toBe(false);
+    expect(isMilharMultiplo("1.2345.678")).toBe(false);
+  });
+
+  it("o número lido continua sendo o milhar — o defeito é o valor, não a leitura", () => {
+    expect(parseDecimalPtBr("5.283.333.333.333.330")).toBe(5283333333333330);
   });
 });
