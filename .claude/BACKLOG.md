@@ -6,14 +6,17 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
-> ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código voltou a ZERAR em 2026-08-24.** Vários
+> ⚠ **LEIA ISTO ANTES DO RESTO — o backlog de código voltou ao MÍNIMO em 2026-08-24 (2 itens de
+> UI, nenhum de cálculo).** Vários
 > parágrafos abaixo dizem "está ZERADO" descrevendo o estado **antes** da varredura **AUD-12** (a v2
 > da geral); a **AUD-13** (a v3) abriu 18 itens depois deles e **fechou os cinco lotes no mesmo
 > dia** — A, B, C, D e E (os 11 🟢). A seção dela é a **última** deste arquivo, logo acima de
 > "## Fechado", e vale reler por dois motivos: ela **refuta parte da AUD-12** (o lote D daquela
 > quebrou o `/producao`, `[TD-026]` 🔴) e ela deixa **ressalvas registradas** — os alvos a 1–4px da
 > régua, o overdraft de −370 g na cor Bege, o `[UX-47]`, o `[CSV-30]`/`[TD-021]` e o `[A11Y-02]`,
-> que fechou como **falso positivo declarado**. O que continua ABERTO de código é só o `[UX-47]`.
+> que fechou como **falso positivo declarado**. ABERTO de código sobraram **dois**, os dois de
+> UI: o `[UX-47]` e o `[UX-52]` (aberto pela prova ao vivo do lote E — o "N disp." soma as
+> cores e o aviso ao lado fala de uma cor só).
 >
 > **Da AUD-12 (a v2), para o registro:** ela abriu **17 itens** — o cabeçalho dizia 15, e a conta
 > estava errada: o rótulo "4 🟡" vinha
@@ -993,7 +996,7 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   (`subitemId`/`supplyId`). Os **dados** são idênticos (diff canônico limpo); só o texto difere.
   Importa apenas para quem comparar arquivos com `diff`.
 
-### Aberto — o que o Lote E deixou (2026-08-23)
+### Aberto — o resíduo de UI (Lote E da AUD-12, 2026-08-23 · + `[UX-52]`, 2026-08-24)
 
 - **[UX-47] A fileira de acessórios devia virar CARTÃO no celular.** *(aberto pelo Lote E, com
   medição)*. A `.accessory-row` é `1fr 60px 90px 32px` em **toda** largura — ela nunca virou cartão,
@@ -1004,6 +1007,20 @@ entra na spec da planilha. [CSV-18], [CSV-19] e [CSV-20] são resíduo legado qu
   campo de descrição fica com 77px. **A saída é a regra do projeto (UX-38/UX-40)**, a mesma receita
   do `.fg-part` já usada em 4 lugares: abaixo dos ~300px úteis a linha quebra em faixas. Espremer
   trilha não resolve — não há folga para espremer.
+- **[UX-52] O "N disp." soma as cores; o aviso ao lado fala de UMA cor — e os dois números
+  aparecem juntos.** *(aberto pela prova ao vivo do `[CSV-34]`, 2026-08-24, com medição)*. Medido no
+  recibo mais recente do `/vendas`: o rótulo diz **"Estoque de acabados (8 disp.)"** e o seletor de
+  cor logo abaixo lista **"Bege (4) · Laranja (4)"**; pondo quantidade **8**, o aviso responde
+  **"⚠ 4 além do estoque de acabados — o saldo fica negativo"**. Os dois estão CERTOS e medem coisas
+  diferentes: o rótulo é `partBalance` (FEAT-11 soma todas as cores de propósito — "a cor decide de
+  onde tirar, não quantas existem") e o aviso vem do `consumeFifo`, que drena da cor ESCOLHIDA. Não
+  é o CSV-34 (aquele era o rótulo não creditar o recibo em edição, e fechou — o delta bateu com o
+  que cada recibo drenou, recibo a recibo). É a leitura lado a lado que fica contraditória: "tenho
+  8" e "4 além" na mesma tela, a 2cm de distância.
+  **Saída provável (barata, escolha do dono):** o rótulo dizer as duas coisas — `8 disp. (4 nesta
+  cor)` — ou o aviso nomear a cor ("4 além do saldo de Bege"). Nenhuma das duas mexe em cálculo.
+  ⚠ Só aparece em produto que existe em MAIS DE UMA cor no acabado; em uma cor só os números
+  coincidem, que é por que ninguém viu antes.
 - 📌 **Ressalva medida: o `.icon-button.edit` do `/vendas` renderiza 39×44** dentro do
   `.recibo-head-side` (5px a menos na horizontal, contra 28×28 antes). O contêiner não estoura
   (`overflow: 0`) e `flex: none` não muda o número — a compressão não vem do flex-shrink. Não vale

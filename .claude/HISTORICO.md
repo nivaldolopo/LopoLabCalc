@@ -16,7 +16,9 @@
 > por digitação, um saldo que a tela e o aviso liam diferente, e **toda a régua de 44px do celular**.
 > `lint` ✅ · `build` ✅ · **729/729** ✅ (18 testes novos; **4 deles falham** contra o código velho —
 > os outros são contraponto) · medição no DOM em **7 rotas a 375px**, com o "antes" obtido
-> desligando as regras novas na própria página.
+> desligando as regras novas na própria página · e **prova ao vivo no banco real** do CSV-34 (5
+> recibos, antes × depois) e do TD-032 (teto na digitação, com o valor restaurado e conferido).
+> **A prova ao vivo abriu um item novo: o `[UX-52]`.**
 >
 > ⚠ **Um item saiu como FALSO POSITIVO declarado: o `[A11Y-02]`.** Ver o fim desta seção.
 
@@ -62,8 +64,12 @@ sucesso") passaram a flexionar. Os outros plurais fixos do app foram conferidos 
 o defeito era **chegar nele digitando 100**: o editor guardava 100, o `feeFraction` clampava em 0,95
 e os dois números discordavam em silêncio. O teto virou **um número só** — `MAX_FEE_PCT = 95`,
 exportado do `paymentFees` — e o editor clampa a **entrada** nele (`clampFeePct`, mais `max` nos 5
-campos). Agora o que se lê no campo é o que entra na conta, e "o preço sobe para cobrir a taxa de
-95%" torna o ×20 uma escolha visível.
+campos JSX, que renderizam **11 campos** com `max="95"`). Agora o que se lê no campo é o que entra na
+conta, e "o preço sobe para cobrir a taxa de 95%" torna o ×20 uma escolha visível.
+**Medido ao vivo** no campo Pix do editor: digitar `100` **deixa 95** no campo, `250` deixa 95, `7`
+deixa 7 (abaixo do teto nada se move). O valor original (0) foi restaurado e conferido **depois de um
+reload** — as 11 taxas voltaram ao retrato de antes (pix/dinheiro/outro 0 · visa/master 1,36 · 3,14 ·
+5,38 · 6,11 · amex/elo 2,57 · 4,90 · 6,46 · 7,19).
 
 ### CSV-34 — a tela e o aviso liam saldos diferentes
 
@@ -75,6 +81,29 @@ gravar nada; o `balanceForItem` e o `colorOptionsOf` passaram a ler dela.
 ⚠ **Ordem de declaração de novo:** o `oldRecibo` (um `useMemo`) vivia depois do `stockItems`, que é
 outro `useMemo` e chama o `balanceForItem` **durante o render** — deixá-lo onde estava daria
 ReferenceError. Subiu para o topo do componente, com a razão escrita no lugar.
+
+**Medido ao vivo, no banco real, recibo a recibo** (o mesmo código com e sem o conserto, trocando só
+a fonte do `good`): o crédito é **exatamente o que aquele recibo drenou**, nunca um a mais.
+
+| recibo | o que ele drenou | antes (`goods` cru) | depois (creditado) |
+|---|---|---|---|
+| #0 | 1 linha × 1 un | 7 disp. | **8** |
+| #1 | 1 linha × 1 un | 5 disp. | **6** |
+| #3 | 1 linha × **2** un | 6 disp. | **8** |
+| #4 | 1 linha × 1 un | 6 disp. | **7** |
+| #5 | **2 linhas** × 1 un | 6 disp. | **8** |
+| #2, #6, #7 (encomenda) | nada — sem `finishedMoves` | 0 | **0** |
+
+O #5 é a conferência que fecha o argumento: ele credita **+2** com "qtd 1" no campo, porque são
+**duas linhas** do mesmo produto no mesmo recibo — a soma é por `finishedMove`, não por linha. E o
+seletor de COR foi junto: as opções do #0 somam `Bege (4) + Laranja (4) = 8`, o mesmo 8 creditado do
+rótulo (com o `goods` cru elas somariam 7).
+
+⚠ **A prova ao vivo abriu um item novo, o `[UX-52]`** (registrado no `BACKLOG.md`): com quantidade 8
+sobre esse rótulo de "8 disp.", o aviso responde **"4 além do estoque"** — e os dois estão certos. O
+rótulo é `partBalance`, que **soma as cores** por desenho do FEAT-11; o aviso vem do `consumeFifo`,
+que drena da cor **escolhida** (Bege, 4). Não é resíduo do CSV-34 — é a leitura lado a lado que fica
+contraditória, e só acontece em produto que existe em mais de uma cor.
 
 ### Código morto — TD-030 e TD-031
 

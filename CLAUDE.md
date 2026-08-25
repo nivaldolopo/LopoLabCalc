@@ -14,30 +14,31 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-24): LOTE E fechado — e com ele a AUD-13 INTEIRA e o backlog de
-  código.** Os 11 🟢: o parser parou de aceitar número que não é número (letra ENTRE dígitos vira
-  `null` — `"5X0"` entrava 50; `Pecas` 0/−1 avisa; coluna repetida com grafia VARIANTE recebe o
-  conselho certo; o portão flexiona "1 produto"), a taxa de pagamento ganhou **um teto só**
-  (`MAX_FEE_PCT`, clampado também na ENTRADA), o "N disp." passou a creditar o recibo em edição,
-  saíram 2 pedaços de **código morto** e a **régua de 44px do celular** subiu o que faltava.
-  ⚠ **`[A11Y-02]` fechou como FALSO POSITIVO** — o `aria-hidden` do pai já tira as setas da árvore.
-  `lint` ✅ · `build` ✅ · **729/729** ✅ (18 novos, 4 falham contra o código velho) · **medido no DOM
-  em 7 rotas a 375px** (`/` +27px de altura, o resto ≤ +18, `/maquinas` 0; desktop inalterado).
+- **Última mudança (2026-08-24): LOTE E fechado — e com ele a AUD-13 INTEIRA.** Os 11 🟢: o parser
+  parou de aceitar número que não é número (letra ENTRE dígitos vira `null` — `"5X0"` entrava 50;
+  `Pecas` 0/−1 avisa; coluna repetida com grafia VARIANTE recebe o conselho certo; o portão flexiona
+  "1 produto"), a taxa ganhou **um teto só** (`MAX_FEE_PCT`, clampado também na ENTRADA), o
+  "N disp." credita o recibo em edição, saíram 2 pedaços de **código morto** e a **régua de 44px do
+  celular** subiu o que faltava. ⚠ **`[A11Y-02]` fechou como FALSO POSITIVO** (o `aria-hidden` do
+  pai já tira as setas da árvore). `lint` ✅ · `build` ✅ · **729/729** ✅ (18 novos, 4 falham contra o
+  código velho) · **medido no DOM em 7 rotas a 375px** (`/` +27px, o resto ≤ +18, `/maquinas` 0;
+  desktop inalterado) e **ao vivo no banco real** (CSV-34 em 5 recibos; TD-032 restaurado depois).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — não há item de CÓDIGO aberto.** Sobrou o **`[UX-47]`** (a `.accessory-row`
-  virar CARTÃO no celular: é a única fileira que nunca virou, e a trilha fixa não tem folga para
-  espremer) e as ressalvas que o dono já decidiu deixar de fora. O que resta é a frente do DONO.
+- **▶ PRÓXIMA TAREFA — sobraram 2 itens de UI, nenhum de cálculo.** O **`[UX-47]`** (a
+  `.accessory-row` virar CARTÃO no celular: é a única fileira que nunca virou, e a trilha fixa não
+  tem folga para espremer) e o **`[UX-52]`**, aberto pela prova ao vivo do lote E — o "N disp." soma
+  as cores e o aviso ao lado fala de UMA cor ("8 disp." × "4 além", os dois certos). O resto é a
+  frente do DONO.
   → A frente do DONO segue a mesma: cadastrar as cores e os insumos definitivos e passar os ids pro
   **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
   (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro. A carga **não cria**
   cor nem insumo, e não tem "limpar catálogo" — a regra de auto-id/de-para está no `BACKLOG.md`.
-- ⚠ **Ainda pendentes:** o dono precisa **cadastrar os insumos e religar os acessórios** (os de hoje
-  entram no custo mas não dão baixa) · e o Dashboard fecha as duas ressalvas já na tela — payback do
-  `/maquinas` sobre lucro **bruto** (UX-09) e paginar que resolveu a lista, não a análise (TD-006).
+- ⚠ **Ainda pendentes (dono):** **cadastrar os insumos e religar os acessórios** (os de hoje entram
+  no custo mas não dão baixa) · o Dashboard fecha as ressalvas de UX-09 e TD-006 já na tela.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
   `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
 - **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).
