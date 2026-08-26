@@ -13,26 +13,32 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-25): AUD-14, lote 4 — a varredura ZEROU (os 4 lotes no mesmo dia).**
-  `[D7]` saiu o **código morto que gravava recibo por fora da reconciliação** (`saveRecibo` +
-  `removeSale` + `useSales.deleteSale`), e 7 comentários que descreviam código antigo foram refeitos
-  · `[D9]` o evento de produção guardava **dois preços** sem dizer qual: o de catálogo virou
-  **`catalogPricePerKg`** (insumo idem, `catalogUnitPrice`) e o real segue no `frozenBreakdown` ·
-  **alvos de toque**: varri o DOM das 7 rotas em vez de conferir lista — **0 abaixo de 44 a 375px e
-  0 abaixo de 32 a 1280**. A **prova ao vivo do lote 3** veio junto e **refutou 2 frases minhas** do
-  `[D4]` (medições no `BACKLOG.md`). `lint` ✅ · `build` ✅ · **764/764** ✅.
+- **Última mudança (2026-08-26): AUD-15 — a varredura de REGRESSÃO dos 4 lotes da AUD-14 REABRIU o
+  backlog: 6 defeitos (`[E1]`…`[E6]`) + 2 ressalvas, nenhum corrigido.** Os 9 itens da AUD-14
+  **sobreviveram** (o `[D9]` provado com escrita real: FIFO batendo dígito a dígito, 0 drift no
+  estorno) — o que caiu foram **afirmações sobre** eles: **47 refeitas, 38 bateram, 8 não, 1
+  parcial**. Os 2 que entram **calados**: `[E6]` (a trava de milhar é de **pontuação**, não de
+  magnitude — R$ 1,2 milhão entra da planilha externa com `warnings: []`) e `[E4]` (o chip diz
+  "Sincronizado" com a rede do Firestore derrubada). Os buracos da régua de 44px: `[E1]` `[E2]`
+  (641–760px) e `[E3]` (4 alvos no **modal de venda** — os 9 diálogos ficaram fora da varredura de
+  ontem). `[E5]`: `tsc` acusa **2** erros, o 2º nasceu no `c990679`. Itens + medições no
+  `BACKLOG.md`; relatório em
+  [artifact 20582690](https://claude.ai/code/artifact/20582690-a94f-4d52-8fca-d6dec7244a00).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — nenhuma de código: o backlog voltou a ZERO.** A frente é do DONO —
-  cadastrar cores/insumos definitivos e passar os ids pro **sistema externo dele**, que **gera** a
-  planilha. **Sem botão de planilha-modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no
-  chat** depois do cadastro (regras no `BACKLOG.md`).
-  ⚠ **Se ele pedir código antes disso**, o que sobra são **ressalvas** da AUD-14 (viram tarefa só se
-  ele mandar): nome acessível por `title` e não `aria-label` · `<select>` que corta sem reticências ·
-  o lixo que o recadastro leva embora. Medições no `BACKLOG.md`.
+- **▶ PRÓXIMA TAREFA — o cluster AUD-15, se o dono mandar (a ordem dos lotes é sugestão, não
+  decisão dele).** Sugerido: **1)** `[E6]` (a única **trava do recadastro** — dado que o dono não
+  digita) · **2)** `[E1]` `[E2]` `[E3]` (um commit de CSS só) · **3)** `[E5]` (uma linha na fixture)
+  · **4)** `[E4]` (o mais caro: exige `snapshot.metadata.fromCache`, não `navigator.onLine`).
+  Em paralelo, a frente do DONO segue a mesma — cadastrar cores/insumos definitivos e passar os ids
+  pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
+  (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro (regras no
+  `BACKLOG.md`). ⚠ **A varredura respondeu "pode recadastrar? SIM, com uma trava": o `[E6]`.**
+  Ressalvas antigas (viram tarefa só se ele mandar): nome acessível por `title` e não `aria-label` ·
+  `<select>` que corta sem reticências (reconfirmado em 8,5%) · o lixo que o recadastro leva embora.
 - ⚠ **Ainda pendentes (dono):** **cadastrar os insumos e religar os acessórios** (os de hoje entram
   no custo mas não dão baixa) · o Dashboard fecha as ressalvas de UX-09 e TD-006 já na tela.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail

@@ -6,12 +6,21 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
+> ⚠ **LEIA PRIMEIRO — a varredura AUD-15 (2026-08-26, a 8ª) é de REGRESSÃO: o alvo foi o código
+> dos 4 lotes da AUD-14, não o sistema.** Ela **reabriu o backlog de código**: **6 defeitos**
+> (`[E1]`…`[E6]`) + **2 ressalvas**, nenhum corrigido. A seção deles está **logo abaixo deste
+> cabeçalho**, ACIMA da AUD-14. Placar: **47 afirmações de ontem refeitas — 38 bateram, 8 não,
+> 1 parcial** (a AUD-14 tinha derrubado 7 de 32; o padrão do repositório se repetiu). **Os 9 itens
+> da AUD-14 continuam fazendo o que esta seção diz que fazem** — o que caiu foram *afirmações
+> sobre* eles. **A resposta à pergunta "pode recadastrar?" é SIM, com uma trava: o `[E6]`**, o
+> único que morde dado que o dono **não digitou** (a planilha vem do sistema externo).
+>
 > ⚠ **LEIA ISTO ANTES DO RESTO — a varredura AUD-14 (2026-08-25, a 7ª e v4 da geral) abriu 9
-> defeitos e os 4 lotes FECHARAM no mesmo dia.** A seção deles está **logo abaixo deste cabeçalho**:
-> lote 1 (`[D1]` `[D8]`), 2 (`[D2]` `[D3]`), 3 (`[D4]` `[D5]` `[D6]`) e 4 (`[D7]` `[D9]` + alvos de
-> toque + as afirmações falsas, este com a prova ao vivo do lote 3 junto). **O backlog de código
-> voltou a ZERO** — o que sobra ali são as ressalvas (viram item só se o dono mandar) e a lista do
-> que a varredura não cobriu. Tudo que os parágrafos seguintes chamam de "ZERADO"
+> defeitos e os 4 lotes FECHARAM no mesmo dia.** A seção deles está **logo abaixo da seção da
+> AUD-15**: lote 1 (`[D1]` `[D8]`), 2 (`[D2]` `[D3]`), 3 (`[D4]` `[D5]` `[D6]`) e 4 (`[D7]` `[D9]`
+> + alvos de toque + as afirmações falsas, este com a prova ao vivo do lote 3 junto). **O backlog
+> de código voltou a ZERO** — ⚠ isso valeu **só até 2026-08-25**: a AUD-15 o reabriu (ver a nota
+> acima). O que sobra na seção da AUD-14 são as ressalvas dela e a lista do que ela não cobriu. Tudo que os parágrafos seguintes chamam de "ZERADO"
 > descreve o estado **até 2026-08-24** e continua valendo como registro do que fechou. Vários
 > parágrafos abaixo dizem "está ZERADO" descrevendo o estado **antes** da varredura **AUD-12** (a v2
 > da geral); a **AUD-13** (a v3) abriu 18 itens depois deles e **fechou os cinco lotes no mesmo
@@ -67,6 +76,180 @@
 > **Atualização 2026-08-23:** os 3 bloqueantes da AUD-09 ([CSV-09], [CSV-10], [CSV-11]) e os 4 do
 > lote B foram fechados no mesmo dia. **O que falta antes da carga é do dono:** cadastrar as cores
 > e os insumos definitivos — só então eu gero a de-para e a planilha-modelo (lote C).
+
+## 🔴 ABERTO — cluster da varredura AUD-15 (2026-08-26) — a 8ª, REGRESSÃO dos lotes da AUD-14
+
+> **O alvo não foi o sistema, foi o código de ontem.** Os 4 lotes da AUD-14 mexeram em 46 arquivos
+> e na camada de escrita inteira, e ninguém além de quem os escreveu os exercitou. Relatório
+> completo, com as medições cruas:
+> [artifact 20582690](https://claude.ai/code/artifact/20582690-a94f-4d52-8fca-d6dec7244a00).
+> Números de base: **764/764 em 5 execuções sem flake** · **escrita real autorizada** (4 eventos de
+> produção gravados e estornados) · **diff campo a campo contra backup integral: 0 documentos com
+> dado alterado** · `lint` ✅ `build` ✅ · **`tsc` acusa 2 erros** (1 pré-existente + 1 novo, o `[E5]`).
+> **4 achados dela caíram como falso positivo e estão declarados no relatório** (o BOM do CSV de
+> vendas, o `material`/`brand` do round-trip, o `0.90` no Excel, e o teste da rejeição solta).
+>
+> **Os 2 que entram CALADOS:** `[E4]` (status "Sincronizado" com a rede caída — sem aviso na hora
+> e sem divergência visível depois) e `[E6]` (valor de magnitude absurda vindo da planilha externa,
+> com `issues: []` e `warnings: []`). Os outros 4 são visíveis.
+>
+> **Reconferido no código em 2026-08-26** (não é só o relatório falando): `[E1]` `[E2]` `[E3]`
+> `[E5]` `[E6]` e a ressalva `[R1]` foram todos reproduzidos estaticamente — ordem dos `@import`,
+> ausência de regra de alvo, a regex, a saída do `tsc` e o `git show c990679~1`.
+
+### Ordem sugerida (não decidida pelo dono)
+
+| Lote | Itens | Por que esses | Estado |
+|---|---|---|---|
+| **1 — a trava do recadastro** | `[E6]` | É o único que morde dado que o dono **não digita**, e o recadastro é a próxima frente. Uma linha de checagem | ⏳ aberto |
+| **2 — a régua do dedo, de novo** | `[E1]` `[E2]` `[E3]` | Um commit de CSS só. A conclusão "0 abaixo de 44" do lote 4 vale nas rotas, **não** em 641–760px nem com diálogo aberto | ⏳ aberto |
+| **3 — o tipo que se perdeu** | `[E5]` | Uma linha na fixture. Nasceu no `c990679` | ⏳ aberto |
+| **4 — o indicador que mente** | `[E4]` | O mais caro dos quatro (exige sonda de conectividade real, não `navigator.onLine`) e o que entra mais calado | ⏳ aberto |
+
+### 🔴 Bloqueia (ou encarece) o recadastro
+
+- 🔴 **[E6] `isMilharMultiplo` é trava de PONTUAÇÃO, e a premissa que a justifica é de MAGNITUDE.**
+  O comentário do `number.ts:139-143` argumenta que 2+ grupos de milhar bastam *"porque nenhuma
+  coluna deste app tem valor plausível acima de 999.999"*. A regex é
+  `/^-?\d{1,3}(?:\.\d{3}){2,}$/` — **ancorada no fim**, então **qualquer parte decimal desarma a
+  trava**, e formato en-US e inteiro cru nunca a acionam.
+  **Medido:** `1.234.567` → pega ✓ · `1.234.567,89`, `1,234,567.89`, `1.234.567,00` e `1234567` →
+  **todos passam**, `parse` = 1234567(,89), `issues: []`, `warnings: []`. Importação com
+  Valor-hora = R$ 1,2 milhão nas 3 formas entra calada.
+  **Conserto:** somar uma checagem de magnitude (`Math.abs(parsed) > 999999`) ao lado da de
+  pontuação — é o que a premissa já promete por escrito. Arquivos: `src/lib/formatting/number.ts`
+  e as duas chamadas em `productCsv.ts` (`:222` e `:1707`).
+  ⚠ **Importa porque a planilha da carga é gerada por um sistema externo que o app não controla.**
+
+### 🟠 Alvos de toque — a régua de 44px tem dois buracos que o lote 4 não viu
+
+- 🔴 **[E1] `.roi-warn > summary` fica em 32px dentro do regime de 44 — e a 375 passou por sorte.**
+  `responsive.css` é o **8º** `@import` e escreve `min-height: 44px` para
+  `.result-advanced > summary, .roi-warn > summary`; `machines.css` é o **14º** e reescreve
+  `.roi-warn > summary { min-height: var(--space-32) }`. **Mesma especificidade, e media query não
+  soma** — quem vem depois vence, então o override **nunca alcançou**. O irmão
+  `.result-advanced` mora em `sections.css` (4º, *antes*) e por isso funciona.
+  **Medido:** 641px e 760px → caixa 600×32 e 719×32, `min-height` computado **32px** (−12 da
+  régua). A 375px a frase quebra em 2 linhas e a caixa vai a 50px **naturalmente** — o alvo passa
+  sem a regra que deveria garanti-lo.
+  ⚠ **Derruba a afirmação escrita no `machines.css:141`:** *"no celular o `responsive.css` leva os
+  dois a 44"*. O comentário sai junto com o conserto.
+  ⚠ **É a armadilha da especificidade do `@media` que o próprio lote 4 documentou** (está no
+  `HISTORICO.md`, em "Regras de CSS/UI") — e ele caiu nela.
+
+- 🔴 **[E2] `.toggle-wrap` = 318×33 a 641 e 760px, e nunca teve regra de alvo em lugar nenhum.**
+  Os dois interruptores das seções recolhíveis da calculadora ("Vende por subitens", em
+  `SubitemsSection.tsx:64`, e "Custos fixos", em `FixedCostsPanel.tsx:37`). `sections.css:205`
+  escreve `padding: 0` e **nenhum arquivo** escreve `min-height` — o computado é `auto`.
+  **Medido:** 641 e 760px → 318×33 (−11). A 375px passa **só porque o rótulo quebra** (197×47 e
+  202×75).
+  ⚠ **A faixa 641–760 importa:** iPhone SE/8 em paisagem são 667px — tela de dedo, dentro do buraco.
+
+- 🟠 **[E3] 4 alvos abaixo de 44px dentro do MODAL DE VENDA — a varredura de ontem não abriu
+  diálogo nenhum.** A afirmação *"0 alvos abaixo de 44 a 375px"* é verdadeira **como escrita** —
+  *nas 7 rotas*. Os **9 diálogos** ficaram fora, e o modal de venda é o caminho de escrita mais
+  usado do app.
+  **Medido a 375×812:** `.fee-edit-link` ("Ajustar taxas") **84,5 × 23,0** (−21; `fees.css:48`,
+  `padding: var(--space-4)` e nada mais) · `.discount-mode-toggle > button` ×3 ("Nenhum" / "Por
+  item" / "No total") **40,0** de altura (−4; `cesta-recibo.css:224`). `min-height` computado nos
+  quatro = `auto`.
+  ✅ O **modal de máquinas**, conferido junto, está **são** — 0 alvos pequenos, 0 rolagem lateral.
+  ⚠ **Os outros 7 diálogos não foram abertos.** Como o de venda já rendeu 4, é provável que rendam
+  mais — vale varrer os 9 de uma vez no mesmo commit.
+
+### 🟠 Entra CALADO
+
+- 🟠 **[E4] O status de nuvem diz "Sincronizado" com a rede do Firestore derrubada.**
+  O lote 2 (`[D2]`) consertou o botão e a escrita. **O indicador que fez o dono confiar na escrita
+  em primeiro lugar continua mentindo** — e é ele que o comentário do `errors.ts:38` cita como
+  parte do defeito original.
+  **Medido** com `disableNetwork(db)` pelo SDK autenticado da própria página (o cenário exato do
+  `[D2]`: Wi-Fi conectado sem internet), 12 leituras em 18s: o chip fica em
+  `.cloud-status synced :: "Sincronizado"` **o tempo inteiro** — conjunto de 1 —, antes, durante e
+  depois, com `navigator.onLine = true` sempre.
+  **Mecanismo:** o `onSnapshot` serve do CACHE quando a rede cai, e o status vira `synced` do
+  mesmo jeito. Consertar exige olhar `snapshot.metadata.fromCache` / `hasPendingWrites` (ou uma
+  sonda de escrita), **não** o `navigator.onLine`. Arquivos: os hooks de coleção +
+  `PageHeader.tsx:22-27` (o `statusLabel`).
+  ⚠ Entra **calado**: não há aviso na tela nem divergência visível depois.
+
+### 🟡 Médio
+
+- 🟡 **[E5] `tsc --noEmit` acusa 2 erros, não 1 — e o segundo nasceu no lote 4.**
+  **Medido:** `productionPlan.test.ts(256,9): error TS2322` — a fixture `const laranja:
+  StockFilament` não tem `material`, `brand` nem `minG` (de `StockFilamentInput`). O
+  `git show c990679~1` do arquivo mostra **0 referências** a `StockFilament`: o import e a fixture
+  entraram os dois no lote 4, **na prova do `[D9]`**.
+  O outro erro (`calculatePricing.test.ts(205,30)`, TS2352) é **pré-existente** e fica de fora.
+  **Escapa porque `pnpm build` não typa teste e `pnpm lint` não roda `tsc`.** O teste passa e
+  assere certo; o que se perdeu foi a proteção do tipo sobre a fixture.
+  ⚠ Vale decidir junto se `tsc --noEmit` entra na rotina de "concluir a tarefa" (hoje é `lint`,
+  `build` e `test`) — foi só por isso que este passou.
+
+### ⚠️ Ressalvas da AUD-15 (não são itens; viram item se o dono mandar)
+
+- ⚠️ **[R1] `readFinishedColors` conta a perda TOTAL e cala a PARCIAL.**
+  `finishedGoods.ts:199` — `malformed = raw.length > 0 && entries.length === 0`. Um item torto no
+  MEIO de uma lista boa some sem nada dizer, que é a classe de coisa que o `[D6]` existe para
+  impedir. **Medido:** `1 torto + 3 bons` → `entries: 3`, `malformed: false` (perde 1 calado) ·
+  `{part: "a"}` sem `colorKey` → entra com `colorKey: ""` · `{part: 0}` (falsy) → `malformed: true`,
+  inconsistente com o caso acima. Alcançar isso exige documento escrito à mão — por isso é
+  ressalva.
+
+- ⚠️ **[R2] Os "9 escalares" do `[D1]` são 8 — e sobra uma célula com ponto que nenhuma lista cita.**
+  Varredura de TODA célula escalar do export: `"Pecas" = "2.5"` (ponto, fora do `numeroPtBr`) e
+  `"Arredondamento" = "0.90"` (ponto, em nenhuma das duas listas); **as outras 22 com vírgula** ✓.
+  Round-trip real no Excel 16 pt-BR: `"0.90"` volta **intacto** (o Excel a trata como TEXTO, não é
+  agrupamento pt-BR válido) e, se `"2.5"` virasse `25`, o `validateProduct` **reprova**
+  `piecesCount` não-inteiro nos DOIS caminhos (form e importação) → não chega ao banco.
+  ⚠️ **A afirmação é que está errada, não o comportamento.** O arquivo é pt-BR na prática; a conta
+  de 9 é 8.
+
+### O que a AUD-15 NÃO cobriu
+
+- **Regras de segurança do Firestore** — 6ª varredura seguida. Exige uma 2ª conta Google.
+- **Escala acima de 500 produtos** — o corte do `createProductsBatch`, onde o lote pode entrar pela
+  metade, segue sem prova (exigiria ~1.040 escritas).
+- **Google Sheets** — o Excel fechou; o Sheets exigiria login e envio de arquivo.
+- **Os outros 7 diálogos** — ver `[E3]`.
+- **Duas abas com timeout no meio** — o guarda `rev` foi lido no código e a AUD-14 o mediu; a
+  corrida com o prazo de 12s no meio não foi reproduzida.
+- **Tema escuro na geometria** — mediu um tema só. A geometria não depende de tema (token de cor
+  não entra em `min-height`/`flex`), mas o contraste não foi reconferido.
+- **iOS Safari real** e navegadores fora do Chromium embutido.
+- **O `<select>` que corta sem reticências** — segue ressalva do dono, reconfirmada em **8,5%** no
+  modal de venda.
+
+### ✅ O que está SÃO — medido, não presumido (o resumo; o cru está no relatório)
+
+- **Lote 1:** round-trip real no Excel 16 pt-BR — `4,75` volta exato, `5,283333333333333` custa
+  **3,333×10⁻¹⁰ h**, `warnings: []` nas duas pontas · `[D8]` round-trip campo a campo com
+  acessório + `supplyId` + `subitemId` + etapa extra + multicolor: **`csv1 === csv2` byte a byte**,
+  0 escalares divergentes em 13 campos · CSV do `/vendas` (nunca exercitado antes): 22×48, **0
+  células com ponto**, BOM `EF BB BF` presente nos bytes crus, `—` e `Ç` intactos no Excel.
+- **Lote 2:** offline REAL — `t=1,0s` "Salvando…" `disabled` · `t=13,0s` a frase do timeout **com o
+  nome ainda no campo** · `enableNetwork` → produtos **99 → 100**: **a escrita entrou sozinha**, e a
+  frase que manda CONFERIR está certa ("nada foi salvo" teria mentido) · **21** chamadas de
+  `withWriteTimeout` nos repositórios e **0 escritas exportadas fora dele** · a escrita mais pesada
+  do app (transação nas 4 coleções) confirmada em **776 ms** → folga de ~15× contra os 12.000 ms.
+- **Lote 3:** `[D4]` select 259×44 com 8,5% cortado (dentro dos "5 a 9%" que o lote 4 corrigiu) ·
+  `[D5]` ao vivo: "só para os 23 recibos já carregados" → um clique → **23 → 41**, topo por receita
+  vai de `88,00 / 87,59` para `159,34 / 105,30`, `totals.count = 47` = docs no Firestore.
+- **Lote 4:** `[D7]` **0 referências** ao código morto, nenhuma função órfã · `[D9]` **escrita real**:
+  `catalogPricePerKg` em 100% das linhas, `pricePerKg` ausente, `catalogUnitPrice` no insumo, e a
+  conta à mão do FIFO (`40×100/1000 + 15×110/1000 = 5,65`) **bate dígito a dígito** com o
+  `frozenBreakdown.material`, com a divergência de **R$ 0,375** nomeada no mesmo documento · os 57
+  eventos antigos com `pricePerKg` continuam legíveis pelo `??`.
+- **Padrão nº 9 (o defeito que só aparece na 2ª vez):** o mesmo produto produzido duas vezes
+  seguidas — 57 → 59 → 61 eventos, FIFO andou certo nas duas.
+- **Balanço da escrita real:** `producao` 57→57 · `estoque` 2 docs / 1.646 g → idem · `insumos` 306
+  un → idem · `acabados` 22 / 39 peças → idem · `vendas` 47 → 47 · `products` 99 → 99.
+  **0 documentos com dado alterado** (só o `rev` subiu, de propósito: estoque 18→30, acabados
+  22→26 = as 6 transações gravadas e estornadas). O **overdraft de −370 g na Bege** continua
+  idêntico (é o furo de contagem física que o `[D4]` preserva de propósito).
+- **Layout, 4 fronteiras × 7 rotas com acordeões abertos:** 375px → **0** abaixo de 44 · 641 e
+  760px → **2** (os `[E1]`/`[E2]`) · 1280px → **0** abaixo de 32 · **rolagem lateral 0 em todas** ·
+  `document.scrollWidth === innerWidth` em **28 combinações**.
 
 ## ✅ ZERADO — cluster da varredura AUD-14 (2026-08-25) — a 7ª, v4 da geral
 
