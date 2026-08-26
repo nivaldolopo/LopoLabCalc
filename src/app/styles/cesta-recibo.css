@@ -221,6 +221,7 @@
   overflow: hidden;
 }
 
+/* AUD-15 [E3] — medido 24px de altura a 1280px, 8 abaixo da régua de DESKTOP. */
 .discount-mode-toggle button {
   border: 0;
   background: var(--details-bg);
@@ -229,6 +230,7 @@
   font-size: var(--text-md);
   padding: var(--space-4) var(--space-12);
   cursor: pointer;
+  min-height: var(--space-32);
 }
 
 .discount-mode-toggle button + button {
@@ -892,3 +894,43 @@
   }
 }
 
+/* ── UX-46 no MODAL DE VENDA (AUD-15 [E3]) ──────────────────────────────────
+   Mesma razão de cascata do bloco irmão no `fees.css`: este arquivo é o 12º
+   `@import` e o `responsive.css` é o 8º, então o regime de 44 tem de ser
+   escrito aqui para alcançar.
+--------------------------------------------------------------------------- */
+@media (max-width: 760px) {
+  /* Medido 40px de altura nos três ("Nenhum" / "Por item" / "No total"). O
+     grupo cresce de 42 para 46 — é um seletor segmentado, não uma linha de
+     texto, então não há altura de fluxo para devolver. */
+  .discount-mode-toggle button {
+    min-height: 44px;
+  }
+
+  /* Medido 36,7×42 e 33,8×42 — o "R$ / %" do desconto POR ITEM, que só aparece
+     depois de escolher o modo e ter item na cesta. A largura era o problema
+     maior; os 42px de altura são os 44 do grupo menos a borda de 1px, que é do
+     invólucro e não do botão.
+     ⚠ Medido ao consertar: `min-width: 44` sozinho ESTOURA a fileira — os dois
+     botões pedem 90px, sobravam 70, e como o `.discount-unit-toggle` tem
+     `overflow: hidden` o "%" era CORTADO em vez de vazar (o UX-44 pela porta
+     dos fundos, de novo). A largura vem de dar linha própria ao rótulo, que é a
+     receita de UX-38/UX-40 para fileira que não cabe: abaixo dos ~300px úteis
+     ela quebra em faixas, nunca em rolagem lateral. */
+  .cesta-discount {
+    flex-wrap: wrap;
+  }
+
+  .cesta-discount-label {
+    flex: 0 0 100%;
+  }
+
+  .discount-unit-toggle {
+    flex-shrink: 0;
+  }
+
+  .discount-unit-toggle button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

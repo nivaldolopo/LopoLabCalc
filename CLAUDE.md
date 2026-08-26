@@ -13,25 +13,26 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-26): AUD-15 lote 1 — `[E6]` FECHADO, a trava do recadastro caiu.** A
-  checagem de número absurdo era de **pontuação** (regex de 2+ grupos de milhar) enquanto a
-  justificativa escrita era de **magnitude**: `1.234.567,89`, `1,234,567.89` e `1234567` entravam da
-  planilha externa com `warnings: []`. `isMilharMultiplo` saiu; entrou `isMagnitudeAbsurda`
-  (`> 999.999` no valor **lido**), que cobre o caso do Excel de antes e ainda pega científica e
-  número cru de JSON. Classes: `magnitude-absurda(-json)`. **773/773 · lint ✅ build ✅**; `tsc`
-  segue com os **mesmos 2** erros (o 2º é o `[E5]`). Restam **5** itens da AUD-15 + 2 ressalvas —
-  todos de tela/tipo, **nenhum morde o dado da carga**. Medições no `BACKLOG.md`; relatório da
-  varredura em [artifact 20582690](https://claude.ai/code/artifact/20582690-a94f-4d52-8fca-d6dec7244a00).
+- **Última mudança (2026-08-26): AUD-15 lote 2 — `[E1]` `[E2]` `[E3]` FECHADOS, um commit de CSS.**
+  A régua do dedo tinha dois buracos que a varredura das rotas não via: **641–760px** e o
+  **interior dos diálogos**. `[E1]` o `.roi-warn > summary` ficava em 32 porque o `machines.css`
+  (14º `@import`) vencia por ORDEM a media query do `responsive.css` (8º). `[E2]` os 2
+  `.toggle-wrap` nunca tiveram regra de alvo. `[E3]` varri os **9 diálogos** nas duas réguas: 8
+  sãos, o de venda rendeu **18** (4 previstos + 12 campos do editor de taxas + o "R$/%"), e a régua
+  de **desktop** tinha o mesmo buraco lá. **Regra que ficou:** arquivo depois do 8º `@import`
+  carrega o próprio regime de 44. **Medido:** 320/375/641/760 → **0 abaixo de 44** · 1280 → **0
+  abaixo de 32** · rolagem lateral 0 · fluxo preservado. **773/773 · lint ✅ build ✅.** Restam
+  **2** (`[E4]` `[E5]`) + 2 ressalvas, nenhum morde o dado da carga. Medições no `BACKLOG.md`.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
 - **▶ PRÓXIMA TAREFA — seguir o cluster AUD-15, se o dono mandar (a ordem é sugestão, não decisão
-  dele; o lote 1 já foi).** Sugerido: **2)** `[E1]` `[E2]` `[E3]` (um commit de CSS só: alvo de
-  44px a 641–760px e os 4 alvos do **modal de venda** — vale varrer os 9 diálogos junto) · **3)**
-  `[E5]` (uma linha na fixture; decidir se `tsc --noEmit` entra na rotina) · **4)** `[E4]` (o mais
-  caro: exige `snapshot.metadata.fromCache`, não `navigator.onLine`).
+  dele; os lotes 1 e 2 já foram).** Sugerido: **3)** `[E5]` (uma linha na fixture do
+  `productionPlan.test.ts`; decidir junto se `tsc --noEmit` entra na rotina de "concluir a
+  tarefa") · **4)** `[E4]` (o mais caro: exige `snapshot.metadata.fromCache`, não
+  `navigator.onLine`).
   Em paralelo, a frente do DONO segue a mesma — cadastrar cores/insumos definitivos e passar os ids
   pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
   (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro (regras no

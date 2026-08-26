@@ -8,14 +8,15 @@
 >
 > ⚠ **LEIA PRIMEIRO — a varredura AUD-15 (2026-08-26, a 8ª) é de REGRESSÃO: o alvo foi o código
 > dos 4 lotes da AUD-14, não o sistema.** Ela **reabriu o backlog de código**: **6 defeitos**
-> (`[E1]`…`[E6]`) + **2 ressalvas** — o `[E6]` FECHOU em 2026-08-26, **5 seguem abertos**.
+> (`[E1]`…`[E6]`) + **2 ressalvas** — os lotes **1** (`[E6]`) e **2** (`[E1]` `[E2]` `[E3]`)
+> FECHARAM em 2026-08-26, **2 seguem abertos** (`[E4]` `[E5]`).
 > A seção deles está **logo abaixo deste
 > cabeçalho**, ACIMA da AUD-14. Placar: **47 afirmações de ontem refeitas — 38 bateram, 8 não,
 > 1 parcial** (a AUD-14 tinha derrubado 7 de 32; o padrão do repositório se repetiu). **Os 9 itens
 > da AUD-14 continuam fazendo o que esta seção diz que fazem** — o que caiu foram *afirmações
 > sobre* eles. **A pergunta "pode recadastrar?" já era SIM com uma trava, o `[E6]` — e a trava
 > caiu:** ele era o único que mordia dado que o dono **não digita** (a planilha vem do sistema
-> externo), e fechou. Os 5 que sobram são de tela e de tipo, nenhum morde o dado da carga.
+> externo), e fechou. Os 2 que sobram são de tela e de tipo, nenhum morde o dado da carga.
 >
 > ⚠ **LEIA ISTO ANTES DO RESTO — a varredura AUD-14 (2026-08-25, a 7ª e v4 da geral) abriu 9
 > defeitos e os 4 lotes FECHARAM no mesmo dia.** A seção deles está **logo abaixo da seção da
@@ -105,7 +106,7 @@
 | Lote | Itens | Por que esses | Estado |
 |---|---|---|---|
 | **1 — a trava do recadastro** | `[E6]` | É o único que morde dado que o dono **não digita**, e o recadastro é a próxima frente. Uma linha de checagem | ✅ **FECHADO 2026-08-26** |
-| **2 — a régua do dedo, de novo** | `[E1]` `[E2]` `[E3]` | Um commit de CSS só. A conclusão "0 abaixo de 44" do lote 4 vale nas rotas, **não** em 641–760px nem com diálogo aberto | ⏳ aberto |
+| **2 — a régua do dedo, de novo** | `[E1]` `[E2]` `[E3]` | Um commit de CSS só. A conclusão "0 abaixo de 44" do lote 4 vale nas rotas, **não** em 641–760px nem com diálogo aberto | ✅ **FECHADO 2026-08-26** |
 | **3 — o tipo que se perdeu** | `[E5]` | Uma linha na fixture. Nasceu no `c990679` | ⏳ aberto |
 | **4 — o indicador que mente** | `[E4]` | O mais caro dos quatro (exige sonda de conectividade real, não `navigator.onLine`) e o que entra mais calado | ⏳ aberto |
 
@@ -136,41 +137,66 @@
   `999.999,00` atravessa calado e entra como 999999. **773/773** · `lint` ✅ · `build` ✅ ·
   `tsc --noEmit` segue com os **mesmos 2** erros de antes (nenhum novo; o 2º é o `[E5]`).
 
-### 🟠 Alvos de toque — a régua de 44px tem dois buracos que o lote 4 não viu
+### ✅ FECHADO — a régua do dedo, de novo (lote 2, 2026-08-26)
 
-- 🔴 **[E1] `.roi-warn > summary` fica em 32px dentro do regime de 44 — e a 375 passou por sorte.**
-  `responsive.css` é o **8º** `@import` e escreve `min-height: 44px` para
-  `.result-advanced > summary, .roi-warn > summary`; `machines.css` é o **14º** e reescreve
-  `.roi-warn > summary { min-height: var(--space-32) }`. **Mesma especificidade, e media query não
-  soma** — quem vem depois vence, então o override **nunca alcançou**. O irmão
-  `.result-advanced` mora em `sections.css` (4º, *antes*) e por isso funciona.
-  **Medido:** 641px e 760px → caixa 600×32 e 719×32, `min-height` computado **32px** (−12 da
-  régua). A 375px a frase quebra em 2 linhas e a caixa vai a 50px **naturalmente** — o alvo passa
-  sem a regra que deveria garanti-lo.
-  ⚠ **Derruba a afirmação escrita no `machines.css:141`:** *"no celular o `responsive.css` leva os
-  dois a 44"*. O comentário sai junto com o conserto.
-  ⚠ **É a armadilha da especificidade do `@media` que o próprio lote 4 documentou** (está no
-  `HISTORICO.md`, em "Regras de CSS/UI") — e ele caiu nela.
+> Um commit de CSS só, e a varredura dos **9 diálogos** junto, como o `[E3]` pedia.
+> **Resultado medido:** 320 / 375 / 641 / 760px → **0 alvos abaixo de 44** nas rotas afetadas e
+> nos 9 diálogos · 1280px → **0 abaixo de 32** nos 9 diálogos · **rolagem lateral 0** em todas as
+> larguras · **773/773** · `lint` ✅ `build` ✅.
 
-- 🔴 **[E2] `.toggle-wrap` = 318×33 a 641 e 760px, e nunca teve regra de alvo em lugar nenhum.**
-  Os dois interruptores das seções recolhíveis da calculadora ("Vende por subitens", em
-  `SubitemsSection.tsx:64`, e "Custos fixos", em `FixedCostsPanel.tsx:37`). `sections.css:205`
-  escreve `padding: 0` e **nenhum arquivo** escreve `min-height` — o computado é `auto`.
-  **Medido:** 641 e 760px → 318×33 (−11). A 375px passa **só porque o rótulo quebra** (197×47 e
-  202×75).
-  ⚠ **A faixa 641–760 importa:** iPhone SE/8 em paisagem são 667px — tela de dedo, dentro do buraco.
+- ✅ **[E1] O regime de 44 do `.roi-warn > summary` mudou de ARQUIVO, porque de onde estava ele não
+  alcançava.** Confirmado ao vivo antes do conserto: 641px → 600×32 e 760px → 719×32, `min-height`
+  computado **32px**. O `responsive.css` é o 8º `@import` e o `machines.css` é o 14º; os dois
+  seletores são `.x > summary` (mesma especificidade) e `@media` **não soma** — a regra do 14º
+  vencia por ordem, inclusive dentro da media query do 8º.
+  **Conserto:** a linha `.roi-warn > summary` **saiu** da lista do `responsive.css` (lá ela era
+  código morto, e a devolução de −8px nem era a certa para este elemento) e o bloco de 44 nasceu
+  no `machines.css`, num `@media (max-width: 760px)` próprio, onde ele é o último a falar.
+  **Padding de 13px por lado com margem negativa igual** (18 de conteúdo + 26 = 44): a margem
+  cancela o padding, então a conta se mantém quando a frase quebra em duas linhas.
+  **Prova:** 641px → 600×**44** ocupando 18 · 760px → 719×**44** ocupando 18 · 375px → 334×**62**
+  (2 linhas) ocupando **36**, os mesmos 36 de antes · 1280px → 1047×**32** ocupando 18, desktop
+  intacto. Em nenhuma largura o `.roi-warn` mudou de altura.
+  **A afirmação falsa do `machines.css` saiu** e no lugar ficou a medição, com o nome da armadilha.
 
-- 🟠 **[E3] 4 alvos abaixo de 44px dentro do MODAL DE VENDA — a varredura de ontem não abriu
-  diálogo nenhum.** A afirmação *"0 alvos abaixo de 44 a 375px"* é verdadeira **como escrita** —
-  *nas 7 rotas*. Os **9 diálogos** ficaram fora, e o modal de venda é o caminho de escrita mais
-  usado do app.
-  **Medido a 375×812:** `.fee-edit-link` ("Ajustar taxas") **84,5 × 23,0** (−21; `fees.css:48`,
-  `padding: var(--space-4)` e nada mais) · `.discount-mode-toggle > button` ×3 ("Nenhum" / "Por
-  item" / "No total") **40,0** de altura (−4; `cesta-recibo.css:224`). `min-height` computado nos
-  quatro = `auto`.
-  ✅ O **modal de máquinas**, conferido junto, está **são** — 0 alvos pequenos, 0 rolagem lateral.
-  ⚠ **Os outros 7 diálogos não foram abertos.** Como o de venda já rendeu 4, é provável que rendam
-  mais — vale varrer os 9 de uma vez no mesmo commit.
+- ✅ **[E2] `.toggle-wrap` ganhou a primeira regra de alvo da vida dele.** Os dois interruptores
+  das seções recolhíveis da calculadora ("Vende por subitens" e "Custos fixos") não tinham
+  `min-height` em arquivo nenhum. Confirmado antes: 317,8×**33** a 641 e a 760px.
+  **Conserto:** no `responsive.css` (o `sections.css` é o 4º, então aqui a ordem *ajuda*),
+  `min-height: 44px` + `padding-block: 6px` + `margin-block: -6px`.
+  **Prova:** 641 e 760px → 317,8×**45**, ocupando os mesmos **33** · 375px → 196,8×**59** e
+  201,6×**87**, ocupando **47** e **75** — exatamente os números naturais de antes · 1280px
+  inalterado (`min-height: auto`, 33 e 47). Altura do pai idêntica em todas.
+
+- ✅ **[E3] Os 9 diálogos foram varridos. Só o de venda tinha defeito — e eram 18, não 4.**
+  A varredura abriu os 9 (`SaleModal`, `MachineManagerModal`, `ConfirmDialog`, `StockColorModal`,
+  `StockRollModal`, `StockAdjustModal`, `SupplyModal`, `SupplyLotModal`, `SupplyAdjustModal`) nas
+  **duas** réguas. **8 estavam sãos**; o de venda rendeu os 4 previstos **mais 14 que a AUD-15 não
+  tinha visto**, porque só aparecem depois de interagir:
+  · `.fee-edit-link` 84,5×**23** · `.discount-mode-toggle button` ×3 → **40** de altura (os 4 da
+  previsão) · `.fee-editor-item input` ×12 → 81×**38**, atrás do botão "Ajustar taxas"
+  · `.discount-unit-toggle button` ×2 ("R$" / "%") → **36,7×42** e **33,8×42**, só visíveis com
+  item na cesta e desconto **por item** escolhido.
+  **Conserto:** o regime de 44 foi escrito **dentro do `fees.css` (10º) e do `cesta-recibo.css`
+  (12º)**, não no `responsive.css` (8º) — pelo mesmo motivo do `[E1]`: os seletores empatam em
+  especificidade e lá perderiam por ordem. Fica registrado como regra: **todo arquivo depois do 8º
+  `@import` carrega o próprio regime de 44.**
+  ⚠ **Uma armadilha nova, medida durante o conserto:** `min-width: 44px` sozinho nos botões
+  "R$/%" **estoura a fileira** — os dois pedem 90px e sobravam 70, e como o `.discount-unit-toggle`
+  tem `overflow: hidden` o "%" era **CORTADO** em vez de vazar (o UX-44 pela porta dos fundos).
+  A largura veio de dar **linha própria ao rótulo** "Desconto" (`flex-wrap` na `.cesta-discount` +
+  `flex: 0 0 100%` no rótulo), que é a receita de UX-38/UX-40 para fileira que não cabe.
+  ⚠ **Achado de tabela, do mesmo commit:** a régua de **DESKTOP** (32px) também tinha buraco no
+  mesmo modal — `.fee-edit-link` **23** e os 3 `.discount-mode-toggle button` **24** a 1280px. A
+  afirmação "0 abaixo de 32 a 1280px" do lote 4 também era **só das rotas**. Os dois pisos entraram
+  na regra base (fora da media query).
+  **Prova:** modal de venda com editor de taxas aberto, item na cesta e desconto por item →
+  **0 abaixo de 44** a 320, 375 e 760px e **0 abaixo de 32** a 1280px, `overflow` horizontal **0**
+  na caixa, na fileira e no documento. Fluxo preservado onde importa: `.fee-row` 68→**68** no
+  celular e 54→**54** no desktop. O que cresceu, cresceu de propósito: editor de taxas 491→521,
+  seletor de modo 42→46, fileira de desconto 44→**69** (o rótulo subiu de linha).
+  ⚠ **`.num-spin` ficou de fora da conta, como nas varreduras anteriores** — 28×~20, `tabindex="-1"`,
+  é o stepper ao lado do campo e o alvo de verdade é o campo (exceção já declarada no lote 4).
 
 ### 🟠 Entra CALADO
 
@@ -226,7 +252,7 @@
 - **Escala acima de 500 produtos** — o corte do `createProductsBatch`, onde o lote pode entrar pela
   metade, segue sem prova (exigiria ~1.040 escritas).
 - **Google Sheets** — o Excel fechou; o Sheets exigiria login e envio de arquivo.
-- **Os outros 7 diálogos** — ver `[E3]`.
+- ~~**Os outros 7 diálogos**~~ — **coberto**: os 9 foram varridos no lote 2 (ver `[E3]`).
 - **Duas abas com timeout no meio** — o guarda `rev` foi lido no código e a AUD-14 o mediu; a
   corrida com o prazo de 12s no meio não foi reproduzida.
 - **Tema escuro na geometria** — mediu um tema só. A geometria não depende de tema (token de cor

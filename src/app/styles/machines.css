@@ -138,7 +138,15 @@
    parece uma faixa clicável enorme e é uma tira de 18px. O irmão dele
    (`.result-advanced > summary`) já tinha `padding-block`, este nasceu sem.
    A devolução é de metade da diferença ((32 − 18) / 2 = 7), então o aviso de
-   payback não muda de altura; no celular o `responsive.css` leva os dois a 44. */
+   payback não muda de altura.
+   ⚠ AUD-15 [E1] — a frase que estava aqui ("no celular o `responsive.css` leva
+   os dois a 44") era FALSA, e medida: a 641 e a 760px a caixa ficava em 719×32,
+   `min-height` computado 32px, 12px abaixo da régua do dedo. O `responsive.css`
+   é o 8º `@import` e este arquivo é o 14º; os dois seletores são `.x > summary`
+   (mesma especificidade) e `@media` NÃO soma especificidade — a regra daqui
+   vencia por ORDEM, inclusive dentro da media query de lá. É a mesma armadilha
+   que o lote 4 documentou e caiu nela. Por isso o regime de 44 agora mora
+   AQUI, logo abaixo, que é o único lugar de onde ele alcança. */
 .roi-warn > summary {
   display: flex;
   align-items: center;
@@ -148,6 +156,19 @@
   min-height: var(--space-32);
   padding-block: 7px;
   margin-block: -7px;
+}
+
+/* UX-46 — a régua do DEDO (44px), na largura em que o `responsive.css` a aplica.
+   Padding de 13px por lado com margem negativa igual: a caixa vai a 44 (18 de
+   conteúdo + 26) e o aviso continua ocupando os mesmos 18px de fluxo. Quando a
+   frase quebra em duas linhas (375px) a conta se mantém: a margem cancela o
+   padding, então o bloco ocupa exatamente a altura do texto, como hoje. */
+@media (max-width: 760px) {
+  .roi-warn > summary {
+    min-height: 44px;
+    padding-block: 13px;
+    margin-block: -13px;
+  }
 }
 
 .roi-warn > summary::-webkit-details-marker {

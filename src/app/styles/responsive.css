@@ -287,12 +287,31 @@
     min-height: 44px;
   }
 
-  /* Medido 27 — "Ver informações avançadas", o disclosure do card de resultado —
-     e 36 no irmão dele, o aviso de payback do `/maquinas` (o `.roi-warn`, que
-     copia este mesmo padrão). A devolução de 8px por lado deixa as duas linhas
-     na altura que já ocupavam. */
-  .result-advanced > summary,
-  .roi-warn > summary {
+  /* ⚠ AUD-15 [E2] — medido 318×33 a 641 e a 760px: os dois interruptores das
+     seções recolhíveis da calculadora ("Vende por subitens" e "Custos fixos")
+     nunca tiveram regra de alvo em arquivo nenhum — o `sections.css` escreve
+     `padding: 0` e o `min-height` computado era `auto`. A 375px eles passavam
+     por SORTE, porque o rótulo quebra em duas linhas (47 e 75px); a faixa
+     641–760 é justamente onde o rótulo cabe numa linha só, e é tela de dedo
+     (iPhone SE/8 em paisagem = 667px).
+     Padding de 6px por lado com margem negativa igual: a caixa vai a 45px e a
+     linha continua ocupando os mesmos 33px de fluxo. */
+  .toggle-wrap {
+    min-height: 44px;
+    padding-block: var(--space-6);
+    margin-block: -6px;
+  }
+
+  /* Medido 27 — "Ver informações avançadas", o disclosure do card de resultado.
+     A devolução de 8px por lado deixa a linha na altura que já ocupava.
+     ⚠ AUD-15 [E1] — o irmão dele (`.roi-warn > summary`, do `/maquinas`) MORAVA
+     nesta lista e nunca chegou a valer: o `machines.css` é o 14º `@import` e
+     este arquivo é o 8º, os dois seletores têm a MESMA especificidade e media
+     query não soma — a regra de lá, escrita para o desktop, vencia por ordem em
+     TODA largura. Este aqui funciona porque o `sections.css` é o 4º, ou seja
+     vem ANTES. A regra de 44 do `.roi-warn` foi para dentro do `machines.css`,
+     que é onde ela consegue vencer. */
+  .result-advanced > summary {
     min-height: 44px;
     margin-block: -8px;
   }
