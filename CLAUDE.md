@@ -17,12 +17,11 @@
   backlog: 6 defeitos (`[E1]`…`[E6]`) + 2 ressalvas, nenhum corrigido.** Os 9 itens da AUD-14
   **sobreviveram** (o `[D9]` provado com escrita real: FIFO batendo dígito a dígito, 0 drift no
   estorno) — o que caiu foram **afirmações sobre** eles: **47 refeitas, 38 bateram, 8 não, 1
-  parcial**. Os 2 que entram **calados**: `[E6]` (a trava de milhar é de **pontuação**, não de
-  magnitude — R$ 1,2 milhão entra da planilha externa com `warnings: []`) e `[E4]` (o chip diz
-  "Sincronizado" com a rede do Firestore derrubada). Os buracos da régua de 44px: `[E1]` `[E2]`
-  (641–760px) e `[E3]` (4 alvos no **modal de venda** — os 9 diálogos ficaram fora da varredura de
-  ontem). `[E5]`: `tsc` acusa **2** erros, o 2º nasceu no `c990679`. Itens + medições no
-  `BACKLOG.md`; relatório em
+  parcial**. Calados: `[E6]` (a trava de milhar é de **pontuação**, não de magnitude — R$ 1,2 milhão
+  entra da planilha externa com `warnings: []`) e `[E4]` (chip "Sincronizado" com a rede do
+  Firestore derrubada). Régua de 44px: `[E1]` `[E2]` (641–760px) e `[E3]` (4 alvos no **modal de
+  venda** — os 9 diálogos ficaram fora de ontem). `[E5]`: `tsc` acusa **2** erros, o 2º nasceu no
+  `c990679`. Itens + medições no `BACKLOG.md`; relatório em
   [artifact 20582690](https://claude.ai/code/artifact/20582690-a94f-4d52-8fca-d6dec7244a00).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
@@ -36,9 +35,8 @@
   Em paralelo, a frente do DONO segue a mesma — cadastrar cores/insumos definitivos e passar os ids
   pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
   (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro (regras no
-  `BACKLOG.md`). ⚠ **A varredura respondeu "pode recadastrar? SIM, com uma trava": o `[E6]`.**
-  Ressalvas antigas (viram tarefa só se ele mandar): nome acessível por `title` e não `aria-label` ·
-  `<select>` que corta sem reticências (reconfirmado em 8,5%) · o lixo que o recadastro leva embora.
+  `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, com uma trava: o `[E6]`.** Ressalvas antigas (só se
+  ele mandar): nome acessível por `title` · `<select>` que corta sem reticências (8,5%) · o lixo.
 - ⚠ **Ainda pendentes (dono):** **cadastrar os insumos e religar os acessórios** (os de hoje entram
   no custo mas não dão baixa) · o Dashboard fecha as ressalvas de UX-09 e TD-006 já na tela.
 - **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
