@@ -8,12 +8,14 @@
 >
 > ⚠ **LEIA PRIMEIRO — a varredura AUD-15 (2026-08-26, a 8ª) é de REGRESSÃO: o alvo foi o código
 > dos 4 lotes da AUD-14, não o sistema.** Ela **reabriu o backlog de código**: **6 defeitos**
-> (`[E1]`…`[E6]`) + **2 ressalvas**, nenhum corrigido. A seção deles está **logo abaixo deste
+> (`[E1]`…`[E6]`) + **2 ressalvas** — o `[E6]` FECHOU em 2026-08-26, **5 seguem abertos**.
+> A seção deles está **logo abaixo deste
 > cabeçalho**, ACIMA da AUD-14. Placar: **47 afirmações de ontem refeitas — 38 bateram, 8 não,
 > 1 parcial** (a AUD-14 tinha derrubado 7 de 32; o padrão do repositório se repetiu). **Os 9 itens
 > da AUD-14 continuam fazendo o que esta seção diz que fazem** — o que caiu foram *afirmações
-> sobre* eles. **A resposta à pergunta "pode recadastrar?" é SIM, com uma trava: o `[E6]`**, o
-> único que morde dado que o dono **não digitou** (a planilha vem do sistema externo).
+> sobre* eles. **A pergunta "pode recadastrar?" já era SIM com uma trava, o `[E6]` — e a trava
+> caiu:** ele era o único que mordia dado que o dono **não digita** (a planilha vem do sistema
+> externo), e fechou. Os 5 que sobram são de tela e de tipo, nenhum morde o dado da carga.
 >
 > ⚠ **LEIA ISTO ANTES DO RESTO — a varredura AUD-14 (2026-08-25, a 7ª e v4 da geral) abriu 9
 > defeitos e os 4 lotes FECHARAM no mesmo dia.** A seção deles está **logo abaixo da seção da
@@ -89,9 +91,10 @@
 > **4 achados dela caíram como falso positivo e estão declarados no relatório** (o BOM do CSV de
 > vendas, o `material`/`brand` do round-trip, o `0.90` no Excel, e o teste da rejeição solta).
 >
-> **Os 2 que entram CALADOS:** `[E4]` (status "Sincronizado" com a rede caída — sem aviso na hora
-> e sem divergência visível depois) e `[E6]` (valor de magnitude absurda vindo da planilha externa,
-> com `issues: []` e `warnings: []`). Os outros 4 são visíveis.
+> **Os 2 que entravam CALADOS:** `[E4]` (status "Sincronizado" com a rede caída — sem aviso na
+> hora e sem divergência visível depois) e `[E6]` (valor de magnitude absurda vindo da planilha
+> externa, com `issues: []` e `warnings: []`) — **o `[E6]` fechou; sobra o `[E4]`**. Os outros 4
+> são visíveis.
 >
 > **Reconferido no código em 2026-08-26** (não é só o relatório falando): `[E1]` `[E2]` `[E3]`
 > `[E5]` `[E6]` e a ressalva `[R1]` foram todos reproduzidos estaticamente — ordem dos `@import`,
@@ -101,25 +104,37 @@
 
 | Lote | Itens | Por que esses | Estado |
 |---|---|---|---|
-| **1 — a trava do recadastro** | `[E6]` | É o único que morde dado que o dono **não digita**, e o recadastro é a próxima frente. Uma linha de checagem | ⏳ aberto |
+| **1 — a trava do recadastro** | `[E6]` | É o único que morde dado que o dono **não digita**, e o recadastro é a próxima frente. Uma linha de checagem | ✅ **FECHADO 2026-08-26** |
 | **2 — a régua do dedo, de novo** | `[E1]` `[E2]` `[E3]` | Um commit de CSS só. A conclusão "0 abaixo de 44" do lote 4 vale nas rotas, **não** em 641–760px nem com diálogo aberto | ⏳ aberto |
 | **3 — o tipo que se perdeu** | `[E5]` | Uma linha na fixture. Nasceu no `c990679` | ⏳ aberto |
 | **4 — o indicador que mente** | `[E4]` | O mais caro dos quatro (exige sonda de conectividade real, não `navigator.onLine`) e o que entra mais calado | ⏳ aberto |
 
-### 🔴 Bloqueia (ou encarece) o recadastro
+### ✅ FECHADO — a trava do recadastro (lote 1, 2026-08-26)
 
-- 🔴 **[E6] `isMilharMultiplo` é trava de PONTUAÇÃO, e a premissa que a justifica é de MAGNITUDE.**
-  O comentário do `number.ts:139-143` argumenta que 2+ grupos de milhar bastam *"porque nenhuma
-  coluna deste app tem valor plausível acima de 999.999"*. A regex é
-  `/^-?\d{1,3}(?:\.\d{3}){2,}$/` — **ancorada no fim**, então **qualquer parte decimal desarma a
-  trava**, e formato en-US e inteiro cru nunca a acionam.
-  **Medido:** `1.234.567` → pega ✓ · `1.234.567,89`, `1,234,567.89`, `1.234.567,00` e `1234567` →
-  **todos passam**, `parse` = 1234567(,89), `issues: []`, `warnings: []`. Importação com
-  Valor-hora = R$ 1,2 milhão nas 3 formas entra calada.
-  **Conserto:** somar uma checagem de magnitude (`Math.abs(parsed) > 999999`) ao lado da de
-  pontuação — é o que a premissa já promete por escrito. Arquivos: `src/lib/formatting/number.ts`
-  e as duas chamadas em `productCsv.ts` (`:222` e `:1707`).
-  ⚠ **Importa porque a planilha da carga é gerada por um sistema externo que o app não controla.**
+- ✅ **[E6] `isMilharMultiplo` era trava de PONTUAÇÃO, e a premissa que a justificava era de
+  MAGNITUDE — agora a trava é a premissa.** O comentário do `number.ts` argumentava que 2+ grupos
+  de milhar bastavam *"porque nenhuma coluna deste app tem valor plausível acima de 999.999"*, mas
+  o teste era a regex `/^-?\d{1,3}(?:\.\d{3}){2,}$/`, **ancorada no fim** — qualquer parte decimal
+  a desarmava, e en-US ou inteiro cru nunca a acionavam.
+  **Conserto:** `isMilharMultiplo` **saiu**; no lugar entrou `isMagnitudeAbsurda`, que lê o valor
+  (`parseDecimalPtBr`) e acende quando `Math.abs(parsed) > MAGNITUDE_MAXIMA` (999.999). É estrita-
+  mente mais forte: dois grupos de milhar já valem 1.000.000, então o caso do Excel da AUD-14
+  (`5.283.333.333.333.330`) continua coberto.
+  **Três ganhos de tabela**, todos com teste: **científica** entra pelo mérito (`5,28E+15` acende;
+  a versão de forma tinha de excluí-la para não mentir, CSV-29) · **número cru** entra (dentro do
+  JSON o `1234567` chega como `number`, e a versão de forma devolvia `false` para tudo que não
+  fosse string) · e a **borda** ficou declarada (999.999 atravessa; 999.999,99 acende).
+  **Classes renomeadas** porque a mensagem antiga descrevia a pontuação, não o defeito:
+  `milhar-multiplo` → `magnitude-absurda` e `milhar-multiplo-json` → `magnitude-absurda-json`
+  (a chave só agrupa e serve de `key` no React — nada fora dos testes a lia).
+  **`isMilharAmbiguo` não se mexeu:** UM grupo (`1.234`) continua sendo ambiguidade de leitura, com
+  a lista curada de colunas dele.
+  Arquivos: `src/lib/formatting/number.ts`, `productCsv.ts` (as 2 chamadas + as 2 mensagens),
+  `number.test.ts` (describe reescrito) e `productCsvIssues.test.ts` (chaves + describe novo do E6).
+  **Prova:** as 4 formas medidas na AUD-15 (`1.234.567,89`, `1,234,567.89`, `1.234.567,00`,
+  `1234567`) em `Valor-hora (R$)` acendem `magnitude-absurda` citando a coluna e a célula crua;
+  `999.999,00` atravessa calado e entra como 999999. **773/773** · `lint` ✅ · `build` ✅ ·
+  `tsc --noEmit` segue com os **mesmos 2** erros de antes (nenhum novo; o 2º é o `[E5]`).
 
 ### 🟠 Alvos de toque — a régua de 44px tem dois buracos que o lote 4 não viu
 

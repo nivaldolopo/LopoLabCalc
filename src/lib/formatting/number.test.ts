@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMilharAmbiguo, isMilharMultiplo, parseDecimalPtBr } from "./number";
+import { isMagnitudeAbsurda, isMilharAmbiguo, parseDecimalPtBr } from "./number";
 
 describe("parseDecimalPtBr", () => {
   it("lê o pt-BR do dia a dia", () => {
@@ -201,47 +201,87 @@ describe("CSV-37 — letra ENTRE dígitos não é número", () => {
   });
 });
 
-// AUD-14/D1 — o ponto de milhar REPETIDO. Não é ambiguidade: é o retrato de um
-// decimal que passou pelo Excel pt-BR e voltou agrupado.
-describe("isMilharMultiplo — o número que o Excel inflou", () => {
+// AUD-14/D1 + AUD-15/E6 — o valor GRANDE DEMAIS. Não é ambiguidade de leitura:
+// o número está errado, tenha ele chegado agrupado pelo Excel pt-BR ou escrito
+// em qualquer outro formato.
+describe("isMagnitudeAbsurda — o número que não cabe em coluna nenhuma daqui", () => {
   it("os 6 valores medidos na AUD-14, crus do arquivo salvo pelo Excel", () => {
-    expect(isMilharMultiplo("5.283.333.333.333.330")).toBe(true);
-    expect(isMilharMultiplo("52.666.666.666.666.600")).toBe(true);
-    expect(isMilharMultiplo("25.833.333.333.333.300")).toBe(true);
-    expect(isMilharMultiplo("6.183.333.333.333.330")).toBe(true);
-    expect(isMilharMultiplo("3.506.666.666.666.660")).toBe(true);
-    expect(isMilharMultiplo("7.366.666.666.666.660")).toBe(true);
+    expect(isMagnitudeAbsurda("5.283.333.333.333.330")).toBe(true);
+    expect(isMagnitudeAbsurda("52.666.666.666.666.600")).toBe(true);
+    expect(isMagnitudeAbsurda("25.833.333.333.333.300")).toBe(true);
+    expect(isMagnitudeAbsurda("6.183.333.333.333.330")).toBe(true);
+    expect(isMagnitudeAbsurda("3.506.666.666.666.660")).toBe(true);
+    expect(isMagnitudeAbsurda("7.366.666.666.666.660")).toBe(true);
   });
 
-  it("dois grupos já bastam — 1.234.567 não é valor de nenhuma coluna daqui", () => {
-    expect(isMilharMultiplo("1.234.567")).toBe(true);
-    expect(isMilharMultiplo("R$ 1.234.567")).toBe(true);
-    expect(isMilharMultiplo("-1.234.567")).toBe(true);
+  it("1,2 milhão não é valor de nenhuma coluna daqui", () => {
+    expect(isMagnitudeAbsurda("1.234.567")).toBe(true);
+    expect(isMagnitudeAbsurda("R$ 1.234.567")).toBe(true);
+    expect(isMagnitudeAbsurda("-1.234.567")).toBe(true);
+  });
+
+  // AUD-15/E6 — as 4 formas medidas que a trava de PONTUAÇÃO deixava passar:
+  // qualquer parte decimal desarmava a âncora do fim, e en-US ou inteiro cru
+  // nunca casavam o padrão. Todas valem 1,2 milhão.
+  it("as 4 formas que a trava de pontuação deixava passar (E6)", () => {
+    expect(isMagnitudeAbsurda("1.234.567,89")).toBe(true);
+    expect(isMagnitudeAbsurda("1,234,567.89")).toBe(true);
+    expect(isMagnitudeAbsurda("1.234.567,00")).toBe(true);
+    expect(isMagnitudeAbsurda("1234567")).toBe(true);
+    // O que está errado é o VALOR, não a leitura: as três escritas são lidas
+    // certo, e é exatamente por isso que passavam caladas.
+    expect(parseDecimalPtBr("1.234.567,89")).toBeCloseTo(1234567.89, 2);
+    expect(parseDecimalPtBr("1,234,567.89")).toBeCloseTo(1234567.89, 2);
+    expect(parseDecimalPtBr("1234567")).toBe(1234567);
+  });
+
+  it("a borda é 999.999 — o teto plausível NÃO acende, o que passa dele sim", () => {
+    expect(isMagnitudeAbsurda("999999")).toBe(false);
+    expect(isMagnitudeAbsurda("999.999,00")).toBe(false);
+    expect(isMagnitudeAbsurda("999.999,99")).toBe(true);
+    expect(isMagnitudeAbsurda("1000000")).toBe(true);
+    expect(isMagnitudeAbsurda("-1.000.000")).toBe(true);
   });
 
   it("UM grupo continua sendo do isMilharAmbiguo, e não daqui", () => {
-    expect(isMilharMultiplo("1.234")).toBe(false);
+    expect(isMagnitudeAbsurda("1.234")).toBe(false);
     expect(isMilharAmbiguo("1.234")).toBe(true);
   });
 
   it("não acende no que o próprio export escreve", () => {
-    // Depois do D1 o export escreve vírgula; antes escrevia ponto decimal, e
-    // nenhuma das duas formas casa o padrão.
-    expect(isMilharMultiplo("5,283333333333333")).toBe(false);
-    expect(isMilharMultiplo("5.283333333333333")).toBe(false);
-    expect(isMilharMultiplo("2,5")).toBe(false);
-    expect(isMilharMultiplo("1.234,56")).toBe(false);
-    expect(isMilharMultiplo("")).toBe(false);
-    expect(isMilharMultiplo(5.28)).toBe(false);
+    expect(isMagnitudeAbsurda("5,283333333333333")).toBe(false);
+    expect(isMagnitudeAbsurda("5.283333333333333")).toBe(false);
+    expect(isMagnitudeAbsurda("2,5")).toBe(false);
+    expect(isMagnitudeAbsurda("1.234,56")).toBe(false);
+    expect(isMagnitudeAbsurda("")).toBe(false);
+    expect(isMagnitudeAbsurda(5.28)).toBe(false);
   });
 
-  it("científica sai antes, como no irmão (CSV-29)", () => {
-    expect(isMilharMultiplo("1.234.567E+03")).toBe(false);
+  // A versão de FORMA precisava excluir a científica para não mentir (CSV-29:
+  // a limpeza colava "1.5E+03" em "1.503" e o aviso sairia contraditório). A de
+  // MAGNITUDE lê o valor de verdade, então a científica entra pelo mérito.
+  it("científica agora entra pelo VALOR, não pela pontuação", () => {
+    expect(isMagnitudeAbsurda("5,28E+15")).toBe(true);
+    expect(isMagnitudeAbsurda("1.5E+03")).toBe(false);
+    // "1.234.567E+03" não é número nenhum (letra entre dígitos) — o que não se
+    // lê já tem a classe dele, a `ilegivel`.
+    expect(parseDecimalPtBr("1.234.567E+03")).toBeNull();
+    expect(isMagnitudeAbsurda("1.234.567E+03")).toBe(false);
   });
 
-  it("grupo de tamanho errado não é milhar", () => {
-    expect(isMilharMultiplo("1.23.456")).toBe(false);
-    expect(isMilharMultiplo("1.2345.678")).toBe(false);
+  // Dentro de uma célula JSON o número chega como `number`, e a versão de forma
+  // devolvia false para tudo que não fosse string.
+  it("número cru também é valor, e também é absurdo", () => {
+    expect(isMagnitudeAbsurda(1234567)).toBe(true);
+    expect(isMagnitudeAbsurda(-5283333333333330)).toBe(true);
+    expect(isMagnitudeAbsurda(999999)).toBe(false);
+  });
+
+  it("grupo de tamanho errado não é milhar — mas o VALOR ainda decide", () => {
+    // Nenhum dos dois casa regra de milhar nenhuma; o parse lê os pontos
+    // repetidos como agrupamento, e aí quem decide é o tamanho do que saiu.
+    expect(isMagnitudeAbsurda("1.23.456")).toBe(false);
+    expect(isMagnitudeAbsurda("1.2345.678")).toBe(true);
   });
 
   it("o número lido continua sendo o milhar — o defeito é o valor, não a leitura", () => {

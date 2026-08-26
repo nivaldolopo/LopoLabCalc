@@ -13,29 +13,29 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-26): AUD-15 — a varredura de REGRESSÃO dos 4 lotes da AUD-14 REABRIU o
-  backlog: 6 defeitos (`[E1]`…`[E6]`) + 2 ressalvas, nenhum corrigido.** Os 9 itens da AUD-14
-  **sobreviveram** (o `[D9]` provado com escrita real: FIFO batendo dígito a dígito, 0 drift no
-  estorno) — o que caiu foram **afirmações sobre** eles: **47 refeitas, 38 bateram, 8 não, 1
-  parcial**. Calados: `[E6]` (a trava de milhar é de **pontuação**, não de magnitude — R$ 1,2 milhão
-  entra da planilha externa com `warnings: []`) e `[E4]` (chip "Sincronizado" com a rede do
-  Firestore derrubada). Régua de 44px: `[E1]` `[E2]` (641–760px) e `[E3]` (4 alvos no **modal de
-  venda** — os 9 diálogos ficaram fora de ontem). `[E5]`: `tsc` acusa **2** erros, o 2º nasceu no
-  `c990679`. Itens + medições no `BACKLOG.md`; relatório em
-  [artifact 20582690](https://claude.ai/code/artifact/20582690-a94f-4d52-8fca-d6dec7244a00).
+- **Última mudança (2026-08-26): AUD-15 lote 1 — `[E6]` FECHADO, a trava do recadastro caiu.** A
+  checagem de número absurdo era de **pontuação** (regex de 2+ grupos de milhar) enquanto a
+  justificativa escrita era de **magnitude**: `1.234.567,89`, `1,234,567.89` e `1234567` entravam da
+  planilha externa com `warnings: []`. `isMilharMultiplo` saiu; entrou `isMagnitudeAbsurda`
+  (`> 999.999` no valor **lido**), que cobre o caso do Excel de antes e ainda pega científica e
+  número cru de JSON. Classes: `magnitude-absurda(-json)`. **773/773 · lint ✅ build ✅**; `tsc`
+  segue com os **mesmos 2** erros (o 2º é o `[E5]`). Restam **5** itens da AUD-15 + 2 ressalvas —
+  todos de tela/tipo, **nenhum morde o dado da carga**. Medições no `BACKLOG.md`; relatório da
+  varredura em [artifact 20582690](https://claude.ai/code/artifact/20582690-a94f-4d52-8fca-d6dec7244a00).
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — o cluster AUD-15, se o dono mandar (a ordem dos lotes é sugestão, não
-  decisão dele).** Sugerido: **1)** `[E6]` (a única **trava do recadastro** — dado que o dono não
-  digita) · **2)** `[E1]` `[E2]` `[E3]` (um commit de CSS só) · **3)** `[E5]` (uma linha na fixture)
-  · **4)** `[E4]` (o mais caro: exige `snapshot.metadata.fromCache`, não `navigator.onLine`).
+- **▶ PRÓXIMA TAREFA — seguir o cluster AUD-15, se o dono mandar (a ordem é sugestão, não decisão
+  dele; o lote 1 já foi).** Sugerido: **2)** `[E1]` `[E2]` `[E3]` (um commit de CSS só: alvo de
+  44px a 641–760px e os 4 alvos do **modal de venda** — vale varrer os 9 diálogos junto) · **3)**
+  `[E5]` (uma linha na fixture; decidir se `tsc --noEmit` entra na rotina) · **4)** `[E4]` (o mais
+  caro: exige `snapshot.metadata.fromCache`, não `navigator.onLine`).
   Em paralelo, a frente do DONO segue a mesma — cadastrar cores/insumos definitivos e passar os ids
   pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
   (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro (regras no
-  `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, com uma trava: o `[E6]`.** Ressalvas antigas (só se
+  `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, e a trava (o `[E6]`) já caiu.** Ressalvas antigas (só se
   ele mandar): nome acessível por `title` · `<select>` que corta sem reticências (8,5%) · o lixo.
 - ⚠ **Ainda pendentes (dono):** **cadastrar os insumos e religar os acessórios** (os de hoje entram
   no custo mas não dão baixa) · o Dashboard fecha as ressalvas de UX-09 e TD-006 já na tela.

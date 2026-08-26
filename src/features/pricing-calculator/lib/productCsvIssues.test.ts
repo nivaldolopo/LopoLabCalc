@@ -1800,7 +1800,7 @@ describe("AUD-14/D1 — o decimal que o Excel transformou em milhar", () => {
       machines,
       opcoes,
     );
-    const issue = achar(resultado.issues, "milhar-multiplo");
+    const issue = achar(resultado.issues, "magnitude-absurda");
     expect(issue?.linhas).toBe(1);
     expect(issue?.exemplos[0]).toContain('"5.283.333.333.333.330"');
     expect(issue?.exemplos[0]).toContain("5283333333333330");
@@ -1813,7 +1813,7 @@ describe("AUD-14/D1 — o decimal que o Excel transformou em milhar", () => {
     // O argumento que excluía a coluna de lá ("2375 h são 99 dias, absurdo") é
     // o que a traz para cá: absurdo é justamente o que se quer apontar.
     const antes = parseProductsCsv(csv({ ...LINHA_BOA, "Tempo (h)": "2.375" }), machines, opcoes);
-    expect(achar(antes.issues, "milhar-multiplo")).toBeUndefined();
+    expect(achar(antes.issues, "magnitude-absurda")).toBeUndefined();
     expect(achar(antes.issues, "milhar-ambiguo")).toBeUndefined();
   });
 
@@ -1823,7 +1823,7 @@ describe("AUD-14/D1 — o decimal que o Excel transformou em milhar", () => {
       machines,
       opcoes,
     );
-    expect(achar(resultado.issues, "milhar-multiplo")?.linhas).toBe(1);
+    expect(achar(resultado.issues, "magnitude-absurda")?.linhas).toBe(1);
     // O produto entra com 95% de reserva de falha; sem o aviso, nada dizia que
     // a célula estava corrompida.
     expect(resultado.products[0].failureRate).toBe(95);
@@ -1843,7 +1843,7 @@ describe("AUD-14/D1 — o decimal que o Excel transformou em milhar", () => {
     Object.entries(colunas).forEach(([coluna, valor]) => {
       const resultado = parseProductsCsv(csv({ ...LINHA_BOA, [coluna]: valor }), machines, opcoes);
       expect(
-        achar(resultado.issues, "milhar-multiplo"),
+        achar(resultado.issues, "magnitude-absurda"),
         `coluna "${coluna}" não acendeu`,
       ).toBeDefined();
     });
@@ -1860,14 +1860,14 @@ describe("AUD-14/D1 — o decimal que o Excel transformou em milhar", () => {
       machines,
       opcoes,
     );
-    expect(achar(resultado.issues, "milhar-multiplo-json")?.linhas).toBe(1);
+    expect(achar(resultado.issues, "magnitude-absurda-json")?.linhas).toBe(1);
     expect(achar(resultado.issues, "milhar-ambiguo-json")).toBeUndefined();
   });
 
   it("contraponto: a linha boa não acende nenhuma das duas", () => {
     const resultado = parseProductsCsv(csv(LINHA_BOA), machines, opcoes);
-    expect(achar(resultado.issues, "milhar-multiplo")).toBeUndefined();
-    expect(achar(resultado.issues, "milhar-multiplo-json")).toBeUndefined();
+    expect(achar(resultado.issues, "magnitude-absurda")).toBeUndefined();
+    expect(achar(resultado.issues, "magnitude-absurda-json")).toBeUndefined();
   });
 
   it("o decimal em pt-BR que o export passou a escrever atravessa intacto", () => {
@@ -1876,7 +1876,60 @@ describe("AUD-14/D1 — o decimal que o Excel transformou em milhar", () => {
       machines,
       opcoes,
     );
-    expect(achar(resultado.issues, "milhar-multiplo")).toBeUndefined();
+    expect(achar(resultado.issues, "magnitude-absurda")).toBeUndefined();
     expect(resultado.products[0].printHours).toBe(5.283333333333333);
+  });
+});
+
+
+// AUD-15/E6 — a trava que a AUD-14 escreveu era de PONTUAÇÃO, e a justificativa
+// escrita ao lado dela era de MAGNITUDE. Quem gera a planilha da carga é um
+// sistema EXTERNO: a forma que ele escreve o número não é escolha do app, então
+// a trava não pode depender dela.
+describe("AUD-15/E6 — o valor absurdo entra em qualquer formato, e agora acende em todos", () => {
+  // As 3 escritas medidas na AUD-15, todas valendo R$ 1,2 milhão por hora de
+  // mão de obra. Antes: `issues: []` e `warnings: []` nas três.
+  const formas = {
+    "com decimal junto (pt-BR)": "1.234.567,89",
+    "en-US": "1,234,567.89",
+    "com decimal zerado": "1.234.567,00",
+    "inteiro cru, sem pontuação": "1234567",
+  };
+  Object.entries(formas).forEach(([nome, valor]) => {
+    it(`Valor-hora de 1,2 milhão ${nome} acende`, () => {
+      const resultado = parseProductsCsv(
+        csv({ ...LINHA_BOA, "Valor-hora (R$)": valor }),
+        machines,
+        opcoes,
+      );
+      const issue = achar(resultado.issues, "magnitude-absurda");
+      expect(issue?.linhas).toBe(1);
+      expect(issue?.exemplos[0]).toContain(`"${valor}"`);
+      expect(issue?.exemplos[0]).toContain("Valor-hora (R$)");
+    });
+  });
+
+  it("dentro do JSON, o mesmo — inclusive quando o número não é texto", () => {
+    const resultado = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: "cor_laranja", colorName: "Laranja", pricePerKg: 1234567, totalG: 50 },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(resultado.issues, "magnitude-absurda-json")?.linhas).toBe(1);
+  });
+
+  it("o teto plausível de 999.999 continua atravessando calado", () => {
+    const resultado = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Valor-hora (R$)": "999.999,00" }),
+      machines,
+      opcoes,
+    );
+    expect(achar(resultado.issues, "magnitude-absurda")).toBeUndefined();
+    expect(resultado.products[0].laborRate).toBe(999999);
   });
 });

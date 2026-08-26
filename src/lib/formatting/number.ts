@@ -127,23 +127,36 @@ export function isMilharAmbiguo(value: unknown): boolean {
   return /^-?\d{1,3}\.\d{3}$/.test(limpo);
 }
 
-// AUD-14/D1 — o mesmo ponto, mas REPETIDO. Aqui não há ambiguidade a apontar:
-// `parseDecimalPtBr` lê "5.283.333.333.333.330" como milhar e acerta a regra —
-// o que está errado é o NÚMERO, que chegou assim porque um decimal com ponto
-// passou pelo Excel pt-BR e voltou agrupado. Medido na AUD-14: 6 dos 97
-// produtos exportados, coluna `Tempo (h)`, `5.283333333333333` →
-// `5.283.333.333.333.330` (5,28 h viram 5,3 quatrilhões), e o preço do
-// "Chronicles of Drunagor" saiu de R$ 604,90 para R$ 220 quatrilhões com
-// `warnings: []`.
+// AUD-14/D1, refeito na AUD-15/E6 — o número GRANDE DEMAIS para este app.
 //
-// Por que 2+ grupos basta para acusar, sem precisar de teto por coluna: neste
-// app NENHUMA coluna numérica tem valor plausível acima de 999.999 — 1.234.567
+// A trava nasceu olhando a PONTUAÇÃO (`/^-?\d{1,3}(?:\.\d{3}){2,}$/`, dois ou
+// mais grupos de milhar) com esta justificativa escrita ao lado: "neste app
+// NENHUMA coluna numérica tem valor plausível acima de 999.999 — 1.234.567
 // seriam 1,2 tonelada de filamento, R$ 1,2 milhão por kg, 2 anos de impressão
-// ou um milhão de peças por vez. Um grupo só continua sendo o caso ambíguo de
-// verdade, e é do `isMilharAmbiguo` (com a lista de colunas que ele curou).
-export function isMilharMultiplo(value: unknown): boolean {
-  if (typeof value !== "string") return false;
-  if (matchCientifica(value)) return false;
-  const limpo = value.replace(/[^\d.,-]/g, "");
-  return /^-?\d{1,3}(?:\.\d{3}){2,}$/.test(limpo);
+// ou um milhão de peças por vez". A justificativa é de MAGNITUDE e o teste era
+// de FORMA, e as duas não são a mesma coisa. Medido na AUD-15: `1.234.567`
+// pegava, mas `1.234.567,89`, `1,234,567.89` (en-US), `1.234.567,00` e
+// `1234567` (inteiro cru) passavam TODOS com `issues: []` e `warnings: []` —
+// qualquer parte decimal desarma a âncora do fim, e formato en-US ou inteiro
+// sem pontuação nunca acionavam a regex. Valor-hora de R$ 1,2 milhão entrava
+// calado. Importa porque a planilha da carga é gerada por um sistema EXTERNO:
+// a forma que ela escreve o número não é escolha nossa, a magnitude é.
+//
+// Agora o teste é o que a premissa sempre prometeu — o VALOR LIDO. O caso do
+// Excel continua coberto (o `5.283.333.333.333.330` que era 5,28 h), porque
+// dois grupos de milhar valem 1.000.000 no mínimo; e a científica, que a versão
+// de forma precisava excluir para não mentir (CSV-29), entra naturalmente:
+// "5,28E+15" é absurdo pelo valor, não pela pontuação.
+//
+// Número cru (não-string) entra também: dentro de uma célula JSON o `1234567`
+// chega como `number`, e é tão absurdo quanto o texto.
+//
+// UM grupo só (`1.234`) continua FORA daqui: aquilo é ambiguidade de leitura,
+// não valor impossível, e é do `isMilharAmbiguo` (com a lista de colunas que
+// ele curou).
+export const MAGNITUDE_MAXIMA = 999_999;
+
+export function isMagnitudeAbsurda(value: unknown): boolean {
+  const parsed = parseDecimalPtBr(value);
+  return parsed !== null && Math.abs(parsed) > MAGNITUDE_MAXIMA;
 }

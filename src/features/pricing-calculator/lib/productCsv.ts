@@ -1,7 +1,7 @@
 import { formatDecimal } from "@/lib/formatting/currency";
 import {
+  isMagnitudeAbsurda,
   isMilharAmbiguo,
-  isMilharMultiplo,
   parseDecimalPtBr,
 } from "@/lib/formatting/number";
 import { normalizeText } from "@/lib/text";
@@ -195,7 +195,7 @@ function parseNumber(value: string | undefined): number {
 // O `kind` existe por causa do CSV-12: o mesmo reporter agora carrega duas
 // notícias diferentes sobre o mesmo campo — "não consegui ler" e "li, mas o
 // ponto pode ser milhar". Quem recebe é que decide a classe de aviso.
-type NumIssueKind = "ilegivel" | "milhar" | "milhar-multiplo";
+type NumIssueKind = "ilegivel" | "milhar" | "magnitude";
 type NumReporter = (campo: string, bruto: string, kind?: NumIssueKind) => void;
 
 function numFromJson(
@@ -215,12 +215,14 @@ function numFromJson(
   // porque 1,234 > 0. Aqui não há a ambiguidade que obrigou o CSV-07 a excluir
   // colunas: no JSON o decimal é escrito com PONTO por quem exporta, mas um
   // número com 3 casas exatas continua sendo o formato de milhar do Excel.
-  // AUD-14/D1: e o ponto REPETIDO, que aqui dentro chega pelo mesmo caminho —
-  // uma célula JSON que alguém colou de volta depois de a planilha passar pelo
-  // Excel. Classe própria porque o conselho é outro: não há leitura a escolher,
-  // o número está corrompido.
-  if (isMilharMultiplo(value)) {
-    report?.(campo, String(value), "milhar-multiplo");
+  // AUD-14/D1, corrigido na AUD-15/E6: e o valor GRANDE DEMAIS, que aqui dentro
+  // chega pelo mesmo caminho — uma célula JSON que alguém colou de volta depois
+  // de a planilha passar pelo Excel, ou que o sistema externo escreveu assim.
+  // Classe própria porque o conselho é outro: não há leitura a escolher, o
+  // número está corrompido. ⚠ A checagem é de MAGNITUDE, não de pontuação —
+  // aqui dentro o número chega como `number` do JSON tanto quanto como texto.
+  if (isMagnitudeAbsurda(value)) {
+    report?.(campo, String(value), "magnitude");
   } else if (isMilharAmbiguo(value)) {
     report?.(campo, String(value), "milhar");
   }
@@ -1319,13 +1321,12 @@ export function parseProductsCsv(
     // CSV-06: todo número dentro dos 4 JSONs passa a ser lido em pt-BR, e o que
     // não der para ler vira aviso NOMEANDO o campo — em vez de virar 0 calado.
     const reportNumero: NumReporter = (campo, bruto, kind = "ilegivel") => {
-      if (kind === "milhar-multiplo") {
+      if (kind === "magnitude") {
         addIssue(
-          "milhar-multiplo-json",
-          "Número com VÁRIOS pontos de milhar dentro de uma célula JSON — " +
-            "valor grande demais para qualquer campo deste app. Quase sempre é " +
-            "um decimal que passou pelo Excel; confira a célula no arquivo de " +
-            "origem",
+          "magnitude-absurda-json",
+          "Valor grande demais para qualquer campo deste app (o teto plausível " +
+            "é 999.999) dentro de uma célula JSON. Quase sempre é um decimal " +
+            "que passou pelo Excel; confira a célula no arquivo de origem",
           `${ondeEstou}: ${campo} = "${bruto}" → ${parseDecimalPtBr(bruto)}`,
         );
         return;
@@ -1673,10 +1674,14 @@ export function parseProductsCsv(
       }
     });
 
-    // 3b-2) AUD-14/D1 — o ponto de milhar REPETIDO, que é outra história e por
-    // isso outra lista. Aqui não há leitura a escolher: `parseDecimalPtBr` lê
-    // como milhar e acerta a regra; o que está errado é o número, que só existe
-    // porque um decimal com ponto passou pelo Excel pt-BR e voltou agrupado.
+    // 3b-2) AUD-14/D1, refeito na AUD-15/E6 — o valor GRANDE DEMAIS, que é outra
+    // história e por isso outra lista. Aqui não há leitura a escolher:
+    // `parseDecimalPtBr` lê certo e acerta a regra; o que está errado é o
+    // NÚMERO — 1,2 milhão não é valor de nenhuma coluna deste app, tenha ele
+    // chegado agrupado pelo Excel pt-BR ("5.283.333.333.333.330"), com decimal
+    // junto ("1.234.567,89"), em en-US ("1,234,567.89") ou cru ("1234567").
+    // ⚠ A versão original testava a PONTUAÇÃO e as três últimas formas passavam
+    // caladas; a justificativa escrita ali sempre foi de magnitude (AUD-15/E6).
     //
     // Por isso a lista é TODA coluna que entra no documento, inclusive as duas
     // que a checagem de 3b exclui de propósito. O argumento que tirou
@@ -1704,13 +1709,13 @@ export function parseProductsCsv(
     ] as const).forEach(([index, coluna]) => {
       if (index < 0) return;
       const bruto = columns[index]?.trim();
-      if (bruto && isMilharMultiplo(bruto)) {
+      if (bruto && isMagnitudeAbsurda(bruto)) {
         addIssue(
-          "milhar-multiplo",
-          "Número com VÁRIOS pontos de milhar — valor grande demais para " +
-            "qualquer coluna deste app. Quase sempre é um decimal que passou " +
-            'pelo Excel pt-BR ("5,28" vira "5.283.333.333.333.330"); escreva ' +
-            "com vírgula decimal e confira a célula no arquivo de origem",
+          "magnitude-absurda",
+          "Valor grande demais para qualquer coluna deste app — o teto " +
+            "plausível é 999.999. Quase sempre é um decimal que passou pelo " +
+            'Excel pt-BR ("5,28" vira "5.283.333.333.333.330"); escreva com ' +
+            "vírgula decimal e confira a célula no arquivo de origem",
           `${ondeEstou}: coluna "${coluna}" = "${bruto}" → ${parseNumber(bruto)}`,
         );
       }
