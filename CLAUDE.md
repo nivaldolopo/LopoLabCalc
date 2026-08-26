@@ -13,26 +13,24 @@
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-26): AUD-15 lote 2 — `[E1]` `[E2]` `[E3]` FECHADOS, um commit de CSS.**
-  A régua do dedo tinha dois buracos que a varredura das rotas não via: **641–760px** e o
-  **interior dos diálogos**. `[E1]` o `.roi-warn > summary` ficava em 32 porque o `machines.css`
-  (14º `@import`) vencia por ORDEM a media query do `responsive.css` (8º). `[E2]` os 2
-  `.toggle-wrap` nunca tiveram regra de alvo. `[E3]` varri os **9 diálogos** nas duas réguas: 8
-  sãos, o de venda rendeu **18** (4 previstos + 12 campos do editor de taxas + o "R$/%"), e a régua
-  de **desktop** tinha o mesmo buraco lá. **Regra que ficou:** arquivo depois do 8º `@import`
-  carrega o próprio regime de 44. **Medido:** 320/375/641/760 → **0 abaixo de 44** · 1280 → **0
-  abaixo de 32** · rolagem lateral 0 · fluxo preservado. **773/773 · lint ✅ build ✅.** Restam
-  **2** (`[E4]` `[E5]`) + 2 ressalvas, nenhum morde o dado da carga. Medições no `BACKLOG.md`.
+- **Última mudança (2026-08-26): AUD-15 lote 3 — `[E5]` FECHADO, e `tsc` virou rotina.**
+  A fixture do `productionPlan.test.ts` ganhou `material`/`brand`/`minG`, e o erro **pré-existente**
+  do `calculatePricing.test.ts` (cast de documento antigo) foi junto, via `as unknown as` — sem os
+  dois o `tsc` nunca ficaria verde e a rotina não teria como existir. **Decisão:** `pnpm typecheck`
+  entra em "concluir a tarefa" (script novo no `package.json`), porque **`pnpm build` NÃO typa
+  arquivo de teste** — foi por esse buraco que o `[E5]` passou. ⚠ **Achado de tabela:** `pnpm test`
+  morria em OOM **na árvore limpa** (16 workers × 7,7 GB de RAM) — `maxWorkers: 4` no
+  `vitest.config.ts`; o build também caiu uma vez por memória e passou na segunda.
+  **773/773 · lint ✅ typecheck ✅ build ✅.** Resta **1** (`[E4]`) + 2 ressalvas.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
   (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
   Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — seguir o cluster AUD-15, se o dono mandar (a ordem é sugestão, não decisão
-  dele; os lotes 1 e 2 já foram).** Sugerido: **3)** `[E5]` (uma linha na fixture do
-  `productionPlan.test.ts`; decidir junto se `tsc --noEmit` entra na rotina de "concluir a
-  tarefa") · **4)** `[E4]` (o mais caro: exige `snapshot.metadata.fromCache`, não
-  `navigator.onLine`).
+- **▶ PRÓXIMA TAREFA — fechar o cluster AUD-15, se o dono mandar (os lotes 1, 2 e 3 já foram).**
+  Sobrou o **lote 4: `[E4]`** — o chip de nuvem diz "Sincronizado" com a rede do Firestore caída.
+  É o mais caro e o que entra mais calado: exige ler `snapshot.metadata.fromCache` /
+  `hasPendingWrites` nos hooks de coleção, **não** o `navigator.onLine`.
   Em paralelo, a frente do DONO segue a mesma — cadastrar cores/insumos definitivos e passar os ids
   pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
   (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro (regras no
@@ -183,7 +181,8 @@ git push
 
 ### 4. Verificação visual: pode abrir o site — o login é um handshake comigo
 - **Não** abra o navegador pra "confirmar" toda alteração — isso gasta tempo/tokens à toa. Pro
-  código são, prefira o barato: `pnpm lint`, `pnpm test` (e `pnpm build` quando fizer sentido).
+  código são, prefira o barato: `pnpm lint`, `pnpm test`, `pnpm typecheck` (e `pnpm build` quando
+  fizer sentido).
 - **Mas quando a verificação visual for de fato útil, ABRA você mesmo** — não fique esperando eu
   validar. Casos típicos: layout/responsivo, medir no DOM, lógica interativa que lint/build não
   cobre, ou quando eu pedir. Use o **navegador embutido** (`preview_start` + `read_page`/
@@ -241,7 +240,8 @@ git push
   *isto é preciso em TODA conversa?* Se for detalhe de item ou histórico, move: o **porquê**/o item
   concluído → `HISTORICO.md`; o que **virou a-fazer** → `BACKLOG.md`. Nunca copiar de volta pra cá.
 - **Item concluído** some do Status e vira `✅` no `HISTORICO.md` (com o writeup, se útil).
-- Esta verificação de tamanho/divisão é parte de "concluir a tarefa", igual ao `lint`/`build`.
+- Esta verificação de tamanho/divisão é parte de "concluir a tarefa", igual ao `lint`/`typecheck`/
+  `build`/`test`.
 
 ## Infra / referência de deploy
 
@@ -270,6 +270,7 @@ pnpm install        # instalar dependências
 pnpm dev            # rodar localmente (http://localhost:3000)
 pnpm build          # build de produção local
 pnpm lint           # eslint
+pnpm typecheck      # tsc --noEmit — o build NÃO typa arquivo de teste (AUD-15 [E5])
 pnpm test           # vitest (testes da matemática pura, ex.: paymentFees)
 vercel ls           # listar deploys
 vercel --prod       # deploy manual via CLI (uso pontual; o normal é push na main)

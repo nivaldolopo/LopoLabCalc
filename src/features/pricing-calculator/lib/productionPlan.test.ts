@@ -255,7 +255,10 @@ describe("FEAT-06 — frozenBreakdown no plano", () => {
 describe("AUD-14 [D9] — preço de catálogo × custo FIFO no evento", () => {
   const laranja: StockFilament = {
     id: "fil_laranja",
+    material: "PLA",
+    brand: "Bambu",
     colorName: "Laranja",
+    minG: 0,
     archived: false,
     // Dois rolos: o VELHO é o que o FIFO consome (R$ 110/kg) e o NOVO é o que
     // define o preço de catálogo da cor (R$ 85/kg — a última compra). É esta

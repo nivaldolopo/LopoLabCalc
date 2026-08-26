@@ -200,10 +200,12 @@ describe("calculatePricing — múltiplas etapas / máquinas", () => {
     };
     const comLixo = calculatePricing(
       // O cast é o ponto do teste: o tipo não tem mais estes campos, mas o
-      // documento no Firestore tem.
+      // documento no Firestore tem. Passa por `unknown` porque `PrintStage` não
+      // aceita chave desconhecida — é o próprio compilador dizendo que o lixo
+      // não existe mais no tipo, que é justamente o que se está simulando.
       makeProduct({
         stages: [{ ...stage, energyTariff: 2, laborRate: 90 }],
-      } as Partial<ProductInput>),
+      } as unknown as Partial<ProductInput>),
       DEFAULT_MACHINES,
       NO_FIXED,
     );

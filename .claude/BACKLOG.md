@@ -8,15 +8,15 @@
 >
 > ⚠ **LEIA PRIMEIRO — a varredura AUD-15 (2026-08-26, a 8ª) é de REGRESSÃO: o alvo foi o código
 > dos 4 lotes da AUD-14, não o sistema.** Ela **reabriu o backlog de código**: **6 defeitos**
-> (`[E1]`…`[E6]`) + **2 ressalvas** — os lotes **1** (`[E6]`) e **2** (`[E1]` `[E2]` `[E3]`)
-> FECHARAM em 2026-08-26, **2 seguem abertos** (`[E4]` `[E5]`).
+> (`[E1]`…`[E6]`) + **2 ressalvas** — os lotes **1** (`[E6]`), **2** (`[E1]` `[E2]` `[E3]`) e
+> **3** (`[E5]`) FECHARAM em 2026-08-26, **1 segue aberto** (`[E4]`).
 > A seção deles está **logo abaixo deste
 > cabeçalho**, ACIMA da AUD-14. Placar: **47 afirmações de ontem refeitas — 38 bateram, 8 não,
 > 1 parcial** (a AUD-14 tinha derrubado 7 de 32; o padrão do repositório se repetiu). **Os 9 itens
 > da AUD-14 continuam fazendo o que esta seção diz que fazem** — o que caiu foram *afirmações
 > sobre* eles. **A pergunta "pode recadastrar?" já era SIM com uma trava, o `[E6]` — e a trava
 > caiu:** ele era o único que mordia dado que o dono **não digita** (a planilha vem do sistema
-> externo), e fechou. Os 2 que sobram são de tela e de tipo, nenhum morde o dado da carga.
+> externo), e fechou. O que sobra é de tela (`[E4]`), e não morde o dado da carga.
 >
 > ⚠ **LEIA ISTO ANTES DO RESTO — a varredura AUD-14 (2026-08-25, a 7ª e v4 da geral) abriu 9
 > defeitos e os 4 lotes FECHARAM no mesmo dia.** A seção deles está **logo abaixo da seção da
@@ -107,7 +107,7 @@
 |---|---|---|---|
 | **1 — a trava do recadastro** | `[E6]` | É o único que morde dado que o dono **não digita**, e o recadastro é a próxima frente. Uma linha de checagem | ✅ **FECHADO 2026-08-26** |
 | **2 — a régua do dedo, de novo** | `[E1]` `[E2]` `[E3]` | Um commit de CSS só. A conclusão "0 abaixo de 44" do lote 4 vale nas rotas, **não** em 641–760px nem com diálogo aberto | ✅ **FECHADO 2026-08-26** |
-| **3 — o tipo que se perdeu** | `[E5]` | Uma linha na fixture. Nasceu no `c990679` | ⏳ aberto |
+| **3 — o tipo que se perdeu** | `[E5]` | Uma linha na fixture. Nasceu no `c990679` | ✅ **FECHADO 2026-08-26** |
 | **4 — o indicador que mente** | `[E4]` | O mais caro dos quatro (exige sonda de conectividade real, não `navigator.onLine`) e o que entra mais calado | ⏳ aberto |
 
 ### ✅ FECHADO — a trava do recadastro (lote 1, 2026-08-26)
@@ -198,6 +198,33 @@
   ⚠ **`.num-spin` ficou de fora da conta, como nas varreduras anteriores** — 28×~20, `tabindex="-1"`,
   é o stepper ao lado do campo e o alvo de verdade é o campo (exceção já declarada no lote 4).
 
+### ✅ FECHADO — o tipo que se perdeu (lote 3, 2026-08-26)
+
+- ✅ **[E5] `tsc --noEmit` está verde — e agora é rotina, que é o que impedia o próximo `[E5]`.**
+  Os **2** erros caíram, não 1. **(a)** `productionPlan.test.ts(256,9)`, TS2322: a fixture
+  `const laranja: StockFilament` ganhou `material: "PLA"`, `brand: "Bambu"` e `minG: 0` — os mesmos
+  valores da outra fixture do mesmo arquivo, pra não inventar um terceiro estilo. Nenhum
+  deles entra na conta do `[D9]` (catálogo × FIFO), então a prova segue idêntica.
+  **(b)** `calculatePricing.test.ts(205,30)`, TS2352, o **pré-existente**: era o cast do documento
+  antigo com `energyTariff`/`laborRate` dentro da etapa. Virou `as unknown as Partial<ProductInput>`
+  — a forma que o próprio compilador sugere — com o comentário dizendo o porquê: o erro é o TS
+  avisando que o lixo **não existe mais no tipo**, que é exatamente o que o teste simula. Deixá-lo
+  de fora manteria o `tsc` vermelho e a rotina abaixo seria decorativa.
+  **Decisão tomada (a que o item pedia):** **`pnpm typecheck` entra em "concluir a tarefa"**, ao
+  lado de `lint`/`test`/`build`. Script novo no `package.json`; `CLAUDE.md` atualizado na Diretriz 4,
+  na 8 e nos Comandos. **O motivo, medido:** `pnpm build` **não typa arquivo de teste** — ele passou
+  verde com o TS2322 vivo o tempo todo — e `pnpm lint` não roda `tsc`. Sem o comando próprio, todo
+  erro de tipo em teste é invisível.
+  ⚠ **Achado de tabela, fora do item:** `pnpm test` **morria antes de rodar um teste sequer**
+  (`memory allocation of 248752 bytes failed`) — reproduzido **na árvore limpa** via `git stash`,
+  logo não é regressão de código: o Vitest abre 1 worker por CPU (**16** nesta máquina) e sobravam
+  **0,5 GB de 7,7 GB**. `maxWorkers: 4` no `vitest.config.ts`, com o porquê no comentário; a suíte
+  fecha em ~1s de teste, então não custa nada. ⚠ `minWorkers` **não existe** no tipo do Vitest 4 —
+  e quem pegou foi o `pnpm build`, que typa o `vitest.config.ts`. O **build** também caiu uma vez
+  pela mesma memória (`worker exited with code: 3221226505`, na geração das páginas) e passou na
+  segunda — ambiente, não código.
+  **Prova:** `pnpm typecheck` sai **limpo** (era 2 erros) · **773/773** · `lint` ✅ · `build` ✅.
+
 ### 🟠 Entra CALADO
 
 - 🟠 **[E4] O status de nuvem diz "Sincronizado" com a rede do Firestore derrubada.**
@@ -213,19 +240,6 @@
   sonda de escrita), **não** o `navigator.onLine`. Arquivos: os hooks de coleção +
   `PageHeader.tsx:22-27` (o `statusLabel`).
   ⚠ Entra **calado**: não há aviso na tela nem divergência visível depois.
-
-### 🟡 Médio
-
-- 🟡 **[E5] `tsc --noEmit` acusa 2 erros, não 1 — e o segundo nasceu no lote 4.**
-  **Medido:** `productionPlan.test.ts(256,9): error TS2322` — a fixture `const laranja:
-  StockFilament` não tem `material`, `brand` nem `minG` (de `StockFilamentInput`). O
-  `git show c990679~1` do arquivo mostra **0 referências** a `StockFilament`: o import e a fixture
-  entraram os dois no lote 4, **na prova do `[D9]`**.
-  O outro erro (`calculatePricing.test.ts(205,30)`, TS2352) é **pré-existente** e fica de fora.
-  **Escapa porque `pnpm build` não typa teste e `pnpm lint` não roda `tsc`.** O teste passa e
-  assere certo; o que se perdeu foi a proteção do tipo sobre a fixture.
-  ⚠ Vale decidir junto se `tsc --noEmit` entra na rotina de "concluir a tarefa" (hoje é `lint`,
-  `build` e `test`) — foi só por isso que este passou.
 
 ### ⚠️ Ressalvas da AUD-15 (não são itens; viram item se o dono mandar)
 
