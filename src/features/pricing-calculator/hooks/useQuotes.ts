@@ -7,6 +7,7 @@ import {
   subscribeQuotes,
 } from "@/lib/firebase/quotesRepository";
 import { guardOnline } from "@/lib/errors";
+import { cloudStatusOf } from "@/lib/cloudStatus";
 import type { CloudStatus, QuoteRecord, QuoteRecordPayload } from "../types";
 
 export function useQuotes() {
@@ -16,9 +17,10 @@ export function useQuotes() {
 
   useEffect(() => {
     const unsubscribe = subscribeQuotes(
-      (next) => {
+      (next, origin) => {
         setQuotes(next);
-        setStatus("synced");
+        // AUD-15 [E4]: "chegou" não é "veio do servidor" — ver `cloudStatusOf`.
+        setStatus(cloudStatusOf(origin));
         setError(null);
       },
       (nextError) => {

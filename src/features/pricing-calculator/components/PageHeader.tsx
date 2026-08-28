@@ -19,11 +19,28 @@ type PageHeaderProps = {
   onToggleTheme: () => void;
 };
 
+// AUD-15 [E4] — "Sincronizado" é uma AFIRMAÇÃO sobre o servidor, e o chip a
+// fazia com a rede derrubada. Os dois rótulos novos são os estados em que ela
+// não é verdade: `pending` (a escrita local ainda não voltou do servidor) e
+// `offline` (o que está na tela veio do cache). Quem os escolhe é o
+// `cloudStatusOf`, pelo `metadata` do snapshot — não pelo `navigator.onLine`.
 const statusLabel: Record<CloudStatus, string> = {
   connecting: "Conectando nuvem...",
   synced: "Sincronizado",
+  pending: "Gravando...",
+  offline: "Sem conexão",
   importing: "Importando...",
   error: "Erro de Conexão",
+};
+
+// O rótulo curto cabe no cabeçalho; a consequência não. Ela vai no `title`, que
+// aqui é LEGÍTIMO (A11Y-01 proíbe o `title` como único NOME de controle — este
+// não é controle, é texto visível, e o `title` só acrescenta).
+const statusHint: Partial<Record<CloudStatus, string>> = {
+  pending:
+    "A gravação saiu daqui mas o servidor ainda não confirmou. Não repita a ação.",
+  offline:
+    "O servidor do Firestore não responde: o que está na tela veio do cache local e pode estar desatualizado. Nada que você salvar agora entra até a conexão voltar.",
 };
 
 // UX-33 — cabeçalho de página, um só. Este bloco estava COPIADO em 7 arquivos
@@ -59,7 +76,7 @@ export function PageHeader({
           <div className="brand-meta">
             <span>{meta}</span>
             {status ? (
-              <span className={`cloud-status ${status}`}>
+              <span className={`cloud-status ${status}`} title={statusHint[status]}>
                 {statusLabel[status]}
               </span>
             ) : null}

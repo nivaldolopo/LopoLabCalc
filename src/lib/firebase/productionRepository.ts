@@ -14,6 +14,7 @@ import {
   type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "./client";
+import { COM_METADATA, type SnapshotOrigin } from "@/lib/cloudStatus";
 import { withWriteTimeout } from "@/lib/errors";
 import { lerEConferirRevs } from "./revGuard";
 import { serializeRolls } from "./stockRepository";
@@ -202,15 +203,20 @@ export function newProductionId(): string {
   return doc(productionCollection).id;
 }
 
+// AUD-15 [E4] — o argumento `origin` conta de ONDE veio o snapshot (cache ou
+// servidor). Sem ele o hook não distingue "chegou" de "chegou do cache porque a
+// rede caiu", e era daí que saía o "Sincronizado" mentiroso.
 export function subscribeProduction(
-  onProduction: (events: ProductionEvent[]) => void,
+  onProduction: (events: ProductionEvent[], origin: SnapshotOrigin) => void,
   onError: (error: Error) => void,
 ): () => void {
   return onSnapshot(
     productionCollection,
+    COM_METADATA,
     (snapshot) => {
       onProduction(
         snapshot.docs.map((item) => toProduction(item.id, item.data())),
+        snapshot.metadata,
       );
     },
     (error) => onError(error),
@@ -247,17 +253,22 @@ function withinPeriod(event: ProductionEvent, filter: ProductionQuery): boolean 
 export function subscribeProductionPage(
   filter: ProductionQuery,
   pageLimit: number,
-  onProduction: (events: ProductionEvent[], hasMore: boolean) => void,
+  onProduction: (
+    events: ProductionEvent[],
+    hasMore: boolean,
+    origin: SnapshotOrigin,
+  ) => void,
   onError: (error: Error) => void,
 ): () => void {
   if (filter.productId) {
     return onSnapshot(
       query(productionCollection, where("productId", "==", filter.productId)),
+      COM_METADATA,
       (snapshot) => {
         const events = snapshot.docs
           .map((item) => toProduction(item.id, item.data()))
           .filter((event) => withinPeriod(event, filter));
-        onProduction(events, false);
+        onProduction(events, false, snapshot.metadata);
       },
       (error) => onError(error),
     );
@@ -269,6 +280,7 @@ export function subscribeProductionPage(
       orderBy("at", "desc"),
       fsLimit(pageLimit + 1),
     ),
+    COM_METADATA,
     (snapshot) => {
       const docs = snapshot.docs;
       const hasMore = docs.length > pageLimit;
@@ -276,6 +288,7 @@ export function subscribeProductionPage(
       onProduction(
         page.map((item) => toProduction(item.id, item.data())),
         hasMore,
+        snapshot.metadata,
       );
     },
     (error) => onError(error),

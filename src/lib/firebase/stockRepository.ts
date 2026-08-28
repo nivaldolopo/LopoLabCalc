@@ -8,6 +8,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { COM_METADATA, type SnapshotOrigin } from "@/lib/cloudStatus";
 import { withWriteTimeout } from "@/lib/errors";
 import { EstoqueDesatualizadoError } from "./revGuard";
 import type {
@@ -115,15 +116,20 @@ function toDocument(payload: StockFilamentPayload): DocumentData {
   };
 }
 
+// AUD-15 [E4] — o argumento `origin` conta de ONDE veio o snapshot (cache ou
+// servidor). Sem ele o hook não distingue "chegou" de "chegou do cache porque a
+// rede caiu", e era daí que saía o "Sincronizado" mentiroso.
 export function subscribeStock(
-  onStock: (filaments: StockFilament[]) => void,
+  onStock: (filaments: StockFilament[], origin: SnapshotOrigin) => void,
   onError: (error: Error) => void,
 ): () => void {
   return onSnapshot(
     stockCollection,
+    COM_METADATA,
     (snapshot) => {
       onStock(
         snapshot.docs.map((item) => toStockFilament(item.id, item.data())),
+        snapshot.metadata,
       );
     },
     (error) => onError(error),

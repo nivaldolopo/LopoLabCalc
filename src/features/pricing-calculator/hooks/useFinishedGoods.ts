@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { subscribeFinishedGoods } from "@/lib/firebase/finishedGoodsRepository";
+import { cloudStatusOf } from "@/lib/cloudStatus";
 import type { CloudStatus, FinishedGood } from "../types";
 
 // Estoque de Produtos / acabados em tempo real (um doc por produto, FEAT-05a).
@@ -17,9 +18,10 @@ export function useFinishedGoods() {
 
   useEffect(() => {
     const unsubscribe = subscribeFinishedGoods(
-      (nextGoods) => {
+      (nextGoods, origin) => {
         setGoods(nextGoods);
-        setStatus("synced");
+        // AUD-15 [E4]: "chegou" não é "veio do servidor" — ver `cloudStatusOf`.
+        setStatus(cloudStatusOf(origin));
         setError(null);
       },
       (nextError) => {

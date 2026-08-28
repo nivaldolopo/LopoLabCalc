@@ -348,6 +348,16 @@
   color: var(--accent-text);
 }
 
+/* AUD-15 [E4] — dado de cache com o servidor mudo. Amarelo e não vermelho de
+   propósito: o app continua utilizável e o que está na tela é real, só pode
+   estar velho; `--danger` é para o que já falhou (`.error`). O `pending` fica
+   sem regra, ou seja `--muted`, igual ao `connecting`: é um estado de passagem
+   de menos de um segundo no caminho feliz e não deve puxar o olho a cada
+   gravação. */
+.cloud-status.offline {
+  color: var(--warn);
+}
+
 .app-error {
   border: 1px solid var(--danger-line);
   background: var(--danger-soft);

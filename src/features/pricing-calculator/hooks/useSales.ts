@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { subscribeSales } from "@/lib/firebase/salesRepository";
+import { cloudStatusOf } from "@/lib/cloudStatus";
 import type { CloudStatus, Sale } from "../types";
 
 export function useSales() {
@@ -11,9 +12,10 @@ export function useSales() {
 
   useEffect(() => {
     const unsubscribe = subscribeSales(
-      (nextSales) => {
+      (nextSales, origin) => {
         setSales(nextSales);
-        setStatus("synced");
+        // AUD-15 [E4]: "chegou" não é "veio do servidor" — ver `cloudStatusOf`.
+        setStatus(cloudStatusOf(origin));
         setError(null);
       },
       (nextError) => {

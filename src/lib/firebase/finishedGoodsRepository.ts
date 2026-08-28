@@ -4,6 +4,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { COM_METADATA, type SnapshotOrigin } from "@/lib/cloudStatus";
 import { frozenFromDocument, frozenToDocument } from "./frozenCost";
 import {
   NO_COLOR_KEY,
@@ -119,14 +120,21 @@ export function finishedGoodToDocument(
   };
 }
 
+// AUD-15 [E4] — o argumento `origin` conta de ONDE veio o snapshot (cache ou
+// servidor). Sem ele o hook não distingue "chegou" de "chegou do cache porque a
+// rede caiu", e era daí que saía o "Sincronizado" mentiroso.
 export function subscribeFinishedGoods(
-  onData: (goods: FinishedGood[]) => void,
+  onData: (goods: FinishedGood[], origin: SnapshotOrigin) => void,
   onError: (error: Error) => void,
 ): () => void {
   return onSnapshot(
     finishedCollection,
+    COM_METADATA,
     (snapshot) => {
-      onData(snapshot.docs.map((item) => toFinishedGood(item.id, item.data())));
+      onData(
+        snapshot.docs.map((item) => toFinishedGood(item.id, item.data())),
+        snapshot.metadata,
+      );
     },
     (error) => onError(error),
   );

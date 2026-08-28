@@ -1,45 +1,40 @@
 # LopoLabCalc — Orientações para o chat
 
 > Lido automaticamente a cada conversa. Leia as **Diretrizes de trabalho** antes de qualquer ação.
-> **Três arquivos, três papéis** (Diretriz 8): este `CLAUDE.md` = foto do AGORA + próxima tarefa
-> (auto, todo turno) · [`BACKLOG.md`](.claude/BACKLOG.md) = a-fazer (curto; leia pra escolher tarefa)
-> · [`HISTORICO.md`](.claude/HISTORICO.md) = feito + D1–D8 + auditoria (sob demanda, pro *porquê*;
-> pesado). **Não** traga o conteúdo desses dois de volta pra cá.
+> **Três arquivos, três papéis** (Diretriz 8): este = AGORA (auto, todo turno) ·
+> [`BACKLOG.md`](.claude/BACKLOG.md) = a-fazer · [`HISTORICO.md`](.claude/HISTORICO.md) = o porquê
+> (pesado, sob demanda). **Não** traga o conteúdo desses dois de volta pra cá.
 
 ## Status atual (contexto de continuidade)
 
-> Foto do **AGORA** para abrir um chat novo por tarefa. Curto e atual — não é histórico (o git guarda
-> o detalhe; o `HISTORICO.md` guarda o porquê). Regras de tamanho nas Diretrizes 5 e 8.
+> Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
 - **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
   (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-26): AUD-15 lote 3 — `[E5]` FECHADO, e `tsc` virou rotina.**
-  A fixture do `productionPlan.test.ts` ganhou `material`/`brand`/`minG`, e o erro **pré-existente**
-  do `calculatePricing.test.ts` (cast de documento antigo) foi junto, via `as unknown as` — sem os
-  dois o `tsc` nunca ficaria verde e a rotina não teria como existir. **Decisão:** `pnpm typecheck`
-  entra em "concluir a tarefa" (script novo no `package.json`), porque **`pnpm build` NÃO typa
-  arquivo de teste** — foi por esse buraco que o `[E5]` passou. ⚠ **Achado de tabela:** `pnpm test`
-  morria em OOM **na árvore limpa** (16 workers × 7,7 GB de RAM) — `maxWorkers: 4` no
-  `vitest.config.ts`; o build também caiu uma vez por memória e passou na segunda.
-  **773/773 · lint ✅ typecheck ✅ build ✅.** Resta **1** (`[E4]`) + 2 ressalvas.
-- **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque (filamento + insumos) + FEAT-01/02/04/05 + passo 8
-  (venda virou **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, rota `/producao`).
-  Custo real **decomponível ponta a ponta** (produção → acabado → venda) e o ROI já lê o custo real.
+- **Última mudança (2026-08-28): AUD-15 lote 4 — `[E4]` FECHADO. O cluster AUD-15 está ZERADO.**
+  O chip parou de perguntar "chegou dado?" e passou a perguntar "de ONDE veio?" — as 9 assinaturas
+  de coleção repassam `snapshot.metadata` e os 9 hooks trocaram `setStatus("synced")` pelo
+  `cloudStatusOf` (regra na lista abaixo); rótulos novos "Sem conexão" e "Gravando...".
+  ⚠ **Achado de tabela:** o "X de N" da `/producao` tinha o mesmo TD-019 já consertado nas vendas.
+  **Prova ao vivo**, com o transporte do Firestore cortado e `navigator.onLine = true` o tempo
+  todo: 4 rotas vão de "Sincronizado" a "Sem conexão" em ≤1s e voltam.
+  **778/778 · lint ✅ typecheck ✅ build ✅.** Sobram as **2 ressalvas**.
+- **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
+  **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, `/producao`). Custo real
+  **decomponível ponta a ponta** (produção → acabado → venda), e o ROI já o lê.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — fechar o cluster AUD-15, se o dono mandar (os lotes 1, 2 e 3 já foram).**
-  Sobrou o **lote 4: `[E4]`** — o chip de nuvem diz "Sincronizado" com a rede do Firestore caída.
-  É o mais caro e o que entra mais calado: exige ler `snapshot.metadata.fromCache` /
-  `hasPendingWrites` nos hooks de coleção, **não** o `navigator.onLine`.
-  Em paralelo, a frente do DONO segue a mesma — cadastrar cores/insumos definitivos e passar os ids
-  pro **sistema externo dele**, que **gera** a planilha. **Sem botão de planilha-modelo no app**
-  (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do cadastro (regras no
-  `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, e a trava (o `[E6]`) já caiu.** Ressalvas antigas (só se
-  ele mandar): nome acessível por `title` · `<select>` que corta sem reticências (8,5%) · o lixo.
+- **▶ PRÓXIMA TAREFA — o backlog de CÓDIGO voltou a ZERO.** Sobram as 2 ressalvas da AUD-15
+  (`[R1]` perda parcial calada no `readFinishedColors` · `[R2]` afirmação errada, não defeito) e as
+  antigas (nome acessível por `title` · `<select>` que corta sem reticências, 8,5% · o lixo) — só
+  viram tarefa se o dono mandar. A frente do DONO é a mesma: cadastrar cores/insumos definitivos e
+  passar os ids pro **sistema externo dele**, que **gera** a planilha. **Sem botão de
+  planilha-modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do
+  cadastro (regras no `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, sem trava.**
 - ⚠ **Ainda pendentes (dono):** **cadastrar os insumos e religar os acessórios** (os de hoje entram
   no custo mas não dão baixa) · o Dashboard fecha as ressalvas de UX-09 e TD-006 já na tela.
-- **Infra pronta:** subdomínio no ar (CNAME "DNS only" no Cloudflare + SSL Let's Encrypt); e-mail
-  `@lopolab.com.br` configurado; login Google restrito (`AuthGate` + regras Firestore travadas).
+- **Infra pronta:** e-mail `@lopolab.com.br` e login Google restrito (`AuthGate` + regras Firestore
+  travadas); domínio/DNS na seção "Infra" abaixo.
 - **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).
 
 ## Resumo do projeto (contexto rápido)
@@ -102,6 +97,7 @@ src/
                             #   transação) · finishedGoods (`acabados`, doc por PRODUTO)
     errors.ts               # guardOnline (barra ANTES do await) + withWriteTimeout (12s, na BORDA
                             #   do repositório — escrita nova passa por ele) + errorMessage
+    cloudStatus.ts          # cloudStatusOf(metadata) + COM_METADATA — o chip de sincronização
     clipboard.ts            # copyText — erro EXPLÍCITO quando o navegador não libera
     formatting/             # currency.ts (formatCurrency/formatDecimal) · date.ts (ponte
                             #   timestamp ↔ <input type="date">)
@@ -151,6 +147,10 @@ src/
   esperando acontecer** (AUD-02): o `SaleModal` montava o `ReciboWrite` sem `supplyUpdates` e o
   TypeScript não reclamava — a venda não debitava insumo. Campo que o repositório grava é
   **obrigatório**; lista vazia é a forma de dizer "nada".
+- **Snapshot que CHEGA não é prova de servidor** (AUD-15 [E4]): offline o `onSnapshot` serve do
+  cache pelo mesmo callback de sucesso. Assinatura de coleção pede `COM_METADATA` e repassa
+  `snapshot.metadata`; quem decide o chip é o `cloudStatusOf` — nunca o `navigator.onLine`. ⚠ E
+  `hasPendingWrites` vem ANTES de `fromCache`: o snapshot otimista de todo save vem do cache.
 - Toda a lógica de cálculo vive em `features/pricing-calculator/lib/` — pura e coberta por teste.
 
 ## Diretrizes de trabalho
@@ -203,12 +203,10 @@ git push
   quando a alteração já foi pushada e o ajuste do Status veio depois.
 
 ### 6. Sinalizar hora de trocar de chat
-- Ao **concluir uma tarefa** (feature/correção fechada, commitada e pushada),
-  lembre que aquele é um bom ponto de corte: sugira encerrar este chat e abrir
-  um novo pra próxima tarefa (o "Status atual" já carrega o contexto).
-- Se a conversa estiver visivelmente longa (muitos turnos/leituras) e ainda no
-  meio de algo, avise que o contexto está grande e que pode valer finalizar um
-  passo lógico e continuar em chat novo — mas **sem prometer precisão de tokens**
+- Ao **concluir uma tarefa** (fechada, commitada e pushada), lembre que aquele é um bom ponto de
+  corte: sugira encerrar este chat e abrir um novo (o "Status atual" já carrega o contexto).
+- Conversa visivelmente longa e ainda no meio de algo: avise que o contexto está grande e que pode
+  valer fechar um passo lógico e continuar em chat novo — mas **sem prometer precisão de tokens**
   (não há medidor ao vivo; o gatilho confiável é "tarefa concluída", não contagem).
 
 ### 7. Dados atuais são descartáveis — priorize velocidade sobre compatibilidade

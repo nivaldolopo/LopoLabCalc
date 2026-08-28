@@ -15,6 +15,7 @@ import {
   type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "./client";
+import { COM_METADATA, type SnapshotOrigin } from "@/lib/cloudStatus";
 import { withWriteTimeout } from "@/lib/errors";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import { productionToDocument } from "./productionRepository";
@@ -194,14 +195,21 @@ function toSale(id: string, data: DocumentData): Sale {
   };
 }
 
+// AUD-15 [E4] — o argumento `origin` conta de ONDE veio o snapshot (cache ou
+// servidor). Sem ele o hook não distingue "chegou" de "chegou do cache porque a
+// rede caiu", e era daí que saía o "Sincronizado" mentiroso.
 export function subscribeSales(
-  onSales: (sales: Sale[]) => void,
+  onSales: (sales: Sale[], origin: SnapshotOrigin) => void,
   onError: (error: Error) => void,
 ): () => void {
   return onSnapshot(
     salesCollection,
+    COM_METADATA,
     (snapshot) => {
-      onSales(snapshot.docs.map((item) => toSale(item.id, item.data())));
+      onSales(
+        snapshot.docs.map((item) => toSale(item.id, item.data())),
+        snapshot.metadata,
+      );
     },
     (error) => onError(error),
   );
@@ -249,12 +257,14 @@ function withinPeriod(sale: Sale, filter: SalesQuery): boolean {
 // ⚠ `includeMetadataChanges` é o que faz o snapshot de CONFIRMAÇÃO chegar. Sem
 // ele o Firestore não reemite quando só o metadata muda — era por isso que os
 // cards ficavam parados até recarregar a página: o segundo snapshot nunca vinha.
-const COM_METADATA = { includeMetadataChanges: true } as const;
+// AUD-15 [E4]: a constante que morava aqui virou a `COM_METADATA` do
+// `lib/cloudStatus`, porque agora TODA assinatura de coleção precisa dela — o
+// mesmo evento que confirma a escrita é o que denuncia a rede caída.
 
 export function subscribeSalesPage(
   filter: SalesQuery,
   pageLimit: number,
-  onSales: (sales: Sale[], hasMore: boolean, pending: boolean) => void,
+  onSales: (sales: Sale[], hasMore: boolean, origin: SnapshotOrigin) => void,
   onError: (error: Error) => void,
 ): () => void {
   if (filter.productId) {
@@ -265,7 +275,7 @@ export function subscribeSalesPage(
         const sales = snapshot.docs
           .map((item) => toSale(item.id, item.data()))
           .filter((sale) => withinPeriod(sale, filter));
-        onSales(sales, false, snapshot.metadata.hasPendingWrites);
+        onSales(sales, false, snapshot.metadata);
       },
       (error) => onError(error),
     );
@@ -285,7 +295,7 @@ export function subscribeSalesPage(
       onSales(
         page.map((item) => toSale(item.id, item.data())),
         hasMore,
-        snapshot.metadata.hasPendingWrites,
+        snapshot.metadata,
       );
     },
     (error) => onError(error),

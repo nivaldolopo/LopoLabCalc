@@ -7,6 +7,7 @@ import {
   subscribeProduction,
   type FinishedUpdate,
 } from "@/lib/firebase/productionRepository";
+import { cloudStatusOf } from "@/lib/cloudStatus";
 import type {
   CloudStatus,
   ProductionEvent,
@@ -25,9 +26,10 @@ export function useProduction() {
 
   useEffect(() => {
     const unsubscribe = subscribeProduction(
-      (nextEvents) => {
+      (nextEvents, origin) => {
         setEvents(nextEvents);
-        setStatus("synced");
+        // AUD-15 [E4]: "chegou" não é "veio do servidor" — ver `cloudStatusOf`.
+        setStatus(cloudStatusOf(origin));
         setError(null);
       },
       (nextError) => {

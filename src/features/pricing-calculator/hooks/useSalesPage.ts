@@ -8,6 +8,7 @@ import {
   type SalesQuery,
   type SalesTotals,
 } from "@/lib/firebase/salesRepository";
+import { cloudStatusOf } from "@/lib/cloudStatus";
 import type { CloudStatus, Sale } from "../types";
 
 const PAGE_SIZE = 25;
@@ -51,11 +52,13 @@ export function useSalesPage(filter: SalesQuery) {
     const unsubscribe = subscribeSalesPage(
       activeFilter,
       pageLimit,
-      (nextSales, more, pending) => {
+      (nextSales, more, origin) => {
         setSales(nextSales);
         setHasMore(more);
-        setStatus("synced");
+        // AUD-15 [E4]: "chegou" não é "veio do servidor" — ver `cloudStatusOf`.
+        setStatus(cloudStatusOf(origin));
         setError(null);
+        const pending = origin.hasPendingWrites;
         if (productId) {
           // Caminho de produto: conjunto inteiro em memória → soma no cliente.
           // Aqui `pending` não atrapalha — o doc otimista já está na lista, e é

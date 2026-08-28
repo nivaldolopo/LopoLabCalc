@@ -9,6 +9,7 @@ import {
   type FinishedUpdate,
   type ProductionQuery,
 } from "@/lib/firebase/productionRepository";
+import { cloudStatusOf } from "@/lib/cloudStatus";
 import type {
   CloudStatus,
   ProductionEvent,
@@ -48,14 +49,22 @@ export function useProductionPage(filter: ProductionQuery) {
     const unsubscribe = subscribeProductionPage(
       activeFilter,
       pageLimit,
-      (nextEvents, more) => {
+      (nextEvents, more, origin) => {
         setEvents(nextEvents);
         setHasMore(more);
-        setStatus("synced");
+        // AUD-15 [E4]: "chegou" não é "veio do servidor" — ver `cloudStatusOf`.
+        setStatus(cloudStatusOf(origin));
         setError(null);
         if (productId) {
           setTotalCount(nextEvents.length);
-        } else {
+        } else if (!origin.hasPendingWrites) {
+          // Mesma espera do `useSalesPage` (TD-019), que aqui só passou a ser
+          // possível com o [E4]: a contagem vem de uma aggregation query no
+          // SERVIDOR, e disparada no snapshot otimista ela volta o número de
+          // ANTES da gravação. Sem `includeMetadataChanges` o segundo snapshot
+          // (o confirmado) nunca chegava, então o "X de N" ficava com o N velho
+          // até a próxima mudança de dado — agora ele chega, e a contagem é
+          // refeita já com o evento dentro.
           fetchProductionCount(activeFilter)
             .then((next) => {
               if (!cancelled) setTotalCount(next);

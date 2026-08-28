@@ -7,6 +7,7 @@ import {
   saveStockFilament,
   subscribeStock,
 } from "@/lib/firebase/stockRepository";
+import { cloudStatusOf } from "@/lib/cloudStatus";
 import type { CloudStatus, StockFilament, StockFilamentPayload } from "../types";
 
 // Estoque de filamento em tempo real (uma cor por doc). Segue o `useSales`: sem
@@ -19,9 +20,10 @@ export function useStock() {
 
   useEffect(() => {
     const unsubscribe = subscribeStock(
-      (nextFilaments) => {
+      (nextFilaments, origin) => {
         setFilaments(nextFilaments);
-        setStatus("synced");
+        // AUD-15 [E4]: "chegou" não é "veio do servidor" — ver `cloudStatusOf`.
+        setStatus(cloudStatusOf(origin));
         setError(null);
       },
       (nextError) => {

@@ -7,6 +7,7 @@ import {
   saveSupply,
   subscribeSupplies,
 } from "@/lib/firebase/suppliesRepository";
+import { cloudStatusOf } from "@/lib/cloudStatus";
 import type { CloudStatus, Supply, SupplyPayload } from "../types";
 
 // Estoque de insumos em tempo real (um insumo por doc). Molde do `useStock`:
@@ -18,9 +19,10 @@ export function useSupplies() {
 
   useEffect(() => {
     const unsubscribe = subscribeSupplies(
-      (nextSupplies) => {
+      (nextSupplies, origin) => {
         setSupplies(nextSupplies);
-        setStatus("synced");
+        // AUD-15 [E4]: "chegou" não é "veio do servidor" — ver `cloudStatusOf`.
+        setStatus(cloudStatusOf(origin));
         setError(null);
       },
       (nextError) => {

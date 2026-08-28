@@ -8,6 +8,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
+import { COM_METADATA, type SnapshotOrigin } from "@/lib/cloudStatus";
 import { withWriteTimeout } from "@/lib/errors";
 import type {
   QuoteBusiness,
@@ -55,14 +56,21 @@ function toQuoteRecord(id: string, data: DocumentData): QuoteRecord {
   };
 }
 
+// AUD-15 [E4] — o argumento `origin` conta de ONDE veio o snapshot (cache ou
+// servidor). Sem ele o hook não distingue "chegou" de "chegou do cache porque a
+// rede caiu", e era daí que saía o "Sincronizado" mentiroso.
 export function subscribeQuotes(
-  onQuotes: (quotes: QuoteRecord[]) => void,
+  onQuotes: (quotes: QuoteRecord[], origin: SnapshotOrigin) => void,
   onError: (error: Error) => void,
 ): () => void {
   return onSnapshot(
     quotesCollection,
+    COM_METADATA,
     (snapshot) => {
-      onQuotes(snapshot.docs.map((item) => toQuoteRecord(item.id, item.data())));
+      onQuotes(
+        snapshot.docs.map((item) => toQuoteRecord(item.id, item.data())),
+        snapshot.metadata,
+      );
     },
     (error) => onError(error),
   );

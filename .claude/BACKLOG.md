@@ -9,14 +9,15 @@
 > ⚠ **LEIA PRIMEIRO — a varredura AUD-15 (2026-08-26, a 8ª) é de REGRESSÃO: o alvo foi o código
 > dos 4 lotes da AUD-14, não o sistema.** Ela **reabriu o backlog de código**: **6 defeitos**
 > (`[E1]`…`[E6]`) + **2 ressalvas** — os lotes **1** (`[E6]`), **2** (`[E1]` `[E2]` `[E3]`) e
-> **3** (`[E5]`) FECHARAM em 2026-08-26, **1 segue aberto** (`[E4]`).
+> **3** (`[E5]`) FECHARAM em 2026-08-26 e o **4** (`[E4]`) em **2026-08-28**: o cluster está
+> **ZERADO**, sobram as 2 ressalvas.
 > A seção deles está **logo abaixo deste
 > cabeçalho**, ACIMA da AUD-14. Placar: **47 afirmações de ontem refeitas — 38 bateram, 8 não,
 > 1 parcial** (a AUD-14 tinha derrubado 7 de 32; o padrão do repositório se repetiu). **Os 9 itens
 > da AUD-14 continuam fazendo o que esta seção diz que fazem** — o que caiu foram *afirmações
 > sobre* eles. **A pergunta "pode recadastrar?" já era SIM com uma trava, o `[E6]` — e a trava
 > caiu:** ele era o único que mordia dado que o dono **não digita** (a planilha vem do sistema
-> externo), e fechou. O que sobra é de tela (`[E4]`), e não morde o dado da carga.
+> externo), e fechou. O de tela (`[E4]`) fechou depois, e nunca mordeu o dado da carga.
 >
 > ⚠ **LEIA ISTO ANTES DO RESTO — a varredura AUD-14 (2026-08-25, a 7ª e v4 da geral) abriu 9
 > defeitos e os 4 lotes FECHARAM no mesmo dia.** A seção deles está **logo abaixo da seção da
@@ -80,7 +81,7 @@
 > lote B foram fechados no mesmo dia. **O que falta antes da carga é do dono:** cadastrar as cores
 > e os insumos definitivos — só então eu gero a de-para e a planilha-modelo (lote C).
 
-## 🔴 ABERTO — cluster da varredura AUD-15 (2026-08-26) — a 8ª, REGRESSÃO dos lotes da AUD-14
+## ✅ ZERADO — cluster da varredura AUD-15 (2026-08-26) — a 8ª, REGRESSÃO dos lotes da AUD-14
 
 > **O alvo não foi o sistema, foi o código de ontem.** Os 4 lotes da AUD-14 mexeram em 46 arquivos
 > e na camada de escrita inteira, e ninguém além de quem os escreveu os exercitou. Relatório
@@ -94,8 +95,8 @@
 >
 > **Os 2 que entravam CALADOS:** `[E4]` (status "Sincronizado" com a rede caída — sem aviso na
 > hora e sem divergência visível depois) e `[E6]` (valor de magnitude absurda vindo da planilha
-> externa, com `issues: []` e `warnings: []`) — **o `[E6]` fechou; sobra o `[E4]`**. Os outros 4
-> são visíveis.
+> externa, com `issues: []` e `warnings: []`) — **os dois fecharam** (`[E6]` em 26/08, `[E4]` em
+> 28/08). Os outros 4 eram visíveis.
 >
 > **Reconferido no código em 2026-08-26** (não é só o relatório falando): `[E1]` `[E2]` `[E3]`
 > `[E5]` `[E6]` e a ressalva `[R1]` foram todos reproduzidos estaticamente — ordem dos `@import`,
@@ -108,7 +109,7 @@
 | **1 — a trava do recadastro** | `[E6]` | É o único que morde dado que o dono **não digita**, e o recadastro é a próxima frente. Uma linha de checagem | ✅ **FECHADO 2026-08-26** |
 | **2 — a régua do dedo, de novo** | `[E1]` `[E2]` `[E3]` | Um commit de CSS só. A conclusão "0 abaixo de 44" do lote 4 vale nas rotas, **não** em 641–760px nem com diálogo aberto | ✅ **FECHADO 2026-08-26** |
 | **3 — o tipo que se perdeu** | `[E5]` | Uma linha na fixture. Nasceu no `c990679` | ✅ **FECHADO 2026-08-26** |
-| **4 — o indicador que mente** | `[E4]` | O mais caro dos quatro (exige sonda de conectividade real, não `navigator.onLine`) e o que entra mais calado | ⏳ aberto |
+| **4 — o indicador que mente** | `[E4]` | O mais caro dos quatro (exige sonda de conectividade real, não `navigator.onLine`) e o que entra mais calado | ✅ **FECHADO 2026-08-28** |
 
 ### ✅ FECHADO — a trava do recadastro (lote 1, 2026-08-26)
 
@@ -225,21 +226,50 @@
   segunda — ambiente, não código.
   **Prova:** `pnpm typecheck` sai **limpo** (era 2 erros) · **773/773** · `lint` ✅ · `build` ✅.
 
-### 🟠 Entra CALADO
+### ✅ FECHADO — o indicador que mente (lote 4, 2026-08-28)
 
-- 🟠 **[E4] O status de nuvem diz "Sincronizado" com a rede do Firestore derrubada.**
-  O lote 2 (`[D2]`) consertou o botão e a escrita. **O indicador que fez o dono confiar na escrita
-  em primeiro lugar continua mentindo** — e é ele que o comentário do `errors.ts:38` cita como
-  parte do defeito original.
-  **Medido** com `disableNetwork(db)` pelo SDK autenticado da própria página (o cenário exato do
-  `[D2]`: Wi-Fi conectado sem internet), 12 leituras em 18s: o chip fica em
-  `.cloud-status synced :: "Sincronizado"` **o tempo inteiro** — conjunto de 1 —, antes, durante e
-  depois, com `navigator.onLine = true` sempre.
-  **Mecanismo:** o `onSnapshot` serve do CACHE quando a rede cai, e o status vira `synced` do
-  mesmo jeito. Consertar exige olhar `snapshot.metadata.fromCache` / `hasPendingWrites` (ou uma
-  sonda de escrita), **não** o `navigator.onLine`. Arquivos: os hooks de coleção +
-  `PageHeader.tsx:22-27` (o `statusLabel`).
-  ⚠ Entra **calado**: não há aviso na tela nem divergência visível depois.
+- ✅ **[E4] O chip parou de perguntar "chegou dado?" e passou a perguntar "de ONDE veio?".**
+  O defeito medido pela AUD-15: com `disableNetwork(db)`, 12 leituras em 18s, o chip ficava em
+  `.cloud-status synced :: "Sincronizado"` o tempo inteiro, com `navigator.onLine = true` sempre.
+  O `onSnapshot` **entrega** quando a rede cai — serve do cache e chama o mesmo callback de
+  sucesso —, e os 9 hooks liam esse callback como prova de vida (`setStatus("synced")`).
+  **Conserto:** `src/lib/cloudStatus.ts` (novo), com a função pura `cloudStatusOf({fromCache,
+  hasPendingWrites})` → `pending` | `offline` | `synced`, mais a `COM_METADATA` compartilhada.
+  As 9 assinaturas de coleção passaram a pedir `includeMetadataChanges` e a repassar
+  `snapshot.metadata` como 2º (ou 3º) argumento do callback; os 9 hooks trocaram
+  `setStatus("synced")` por `setStatus(cloudStatusOf(origin))`. Dois rótulos novos no `PageHeader`:
+  **"Sem conexão"** (`--warn`) e **"Gravando..."** (muted, como o `connecting`), com a consequência
+  inteira num `title`.
+  ⚠ **A ORDEM da função é o item inteiro:** `hasPendingWrites` é testado ANTES de `fromCache`,
+  porque **online** o snapshot otimista de toda gravação também chega com `fromCache: true` (é a
+  compensação de latência). Invertendo os dois, o chip piscaria "Sem conexão" a cada save — a
+  mentira oposta. Nenhum dos dois ramos novos afirma "Sincronizado".
+  ⚠ **`includeMetadataChanges` não é detalhe:** sem ela o Firestore **não reemite** quando só o
+  metadado muda, e a queda de rede é exatamente isso (os documentos continuam iguais, muda a
+  origem). Era o evento que faltava para a tela saber.
+  ⚠ **Achado de tabela, do mesmo commit:** o "X de N" da `/producao` tinha o mesmo TD-019 que as
+  vendas já tinham consertado — a aggregation query disparava no snapshot otimista e voltava o
+  número de ANTES da gravação, e a confirmação nunca chegava. Agora chega, e o
+  `!origin.hasPendingWrites` espera por ela.
+  **Prova ao vivo** (dev server, sessão autenticada do dono; transporte para
+  `firestore.googleapis.com` cortado no XHR/fetch, que é o cenário "Wi-Fi conectado sem internet"
+  do `[D2]` — o `navigator.onLine` fica `true` o tempo todo, e é esse o ponto):
+  · `/estoque` → `synced → offline` em **≤1s**, e **"Sem conexão" nas 20 amostras de 20s**
+  (a AUD-15 tinha conjunto de 1 valor: "Sincronizado"); restaurado o transporte, volta a
+  "Sincronizado" em ≤1s · `/producao` (`useProductionPage`, o callback de 3 argumentos) e
+  `/vendas` (`useSalesPage`) → mesma ida e volta, e os cards de agregação seguem em
+  **47 / R$ 2.620,70 / R$ 853,05 / R$ 1.762,87 / 67%** antes e depois · `/` (`useProducts`) idem.
+  **Contraste do rótulo novo:** escuro `rgb(224,163,58)` ≈ 8,6:1 · claro `rgb(160,90,0)` sobre
+  `rgb(250,250,247)` ≈ **5,1:1** — os dois passam de 4,5:1.
+  **Sem regressão no caminho feliz:** "Editar + Salvar" numa cor (gravação real, `runTransaction`)
+  → **0 transições** do chip em 3s de `MutationObserver`. É o esperado: transação do Firestore
+  **não** aplica local, então nem chega a existir snapshot pendente.
+  ⚠ **O que NÃO foi medido ao vivo:** o rótulo `pending` ("Gravando..."), que só aparece nos
+  caminhos que aplicam local — `addDoc` / `deleteDoc` / `writeBatch` (criar produto, criar cor,
+  criar insumo, excluir produto, importar CSV). Exigiria escrever dado de teste no Firestore do
+  dono. A precedência dele sobre o `offline` está fixada em teste unitário
+  (`src/lib/cloudStatus.test.ts`, 5 casos).
+  **778/778** · `lint` ✅ · `typecheck` ✅ · `build` ✅.
 
 ### ⚠️ Ressalvas da AUD-15 (não são itens; viram item se o dono mandar)
 

@@ -9,6 +9,7 @@ import {
   saveProduct,
   subscribeProducts,
 } from "@/lib/firebase/productsRepository";
+import { cloudStatusOf } from "@/lib/cloudStatus";
 import type { CloudStatus, ProductPayload, SavedProduct } from "../types";
 
 export function useProducts() {
@@ -18,9 +19,10 @@ export function useProducts() {
 
   useEffect(() => {
     const unsubscribe = subscribeProducts(
-      (nextProducts) => {
+      (nextProducts, origin) => {
         setProducts(nextProducts);
-        setStatus("synced");
+        // AUD-15 [E4]: "chegou" não é "veio do servidor" — ver `cloudStatusOf`.
+        setStatus(cloudStatusOf(origin));
         setError(null);
       },
       (nextError) => {

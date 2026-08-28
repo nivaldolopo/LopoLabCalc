@@ -314,7 +314,17 @@ export type CapacityResult = {
   }[];
 };
 
-export type CloudStatus = "connecting" | "synced" | "importing" | "error";
+// AUD-15 [E4] — `pending` e `offline` nasceram do chip que dizia "Sincronizado"
+// com a rede caída. Quem os decide é o `cloudStatusOf` (`src/lib/cloudStatus.ts`),
+// a partir do `metadata` do snapshot; os outros três continuam vindo da mão dos
+// hooks (montagem, importação de CSV, erro da assinatura).
+export type CloudStatus =
+  | "connecting"
+  | "synced"
+  | "pending"
+  | "offline"
+  | "importing"
+  | "error";
 
 export type SortMode =
   | "recent"
