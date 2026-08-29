@@ -9,6 +9,56 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ AUD-16 lote 1 — a fronteira de ingestão parou de corrigir calada (2026-08-29)
+
+**De onde veio:** varredura total do sistema feita por **outra IA** sobre uma cópia ZIP
+(`AUD-16-RELATORIO.md`, fora do repo), 7 defeitos. Antes de mexer em qualquer linha, os 7 foram
+**reconferidos aqui com sonda rodando o parser real** — e a reconferência corrigiu o relatório em
+três pontos (registrados no `BACKLOG.md`, seção AUD-16).
+
+**O diagnóstico que importa não é "o importador é frouxo".** É que ele **não tinha uma resposta
+só**: para a mesma classe de erro ele ora avisava, ora corrigia em silêncio, ora estourava com
+`TypeError`. A assimetria denunciava a causa: `Mao de obra (min) = -30` entrava negativa e acendia
+`linha-invalida`, porque **nada** a normalizava antes; `Tempo (h) = -1` virava 0 sem um aviso,
+porque tinha um `Math.max(0, …)` na frente. **O clamp não protegia — ele escondia**, e trocava um
+número absurdo (que salta aos olhos) por um plausível (que ninguém acha depois). É literalmente o
+argumento que o CSV-31 já tinha escrito para as peças fracionárias; faltava aplicá-lo aqui.
+
+**As quatro mudanças:**
+
+1. **`[E1]`** — o clamp do tempo saiu (`printTimeHours`). O negativo sobrevive até o
+   `validateProduct`, que **já checava** `printHours < 0` e nunca via o valor cru.
+2. **`[E2]`** — o clamp da taxa de falha saiu (`Math.min(95, Math.max(0, …))`, que fazia `-1`→0 e
+   `96`/`500`→95, os três com `issues: []`). O domínio **0–95** virou regra do `validateProduct`, a
+   MESMA função do formulário — que era o item "equivalência real com `validateProduct`" do
+   relatório. A matemática não corre risco com o valor cru: `failureFractionOf` tem o teto de 95%
+   dele, compartilhado com a capacidade (TD-011). ⚠ Um teste do AUD-14/D1 cristalizava o clamp
+   (`expect(failureRate).toBe(95)`) — foi reescrito, não deletado: o aviso de magnitude continua, e
+   agora a linha ainda é reprovada.
+3. **`[E3]`** — `numFromJson` devolve 0 para campo ausente **sem reportar**, e está certo: dentro do
+   JSON a maioria dos números é opcional. `qty`/`unitPrice` do acessório não são — sem eles o item
+   vira uma linha de R$ 0,00 que aparece no catálogo, some do custo e, com `supplyId`, ainda parece
+   que baixa insumo. A checagem olha o **resultado** (`qty <= 0 || unitPrice <= 0`), não a ausência:
+   `"qty": 0` escrito à mão é o mesmo item inútil, e duas classes para o mesmo estrago ensinam a
+   ignorar as duas.
+4. **`[E4]`** — a **forma** do JSON, que ninguém lia (só os números tinham função própria).
+   `textoJson` cuida do campo de TEXTO: número/booleano entram convertidos e avisados (`2` → `"2"`),
+   lista/objeto viram vazio e avisam — insistir neles é o `"[object Object]"` que ninguém acha
+   depois. `objetoJson` cuida do ITEM que não é objeto: `[null]` estourava em
+   `Cannot read properties of null (reading 'id')` e `[[]]` entrava como cor fantasma de 0 g.
+   ⚠ De quebra, as cores de etapa deixaram de ser uma **segunda cópia** do bloco de cores
+   (`parseFilamentList`): a checagem de tipo teria de ser escrita duas vezes, que é o jeito clássico
+   de a segunda ficar para trás.
+
+**O que NÃO foi feito, de propósito:** o relatório pedia **bloquear** a confirmação quando houvesse
+erro de domínio. Este app avisa e deixa o dono decidir — está escrito na própria `CsvImportResult`
+("Nada disso bloqueia", TD-009). Mudar isso é decisão do dono, não da auditoria.
+
+**Prova:** os 6 repros do relatório, contra o parser real — `Tempo=-1` e `Taxa=-1/96` →
+`linha-invalida`; acessório sem números → `acessorio-zerado`; `colorName: []` e `name: 2` →
+`json-tipo-errado`; `[null]` → `json-item-invalido`; **e a linha boa continua sem um aviso sequer**
+(nenhum falso positivo). **806/806 (28 testes novos) · lint ✅ typecheck ✅ build ✅.**
+
 ## ✅ UX-47 + UX-52 — os dois últimos itens de código (2026-08-24)
 
 > Fecharam o backlog de código INTEIRO. Os dois são de UI, nenhum mexe em cálculo.

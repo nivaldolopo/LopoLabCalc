@@ -6,7 +6,15 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md) — abra sob demanda ao pegar o item.
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
-> ⚠ **LEIA PRIMEIRO — a varredura AUD-15 (2026-08-26, a 8ª) é de REGRESSÃO: o alvo foi o código
+> ⚠ **LEIA PRIMEIRO — a varredura AUD-16 (2026-08-28, a 9ª) é a varredura TOTAL do sistema, feita
+> por outra IA sobre uma cópia ZIP.** Ela abriu **7 defeitos** (`[E1]`…`[E7]`); o **lote 1**
+> (`[E1]` `[E2]` `[E3]` `[E4]`, a fronteira de ingestão) FECHOU em **2026-08-29**. **Abertos:
+> `[E5]`, `[E6]`, `[E7]`.** A seção dela é a **primeira** deste arquivo. ⚠ Os 7 foram
+> **reconferidos aqui com sonda rodando o parser real** — e a reconferência **corrigiu o
+> relatório em 3 pontos** (ver a seção). O lote 3 dele (import >500 / timeout) **não é defeito**:
+> é tradeoff já escrito e tratado no código.
+>
+> ⚠ **LEIA — a varredura AUD-15 (2026-08-26, a 8ª) é de REGRESSÃO: o alvo foi o código
 > dos 4 lotes da AUD-14, não o sistema.** Ela **reabriu o backlog de código**: **6 defeitos**
 > (`[E1]`…`[E6]`) + **2 ressalvas** — os lotes **1** (`[E6]`), **2** (`[E1]` `[E2]` `[E3]`) e
 > **3** (`[E5]`) FECHARAM em 2026-08-26 e o **4** (`[E4]`) em **2026-08-28**: o cluster está
@@ -80,6 +88,95 @@
 > **Atualização 2026-08-23:** os 3 bloqueantes da AUD-09 ([CSV-09], [CSV-10], [CSV-11]) e os 4 do
 > lote B foram fechados no mesmo dia. **O que falta antes da carga é do dono:** cadastrar as cores
 > e os insumos definitivos — só então eu gero a de-para e a planilha-modelo (lote C).
+
+## ⚠ ABERTO — cluster da varredura AUD-16 (2026-08-28) — a 9ª, varredura TOTAL por outra IA
+
+> Relatório cru: `AUD-16-RELATORIO.md` (fora do repo, veio com o dono). 63 casos de import/export,
+> 38 de rota/UI, 8 de matemática, 11 de persistência. Base dela: **778/778**, `lint`/`typecheck`/
+> `build` verdes, 35/35 medições sem rolagem horizontal, matemática batendo com contas externas,
+> 1 ciclo produção→acabado→venda→estorno real no Firestore.
+>
+> **Reconferido AQUI, com sonda rodando o parser real (2026-08-29)** — os 7 se reproduzem. E a
+> reconferência **corrigiu o relatório em 3 pontos**:
+> · `[E4]`, metade do subitem: `name: 2` **não estoura** — entra gravado como NÚMERO num campo que
+>   o tipo declara `string`. Pior que o throw, porque é calado.
+> · **caso novo que ela não achou:** `Filamentos JSON = [null]` estourava em
+>   `Cannot read properties of null (reading 'id')` — mesma causa raiz do `[E4]`.
+> · o **lote 3 dela (import >500 / timeout) NÃO é defeito**: os dois pontos já estão escritos e
+>   tratados (`productsRepository.ts:99` informa quantos entraram; `withWriteTimeout` manda **não**
+>   repetir a ação). É tradeoff documentado — vira ressalva, não item.
+>
+> ⚠ **O que este lote NÃO fez, de propósito:** o relatório pedia **bloquear** a confirmação quando
+> houver erro de domínio. Este app **avisa e deixa o dono decidir** (TD-009, escrito na
+> `CsvImportResult`: "Nada disso bloqueia"). Mantive a regra da casa — **bloquear é decisão do
+> dono**, e é uma linha de código no dia em que ele mandar.
+
+### ✅ FECHADO — a fronteira de ingestão (lote 1, 2026-08-29)
+
+`[E1]` `[E2]` `[E3]` `[E4]` — mesma causa raiz: **a normalização acontecia ANTES de uma validação
+que não cobria tudo**, então o importador ora avisava, ora corrigia calado, ora estourava com erro
+técnico. A assimetria denunciava: `Mao de obra (min) = -30` entrava negativa e acendia
+`linha-invalida`; `Tempo (h) = -1` virava 0 com `issues: []`, porque tinha um clamp na frente.
+
+| Repro | Antes | Agora |
+|---|---|---|
+| `Tempo (h) = -1` | `printHours: 0`, sem aviso | entra cru → `linha-invalida` ("Tempo de impressão") |
+| `Taxa Falha (%) = -1 / 96 / 500` | 0 / 95 / 95, sem aviso | entra cru → `linha-invalida` ("Taxa de falha") |
+| `[{"desc":"X","supplyId":"sup"}]` | `qty:0, unitPrice:0`, sem aviso | `acessorio-zerado` |
+| `colorName: []` | **derruba a carga inteira** | `json-tipo-errado`, cor entra com nome vazio |
+| `subitem name: 2` | grava número em campo `string` | `json-tipo-errado`, vira `"2"` |
+| `[null]` / `[[]]` na lista | **throw** / cor fantasma de 0 g | `json-item-invalido`, item descartado |
+| linha boa | sem aviso | **sem aviso** (nenhum falso positivo) |
+
+O que mudou no código: o clamp do tempo (`Math.max(0, …)`) e o da taxa (`Math.min(95, Math.max(0,
+…))`) **saíram**; `validateProduct` ganhou o **domínio 0–95 da taxa de falha**, que passa a valer
+igual para o formulário e para o CSV; dois ajudantes novos (`textoJson`, `objetoJson`) cuidam da
+FORMA do JSON, e as cores de etapa deixaram de ser uma **segunda cópia** do bloco de cores
+(`parseFilamentList`). A matemática não corre risco com o valor cru: `failureFractionOf` tem o teto
+de 95% dele, compartilhado com a capacidade (TD-011). **806/806 · lint ✅ typecheck ✅ build ✅.**
+
+### 🔴 `[E7]` — produção sem lote promete overdraft e não registra nada
+
+- **Medido:** `simulateFifo([], 200)` → `moves: []`, `shortfall: 200`. Sem lote não há onde lançar,
+  então **não há baixa e não há custo**; a tela, porém, diz "o saldo da cor fica negativo" e
+  "faltam N unidades" (`ProductionPage.tsx:1051-1061`). A auditoria mediu ao vivo: mesma impressão
+  custou **R$ 1,22** sem lote e **R$ 4,89** depois de lançar os rolos.
+- **O estrago:** o dono produz antes de lançar a compra achando que a dívida ficou registrada.
+  Material e insumo somem do custo real **e** da baixa.
+- **Pronto quando:** ou a produção é **bloqueada** sem lote, ou a dívida fica **representada e
+  custeada** — e a prévia diz o mesmo que o documento salvo.
+- **Arquivos:** `fifo.ts:58-96`, `stock.ts`, `supplies.ts`, `production.ts`, `ProductionPage.tsx`.
+
+### 🔴 `[E5]` — item torto no meio de `finishedColors` some sem marcar perda
+
+- É o `[R1]` da AUD-15, agora **reproduzido**: `[{part:""},{part:"corpo",colorKey:"x"}]` devolve só
+  `corpo` com `malformed: false` (`finishedGoods.ts:200` só acusa perda **total**).
+- **Segunda cara, achada aqui:** `[{part:123, colorKey:{}}]` entra como `part:"123"`,
+  `colorKey:"[object Object]"` — coerção cega, sem `malformed`.
+- **O estrago:** uma SKU pode não ser restaurada no estorno, e ninguém é avisado.
+- **Pronto quando:** qualquer entrada descartada liga `malformed`, e a tela nomeia o documento.
+
+### 🟡 `[E6]` — as quebras de linha das observações somem no PDF
+
+- **Medido:** `sanitizeForPdf("um
+dois")` → `"umdois"`. O `
+` é cp 0x0A, não passa no
+  `cabeNoPdf` (que aceita 0x20–0x7E e 0xA0–0xFF), não tem equivalente no `SEM_BYTE` e é
+  **descartado** — as linhas colam sem nem um espaço.
+- Não altera valor nenhum; é legibilidade do texto comercial. `generateQuotePdf.ts:64,308-317`.
+
+### ⚠️ Ressalvas da AUD-16 (não são itens; viram item se o dono mandar)
+
+- **Import >500 não é atômico** — commits sequenciais de 500, com o erro dizendo quantos entraram.
+  Tradeoff **já escrito** no código; o `withWriteTimeout` é `Promise.race` e não cancela o commit
+  do Firestore (a mensagem dele manda **não** repetir a ação).
+- **Steppers dos campos numéricos** medem 28×20px no celular, mas são `aria-hidden` **dentro** de um
+  campo de 44px — não são alvo independente.
+- **Console não está em zero:** um recibo real (`yoRC0YZjQAq2piItJojG`) tem `finishedColors`
+  ilegível e avisa a cada leitura de `/vendas`. É o `[E5]` falando; o aviso não chega ao dono.
+- **Simulações, não Excel de verdade:** BOM, CRLF, latin-1 e notação científica foram simulados.
+- **Não coberto:** regras publicadas no Console Firebase, segunda conta Google, Safari/iOS/Firefox,
+  duas abas, corte de rede no meio da transação de venda, import real de 501+.
 
 ## ✅ ZERADO — cluster da varredura AUD-15 (2026-08-26) — a 8ª, REGRESSÃO dos lotes da AUD-14
 

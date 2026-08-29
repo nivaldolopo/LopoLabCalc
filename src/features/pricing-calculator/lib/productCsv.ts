@@ -195,7 +195,17 @@ function parseNumber(value: string | undefined): number {
 // O `kind` existe por causa do CSV-12: o mesmo reporter agora carrega duas
 // notícias diferentes sobre o mesmo campo — "não consegui ler" e "li, mas o
 // ponto pode ser milhar". Quem recebe é que decide a classe de aviso.
-type NumIssueKind = "ilegivel" | "milhar" | "magnitude";
+// AUD-16 [E3]/[E4] — três classes novas, e nenhuma delas é sobre NÚMERO
+// ilegível: são sobre a FORMA do JSON. `tipo` = campo de texto que veio como
+// número/lista/objeto; `item` = elemento da lista que nem objeto é; `zerado` =
+// o acessório que existe e não custa nada.
+type NumIssueKind =
+  | "ilegivel"
+  | "milhar"
+  | "magnitude"
+  | "tipo"
+  | "item"
+  | "zerado";
 type NumReporter = (campo: string, bruto: string, kind?: NumIssueKind) => void;
 
 function numFromJson(
@@ -227,6 +237,48 @@ function numFromJson(
     report?.(campo, String(value), "milhar");
   }
   return parsed;
+}
+
+// AUD-16 [E4] — o CAMPO DE TEXTO dentro do JSON, que ninguém lia: só os números
+// passavam por uma função própria. `colorName: []` chegava intacto no
+// `makeFilament` (que faz `data.colorName ?? ""`, e uma lista não é nulo) e
+// derrubava a importação INTEIRA em `(f.colorName ?? "").trim is not a
+// function` — mensagem que não diz linha nem campo. O gêmeo calado é pior:
+// `subitem.name = 2` não estoura em lugar nenhum e vai gravado como NÚMERO num
+// campo que o tipo declara `string`.
+//
+// Número e booleano têm leitura óbvia ("2"), então entram convertidos e
+// avisados. Lista e objeto não têm — insistir neles é o `"[object Object]"` que
+// ninguém acha depois —, então viram vazio e avisam.
+function textoJson(
+  value: unknown,
+  campo: string,
+  report?: NumReporter,
+): string {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value;
+  const bruto =
+    typeof value === "object" ? JSON.stringify(value) ?? "" : String(value);
+  report?.(campo, bruto, "tipo");
+  return typeof value === "number" || typeof value === "boolean"
+    ? String(value)
+    : "";
+}
+
+// AUD-16 [E4], o outro lado: o ITEM da lista que não é objeto. `[null]` estourava
+// em `Cannot read properties of null (reading 'id')` e `[[]]` entrava como uma
+// cor fantasma (nome vazio, 0 g). Item que não é objeto não tem campo nenhum
+// para ler: sai da lista e se anuncia.
+function objetoJson(
+  raw: unknown,
+  campo: string,
+  report?: NumReporter,
+): Record<string, unknown> | null {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  report?.(campo, raw === undefined ? "" : JSON.stringify(raw) ?? String(raw), "item");
+  return null;
 }
 
 // CSV-09: a célula de uma coluna ESCALAR. O default só valia quando a coluna
@@ -336,7 +388,17 @@ function printTimeHours(
     0,
     report,
   );
-  return Math.max(0, horas + minutos / 60);
+  // AUD-16 [E1] — aqui morava um `Math.max(0, …)`, e ele era a diferença entre
+  // as duas colunas de tempo: `Mao de obra (min) = -30` entra negativa e acende
+  // `linha-invalida` (o `validateProduct` reprova), enquanto `Tempo (h) = -1`
+  // virava 0 com `warnings: []` e `issues: []`. Zero é um número PLAUSÍVEL:
+  // energia, desgaste, manutenção e capacidade somem juntos e o preço sai
+  // inteiro, com cara de certo. Sem o clamp, o negativo sobrevive até o
+  // `validateProduct` — que já checava `printHours < 0` e nunca via o valor
+  // cru — e a linha se anuncia, como a irmã. É o mesmo argumento do CSV-31:
+  // trocar o número absurdo (que salta aos olhos) pelo plausível (que ninguém
+  // acha depois) é o pior dos dois.
+  return horas + minutos / 60;
 }
 
 // CSV-02 — cada coluna que a importação LÊ, com o nome exato que o export
@@ -555,18 +617,26 @@ function parseJsonArray(value: string | undefined): unknown[] {
 // FilamentUsage[]`, um `as` cru. Um `"totalG":"143,53"` viajava como STRING até
 // o Firestore, num campo que o tipo declara `number`. Agora cada campo passa
 // pela mesma leitura dos outros três JSONs.
-function parseFilaments(
-  value: string | undefined,
+// AUD-16 [E4] — uma função só para as cores, porque havia DUAS cópias do mesmo
+// bloco (a coluna `Filamentos JSON` e as cores de dentro de cada etapa) e a
+// checagem de tipo teria de ser escrita duas vezes — o jeito clássico de a
+// segunda ficar para trás.
+function parseFilamentList(
+  items: unknown[],
   onde: string,
   report?: NumReporter,
 ): FilamentUsage[] {
-  return parseJsonArray(value).map((raw) => {
-    const item = raw as Partial<FilamentUsage>;
+  return items.flatMap((raw, index) => {
+    const objeto = objetoJson(raw, `${onde} — cor ${index + 1}`, report);
+    if (!objeto) return [];
+    const item = objeto as Partial<FilamentUsage>;
     const campo = (nome: string) => `${onde} → ${nome}`;
-    return {
-      ...(item.id ? { id: item.id } : {}),
-      filamentId: item.filamentId ?? null,
-      colorName: item.colorName ?? "",
+    const id = textoJson(item.id, campo("id"), report);
+    const filamentId = textoJson(item.filamentId, campo("filamentId"), report);
+    return [{
+      ...(id ? { id } : {}),
+      filamentId: filamentId || null,
+      colorName: textoJson(item.colorName, campo("colorName"), report),
       pricePerKg: numFromJson(item.pricePerKg, campo("pricePerKg"), report),
       totalG: numFromJson(item.totalG, campo("totalG"), report),
       // Detalhe é OPCIONAL: ausente continua ausente (`makeFilament` distingue
@@ -583,8 +653,16 @@ function parseFilaments(
       ...(item.towerG !== undefined
         ? { towerG: numFromJson(item.towerG, campo("towerG"), report) }
         : {}),
-    };
+    }];
   });
+}
+
+function parseFilaments(
+  value: string | undefined,
+  onde: string,
+  report?: NumReporter,
+): FilamentUsage[] {
+  return parseFilamentList(parseJsonArray(value), onde, report);
 }
 
 function parseStages(
@@ -592,16 +670,21 @@ function parseStages(
   fallbackMachineId: string,
   report?: NumReporter,
 ): PrintStage[] {
-  return parseJsonArray(value).map((stage, index) => {
-    const item = stage as Partial<PrintStage>;
+  return parseJsonArray(value).flatMap((stage, index) => {
     const campo = (nome: string) => `Etapas JSON — etapa ${index + 2} → ${nome}`;
+    const objeto = objetoJson(stage, `Etapas JSON — etapa ${index + 2}`, report);
+    if (!objeto) return [];
+    const item = objeto as Partial<PrintStage>;
+    const stageId = textoJson(item.id, campo("id"), report);
     const base: PrintStage = {
       // FEAT-01: o id é a IDENTIDADE da etapa — os `stageKeys` dos subitens
       // referenciam-no. Descartá-lo aqui faria todo subitem importado nascer
       // apontando para o vazio, então ele vem antes de qualquer outra coisa.
-      ...(item.id ? { id: String(item.id) } : {}),
-      name: item.name ?? "",
-      machineId: item.machineId ?? fallbackMachineId,
+      ...(stageId ? { id: stageId } : {}),
+      name: textoJson(item.name, campo("name"), report),
+      machineId:
+        textoJson(item.machineId, campo("machineId"), report) ||
+        fallbackMachineId,
       printHours: numFromJson(item.printHours, campo("printHours"), report),
       laborMinutes: numFromJson(item.laborMinutes, campo("laborMinutes"), report),
       // `energyTariff`/`laborRate` da etapa são IGNORADOS de propósito: valem os
@@ -612,30 +695,11 @@ function parseStages(
     // FEAT-02: usa as cores quando presentes; senão mantém os escalares legados
     // (migrados no cálculo por `normalizeFilaments`).
     if (Array.isArray(item.filaments) && item.filaments.length > 0) {
-      base.filaments = item.filaments.map((f) => {
-        const cor = f as Partial<FilamentUsage>;
-        const cf = (nome: string) =>
-          `Etapas JSON — etapa ${index + 2}, cor → ${nome}`;
-        return {
-          ...(cor.id ? { id: cor.id } : {}),
-          filamentId: cor.filamentId ?? null,
-          colorName: cor.colorName ?? "",
-          pricePerKg: numFromJson(cor.pricePerKg, cf("pricePerKg"), report),
-          totalG: numFromJson(cor.totalG, cf("totalG"), report),
-          ...(cor.modelG !== undefined
-            ? { modelG: numFromJson(cor.modelG, cf("modelG"), report) }
-            : {}),
-          ...(cor.supportG !== undefined
-            ? { supportG: numFromJson(cor.supportG, cf("supportG"), report) }
-            : {}),
-          ...(cor.purgedG !== undefined
-            ? { purgedG: numFromJson(cor.purgedG, cf("purgedG"), report) }
-            : {}),
-          ...(cor.towerG !== undefined
-            ? { towerG: numFromJson(cor.towerG, cf("towerG"), report) }
-            : {}),
-        };
-      });
+      base.filaments = parseFilamentList(
+        item.filaments,
+        `Etapas JSON — etapa ${index + 2}, cor`,
+        report,
+      );
     } else {
       base.weightG = numFromJson(item.weightG, campo("weightG"), report);
       base.filamentPricePerKg = numFromJson(
@@ -644,7 +708,7 @@ function parseStages(
         report,
       );
     }
-    return base;
+    return [base];
   });
 }
 
@@ -652,22 +716,51 @@ function parseAccessories(
   value: string | undefined,
   report?: NumReporter,
 ): Accessory[] {
-  return parseJsonArray(value).map((accessory, index) => {
-    const item = accessory as Partial<Accessory>;
+  return parseJsonArray(value).flatMap((accessory, index) => {
+    const objeto = objetoJson(
+      accessory,
+      `Acessorios JSON — item ${index + 1}`,
+      report,
+    );
+    if (!objeto) return [];
+    const item = objeto as Partial<Accessory>;
+    const desc = textoJson(
+      item.desc,
+      `Acessorios JSON — item ${index + 1} → desc`,
+      report,
+    );
     const campo = (nome: string) =>
-      `Acessorios JSON — item ${index + 1} ("${item.desc ?? ""}") → ${nome}`;
-    return {
-      desc: item.desc ?? "",
-      qty: numFromJson(item.qty, campo("qty"), report),
-      unitPrice: numFromJson(item.unitPrice, campo("unitPrice"), report),
+      `Acessorios JSON — item ${index + 1} ("${desc}") → ${nome}`;
+    const qty = numFromJson(item.qty, campo("qty"), report);
+    const unitPrice = numFromJson(item.unitPrice, campo("unitPrice"), report);
+    // AUD-16 [E3] — o acessório que EXISTE e não custa nada. `numFromJson`
+    // devolve 0 para campo ausente sem reportar (e está certo: dentro do JSON a
+    // maior parte dos números é opcional). Só que `qty`/`unitPrice` não são
+    // opcionais — sem eles o item vira uma linha de R$ 0,00 que aparece no
+    // catálogo, some do custo e, com `supplyId`, ainda dá a impressão de que
+    // baixa insumo. Medido: `[{"desc":"Sem números","supplyId":"sup_ok"}]` entra
+    // com `qty: 0`, `unitPrice: 0` e `issues: []`.
+    // Olha o RESULTADO, não a ausência: `"qty": 0` escrito à mão é o mesmo item
+    // inútil, e duas classes para o mesmo estrago ensinam a ignorar as duas.
+    if (qty <= 0 || unitPrice <= 0) {
+      report?.(
+        campo(qty <= 0 ? "qty" : "unitPrice"),
+        `qty=${qty}, unitPrice=${unitPrice}`,
+        "zerado",
+      );
+    }
+    return [{
+      desc,
+      qty,
+      unitPrice,
       // 7e: o vínculo com o insumo sobrevive ao round-trip do CSV (o export é
       // JSON puro).
-      supplyId: item.supplyId ?? null,
+      supplyId: textoJson(item.supplyId, campo("supplyId"), report) || null,
       // FEAT-01: a atribuição a um subitem viaja junto com os subitens — sem
       // ela o custo do acessório volta rateado entre as partes em vez de ir
       // 100% para a que o consome.
-      subitemId: item.subitemId ?? null,
-    };
+      subitemId: textoJson(item.subitemId, campo("subitemId"), report) || null,
+    }];
   });
 }
 
@@ -699,7 +792,16 @@ function parseSubitems(
   report?: NumReporter,
   onDuplicado?: (idRepetido: string, primeiro: string, segundo: string, idNovo: string) => void,
 ): Subitem[] {
-  const itens = parseJsonArray(value).map((subitem) => subitem as Partial<Subitem>);
+  // AUD-16 [E4]: o item que não é objeto sai ANTES de tudo — os dois laços
+  // abaixo leem `.id` dele, e `null.id` derrubava a importação inteira.
+  const itens = parseJsonArray(value).flatMap((subitem, index) => {
+    const objeto = objetoJson(
+      subitem,
+      `Subitens JSON — item ${index + 1}`,
+      report,
+    );
+    return objeto ? [objeto as Partial<Subitem>] : [];
+  });
   // Os explícitos da lista inteira, ANTES de gerar qualquer fallback — é o que
   // impede `sub_1` gerado na posição 1 de colidir com um `sub_1` escrito na 3.
   const explicitos = new Set(
@@ -714,7 +816,8 @@ function parseSubitems(
   };
 
   return itens.flatMap((item, index) => {
-    const nomeDe = (i: Partial<Subitem>, id: string) => i.name?.trim() || id;
+    const nomeDe = (i: Partial<Subitem>, id: string) =>
+      textoJson(i.name, `Subitens JSON — item ${index + 1} → name`).trim() || id;
     let id: string;
     if (item.id) {
       const explicito = String(item.id);
@@ -747,9 +850,16 @@ function parseSubitems(
     return [
       {
         id,
-        name: item.name ?? "",
+        // AUD-16 [E4]: `name: 2` não estourava em lugar nenhum — ia gravado
+        // como número num campo que o tipo declara `string`, e só a tela
+        // descobria depois.
+        name: textoJson(item.name, `Subitens JSON — "${id}" → name`, report),
         stageKeys: Array.isArray(item.stageKeys)
-          ? item.stageKeys.map((key) => String(key))
+          ? item.stageKeys
+              .map((key, i) =>
+                textoJson(key, `Subitens JSON — "${id}" → stageKeys[${i}]`, report),
+              )
+              .filter((key) => key !== "")
           : [],
         ...(item.markup !== undefined && markup > 0 ? { markup } : {}),
       },
@@ -1344,6 +1454,35 @@ export function parseProductsCsv(
         );
         return;
       }
+      if (kind === "tipo") {
+        addIssue(
+          "json-tipo-errado",
+          "Campo de TEXTO dentro de uma célula JSON veio como número, lista ou " +
+            "objeto. Número entra convertido (2 → \"2\"); lista e objeto viram " +
+            "vazio, porque não há leitura possível",
+          `${ondeEstou}: ${campo} = ${bruto}`,
+        );
+        return;
+      }
+      if (kind === "item") {
+        addIssue(
+          "json-item-invalido",
+          "Item de uma lista JSON que não é um objeto (null, texto ou lista) — " +
+            "foi DESCARTADO, porque não há campo nenhum para ler nele",
+          `${ondeEstou}: ${campo} = ${bruto}`,
+        );
+        return;
+      }
+      if (kind === "zerado") {
+        addIssue(
+          "acessorio-zerado",
+          "Acessório com quantidade ou preço ZERADO — ele aparece no produto, " +
+            "não entra no custo e não baixa insumo. Confira \"qty\" e " +
+            '"unitPrice" no JSON',
+          `${ondeEstou}: ${campo} — ${bruto}`,
+        );
+        return;
+      }
       addIssue(
         "numero-nao-reconhecido",
         'Número não reconhecido dentro de uma célula JSON — virou 0. Dentro do JSON o decimal ' +
@@ -1476,18 +1615,20 @@ export function parseProductsCsv(
         // vinha por parseFloat, e ele PARA na vírgula — "2,8" virava 2, um
         // catálogo inteiro precificado abaixo do devido, sem um aviso.
         markup,
-        failureRate: Math.min(
-          95,
-          Math.max(
-            0,
-            cellNumber(
-              columns[indexFailure],
-              indexFailure >= 0,
-              "Taxa Falha (%)",
-              DEFAULT_FAILURE_RATE,
-              reportColuna,
-            ),
-          ),
+        // AUD-16 [E2] — aqui havia um `Math.min(95, Math.max(0, …))`. `-1`
+        // virava 0, `96` e `500` viravam 95, os três com `issues: []`: o
+        // documento gravado não representava a planilha e o dono não recebia a
+        // lista do que mudou. O valor entra CRU e quem o reprova é o
+        // `validateProduct` (a mesma função do formulário, que passou a
+        // conhecer o domínio 0–95) — a linha vira `linha-invalida`, com o campo
+        // no texto. A matemática não corre risco: `failureFractionOf` tem o
+        // teto de 95% dela, compartilhado com a capacidade (TD-011).
+        failureRate: cellNumber(
+          columns[indexFailure],
+          indexFailure >= 0,
+          "Taxa Falha (%)",
+          DEFAULT_FAILURE_RATE,
+          reportColuna,
         ),
         includeFixed:
           indexIncludeFixed >= 0

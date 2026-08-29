@@ -32,6 +32,29 @@ describe("validateProduct", () => {
     expect(validateProduct(makeProduct({ weightG: 0, printHours: 3 }))).toBeNull();
   });
 
+  // AUD-16 [E2] — a mesma função que o formulário usa passa a conhecer o
+  // domínio da taxa de falha. Antes quem "cuidava" dela era um clamp escondido
+  // no importador, que trocava o número sem dizer.
+  describe("taxa de falha: o domínio 0–95 vale para os dois caminhos", () => {
+    it.each([-1, -0.5, 95.5, 96, 500])("recusa %s", (failureRate) => {
+      expect(validateProduct(makeProduct({ failureRate }))).toContain(
+        "Taxa de falha",
+      );
+    });
+
+    it.each([0, 3, 95])("aceita %s", (failureRate) => {
+      expect(validateProduct(makeProduct({ failureRate }))).toBeNull();
+    });
+
+    it("ausente é ausência, não erro", () => {
+      expect(
+        validateProduct(
+          makeProduct({ failureRate: undefined as unknown as number }),
+        ),
+      ).toBeNull();
+    });
+  });
+
   // CSV-31 — peça é CONTAGEM. A planilha da carga é escrita fora do app, e
   // "1.234" na coluna `Pecas` já acendia o milhar ambíguo; o que faltava era
   // recusar o valor. Arredondar trocaria um número absurdo por um plausível.

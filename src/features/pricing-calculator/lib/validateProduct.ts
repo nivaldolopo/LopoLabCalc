@@ -52,6 +52,18 @@ export function validateProduct(product: ProductInput): string | null {
 
   if (product.markup < 1) return "⚠️ O markup deve ser no mínimo 1x.";
 
+  // AUD-16 [E2] — a taxa de falha nunca foi validada aqui: quem cuidava dela era
+  // um clamp escondido no importador (`Math.min(95, Math.max(0, …))`), que
+  // mudava o número sem dizer. O domínio é o mesmo que o formulário já pinta no
+  // campo (`max={95}`) e o mesmo que a matemática assume (`failureFractionOf`
+  // trunca em 0,95 para a reserva `custo/(1−taxa)` não explodir) — só faltava
+  // ele existir em um lugar só, para o CSV e o formulário reprovarem igual.
+  // Ausente é ausente: `num(undefined)` é 0 e passa, como nas outras checagens.
+  const failureRate = num(product.failureRate);
+  if (failureRate < 0 || failureRate > 95) {
+    return '⚠️ "Taxa de falha" precisa ficar entre 0% e 95%.';
+  }
+
   // CSV-31: peça é CONTAGEM — não existe "1,234 peça". A planilha que escreve
   // `Pecas = "1.234"` já acende o `milhar-ambiguo` (o app não adivinha se era
   // mil duzentos e trinta e quatro ou um vírgula duzentos e trinta e quatro),

@@ -9,28 +9,29 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
-- **Estado do site:** no ar e estável (produção `● Ready`), em `calculadora.lopolab.com.br`
-  (domínio próprio, SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-28): AUD-15 lote 4 — `[E4]` FECHADO. O cluster AUD-15 está ZERADO.**
-  O chip parou de perguntar "chegou dado?" e passou a perguntar "de ONDE veio?" — as 9 assinaturas
-  de coleção repassam `snapshot.metadata` e os 9 hooks trocaram `setStatus("synced")` pelo
-  `cloudStatusOf` (regra na lista abaixo); rótulos novos "Sem conexão" e "Gravando...".
-  ⚠ **Achado de tabela:** o "X de N" da `/producao` tinha o mesmo TD-019 já consertado nas vendas.
-  **Prova ao vivo**, com o transporte do Firestore cortado e `navigator.onLine = true` o tempo
-  todo: 4 rotas vão de "Sincronizado" a "Sem conexão" em ≤1s e voltam.
-  **778/778 · lint ✅ typecheck ✅ build ✅.** Sobram as **2 ressalvas**.
+- **Estado do site:** no ar e estável (`● Ready`), em `calculadora.lopolab.com.br` (SSL ok) e
+  `lopolabcalc.vercel.app`.
+- **Última mudança (2026-08-29): AUD-16 lote 1 — `[E1]`…`[E4]` FECHADOS.** Chegou a **varredura
+  total feita por outra IA** (7 defeitos); reconferi os 7 com sonda no parser real e fechei a
+  **fronteira de ingestão** — o CSV ora avisava, ora **corrigia calado**, ora **estourava**, porque
+  normalizava ANTES de validar (regra na lista abaixo). Saíram os 2 clamps mudos, a taxa de falha
+  ganhou domínio no `validateProduct`, e a FORMA do JSON passou a ser checada. Prova: os 6 repros
+  acendem issue, **e a linha boa segue sem aviso**. **806/806 · lint ✅ typecheck ✅ build ✅.**
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, `/producao`). Custo real
   **decomponível ponta a ponta** (produção → acabado → venda), e o ROI já o lê.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — o backlog de CÓDIGO voltou a ZERO.** Sobram as 2 ressalvas da AUD-15
-  (`[R1]` perda parcial calada no `readFinishedColors` · `[R2]` afirmação errada, não defeito) e as
-  antigas (nome acessível por `title` · `<select>` que corta sem reticências, 8,5% · o lixo) — só
-  viram tarefa se o dono mandar. A frente do DONO é a mesma: cadastrar cores/insumos definitivos e
-  passar os ids pro **sistema externo dele**, que **gera** a planilha. **Sem botão de
-  planilha-modelo no app** (dono, 2026-08-23): a spec é escrita **comigo no chat** depois do
-  cadastro (regras no `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, sem trava.**
+- **▶ PRÓXIMA TAREFA — AUD-16, os 3 que sobraram** (detalhe e "pronto quando" no `BACKLOG.md`):
+  **`[E7]` 🔴** produção **sem lote** promete saldo negativo na tela e **não baixa nem custeia**
+  (`simulateFifo([], 200)` → `moves: []`; medido ao vivo, R$ 1,22 × R$ 4,89) · **`[E5]` 🔴** item
+  torto no MEIO de `finishedColors` some sem ligar `malformed` (era o `[R1]` da AUD-15) ·
+  **`[E6]` 🟡** a quebra de linha das observações **some** no PDF (0x0A não passa no `cabeNoPdf`).
+  ⚠ **Decisão pendente do dono:** o relatório pedia **BLOQUEAR** a confirmação do CSV com erro de
+  domínio; mantive a regra da casa (TD-009: avisa, não bloqueia). A frente do DONO é a mesma:
+  cadastrar cores/insumos definitivos e passar os ids pro **sistema externo dele**, que **gera** a
+  planilha. **Sem botão de planilha-modelo no app** (dono, 2026-08-23): a spec é escrita **comigo
+  no chat** depois do cadastro (regras no `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, sem trava.**
 - ⚠ **Ainda pendentes (dono):** **cadastrar os insumos e religar os acessórios** (os de hoje entram
   no custo mas não dão baixa) · o Dashboard fecha as ressalvas de UX-09 e TD-006 já na tela.
 - **Infra pronta:** e-mail `@lopolab.com.br` e login Google restrito (`AuthGate` + regras Firestore
@@ -147,6 +148,12 @@ src/
   esperando acontecer** (AUD-02): o `SaleModal` montava o `ReciboWrite` sem `supplyUpdates` e o
   TypeScript não reclamava — a venda não debitava insumo. Campo que o repositório grava é
   **obrigatório**; lista vazia é a forma de dizer "nada".
+- **Normalizar ANTES de validar é como o dado errado entra calado** (AUD-16 [E1]/[E2]): um
+  `Math.max(0, …)` fazia `Tempo (h) = -1` virar 0 — plausível, sem aviso — enquanto a coluna irmã
+  (`Mao de obra (min)`) entrava negativa e acendia `linha-invalida`. Coluna nova **não corrige**
+  valor: entrega cru e deixa o `validateProduct` (a MESMA função do formulário) reprovar. No JSON,
+  texto passa por `textoJson` e item de lista por `objetoJson` — sem eles `colorName: []` derrubava
+  a carga e `name: 2` ia gravado como número.
 - **Snapshot que CHEGA não é prova de servidor** (AUD-15 [E4]): offline o `onSnapshot` serve do
   cache pelo mesmo callback de sucesso. Assinatura de coleção pede `COM_METADATA` e repassa
   `snapshot.metadata`; quem decide o chip é o `cloudStatusOf` — nunca o `navigator.onLine`. ⚠ E

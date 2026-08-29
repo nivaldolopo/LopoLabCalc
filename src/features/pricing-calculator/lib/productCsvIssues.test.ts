@@ -1036,7 +1036,10 @@ describe("AUD-11/D-1 — `Tempo (min)` entrou na checagem de milhar", () => {
     expect(achar(r.issues, "milhar-ambiguo")?.exemplos[0]).toContain("Pecas");
   });
 
-  it("`Taxa Falha (%)` continua FORA — o clamp em 95 mata a ambiguidade", () => {
+  // AUD-16 [E2] tirou o clamp, mas o argumento continua de pé e ficou melhor:
+  // quem mata a ambiguidade agora é o DOMÍNIO (0–95), não uma correção calada —
+  // 1234% é impossível, logo a leitura só pode ser 1,234%.
+  it("`Taxa Falha (%)` continua FORA — o domínio 0–95 mata a ambiguidade", () => {
     const r = parseProductsCsv(
       csv({ ...LINHA_BOA, "Taxa Falha (%)": "1.234" }),
       machines,
@@ -1824,9 +1827,14 @@ describe("AUD-14/D1 — o decimal que o Excel transformou em milhar", () => {
       opcoes,
     );
     expect(achar(resultado.issues, "magnitude-absurda")?.linhas).toBe(1);
-    // O produto entra com 95% de reserva de falha; sem o aviso, nada dizia que
-    // a célula estava corrompida.
-    expect(resultado.products[0].failureRate).toBe(95);
+    // AUD-16 [E2] — antes o produto entrava com 95% de reserva de falha, e o
+    // clamp era a segunda metade do estrago: o número corrompido virava um
+    // número plausível. Agora ele entra CRU (o aviso de magnitude aponta a
+    // célula) e a linha ainda é reprovada pelo domínio.
+    expect(resultado.products[0].failureRate).toBe(5283333);
+    expect(achar(resultado.issues, "linha-invalida")?.exemplos[0]).toContain(
+      "Taxa de falha",
+    );
   });
 
   it("as outras colunas que entram no documento", () => {
@@ -1931,5 +1939,223 @@ describe("AUD-15/E6 — o valor absurdo entra em qualquer formato, e agora acend
     );
     expect(achar(resultado.issues, "magnitude-absurda")).toBeUndefined();
     expect(resultado.products[0].laborRate).toBe(999999);
+  });
+});
+
+// AUD-16, lote 1 — a fronteira de ingestão. O diagnóstico da auditoria não foi
+// "o importador é frouxo": foi que ele às vezes AVISA, às vezes CORRIGE calado e
+// às vezes ESTOURA com erro técnico. Estes testes fecham as duas pontas de fora.
+describe("AUD-16 [E1] — o valor limitado calado: tempo", () => {
+  it("`Tempo (h) = -1` não vira 0 em silêncio", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Tempo (h)": "-1" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].printHours).toBe(-1);
+    expect(achar(r.issues, "linha-invalida")?.exemplos[0]).toContain(
+      "Tempo de impressão",
+    );
+  });
+
+  it("a coluna de minutos entra na mesma soma, e o negativo dela também aparece", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Tempo (h)": "1", "Tempo (min)": "-90" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].printHours).toBeCloseTo(-0.5, 10);
+    expect(achar(r.issues, "linha-invalida")).toBeDefined();
+  });
+
+  it("o tempo bom continua entrando sem apontamento nenhum", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Tempo (h)": "2", "Tempo (min)": "30" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].printHours).toBeCloseTo(2.5, 10);
+    expect(r.issues ?? []).toEqual([]);
+  });
+});
+
+describe("AUD-16 [E2] — o valor limitado calado: taxa de falha", () => {
+  it.each([
+    ["-1", -1],
+    ["96", 96],
+    ["500", 500],
+  ])("`Taxa Falha (%) = %s` entra crua e a linha se anuncia", (celula, valor) => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Taxa Falha (%)": celula }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].failureRate).toBe(valor);
+    expect(achar(r.issues, "linha-invalida")?.exemplos[0]).toContain(
+      "Taxa de falha",
+    );
+  });
+
+  it.each(["0", "95", "3"])("o domínio inteiro continua passando: %s", (celula) => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Taxa Falha (%)": celula }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "linha-invalida")).toBeUndefined();
+  });
+});
+
+describe("AUD-16 [E3] — o acessório que existe e não custa nada", () => {
+  it("JSON válido e INCOMPLETO não entra zerado em silêncio", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Acessorios JSON": JSON.stringify([
+          { desc: "Sem números", supplyId: "sup_argola" },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].accessories).toEqual([
+      { desc: "Sem números", qty: 0, unitPrice: 0, supplyId: "sup_argola", subitemId: null },
+    ]);
+    const issue = achar(r.issues, "acessorio-zerado");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain("Sem números");
+  });
+
+  it("`qty: 0` escrito à mão é o mesmo item inútil, e avisa igual", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Acessorios JSON": JSON.stringify([{ desc: "Ímã", qty: 0, unitPrice: 2 }]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "acessorio-zerado")?.linhas).toBe(1);
+  });
+
+  it("acessório completo não acende nada", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Acessorios JSON": JSON.stringify([
+          { desc: "Ímã", qty: 2, unitPrice: 0.5, supplyId: "sup_argola" },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "acessorio-zerado")).toBeUndefined();
+  });
+});
+
+describe("AUD-16 [E4] — a FORMA do JSON: nem estoura, nem grava tipo errado", () => {
+  it("`colorName: []` não derruba mais a carga inteira", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: "cor_laranja", colorName: [], pricePerKg: 110, totalG: 50 },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(r.products).toHaveLength(1);
+    expect(r.products[0].filaments?.[0].colorName).toBe("");
+    expect(achar(r.issues, "json-tipo-errado")?.exemplos[0]).toContain("colorName");
+  });
+
+  it("`name: 2` no subitem entra como TEXTO, não como número", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Vende Subitens": "sim",
+        "Subitens JSON": JSON.stringify([{ id: "s1", name: 2, stageKeys: ["main"] }]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].subitems?.[0].name).toBe("2");
+    expect(achar(r.issues, "json-tipo-errado")?.exemplos[0]).toContain("name");
+  });
+
+  it("`[null]` na lista de cores não derruba a carga — o item sai e se anuncia", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Filamentos JSON": "[null]" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products).toHaveLength(1);
+    // Lista vazia é omitida do payload (o Firestore não guarda array vazio aqui).
+    expect(r.products[0].filaments ?? []).toEqual([]);
+    expect(achar(r.issues, "json-item-invalido")?.linhas).toBe(1);
+  });
+
+  it("`[[]]` não vira mais uma cor fantasma de 0 g", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Filamentos JSON": "[[]]" }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].filaments ?? []).toEqual([]);
+    expect(achar(r.issues, "json-item-invalido")?.linhas).toBe(1);
+  });
+
+  it("item torto em etapa, acessório e subitem: descartado e contado", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Etapas JSON": "[null]",
+        "Acessorios JSON": '["texto"]',
+        "Subitens JSON": "[3]",
+      }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].stages).toEqual([]);
+    expect(r.products[0].accessories).toEqual([]);
+    expect(r.products[0].subitems).toEqual([]);
+    // Uma classe, uma linha, três exemplos — a agregação do CSV-05.
+    expect(achar(r.issues, "json-item-invalido")?.linhas).toBe(1);
+    expect(achar(r.issues, "json-item-invalido")?.exemplos).toHaveLength(3);
+  });
+
+  it("id de etapa/cor com tipo errado não viaja para o documento", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Filamentos JSON": JSON.stringify([
+          { id: { x: 1 }, filamentId: 7, colorName: "Laranja", pricePerKg: 110, totalG: 50 },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    const cor = r.products[0].filaments?.[0];
+    expect(cor?.id).toBeUndefined();
+    expect(cor?.filamentId).toBe("7");
+    expect(achar(r.issues, "json-tipo-errado")?.linhas).toBe(1);
+  });
+
+  it("o JSON bem escrito continua atravessando sem um pio", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Etapas JSON": JSON.stringify([
+          { id: "st2", name: "Pintura", machineId: "a1", printHours: 1, laborMinutes: 10,
+            filaments: [{ filamentId: "cor_laranja", colorName: "Laranja", pricePerKg: 110, totalG: 10 }] },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "json-tipo-errado")).toBeUndefined();
+    expect(achar(r.issues, "json-item-invalido")).toBeUndefined();
+    expect(r.products[0].stages?.[0].filaments?.[0].colorName).toBe("Laranja");
   });
 });
