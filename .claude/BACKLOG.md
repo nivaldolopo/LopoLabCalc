@@ -8,8 +8,8 @@
 >
 > ⚠ **LEIA PRIMEIRO — a varredura AUD-16 (2026-08-28, a 9ª) é a varredura TOTAL do sistema, feita
 > por outra IA sobre uma cópia ZIP.** Ela abriu **7 defeitos** (`[E1]`…`[E7]`); o **lote 1**
-> (`[E1]` `[E2]` `[E3]` `[E4]`, a fronteira de ingestão) FECHOU em **2026-08-29**. **Abertos:
-> `[E5]`, `[E6]`, `[E7]`.** A seção dela é a **primeira** deste arquivo. ⚠ Os 7 foram
+> (`[E1]`…`[E4]`, a fronteira de ingestão) e o **lote 2** (`[E5]` `[E6]`, a perda calada)
+> FECHARAM em **2026-08-29**. **Aberto: só o `[E7]`.** A seção dela é a **primeira** deste arquivo. ⚠ Os 7 foram
 > **reconferidos aqui com sonda rodando o parser real** — e a reconferência **corrigiu o
 > relatório em 3 pontos** (ver a seção). O lote 3 dele (import >500 / timeout) **não é defeito**:
 > é tradeoff já escrito e tratado no código.
@@ -147,23 +147,28 @@ de 95% dele, compartilhado com a capacidade (TD-011). **806/806 · lint ✅ type
   custeada** — e a prévia diz o mesmo que o documento salvo.
 - **Arquivos:** `fifo.ts:58-96`, `stock.ts`, `supplies.ts`, `production.ts`, `ProductionPage.tsx`.
 
-### 🔴 `[E5]` — item torto no meio de `finishedColors` some sem marcar perda
+### ✅ FECHADO — a perda calada (lote 2, 2026-08-29)
 
-- É o `[R1]` da AUD-15, agora **reproduzido**: `[{part:""},{part:"corpo",colorKey:"x"}]` devolve só
-  `corpo` com `malformed: false` (`finishedGoods.ts:200` só acusa perda **total**).
-- **Segunda cara, achada aqui:** `[{part:123, colorKey:{}}]` entra como `part:"123"`,
-  `colorKey:"[object Object]"` — coerção cega, sem `malformed`.
-- **O estrago:** uma SKU pode não ser restaurada no estorno, e ninguém é avisado.
-- **Pronto quando:** qualquer entrada descartada liga `malformed`, e a tela nomeia o documento.
+`[E5]` `[E6]` — dois lugares onde o app **descartava texto sem dizer**. Um custa uma SKU no
+estorno, o outro custa a legibilidade do orçamento; a resposta é a mesma nos dois: **o que não
+passa tem de aparecer**.
 
-### 🟡 `[E6]` — as quebras de linha das observações somem no PDF
+| Repro | Antes | Agora |
+|---|---|---|
+| `[{part:""},{part:"corpo",colorKey:"x"}]` | `corpo` volta, `malformed: false` | `corpo` volta, **`malformed: true`** |
+| `[{part:123, colorKey:{}}]` | `part:"123"`, `colorKey:"[object Object]"` | descartado + `malformed` |
+| `[{part:"corpo", colorKey:7}]` | `colorKey:"7"` (SKU inventada) | descartado + `malformed` |
+| `sanitizeForPdf("um\ndois")` | `"umdois"` | `"um dois"` |
+| Observações em 2 linhas no PDF | uma linha colada | **2 linhas** (a vazia inclusive) |
 
-- **Medido:** `sanitizeForPdf("um
-dois")` → `"umdois"`. O `
-` é cp 0x0A, não passa no
-  `cabeNoPdf` (que aceita 0x20–0x7E e 0xA0–0xFF), não tem equivalente no `SEM_BYTE` e é
-  **descartado** — as linhas colam sem nem um espaço.
-- Não altera valor nenhum; é legibilidade do texto comercial. `generateQuotePdf.ts:64,308-317`.
+O que mudou: `readFinishedColors` passou a contar **qualquer** entrada perdida (antes só a perda
+TOTAL) e **parou de coagir com `String(...)`** — parte tem de ser string não-vazia, chave de cor
+tem de ser string ou ausente; coerção cega é pior que descarte porque não deixa rastro. O aviso
+saiu do `console.warn` de dev e virou faixa na `/vendas`, **nomeando o documento** (campo novo
+`Sale.finishedColorsMalformed`, escrito só pelo `toSale`). No PDF, `sanitizeForPdf` trata a
+quebra como **separador de linha** (vira espaço) e o novo `sanitizeBlockForPdf` **preserva** o
+`\n` das Observações — medido: o `splitTextToSize` do jsPDF já quebra nele. **814/814 · lint ✅
+typecheck ✅ build ✅.**
 
 ### ⚠️ Ressalvas da AUD-16 (não são itens; viram item se o dono mandar)
 
@@ -173,7 +178,8 @@ dois")` → `"umdois"`. O `
 - **Steppers dos campos numéricos** medem 28×20px no celular, mas são `aria-hidden` **dentro** de um
   campo de 44px — não são alvo independente.
 - **Console não está em zero:** um recibo real (`yoRC0YZjQAq2piItJojG`) tem `finishedColors`
-  ilegível e avisa a cada leitura de `/vendas`. É o `[E5]` falando; o aviso não chega ao dono.
+  ilegível e avisa a cada leitura de `/vendas`. O `console.warn` continua (é diagnóstico); o que
+  mudou no lote 2 é que **o dono agora vê o recado na tela**, com o id do documento.
 - **Simulações, não Excel de verdade:** BOM, CRLF, latin-1 e notação científica foram simulados.
 - **Não coberto:** regras publicadas no Console Firebase, segunda conta Google, Safari/iOS/Firefox,
   duas abas, corte de rede no meio da transação de venda, import real de 501+.

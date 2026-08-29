@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { jsPDF } from "jspdf";
-import { sanitizeForPdf } from "./generateQuotePdf";
+import { sanitizeBlockForPdf, sanitizeForPdf } from "./generateQuotePdf";
 
 // UX-43 — ver a nota longa no `generateQuotePdf.ts`: o item nasceu de um
 // diagnóstico errado (o travessão NÃO era comido; a extração é que lia o byte
@@ -115,5 +115,61 @@ describe("o PDF gerado de verdade", () => {
     expect(saida.every((b) => b <= 0xff)).toBe(true);
     // e o travessão continua lá, intacto
     expect(saida).toContain(0x97);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AUD-16 [E6] — a quebra de linha das observações sumia no PDF.
+//
+// O 0x0A não cabe no cp1252, não tem equivalente no SEM_BYTE e caía no
+// descarte: "um\ndois" saía "umdois". Não mexia em valor nenhum — só
+// grudava o texto comercial que o dono escreveu em duas linhas.
+// ---------------------------------------------------------------------------
+
+describe("sanitizeForPdf — a LINHA não gruda palavra (AUD-16 [E6])", () => {
+  it("a quebra vira separador, não desaparece", () => {
+    expect(sanitizeForPdf("um\ndois")).toBe("um dois");
+    expect(sanitizeForPdf("um\r\ndois")).toBe("um dois");
+    expect(sanitizeForPdf("um\tdois")).toBe("um dois");
+    expect(sanitizeForPdf("um\n\ndois")).toBe("um dois");
+  });
+
+  it("texto de uma linha só continua idêntico", () => {
+    expect(sanitizeForPdf("Produto — Corpo · ação")).toBe(
+      "Produto — Corpo · ação",
+    );
+  });
+});
+
+describe("sanitizeBlockForPdf — o PARÁGRAFO mantém as linhas", () => {
+  it("preserva a quebra e sanea cada linha", () => {
+    expect(sanitizeBlockForPdf("Prazo: 5 dias\nFrete à parte")).toBe(
+      "Prazo: 5 dias\nFrete à parte",
+    );
+    // o saneamento continua valendo DENTRO de cada linha
+    expect(sanitizeBlockForPdf("Gato \u{1F431}\nﬁm")).toBe("Gato \nfim");
+  });
+
+  it("normaliza CRLF, CR e os separadores Unicode", () => {
+    expect(sanitizeBlockForPdf("a\r\nb\rc\u2028d\u2029e")).toBe(
+      "a\nb\nc\nd\ne",
+    );
+  });
+
+  it("a linha em branco sobrevive (é parágrafo, não sujeira)", () => {
+    expect(sanitizeBlockForPdf("um\n\ndois")).toBe("um\n\ndois");
+  });
+
+  // O que o PDF faz com o \n: o `splitTextToSize` do jsPDF quebra nele, e é
+  // por isso que preservar o caractere basta — sem isso, nada a fazer depois.
+  it("o jsPDF quebra no \n — uma entrada por linha", () => {
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const linhas = doc.splitTextToSize(
+      sanitizeBlockForPdf("Prazo: 5 dias\n\nFrete à parte"),
+      500,
+    );
+    expect(linhas).toEqual(["Prazo: 5 dias", "", "Frete à parte"]);
   });
 });

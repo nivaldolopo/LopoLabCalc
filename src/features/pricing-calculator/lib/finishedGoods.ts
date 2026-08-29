@@ -176,28 +176,45 @@ export function colorRecordOf(
 // chama decide o que fazer com o rótulo que sobrou.
 export type FinishedColorsRead = {
   entries: FinishedColorEntry[];
-  // `true` só quando o campo EXISTE no documento e nada de útil saiu dele.
-  // Campo ausente (a venda de encomenda, a venda pré-FEAT-11) é `false`: ali
-  // não há nada a lamentar.
+  // `true` quando o campo EXISTE no documento e QUALQUER entrada dele se perdeu
+  // na leitura — não só quando se perdeu tudo (AUD-16 [E5]). Campo ausente (a
+  // venda de encomenda, a venda pré-FEAT-11) é `false`: ali não há o que lamentar.
   malformed: boolean;
 };
+
+// AUD-16 [E5] — UMA entrada, e a diferença entre "não dá para ler" e "dá para
+// ler errado".
+//
+// A leitura antiga coagia com `String(...)`: `{part: 123, colorKey: {}}` entrava
+// como `part: "123"`, `colorKey: "[object Object]"`. Uma SKU que não existe, com
+// cara de SKU que existe — o estorno procura essa prateleira, não acha, e não
+// devolve nada. Coerção cega é pior que descarte porque não deixa rastro.
+//
+// Então: a parte tem de SER string não-vazia e a chave de cor tem de ser string
+// (ou ausente, que é a peça sem cor congelada). Qualquer outra coisa é descarte
+// — e descarte conta como perda lá em cima.
+function readFinishedColorEntry(item: unknown): FinishedColorEntry | null {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+  const { part, colorKey } = item as { part?: unknown; colorKey?: unknown };
+  if (typeof part !== "string" || !part) return null;
+  if (colorKey != null && typeof colorKey !== "string") return null;
+  return { part, colorKey: colorKey ?? "" };
+}
 
 export function readFinishedColors(raw: unknown): FinishedColorsRead {
   if (raw == null) return { entries: [], malformed: false };
   if (!Array.isArray(raw)) return { entries: [], malformed: true };
   const entries: FinishedColorEntry[] = [];
+  let perdidas = 0;
   for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const part = (item as { part?: unknown }).part;
-    if (!part) continue;
-    entries.push({
-      part: String(part),
-      colorKey: String((item as { colorKey?: unknown }).colorKey ?? ""),
-    });
+    const entry = readFinishedColorEntry(item);
+    if (entry) entries.push(entry);
+    else perdidas += 1;
   }
-  // Lista vazia gravada é o mesmo caso do campo ausente (nada a reaplicar);
-  // lista COM itens que não sobreviveram à leitura é perda, e conta como tal.
-  return { entries, malformed: raw.length > 0 && entries.length === 0 };
+  // Lista vazia gravada é o mesmo caso do campo ausente (nada a reaplicar). Uma
+  // entrada perdida NO MEIO de outras boas é perda igual: a SKU dela não volta
+  // no estorno, e antes ninguém era avisado porque as irmãs tinham sobrevivido.
+  return { entries, malformed: perdidas > 0 };
 }
 
 // A chave de uma SKU já materializada.

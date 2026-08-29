@@ -1309,10 +1309,35 @@ describe("readFinishedColors (AUD-14 [D6] — ausente ≠ ilegível)", () => {
       entries: [],
       malformed: true,
     });
-    // Uma entrada boa entre lixo NÃO é perda total: o que dá para reaplicar volta.
-    expect(readFinishedColors([{ part: "" }, { part: "corpo", colorKey: "x" }])).toEqual({
+  });
+
+  // AUD-16 [E5] — o repro. O que sobra continua sobrando; o que muda é que a
+  // perda PARCIAL passa a ser contada (antes: `malformed: false`, e o dono não
+  // ficava sabendo que uma SKU não voltaria no estorno).
+  it("entrada torta NO MEIO de entradas boas também é perda", () => {
+    expect(
+      readFinishedColors([{ part: "" }, { part: "corpo", colorKey: "x" }]),
+    ).toEqual({
       entries: [{ part: "corpo", colorKey: "x" }],
-      malformed: false,
+      malformed: true,
+    });
+  });
+
+  // A segunda cara do [E5]: antes isto entrava como `part: "123"` /
+  // `colorKey: "[object Object]"` — uma SKU inventada, calada, que o estorno
+  // procura e não acha.
+  it("coerção cega não acontece: tipo errado é DESCARTE, não conversão", () => {
+    expect(readFinishedColors([{ part: 123, colorKey: {} }])).toEqual({
+      entries: [],
+      malformed: true,
+    });
+    expect(readFinishedColors([{ part: "corpo", colorKey: 7 }])).toEqual({
+      entries: [],
+      malformed: true,
+    });
+    expect(readFinishedColors([["corpo", "x"], null])).toEqual({
+      entries: [],
+      malformed: true,
     });
   });
 });

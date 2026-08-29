@@ -11,27 +11,27 @@
 
 - **Estado do site:** no ar e estável (`● Ready`), em `calculadora.lopolab.com.br` (SSL ok) e
   `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-29): AUD-16 lote 1 — `[E1]`…`[E4]` FECHADOS.** Chegou a **varredura
-  total feita por outra IA** (7 defeitos); reconferi os 7 com sonda no parser real e fechei a
-  **fronteira de ingestão** — o CSV ora avisava, ora **corrigia calado**, ora **estourava**, porque
-  normalizava ANTES de validar (regra na lista abaixo). Saíram os 2 clamps mudos, a taxa de falha
-  ganhou domínio no `validateProduct`, e a FORMA do JSON passou a ser checada. Prova: os 6 repros
-  acendem issue, **e a linha boa segue sem aviso**. **806/806 · lint ✅ typecheck ✅ build ✅.**
+- **Última mudança (2026-08-29): AUD-16 lote 2 — `[E5]` e `[E6]` FECHADOS.** Dois lugares que
+  **descartavam texto sem dizer**: `readFinishedColors` só acusava perda TOTAL (item torto no MEIO
+  de `finishedColors` sumia calado) e **coagia com `String(...)`** — `{part:123,colorKey:{}}` virava
+  a SKU inventada `"123"/"[object Object]"`, que o estorno procura e não acha. Agora **qualquer**
+  perda liga `malformed`, tipo errado é DESCARTE, e a `/vendas` mostra faixa **nomeando o**
+  **documento** (o aviso vivia num `console.warn` de dev). No PDF a quebra de linha das Observações
+  **sobrevive**. **814/814 · lint ✅ typecheck ✅ build ✅.**
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, `/producao`). Custo real
   **decomponível ponta a ponta** (produção → acabado → venda), e o ROI já o lê.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — AUD-16, os 3 que sobraram** (detalhe e "pronto quando" no `BACKLOG.md`):
-  **`[E7]` 🔴** produção **sem lote** promete saldo negativo na tela e **não baixa nem custeia**
-  (`simulateFifo([], 200)` → `moves: []`; medido ao vivo, R$ 1,22 × R$ 4,89) · **`[E5]` 🔴** item
-  torto no MEIO de `finishedColors` some sem ligar `malformed` (era o `[R1]` da AUD-15) ·
-  **`[E6]` 🟡** a quebra de linha das observações **some** no PDF (0x0A não passa no `cabeNoPdf`).
-  ⚠ **Decisão pendente do dono:** o relatório pedia **BLOQUEAR** a confirmação do CSV com erro de
-  domínio; mantive a regra da casa (TD-009: avisa, não bloqueia). A frente do DONO é a mesma:
-  cadastrar cores/insumos definitivos e passar os ids pro **sistema externo dele**, que **gera** a
-  planilha. **Sem botão de planilha-modelo no app** (dono, 2026-08-23): a spec é escrita **comigo
-  no chat** depois do cadastro (regras no `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, sem trava.**
+- **▶ PRÓXIMA TAREFA — AUD-16, o último: `[E7]` 🔴** (detalhe no `BACKLOG.md`): produção **sem**
+  **lote** promete saldo negativo na tela e **não baixa nem custeia** (`simulateFifo([], 200)` →
+  `moves: []`; medido ao vivo, R$ 1,22 × R$ 4,89). ⚠ **É um ou/ou do dono:** ou **bloqueia** a
+  produção sem lote, ou a **dívida vira lote de acerto** (baixa + custo pelo preço de cadastro,
+  negativo visível como o D4 manda — coerente com a casa, e a cara).
+- ⚠ **Decisão pendente do dono (lote 1):** bloquear ou não a confirmação do CSV com erro de
+  domínio (mantive TD-009: avisa, não bloqueia). A frente do DONO segue a mesma: cadastrar
+  cores/insumos e passar os ids pro **sistema externo dele**, que **gera** a planilha; a spec sai
+  **comigo no chat** depois do cadastro. ⚠ **"Pode recadastrar?" → SIM, sem trava.**
 - ⚠ **Ainda pendentes (dono):** **cadastrar os insumos e religar os acessórios** (os de hoje entram
   no custo mas não dão baixa) · o Dashboard fecha as ressalvas de UX-09 e TD-006 já na tela.
 - **Infra pronta:** e-mail `@lopolab.com.br` e login Google restrito (`AuthGate` + regras Firestore
@@ -154,6 +154,9 @@ src/
   valor: entrega cru e deixa o `validateProduct` (a MESMA função do formulário) reprovar. No JSON,
   texto passa por `textoJson` e item de lista por `objetoJson` — sem eles `colorName: []` derrubava
   a carga e `name: 2` ia gravado como número.
+  ⚠ E **coerção cega é pior que descarte** (AUD-16 [E5]): `String(item.part)` fabricava a SKU
+  `"[object Object]"`, que o estorno não acha. Tipo errado se DESCARTA, e o descarte **se**
+  **anuncia** — inclusive o parcial.
 - **Snapshot que CHEGA não é prova de servidor** (AUD-15 [E4]): offline o `onSnapshot` serve do
   cache pelo mesmo callback de sucesso. Assinatura de coleção pede `COM_METADATA` e repassa
   `snapshot.metadata`; quem decide o chip é o `cloudStatusOf` — nunca o `navigator.onLine`. ⚠ E

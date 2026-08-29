@@ -89,7 +89,11 @@
    mostra apenas não é a lista inteira.
    ⚠ O botão não ganha regra de alvo própria — o `.link-button` já sobe para 44px
    no celular pela regra do `responsive.css` (UX-50), com a devolução junto. */
-.sort-partial {
+/* AUD-16 [E5] — a mesma faixa de alerta, agora usada também DENTRO da linha do
+   item (a cor congelada que não deu para ler). Um só desenho: dois avisos
+   laranja com aparências diferentes seriam dois significados na leitura. */
+.sort-partial,
+.row-warn {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -105,13 +109,23 @@
 
 /* O ícone não encolhe nem estica; a frase é quem cede — e cede QUEBRANDO para a
    linha de baixo (base flexível), não cortando. */
-.sort-partial > svg {
+.sort-partial > svg,
+.row-warn > svg {
   flex: 0 0 auto;
 }
 
-.sort-partial > span {
+.sort-partial > span,
+.row-warn > span {
   flex: 1 1 240px;
   min-width: 0;
+}
+
+/* Dentro do `.cd-meta` (flex de spans curtos) o aviso ocupa a fileira inteira:
+   ele é frase, não etiqueta, e ao lado de "Máquina · Tempo · Qtd" ficaria
+   espremido em duas palavras por linha. */
+.cd-meta > .row-warn {
+  flex: 1 0 100%;
+  margin-bottom: 0;
 }
 
 /* Herda a cor do aviso: laranja de link dentro de faixa laranja de alerta seria

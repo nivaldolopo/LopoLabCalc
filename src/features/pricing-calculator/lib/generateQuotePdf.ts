@@ -79,6 +79,9 @@ const SEM_BYTE: Record<string, string> = {
   "\u200B": "", "\uFEFF": "", // largura zero
 };
 
+// Toda forma de "linha nova" que chega colada de outro programa (AUD-16 [E6]).
+const QUEBRA_DE_LINHA = /\r\n?|[\u2028\u2029]/g;
+
 /**
  * Texto pronto para as fontes padrão do jsPDF (WinAnsi/cp1252).
  *
@@ -90,7 +93,14 @@ const SEM_BYTE: Record<string, string> = {
  */
 export function sanitizeForPdf(text: string): string {
   if (!text) return "";
-  return [...text]
+  // AUD-16 [E6]: quebra e tabulação não cabem no cp1252 e caíam no descarte —
+  // "um\ndois" virava "umdois", colando duas palavras que nunca foram uma.
+  // Numa LINHA a quebra é um SEPARADOR, então vira espaço. (Parágrafo de
+  // verdade é assunto do `sanitizeBlockForPdf`, logo abaixo.)
+  const linha = text
+    .replace(QUEBRA_DE_LINHA, "\n")
+    .replace(/[\n\t]+/g, " ");
+  return [...linha]
     .map((ch) => {
       if (cabeNoPdf(ch)) return ch;
       const trocado = SEM_BYTE[ch];
@@ -100,6 +110,28 @@ export function sanitizeForPdf(text: string): string {
         .join("");
     })
     .join("");
+}
+
+/**
+ * O mesmo saneamento, para texto de PARÁGRAFO (hoje só as Observações do
+ * orçamento) — AUD-16 [E6].
+ *
+ * A quebra de linha SOBREVIVE: cada linha é saneada sozinha e o `\n` e
+ * recolocado entre elas. O `splitTextToSize` do jsPDF já quebra em `\n`
+ * (medido: devolve uma entrada por linha, inclusive a vazia da linha em
+ * branco) e o `doc.text` desenha o array uma linha por vez — preservar o
+ * caractere é tudo o que faltava para o texto sair como o dono digitou.
+ *
+ * `\r\n`, `\r` e os separadores Unicode (U+2028/U+2029) entram normalizados:
+ * quem cola de um Word ou de um WhatsApp não traz o `\n` puro.
+ */
+export function sanitizeBlockForPdf(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(QUEBRA_DE_LINHA, "\n")
+    .split("\n")
+    .map((linha) => sanitizeForPdf(linha))
+    .join("\n");
 }
 
 // Atalho para não esquecer o saneamento em nenhuma chamada de texto.
@@ -313,7 +345,12 @@ export function generateQuotePdf(data: QuotePdfData): void {
     cursorY += 14;
     doc.setFont("helvetica", "normal");
     doc.setTextColor(70);
-    const wrapped = doc.splitTextToSize(t(data.notes), pageWidth - marginX * 2);
+    // AUD-16 [E6]: bloco, não linha — a quebra que o dono digitou é parte do
+    // recado comercial ("Prazo: 5 dias" / "Frete à parte" em linhas próprias).
+    const wrapped = doc.splitTextToSize(
+      sanitizeBlockForPdf(data.notes),
+      pageWidth - marginX * 2,
+    );
     doc.text(wrapped, marginX, cursorY);
     cursorY += wrapped.length * 12 + 12;
   }

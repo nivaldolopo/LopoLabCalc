@@ -71,9 +71,9 @@ function toSale(id: string, data: DocumentData): Sale {
   const colors = readFinishedColors(data.finishedColors);
   if (colors.malformed && process.env.NODE_ENV !== "production") {
     console.warn(
-      `[vendas] recibo "${id}": campo \`finishedColors\` em formato ` +
-        "ilegível (esperado: lista de {part, colorKey}). A cor congelada foi " +
-        "descartada, e o rótulo dela não será exibido.",
+      `[vendas] recibo "${id}": campo \`finishedColors\` com entrada(s) ` +
+        "ilegível(is) (esperado: lista de {part, colorKey}). O que não deu " +
+        "para ler foi descartado, e o rótulo da cor não será exibido.",
     );
   }
   // Repartição por máquina (vendas novas). Ausente nas antigas → deixa undefined
@@ -187,6 +187,9 @@ function toSale(id: string, data: DocumentData): Sale {
     ...(data.finishedColorLabel && !colors.malformed
       ? { finishedColorLabel: String(data.finishedColorLabel) }
       : {}),
+    // AUD-16 [E5]: o `console.warn` acima só existe em dev e ninguém o lê. O
+    // sinal sobe junto com o item para a `/vendas` nomear o documento.
+    ...(colors.malformed ? { finishedColorsMalformed: true as const } : {}),
     ...(Array.isArray(data.productionEventIds) &&
     data.productionEventIds.length > 0
       ? { productionEventIds: data.productionEventIds.map(String) }

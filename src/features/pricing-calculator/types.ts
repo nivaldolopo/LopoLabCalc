@@ -497,6 +497,11 @@ export type SaleInput = {
   // venda pré-FEAT-11.
   finishedColors?: FinishedColorEntry[];
   finishedColorLabel?: string;
+  // AUD-16 [E5] — o campo ESTAVA lá e não deu para ler (inteiro ou em parte).
+  // Não é dado da venda: é o recado de que o estorno deste item não devolve
+  // tudo à prateleira de origem. Só o `toSale` escreve, e a `/vendas` mostra —
+  // antes o aviso morria num `console.warn` que o dono nunca abre.
+  finishedColorsMalformed?: true;
   // Caminho `encomenda`: o(s) evento(s) de produção criados junto da venda (a
   // baixa de filamento + horas mora neles). O estorno apaga-os e reverte o rolo.
   productionEventIds?: string[];

@@ -867,6 +867,23 @@ export function SalesPage() {
                                       {sale.finishedColorLabel}
                                     </span>
                                   ) : null}
+                                  {/* AUD-16 [E5]: o campo estava lá e não deu
+                                      para ler (inteiro ou em parte). O rótulo
+                                      da cor some de propósito — exibi-lo seria
+                                      prometer uma prateleira que o estorno não
+                                      vai honrar —, e o recado ocupa o lugar
+                                      dele, NOMEANDO o documento. */}
+                                  {sale.finishedColorsMalformed ? (
+                                    <span className="row-warn" role="status">
+                                      <TriangleAlert size={15} />
+                                      <span>
+                                        Cor congelada ilegível no banco
+                                        (documento {sale.id}): o estorno deste
+                                        item não devolve a peça à prateleira de
+                                        origem.
+                                      </span>
+                                    </span>
+                                  ) : null}
                                   {sale.discountAmount &&
                                   sale.discountAmount > 0 ? (
                                     <span>
