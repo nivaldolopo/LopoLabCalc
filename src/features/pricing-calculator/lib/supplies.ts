@@ -95,6 +95,34 @@ export function simulateSupplyConsumption(
   };
 }
 
+// AUD-16 [E7], lado INSUMO — gêmeo do `withDebtRoll` do filamento (a nota longa
+// está lá). Sem lote não havia onde lançar a baixa: o ímã saía da gaveta, não
+// saía do saldo e não entrava no custo. Materializado o lote (0 un, preço do
+// cadastro), o D4 volta a valer inteiro.
+export const DEBT_LOT_NOTE = "lote de acerto (produção sem lote lançado)";
+
+export function withDebtLot(
+  supply: Supply,
+  lotId: string,
+  unitPrice: number,
+  at: number,
+): Supply {
+  return {
+    ...supply,
+    lots: [
+      ...supply.lots,
+      {
+        id: lotId,
+        purchaseDate: num(at),
+        initialQty: 0,
+        remainingQty: 0,
+        unitPrice: num(unitPrice),
+        note: DEBT_LOT_NOTE,
+      },
+    ],
+  };
+}
+
 function shiftSupply(
   supply: Supply,
   moves: LotDelta[],

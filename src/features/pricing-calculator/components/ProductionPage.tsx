@@ -283,6 +283,15 @@ export function ProductionPage() {
     );
   }
 
+  // AUD-16 [E7]: o aviso do lote de acerto nomeia o que ficou devendo. O id vem
+  // do plano e pode ser de COR ou de INSUMO (a dívida é a mesma nos dois
+  // estoques) — procura nos dois, nessa ordem.
+  function debtLotName(stockId: string): string {
+    const color = stock.find((c) => c.id === stockId);
+    if (color) return filamentLabel(color);
+    return supplies.find((sup) => sup.id === stockId)?.name ?? stockId;
+  }
+
   function setFilColor(rowKeyId: string, index: number, filamentId: string) {
     const color = stock.find((c) => c.id === filamentId);
     updateFil(rowKeyId, index, {
@@ -340,6 +349,10 @@ export function ProductionPage() {
       supplies,
       machines,
       genId,
+      // AUD-16 [E7]: a data da produção é a do lote de acerto, se ele precisar
+      // existir. A MESMA no preview e na gravação — é o que faz a prévia dizer
+      // o que o documento vai dizer.
+      toTimestamp(dateStr),
     );
 
   // 7e: os insumos da submissão inteira (já escalados por peças × placas). Vêm do
@@ -1052,6 +1065,22 @@ export function ProductionPage() {
                     <div className="prod-warn strong">
                       Passa {grams(preview.summary.shortfallG)} do estoque total —
                       o saldo da cor fica negativo (contagem furada?).
+                    </div>
+                  ) : null}
+                  {/* AUD-16 [E7]: sem lote lançado a dívida não tinha onde
+                      ficar — a produção passava sem baixa e sem custo, e este
+                      bloco prometia um negativo que ninguém registrava. Agora
+                      a falta vira LOTE DE ACERTO, e o aviso diz a que preço
+                      (estimado, o do cadastro) ela entrou no custo. */}
+                  {preview.summary.debtLots.length > 0 ? (
+                    <div className="prod-warn strong">
+                      Sem lote lançado em{" "}
+                      {preview.summary.debtLots
+                        .map((lot) => debtLotName(lot.stockId))
+                        .join(", ")}
+                      : a falta vira <strong>lote de acerto</strong> pelo preço do
+                      cadastro — o custo entra e o saldo fica negativo. Lance a
+                      compra depois e ele se acerta sozinho.
                     </div>
                   ) : null}
                   {preview.summary.supplyShortfall > 0 ? (

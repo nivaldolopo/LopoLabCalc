@@ -11,23 +11,20 @@
 
 - **Estado do site:** no ar e estável (`● Ready`), em `calculadora.lopolab.com.br` (SSL ok) e
   `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-29): AUD-16 lote 2 — `[E5]` e `[E6]` FECHADOS.** Dois lugares que
-  **descartavam texto sem dizer**: `readFinishedColors` só acusava perda TOTAL (item torto no MEIO
-  de `finishedColors` sumia calado) e **coagia com `String(...)`** — `{part:123,colorKey:{}}` virava
-  a SKU inventada `"123"/"[object Object]"`, que o estorno procura e não acha. Agora **qualquer**
-  perda liga `malformed`, tipo errado é DESCARTE, e a `/vendas` mostra faixa **nomeando o**
-  **documento** (o aviso vivia num `console.warn` de dev). No PDF a quebra de linha das Observações
-  **sobrevive**. **814/814 · lint ✅ typecheck ✅ build ✅.**
+- **Última mudança (2026-08-29): AUD-16 lote 3 — `[E7]` FECHADO, e com ele o cluster inteiro
+  (`[E1]`…`[E7]`, os 7).** Produção com a cor (ou o insumo) **sem lote lançado** não baixava nem
+  custeava — `simulateFifo([], 200)` → `moves: []` —, enquanto a tela prometia saldo negativo
+  (R$ 1,22 × R$ 4,89, medido). **Decisão do dono: representar a dívida, não bloquear.** A falta
+  agora vira **lote de acerto** (0 g, preço do cadastro, `note` própria) criado ANTES da simulação:
+  o overdraft do D4 cai nele, o custo entra, o estorno devolve pelo mesmo id, e lançar a compra
+  depois acerta o saldo sozinho. **824/824 · lint ✅ typecheck ✅ build ✅.**
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, `/producao`). Custo real
   **decomponível ponta a ponta** (produção → acabado → venda), e o ROI já o lê.
 - **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
   não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — AUD-16, o último: `[E7]` 🔴** (detalhe no `BACKLOG.md`): produção **sem**
-  **lote** promete saldo negativo na tela e **não baixa nem custeia** (`simulateFifo([], 200)` →
-  `moves: []`; medido ao vivo, R$ 1,22 × R$ 4,89). ⚠ **É um ou/ou do dono:** ou **bloqueia** a
-  produção sem lote, ou a **dívida vira lote de acerto** (baixa + custo pelo preço de cadastro,
-  negativo visível como o D4 manda — coerente com a casa, e a cara).
+- **▶ PRÓXIMA TAREFA — sem item de código pendente da AUD-16:** o cluster está **ZERADO** (só
+  ressalvas, no `BACKLOG.md`). Escolher a próxima frente é do dono — o `BACKLOG.md` tem as ondas.
 - ⚠ **Decisão pendente do dono (lote 1):** bloquear ou não a confirmação do CSV com erro de
   domínio (mantive TD-009: avisa, não bloqueia). A frente do DONO segue a mesma: cadastrar
   cores/insumos e passar os ids pro **sistema externo dele**, que **gera** a planilha; a spec sai
@@ -157,6 +154,10 @@ src/
   ⚠ E **coerção cega é pior que descarte** (AUD-16 [E5]): `String(item.part)` fabricava a SKU
   `"[object Object]"`, que o estorno não acha. Tipo errado se DESCARTA, e o descarte **se**
   **anuncia** — inclusive o parcial.
+- **Estoque sem lote NÃO é exceção: a dívida vira LOTE DE ACERTO** (AUD-16 [E7]) — `simulateFifo`
+  precisa de um lote onde empurrar o negativo do D4, e sem nenhum a produção passava sem baixa e
+  sem custo. `planProduction`/`planSupplies` materializam o lote (0 g/un, preço do cadastro, `note`)
+  ANTES de simular; daí em diante não há caso especial em lugar nenhum do caminho.
 - **Snapshot que CHEGA não é prova de servidor** (AUD-15 [E4]): offline o `onSnapshot` serve do
   cache pelo mesmo callback de sucesso. Assinatura de coleção pede `COM_METADATA` e repassa
   `snapshot.metadata`; quem decide o chip é o `cloudStatusOf` — nunca o `navigator.onLine`. ⚠ E

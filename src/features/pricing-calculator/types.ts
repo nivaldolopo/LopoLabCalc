@@ -640,6 +640,24 @@ export type StockMove = {
   qty: number; // gramas (filamento) ou unidades (insumo)
 };
 
+// AUD-16 [E7] — a dívida que virou LOTE.
+//
+// O D4 diz que saldo negativo é permitido e visível; sem lote nenhum ele não
+// tinha ONDE ficar visível, e a produção passava sem baixa e sem custo (a tela
+// prometia negativo, o documento não registrava nada). A resposta é materializar
+// o lote que falta — saldo negativo, preço o do cadastro — para o resto do
+// sistema (baixa, custo, extrato, estorno) continuar valendo sem exceção.
+//
+// `unitPrice` é R$/kg no filamento e R$/unidade no insumo, como no lote de
+// verdade. Sai no plano só para a TELA poder dizer a que preço a dívida entrou:
+// é uma estimativa (o preço do cadastro), não uma nota fiscal.
+export type DebtLot = {
+  stockId: string;
+  lotId: string;
+  qty: number; // gramas (filamento) ou unidades (insumo)
+  unitPrice: number;
+};
+
 // Uma fatia do consumo FIFO: quanto saiu de UM rolo, e a que preço. `pricePerKg`
 // e `cost` são o preço real daquele rolo — é o que a SaleModal mostra para
 // explicar o custo misto (D3: "100 g × R$90 + 50 g × R$110"). O passo 8

@@ -79,8 +79,9 @@ export function isBelowMin(color: StockFilament): boolean {
  * D4 (implementado em `lib/fifo.ts`) — saldo negativo é PERMITIDO: o que faltar
  * NÃO é truncado nem "deduzido até zero" (isso esconderia o tamanho do furo). O
  * excedente vira consumo no rolo mais novo, empurrando o saldo dele para
- * negativo, e sai reportado em `shortfallG`. Cor sem rolo nenhum é o único caso
- * sem onde lançar: aí não há move e o `shortfallG` sozinho carrega o recado.
+ * negativo, e sai reportado em `shortfallG`. Cor sem rolo NENHUM não é exceção
+ * desde a AUD-16 [E7]: quem chama materializa antes o `debtRoll`, e o overdraft
+ * cai nele como cairia em qualquer outro — ver `withDebtRoll`.
  *
  * Aqui mora só o que é do FILAMENTO: a projeção dos rolos e a conta do custo em
  * gramas × preço por KG (o insumo, 7e, usa o mesmo núcleo com unidades).
@@ -121,6 +122,47 @@ export function simulateConsumption(
 // INTENCIONAL (o dono quer o custo fiel), que a SaleModal precisa mostrar.
 export function saleCost(color: StockFilament, grams: number): number {
   return simulateConsumption(color, grams).cost;
+}
+
+/**
+ * AUD-16 [E7] — o ROLO DE ACERTO: a dívida de uma cor que não tem rolo lançado.
+ *
+ * Medido antes: `simulateFifo([], 200)` devolvia `moves: []` com `shortfall:
+ * 200` — sem lote não havia onde lançar, então a produção passava SEM baixa e
+ * SEM custo, enquanto a tela prometia "o saldo da cor fica negativo". A mesma
+ * impressão custava R$ 1,22 sem rolo e R$ 4,89 depois de lançar a compra.
+ *
+ * O conserto não é uma exceção nova: é tirar a exceção. Materializado o rolo
+ * (0 g, preço do cadastro), o D4 volta a valer inteiro — o overdraft cai nele,
+ * o saldo fica negativo À VISTA, o custo entra pelo preço estimado e o estorno
+ * devolve pelo mesmo `rollId`. Quando o dono lançar a compra de verdade, o
+ * negativo se acerta sozinho na soma dos rolos.
+ *
+ * `initialG: 0` é a verdade: não houve compra. A `note` é o que a `/estoque`
+ * mostra no extrato para o rolo não parecer uma compra de 0 g sem explicação.
+ */
+export const DEBT_ROLL_NOTE = "lote de acerto (produção sem rolo lançado)";
+
+export function withDebtRoll(
+  color: StockFilament,
+  rollId: string,
+  pricePerKg: number,
+  at: number,
+): StockFilament {
+  return {
+    ...color,
+    rolls: [
+      ...color.rolls,
+      {
+        id: rollId,
+        purchaseDate: num(at),
+        initialG: 0,
+        remainingG: 0,
+        pricePerKg: num(pricePerKg),
+        note: DEBT_ROLL_NOTE,
+      },
+    ],
+  };
 }
 
 function shiftRolls(

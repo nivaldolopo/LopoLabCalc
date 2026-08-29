@@ -7,9 +7,9 @@
 > A foto do AGORA + a próxima tarefa sugerida vivem no `CLAUDE.md`.
 >
 > ⚠ **LEIA PRIMEIRO — a varredura AUD-16 (2026-08-28, a 9ª) é a varredura TOTAL do sistema, feita
-> por outra IA sobre uma cópia ZIP.** Ela abriu **7 defeitos** (`[E1]`…`[E7]`); o **lote 1**
-> (`[E1]`…`[E4]`, a fronteira de ingestão) e o **lote 2** (`[E5]` `[E6]`, a perda calada)
-> FECHARAM em **2026-08-29**. **Aberto: só o `[E7]`.** A seção dela é a **primeira** deste arquivo. ⚠ Os 7 foram
+> por outra IA sobre uma cópia ZIP.** Ela abriu **7 defeitos** (`[E1]`…`[E7]`) — **os 7 FECHARAM em 2026-08-29**, em
+> três lotes: **1** (`[E1]`…`[E4]`, a fronteira de ingestão), **2** (`[E5]` `[E6]`, a perda
+> calada) e **3** (`[E7]`, a dívida sem lote). O cluster está **ZERADO**; sobram as ressalvas. A seção dela é a **primeira** deste arquivo. ⚠ Os 7 foram
 > **reconferidos aqui com sonda rodando o parser real** — e a reconferência **corrigiu o
 > relatório em 3 pontos** (ver a seção). O lote 3 dele (import >500 / timeout) **não é defeito**:
 > é tradeoff já escrito e tratado no código.
@@ -89,7 +89,7 @@
 > lote B foram fechados no mesmo dia. **O que falta antes da carga é do dono:** cadastrar as cores
 > e os insumos definitivos — só então eu gero a de-para e a planilha-modelo (lote C).
 
-## ⚠ ABERTO — cluster da varredura AUD-16 (2026-08-28) — a 9ª, varredura TOTAL por outra IA
+## ✅ ZERADO — cluster da varredura AUD-16 (2026-08-28) — a 9ª, varredura TOTAL por outra IA
 
 > Relatório cru: `AUD-16-RELATORIO.md` (fora do repo, veio com o dono). 63 casos de import/export,
 > 38 de rota/UI, 8 de matemática, 11 de persistência. Base dela: **778/778**, `lint`/`typecheck`/
@@ -135,17 +135,36 @@ FORMA do JSON, e as cores de etapa deixaram de ser uma **segunda cópia** do blo
 (`parseFilamentList`). A matemática não corre risco com o valor cru: `failureFractionOf` tem o teto
 de 95% dele, compartilhado com a capacidade (TD-011). **806/806 · lint ✅ typecheck ✅ build ✅.**
 
-### 🔴 `[E7]` — produção sem lote promete overdraft e não registra nada
+### ✅ FECHADO — a dívida sem lote (lote 3, 2026-08-29)
 
-- **Medido:** `simulateFifo([], 200)` → `moves: []`, `shortfall: 200`. Sem lote não há onde lançar,
-  então **não há baixa e não há custo**; a tela, porém, diz "o saldo da cor fica negativo" e
-  "faltam N unidades" (`ProductionPage.tsx:1051-1061`). A auditoria mediu ao vivo: mesma impressão
-  custou **R$ 1,22** sem lote e **R$ 4,89** depois de lançar os rolos.
-- **O estrago:** o dono produz antes de lançar a compra achando que a dívida ficou registrada.
-  Material e insumo somem do custo real **e** da baixa.
-- **Pronto quando:** ou a produção é **bloqueada** sem lote, ou a dívida fica **representada e
-  custeada** — e a prévia diz o mesmo que o documento salvo.
-- **Arquivos:** `fifo.ts:58-96`, `stock.ts`, `supplies.ts`, `production.ts`, `ProductionPage.tsx`.
+`[E7]` — **decisão do dono (2026-08-29): representar a dívida, não bloquear.** Era a opção coerente
+com a casa: o D4 já diz que saldo negativo é permitido e *visível*; o que faltava era um lugar onde
+ele coubesse. Sem rolo lançado, `simulateFifo([], 200)` devolvia `moves: []` — a impressão não
+baixava e não custava, enquanto a tela prometia "o saldo da cor fica negativo" (R$ 1,22 sem rolo ×
+R$ 4,89 com, medido ao vivo pela auditoria).
+
+O conserto **não é uma exceção nova — é tirar a exceção**: quando a cor (ou o insumo) existe no
+Estoque e não tem lote nenhum, `planProduction`/`planSupplies` materializam um **lote de acerto**
+(0 g / 0 un, preço o do cadastro, `note` que o nomeia no extrato) ANTES de simular. Daí em diante
+não há caso especial: o overdraft do D4 cai nele, o custo entra pelo preço estimado, o `stockMove`
+aponta um `rollId` que existe e o estorno devolve por ele.
+
+| Repro (`planProduction`, cor sem rolo, 200 g a R$ 110/kg) | Antes | Agora |
+|---|---|---|
+| baixa | `moves: []` | 1 move de 200 g no `acerto_evt-1_verde` |
+| custo real | **R$ 0,00** | **R$ 22,00** |
+| saldo da cor | 0 (a dívida sumia) | **−200 g**, à vista |
+| lançar a compra depois | — | −200 + 1000 = **800 g**, acerta sozinho |
+| estorno | nada a devolver | round-trip fecha em **0** |
+| 2 linhas da mesma cor | — | **1** lote de acerto, 250 g |
+| cor avulsa / modo histórico | fallback sem baixa | **igual** (nada mudou) |
+
+Detalhes: o id é determinístico (`acerto_<evento>_<doc>`), então **a prévia e o documento salvo
+nomeiam o mesmo rolo** — que era a outra metade do "pronto quando". `planProduction`, `planSupplies`
+e `planEventRows` ganharam um `at` opcional (só data: ordena o FIFO e datilha o extrato); a
+`/producao` passa a data da produção e a venda-encomenda passa a da venda. O aviso da prévia deixou
+de prometer o que não acontecia: agora nomeia a cor/insumo e diz que a falta vira lote de acerto
+pelo preço do cadastro. **824/824 · lint ✅ typecheck ✅ build ✅.**
 
 ### ✅ FECHADO — a perda calada (lote 2, 2026-08-29)
 

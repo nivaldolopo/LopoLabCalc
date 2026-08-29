@@ -3,14 +3,17 @@ import {
   applyConsumption,
   reverseConsumption,
   simulateConsumption,
+  withDebtRoll,
 } from "./stock";
 import {
   applySupplyConsumption,
   reverseSupplyConsumption,
   simulateSupplyConsumption,
+  withDebtLot,
 } from "./supplies";
 import { filamentTotalG } from "./filaments";
 import type {
+  DebtLot,
   FilamentUsage,
   FrozenCostBreakdown,
   Machine,
@@ -45,6 +48,10 @@ export type ProductionPlan = {
   crossesRoll: boolean;
   // D5 forte / negativo do D4: gramas que passaram do estoque total (Σ das cores).
   shortfallG: number;
+  // AUD-16 [E7]: as cores que não tinham rolo nenhum e ganharam um LOTE DE
+  // ACERTO para a dívida caber. Sai daqui só para a tela dizer a que preço
+  // (estimado) a falta entrou no custo — a baixa já está nos `moves`.
+  debtLots: DebtLot[];
 };
 
 // Custo de material pelo preço congelado no snapshot (sem tocar rolo). Usado no
@@ -55,6 +62,12 @@ function fallbackCost(filaments: FilamentUsage[]): number {
     (sum, f) => sum + (filamentTotalG(f) / 1000) * num(f.pricePerKg),
     0,
   );
+}
+
+// AUD-16 [E7] — id do lote de acerto. Determinístico (evento + doc), para a
+// prévia e a gravação nomearem o MESMO rolo e o estorno achar por onde devolver.
+function debtLotId(eventId: string, stockId: string): string {
+  return `acerto_${eventId}_${stockId}`;
 }
 
 /**
@@ -76,6 +89,11 @@ export function planProduction(
   colors: StockFilament[],
   eventId: string,
   mode: ProductionMode,
+  // AUD-16 [E7]: a data do LOTE DE ACERTO (só ela; o resto do plano não tem
+  // data). Opcional porque não muda dinheiro nenhum — ordena o FIFO e datilha
+  // a linha do extrato. Quem tem a data da produção na mão passa; o resto
+  // cai no agora, que é quando a dívida de fato nasceu.
+  at: number = Date.now(),
 ): ProductionPlan {
   if (mode === "historico") {
     return {
@@ -84,6 +102,7 @@ export function planProduction(
       materialCost: fallbackCost(filaments),
       crossesRoll: false,
       shortfallG: 0,
+      debtLots: [],
     };
   }
 
@@ -95,19 +114,37 @@ export function planProduction(
   let materialCost = 0;
   let crossesRoll = false;
   let shortfallG = 0;
+  const debtLots: DebtLot[] = [];
 
   for (const filament of filaments) {
     const grams = filamentTotalG(filament);
     if (grams <= 0) continue;
 
-    const color = filament.filamentId
+    const encontrada = filament.filamentId
       ? updates.get(filament.filamentId) ?? byId.get(filament.filamentId)
       : undefined;
 
-    if (!color) {
+    if (!encontrada) {
       // Avulso ou cor órfã (removida do Estoque): fallback D3, sem baixa de rolo.
       materialCost += (grams / 1000) * num(filament.pricePerKg);
       continue;
+    }
+
+    // AUD-16 [E7] — a cor EXISTE no Estoque mas não tem rolo lançado: o lote de
+    // acerto nasce aqui, ANTES da simulação, e a partir daí não há caso
+    // especial nenhum (o overdraft do D4 cai nele como cairia no rolo mais
+    // novo). Duas linhas da mesma cor no mesmo evento criam UM só: a segunda
+    // já lê a cor encadeada, que tem o rolo.
+    let color = encontrada;
+    if (color.rolls.length === 0) {
+      const rollId = debtLotId(eventId, color.id);
+      color = withDebtRoll(color, rollId, num(filament.pricePerKg), at);
+      debtLots.push({
+        stockId: color.id,
+        lotId: rollId,
+        qty: 0, // somado abaixo, com o que a simulação de fato deixou negativo
+        unitPrice: num(filament.pricePerKg),
+      });
     }
 
     const sim = simulateConsumption(color, grams);
@@ -123,6 +160,11 @@ export function planProduction(
         qty: move.qty,
       });
     }
+    // A dívida é o que a simulação não achou saldo para cobrir — que no rolo de
+    // acerto é tudo, mas a conta é a mesma se a cor ganhar rolo entre uma linha
+    // e outra.
+    const debt = debtLots.find((lot) => lot.stockId === color.id);
+    if (debt) debt.qty += sim.shortfallG;
     updates.set(color.id, applyConsumption(color, sim.moves));
   }
 
@@ -132,6 +174,7 @@ export function planProduction(
     materialCost,
     crossesRoll,
     shortfallG,
+    debtLots,
   };
 }
 
@@ -145,6 +188,7 @@ export type SupplyPlan = {
   cost: number; // custo REAL dos insumos (Σ FIFO + fallback dos avulsos)
   crossesLot: boolean;
   shortfall: number; // unidades que passaram do saldo (D4/D5)
+  debtLots: DebtLot[]; // AUD-16 [E7]: insumos sem lote que ganharam um de acerto
 };
 
 export const EMPTY_SUPPLY_PLAN: SupplyPlan = {
@@ -153,6 +197,7 @@ export const EMPTY_SUPPLY_PLAN: SupplyPlan = {
   cost: 0,
   crossesLot: false,
   shortfall: 0,
+  debtLots: [],
 };
 
 /**
@@ -169,6 +214,7 @@ export function planSupplies(
   supplies: Supply[],
   eventId: string,
   mode: ProductionMode,
+  at: number = Date.now(), // AUD-16 [E7], como no `planProduction`
 ): SupplyPlan {
   if (usages.length === 0) return EMPTY_SUPPLY_PLAN;
 
@@ -188,19 +234,34 @@ export function planSupplies(
   let cost = 0;
   let crossesLot = false;
   let shortfall = 0;
+  const debtLots: DebtLot[] = [];
 
   for (const usage of usages) {
     const qty = num(usage.qty);
     if (qty <= 0) continue;
 
-    const supply = usage.supplyId
+    const encontrado = usage.supplyId
       ? updates.get(usage.supplyId) ?? byId.get(usage.supplyId)
       : undefined;
 
-    if (!supply) {
+    if (!encontrado) {
       // Avulso ou insumo órfão (removido do Estoque): custo sim, baixa não.
       cost += qty * num(usage.catalogUnitPrice);
       continue;
+    }
+
+    // AUD-16 [E7], lado insumo: mesmo movimento do filamento (nota no
+    // `planProduction`) — o lote de acerto nasce antes da simulação.
+    let supply = encontrado;
+    if (supply.lots.length === 0) {
+      const lotId = debtLotId(eventId, supply.id);
+      supply = withDebtLot(supply, lotId, num(usage.catalogUnitPrice), at);
+      debtLots.push({
+        stockId: supply.id,
+        lotId,
+        qty: 0,
+        unitPrice: num(usage.catalogUnitPrice),
+      });
     }
 
     const sim = simulateSupplyConsumption(supply, qty);
@@ -217,6 +278,8 @@ export function planSupplies(
       qty: move.qty,
     }));
     moves.push(...made);
+    const debt = debtLots.find((lot) => lot.stockId === supply.id);
+    if (debt) debt.qty += sim.shortfall;
     updates.set(supply.id, applySupplyConsumption(supply, made));
   }
 
@@ -226,6 +289,7 @@ export function planSupplies(
     cost,
     crossesLot,
     shortfall,
+    debtLots,
   };
 }
 

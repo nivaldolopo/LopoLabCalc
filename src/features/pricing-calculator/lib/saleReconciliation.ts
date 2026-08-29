@@ -295,6 +295,9 @@ function applyForward(
       Array.from(state.suppliesById.values()),
       ctx.machines,
       ctx.genId,
+      // AUD-16 [E7]: a data da venda é a do evento de produção que ela cria —
+      // e, se alguma cor não tiver rolo, a do lote de acerto.
+      ctx.at,
     );
     for (const color of planned.colorUpdates) {
       state.colorsById.set(color.id, color);

@@ -11,7 +11,8 @@ import {
   sumFrozen,
   ZERO_FROZEN,
 } from "./production";
-import { balanceG } from "./stock";
+import { balanceG, DEBT_ROLL_NOTE } from "./stock";
+import { balanceQty, DEBT_LOT_NOTE } from "./supplies";
 import type {
   FilamentRoll,
   FilamentUsage,
@@ -535,5 +536,204 @@ describe("reverseProduction / reverseSupplies com moves misturados", () => {
     const plan = planSupplies([supplyUse({ qty: 7 })], [supply], "e1", "real");
     const [depois] = reverseSupplies(plan.moves, plan.supplyUpdates);
     expect(depois.lots[0].remainingQty).toBe(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AUD-16 [E7] — produção sem lote lançado.
+//
+// Medido antes: `simulateFifo([], 200)` devolvia `moves: []` com
+// `shortfall: 200`. Sem rolo não havia ONDE lançar, então a impressão NÃO
+// baixava e NÃO custava — enquanto a tela prometia "o saldo da cor fica
+// negativo". A auditoria mediu ao vivo: R$ 1,22 sem rolo, R$ 4,89 com.
+//
+// Decisão do dono (2026-08-29): representar a dívida, não bloquear. O lote de
+// acerto é o que faz o D4 valer sem exceção.
+// ---------------------------------------------------------------------------
+
+describe("planProduction — cor SEM rolo vira lote de acerto (AUD-16 [E7])", () => {
+  const semRolo = () => makeColor({ id: "verde", rolls: [] });
+
+  it("a dívida é baixada E custeada, pelo preço do cadastro", () => {
+    const plan = planProduction(
+      [usage({ filamentId: "verde", totalG: 200, pricePerKg: 110 })],
+      [semRolo()],
+      "evt-1",
+      "real",
+      7 * DIA,
+    );
+
+    // ANTES: moves vazio e custo 0. Agora a baixa existe e aponta o rolo criado.
+    expect(plan.moves).toEqual([
+      {
+        itemId: "evt-1",
+        kind: "filament",
+        stockId: "verde",
+        rollId: "acerto_evt-1_verde",
+        qty: 200,
+      },
+    ]);
+    expect(plan.materialCost).toBeCloseTo((200 / 1000) * 110);
+    expect(plan.shortfallG).toBe(200);
+    expect(plan.debtLots).toEqual([
+      { stockId: "verde", lotId: "acerto_evt-1_verde", qty: 200, unitPrice: 110 },
+    ]);
+  });
+
+  it("o rolo de acerto entra na cor com saldo NEGATIVO e data da produção", () => {
+    const plan = planProduction(
+      [usage({ filamentId: "verde", totalG: 200, pricePerKg: 110 })],
+      [semRolo()],
+      "evt-1",
+      "real",
+      7 * DIA,
+    );
+
+    const cor = plan.colorUpdates[0];
+    expect(cor.rolls).toHaveLength(1);
+    expect(cor.rolls[0]).toEqual({
+      id: "acerto_evt-1_verde",
+      purchaseDate: 7 * DIA,
+      initialG: 0, // não houve compra — dizer 200 seria inventar nota fiscal
+      remainingG: -200,
+      pricePerKg: 110,
+      note: DEBT_ROLL_NOTE,
+    });
+    expect(balanceG(cor)).toBe(-200);
+  });
+
+  it("lançar a compra depois acerta o saldo sozinho", () => {
+    const plan = planProduction(
+      [usage({ filamentId: "verde", totalG: 200, pricePerKg: 110 })],
+      [semRolo()],
+      "evt-1",
+      "real",
+    );
+    const comCompra = {
+      ...plan.colorUpdates[0],
+      rolls: [
+        ...plan.colorUpdates[0].rolls,
+        makeRoll({ id: "r1", purchaseDate: 9 * DIA, remainingG: 1000 }),
+      ],
+    };
+    expect(balanceG(comCompra)).toBe(800);
+  });
+
+  it("o estorno devolve pelo mesmo rolo — round-trip fecha em zero", () => {
+    const plan = planProduction(
+      [usage({ filamentId: "verde", totalG: 200, pricePerKg: 110 })],
+      [semRolo()],
+      "evt-1",
+      "real",
+    );
+    // O estorno lê o estoque JÁ GRAVADO (com o rolo de acerto), como no banco.
+    const [restaurada] = reverseProduction(plan.moves, plan.colorUpdates);
+    expect(balanceG(restaurada)).toBe(0);
+  });
+
+  it("duas linhas da mesma cor criam UM só lote de acerto", () => {
+    const plan = planProduction(
+      [
+        usage({ filamentId: "verde", totalG: 200, pricePerKg: 110 }),
+        usage({ filamentId: "verde", totalG: 50, pricePerKg: 110 }),
+      ],
+      [semRolo()],
+      "evt-1",
+      "real",
+    );
+    expect(plan.debtLots).toHaveLength(1);
+    expect(plan.debtLots[0].qty).toBe(250);
+    expect(plan.colorUpdates[0].rolls).toHaveLength(1);
+    expect(balanceG(plan.colorUpdates[0])).toBe(-250);
+    expect(plan.materialCost).toBeCloseTo((250 / 1000) * 110);
+  });
+
+  it("cor COM rolo não ganha acerto nenhum (o D4 já tinha onde cair)", () => {
+    const cor = makeColor({
+      id: "preto",
+      rolls: [makeRoll({ id: "r1", remainingG: 50, pricePerKg: 90 })],
+    });
+    const plan = planProduction(
+      [usage({ filamentId: "preto", totalG: 200, pricePerKg: 110 })],
+      [cor],
+      "evt-1",
+      "real",
+    );
+    expect(plan.debtLots).toEqual([]);
+    expect(plan.colorUpdates[0].rolls).toHaveLength(1);
+    expect(balanceG(plan.colorUpdates[0])).toBe(-150);
+  });
+
+  it("modo historico continua sem tocar em nada", () => {
+    const plan = planProduction(
+      [usage({ filamentId: "verde", totalG: 200, pricePerKg: 110 })],
+      [semRolo()],
+      "evt-1",
+      "historico",
+    );
+    expect(plan.debtLots).toEqual([]);
+    expect(plan.colorUpdates).toEqual([]);
+    expect(plan.moves).toEqual([]);
+  });
+
+  it("cor AVULSA (sem filamentId) segue no fallback, sem lote de acerto", () => {
+    const plan = planProduction(
+      [usage({ totalG: 200, pricePerKg: 110 })],
+      [semRolo()],
+      "evt-1",
+      "real",
+    );
+    expect(plan.debtLots).toEqual([]);
+    expect(plan.moves).toEqual([]);
+    expect(plan.materialCost).toBeCloseTo((200 / 1000) * 110);
+  });
+});
+
+describe("planSupplies — insumo SEM lote vira lote de acerto (AUD-16 [E7])", () => {
+  const semLote = () => makeSupply({ id: "ima", lots: [] });
+
+  it("baixa e custeia a dívida pelo preço de catálogo do acessório", () => {
+    const plan = planSupplies(
+      [supplyUse({ qty: 4, catalogUnitPrice: 0.8 })],
+      [semLote()],
+      "e1",
+      "real",
+      7 * DIA,
+    );
+
+    expect(plan.cost).toBeCloseTo(3.2);
+    expect(plan.moves).toEqual([
+      {
+        itemId: "e1",
+        kind: "supply",
+        stockId: "ima",
+        rollId: "acerto_e1_ima",
+        qty: 4,
+      },
+    ]);
+    expect(plan.shortfall).toBe(4);
+    expect(plan.debtLots).toEqual([
+      { stockId: "ima", lotId: "acerto_e1_ima", qty: 4, unitPrice: 0.8 },
+    ]);
+    expect(plan.supplyUpdates[0].lots[0]).toEqual({
+      id: "acerto_e1_ima",
+      purchaseDate: 7 * DIA,
+      initialQty: 0,
+      remainingQty: -4,
+      unitPrice: 0.8,
+      note: DEBT_LOT_NOTE,
+    });
+    expect(balanceQty(plan.supplyUpdates[0])).toBe(-4);
+  });
+
+  it("o estorno devolve pelo mesmo lote", () => {
+    const plan = planSupplies(
+      [supplyUse({ qty: 4, catalogUnitPrice: 0.8 })],
+      [semLote()],
+      "e1",
+      "real",
+    );
+    const [restaurado] = reverseSupplies(plan.moves, plan.supplyUpdates);
+    expect(balanceQty(restaurado)).toBe(0);
   });
 });

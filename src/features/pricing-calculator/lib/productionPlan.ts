@@ -21,6 +21,7 @@ import {
 } from "./production";
 import { catalogPricePerKg, filamentLabel } from "./stock";
 import type {
+  DebtLot,
   FilamentUsage,
   ProductionFilament,
   FrozenCostBreakdown,
@@ -379,6 +380,10 @@ export type PlannedRows = {
     // 7e: custo dos insumos (já dentro de `frozen`) e o que faltou no estoque.
     supplies: number;
     supplyShortfall: number;
+    // AUD-16 [E7]: cores e insumos que não tinham lote e ganharam um de acerto
+    // (a dívida ficou representada e custeada). É o que a tela avisa ANTES de
+    // confirmar — e o que ela avisa é exatamente o que vai ser gravado.
+    debtLots: DebtLot[];
   };
 };
 
@@ -395,6 +400,8 @@ export function planEventRows(
   supplies: Supply[],
   machines: Machine[],
   genId: () => string,
+  // AUD-16 [E7]: a data que o lote de acerto recebe, quando precisar existir.
+  at: number = Date.now(),
 ): PlannedRows {
   const map = new Map(stock.map((c) => [c.id, c]));
   const touched = new Set<string>();
@@ -407,7 +414,13 @@ export function planEventRows(
       .filter((f) => num(f.totalG) > 0)
       .map((f) => filRowToUsage(f, stock));
     const id = genId();
-    const plan = planProduction(filaments, Array.from(map.values()), id, mode);
+    const plan = planProduction(
+      filaments,
+      Array.from(map.values()),
+      id,
+      mode,
+      at,
+    );
     for (const color of plan.colorUpdates) {
       map.set(color.id, color);
       touched.add(color.id);
@@ -417,6 +430,7 @@ export function planEventRows(
       Array.from(supplyMap.values()),
       id,
       mode,
+      at,
     );
     for (const supply of supplyPlan.supplyUpdates) {
       supplyMap.set(supply.id, supply);
@@ -458,6 +472,11 @@ export function planEventRows(
       acc.shortfallG += e.plan.shortfallG;
       acc.supplies += e.supplyPlan.cost;
       acc.supplyShortfall += e.supplyPlan.shortfall;
+      acc.debtLots = [
+        ...acc.debtLots,
+        ...e.plan.debtLots,
+        ...e.supplyPlan.debtLots,
+      ];
       return acc;
     },
     {
@@ -469,6 +488,7 @@ export function planEventRows(
       shortfallG: 0,
       supplies: 0,
       supplyShortfall: 0,
+      debtLots: [] as DebtLot[],
     },
   );
   return { built, colorUpdates, supplyUpdates, summary };
