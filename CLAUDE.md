@@ -9,98 +9,85 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
-- **Estado do site:** no ar e estável (`● Ready`), em `calculadora.lopolab.com.br` (SSL ok) e
-  `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-31): as 3 ressalvas baratas, num commit** — as que não dependiam da
-  logo nem de venda real. **`<select>` corta com reticências** (global; era o único item que *piora*
-  com o recadastro) · **`--on-accent` criado ANTES da marca**, no-op hoje, e agora o rebrand é
-  troca de paleta · **`aria-label` nomeando o quê** nos botões só-ícone. Medições e as 2 armadilhas
-  novas: `HISTORICO.md`. **824/824 · lint ✅ typecheck ✅ build ✅.**
+- **Estado do site:** no ar (`● Ready`) em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`.
+- **Última mudança (2026-08-31): faxina da doc, sem tocar em código.** O `BACKLOG.md` guardava os
+  **9 clusters de varredura já fechados** (AUD-07…AUD-16) — ~85% do arquivo era material concluído.
+  Foram inteiros pro `HISTORICO.md` ("📒 Arquivo do BACKLOG", faxina de 2026-08-31): **2167 → 165
+  linhas**. Antes disso, no mesmo dia, as **3 ressalvas baratas** (`<select>` com reticências ·
+  `--on-accent` criado antes da marca · `aria-label` nomeando o quê). **824/824 · lint ✅
+  typecheck ✅ build ✅.**
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, `/producao`). Custo real
   **decomponível ponta a ponta** (produção → acabado → venda), e o ROI já o lê.
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
-  destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta: `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — nenhum item de código pendente.** Triagem de 2026-08-31: o que sobra depende
-  da **logo**, de **1-2 meses de venda** (Dashboard), ou é **dado que some no recadastro** (não
-  fazer). ⚠ **Só duas frentes estão disponíveis HOJE:** **FEAT-03 sem a logo** (prazo, pagamento,
-  termos, desconto, etapas/subitens — nada disso depende de marca) e as **regras do Firestore**, sem
-  prova há 7 varreduras porque exigem uma **2ª conta Google** — é o dono quem destrava.
+  destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta.
+- **▶ PRÓXIMA TAREFA — nenhum item de código pendente.** Só **duas frentes** estão disponíveis HOJE:
+  **FEAT-03 sem a logo** (prazo, pagamento, termos, desconto, etapas/subitens) e as **regras do
+  Firestore**, sem prova há 7 varreduras porque exigem uma **2ª conta Google** — é o dono quem
+  destrava. O resto espera a logo, ~1-2 meses de venda (Dashboard), ou é dado que some no
+  recadastro. **Itens, lacunas de prova e ressalvas: `BACKLOG.md`, agora curto.**
 - ⚠ **A frente do DONO:** cadastrar **cores e insumos**, **religar os acessórios**, e passar os ids
   pro **sistema externo dele**, que **gera** a planilha — a spec sai **comigo no chat** depois do
   cadastro. ⚠ **"Pode recadastrar?" → SIM, sem trava.** ⚠ Acessório sem baixa *não é bug, é vínculo
-  em branco* (`planSupplies`): com `supplyId` ligado consome por FIFO; com `null` ("avulso") entra
-  no custo e não mexe no estoque — ligar no formulário liga a baixa, **sem código novo**, e é o que
-  torna real a pergunta *"falha deve consumir insumo?"*. **Decisão ainda pendente:** bloquear ou não
-  a confirmação do CSV com erro de domínio (mantive TD-009: avisa, não bloqueia).
+  em branco* (`planSupplies`): com `supplyId` consome por FIFO; com `null` ("avulso") só entra no
+  custo — ligar no formulário liga a baixa, **sem código novo**.
 - **Infra pronta:** e-mail `@lopolab.com.br` e login Google restrito (`AuthGate` + regras Firestore
   travadas); domínio/DNS na seção "Infra" abaixo.
 - **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).
 
 ## Resumo do projeto (contexto rápido)
 
-**O que é:** aplicação web de **calculadora de precificação para impressão 3D**
-(Lopo Lab). O usuário cadastra produtos (peso, horas de impressão, filamento,
-energia, mão de obra, markup, acessórios, etapas extras) e o app calcula o preço
-sugerido e a capacidade produtiva. Os produtos ficam salvos no Firestore e são
-sincronizados em tempo real.
+**O que é:** **calculadora de precificação para impressão 3D** (Lopo Lab). Cadastra-se o produto
+(peso, horas, filamento, energia, mão de obra, markup, acessórios, etapas extras) e o app calcula o
+preço sugerido e a capacidade produtiva. Tudo salvo no Firestore, sincronizado em tempo real.
 
-**Stack:**
-- **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript 5**
-- **CSS artesanal** por área em `src/app/styles/*.css` (Tailwind foi removido — não usar)
-- **Firebase 12** → **Firestore** (banco nomeado `lopo-lab-calculadora`)
-- Ícones: `lucide-react`
-- PDF (orçamento): `jspdf` + `jspdf-autotable` (client-side)
-- Gerenciador de pacotes: **pnpm**
+**Stack:** **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript 5** · **Firebase 12**
+→ **Firestore** (banco `lopo-lab-calculadora`) · **CSS artesanal** por área em `src/app/styles/*.css`
+(Tailwind foi removido — não usar) · `lucide-react` · PDF do orçamento com `jspdf` +
+`jspdf-autotable` (client-side) · pacotes com **pnpm**.
 
 **Estrutura:**
 ```
-src/
-  app/                      # App Router: layout.tsx, page.tsx (calculadora),
-                            #   catalogo/page.tsx (catálogo, FEAT-07),
-                            #   vendas/page.tsx (histórico), orcamento/page.tsx (PDF),
-                            #   maquinas/page.tsx (ROI), estoque/page.tsx (estoque),
-                            #   producao/page.tsx (registro de produção),
-                            #   globals.css (só @import) + styles/*.css (CSS por área)
-  features/pricing-calculator/
-    components/             # calculadora: PricingCalculator (raiz) + ProductForm +
-                            #   PricingResultCard + CapacityPanel/MachineSelector/FixedCostsPanel/
-                            #   Accessories/ExtraStages/Subitems/LinksSection ·
-                            # uma por rota: CatalogPage(+ProductCatalog) · SalesPage · QuotePage ·
-                            #   MachinesPage · ProductionPage · StockPage (abas) + SuppliesTab ·
-                            # venda: SaleModal + SaleFlow (a fiação, usada pelas 2 páginas) ·
-                            # casca: PageHeader · PageIntro · NavBar · MobilePriceBar · AuthGate ·
-                            # Modal (casca dos 9 diálogos) + os 8 que a consomem + ConfirmDialog ·
-                            # compartilhados: NumberInput, ProfitSummary, SearchBox, CostBars,
-                            #   FeedbackNote, NetMarginHint, CostDetail (exporta
-                            #   CostBreakdownTable, reusada por 3 rotas)
-    hooks/                  # useProducts, usePricingForm, useMachines, useTheme, useAuth ·
-                            #   um por coleção: useSales, useSupplies, useStock, useProduction,
-                            #   useFinishedGoods, useQuotes, useQuoteConfig, useFees
-    lib/                    # TODA a matemática, pura. calculatePricing, calculateCapacity,
-                            #   validateProduct, productCsv · idTable (de-para nome→id, TSV) ·
-                            #   fifo (ordem + overdraft D4) →
-                            #   stock (g) + supplies (unidades) · production (baixa por evento +
-                            #   custo congelado, em 3 escalas) · finishedGoods (camadas FIFO;
-                            #   SKU = subitem × cor) · productionPlan (produto/subitem→eventos) ·
-                            #   saleReconciliation (passo 8 + reverse) · marginTier (régua DEC-04) ·
-                            #   saleContext · filaments · generateQuotePdf ·
-                            #   paymentFees (bandeira × parcela, gross-up, desconto, margem líquida)
-    constants.ts, types.ts
-  lib/
-    firebase/               # client.ts (init + db) · frozenCost.ts (o mesmo objeto vai p/ 3
-                            #   coleções) · um repositório por coleção: products · machines
-                            #   (config/machines) · quoteConfig · quotes · fees ·
-                            #   sales (`vendas`; reconcileRecibo = 1 transação p/ as 4 coleções) ·
-                            #   stock (`estoque`, doc por COR) · supplies (`insumos`, doc por
-                            #   INSUMO) · production (`producao`, N eventos + baixa na mesma
-                            #   transação) · finishedGoods (`acabados`, doc por PRODUTO)
-    errors.ts               # guardOnline (barra ANTES do await) + withWriteTimeout (12s, na BORDA
-                            #   do repositório — escrita nova passa por ele) + errorMessage
-    cloudStatus.ts          # cloudStatusOf(metadata) + COM_METADATA — o chip de sincronização
-    clipboard.ts            # copyText — erro EXPLÍCITO quando o navegador não libera
-    formatting/             # currency.ts (formatCurrency/formatDecimal) · date.ts (ponte
-                            #   timestamp ↔ <input type="date">)
+src/app/          # App Router. layout.tsx · page.tsx (calculadora) · catalogo (FEAT-07) ·
+                  # vendas (histórico) · orcamento (PDF) · maquinas (ROI) · estoque · producao ·
+                  # globals.css (só @import) + styles/*.css (CSS por área)
+src/features/pricing-calculator/
+  components/     # calculadora: PricingCalculator (raiz) + ProductForm + PricingResultCard +
+                  #   CapacityPanel/MachineSelector/FixedCostsPanel/Accessories/ExtraStages/
+                  #   Subitems/LinksSection
+                  # uma por rota: CatalogPage(+ProductCatalog) · SalesPage · QuotePage ·
+                  #   MachinesPage · ProductionPage · StockPage (abas) + SuppliesTab
+                  # venda: SaleModal + SaleFlow (a fiação, usada pelas 2 páginas)
+                  # casca: PageHeader · PageIntro · NavBar · MobilePriceBar · AuthGate ·
+                  #   Modal (casca dos 9 diálogos) + os 8 que a consomem + ConfirmDialog
+                  # compartilhados: NumberInput · ProfitSummary · SearchBox · CostBars ·
+                  #   FeedbackNote · NetMarginHint · CostDetail (exporta CostBreakdownTable,
+                  #   reusada por 3 rotas)
+  hooks/          # useProducts · usePricingForm · useMachines · useTheme · useAuth · e um por
+                  #   coleção: useSales/useSupplies/useStock/useProduction/useFinishedGoods/
+                  #   useQuotes/useQuoteConfig/useFees
+  lib/            # TODA a matemática, pura. calculatePricing · calculateCapacity ·
+                  #   validateProduct · productCsv · idTable (de-para nome→id, TSV) ·
+                  #   fifo (ordem + overdraft D4) → stock (g) + supplies (unidades) ·
+                  #   production (baixa por evento + custo congelado, em 3 escalas) ·
+                  #   finishedGoods (camadas FIFO; SKU = subitem × cor) ·
+                  #   productionPlan (produto/subitem→eventos) · saleReconciliation (passo 8 +
+                  #   reverse) · marginTier (régua DEC-04) · saleContext · filaments ·
+                  #   generateQuotePdf · paymentFees (bandeira × parcela, gross-up, desconto,
+                  #   margem líquida)     [+ constants.ts, types.ts na raiz da feature]
+src/lib/
+  firebase/       # client.ts (init + db) · frozenCost.ts (o mesmo objeto vai p/ 3 coleções) ·
+                  #   um repositório por coleção: products · machines (config/machines) ·
+                  #   quoteConfig · quotes · fees · sales (`vendas`; reconcileRecibo = 1
+                  #   transação p/ as 4 coleções) · stock (`estoque`, doc por COR) ·
+                  #   supplies (`insumos`, doc por INSUMO) · production (`producao`, N eventos +
+                  #   baixa na mesma transação) · finishedGoods (`acabados`, doc por PRODUTO)
+  errors.ts       # guardOnline (barra ANTES do await) + withWriteTimeout (12s, na BORDA do
+                  #   repositório — escrita nova passa por ele) + errorMessage
+  cloudStatus.ts  # cloudStatusOf(metadata) + COM_METADATA — o chip de sincronização
+  clipboard.ts    # copyText — erro EXPLÍCITO quando o navegador não libera
+  formatting/     # currency.ts (formatCurrency/formatDecimal) · date.ts (ponte timestamp ↔
+                  #   <input type="date">)
 ```
 
 **Pontos-chave:**
@@ -170,18 +157,16 @@ src/
 ## Diretrizes de trabalho
 
 ### 1. Usar apenas o ambiente de produção
-- Trabalhe sempre mirando **produção**. Não mantemos os ambientes de **Preview** nem
-  **Development** da Vercel (as variáveis do Firebase só estão em **Production**).
-- Ao lidar com variáveis de ambiente na Vercel, use somente o target `production`.
-- Deploys são sempre de produção (push na `main` → deploy automático de produção).
+- **Só existe produção.** Preview e Development da Vercel não são mantidos (as variáveis do Firebase
+  só estão em **Production**) — use sempre o target `production`, e todo deploy é de produção
+  (push na `main` → deploy automático).
 
 ### 2. Resumo para contexto
-- A seção **Resumo do projeto** acima existe para acelerar a obtenção de contexto.
-  **Mantenha-a atualizada** sempre que a arquitetura, a stack ou os arquivos-chave mudarem.
+- A seção **Resumo do projeto** acima existe para acelerar a obtenção de contexto. **Mantenha-a
+  atualizada** sempre que a arquitetura, a stack ou os arquivos-chave mudarem.
 
 ### 3. Commit + deploy imediatos a cada alteração
-Sempre que eu (usuário) pedir e você concluir uma **alteração no código**, execute
-**imediatamente**, sem esperar novo pedido:
+Concluída uma **alteração no código** que eu pedi, execute **imediatamente**, sem esperar novo pedido:
 
 ```powershell
 git add -A
@@ -189,85 +174,81 @@ git commit -m "<mensagem descritiva>"
 git push
 ```
 
-> O deploy é feito pela **integração Git nativa da Vercel** (push na `main` → deploy de produção
-> automático, na nuvem da Vercel). **Não** rode `vercel --prod` no fluxo normal — geraria deploy
-> duplicado. Para acompanhar: `vercel ls` ou o painel.
+> O deploy é da **integração Git nativa da Vercel** (push na `main` → produção, na nuvem deles).
+> **Não** rode `vercel --prod` no fluxo normal — geraria deploy duplicado. Acompanhe com `vercel ls`.
 
 ### 4. Verificação visual: pode abrir o site — o login é um handshake comigo
-- **Não** abra o navegador pra "confirmar" toda alteração — isso gasta tempo/tokens à toa. Pro
-  código são, prefira o barato: `pnpm lint`, `pnpm test`, `pnpm typecheck` (e `pnpm build` quando
-  fizer sentido).
-- **Mas quando a verificação visual for de fato útil, ABRA você mesmo** — não fique esperando eu
-  validar. Casos típicos: layout/responsivo, medir no DOM, lógica interativa que lint/build não
-  cobre, ou quando eu pedir. Use o **navegador embutido** (`preview_start` + `read_page`/
-  `computer`/`javascript_tool`); pra rodar local, `.claude/launch.json` (nunca `pnpm dev` no Bash).
-- **Login Google (AuthGate):** eu **nunca** te passo senha e você **nunca** digita credencial. Se a
-  sessão ainda estiver logada, **siga direto**. Se cair na tela de login, **pausa e me avisa** ("logue
-  aí que eu continuo"); eu logo na aba e te devolvo — aí você retoma de onde parou.
+- **Não** abra o navegador pra "confirmar" toda alteração — gasta tempo/tokens à toa. Pro código são,
+  prefira o barato: `pnpm lint`, `pnpm test`, `pnpm typecheck` (e `pnpm build` quando fizer sentido).
+- **Mas quando a verificação visual for de fato útil, ABRA você mesmo** — não espere eu validar.
+  Típicos: layout/responsivo, medir no DOM, lógica interativa que lint/build não cobre, ou a meu
+  pedido. Use o **navegador embutido** (`preview_start` + `read_page`/`computer`/`javascript_tool`);
+  pra rodar local, `.claude/launch.json` (nunca `pnpm dev` no Bash).
+- **Login Google (AuthGate):** eu **nunca** te passo senha e você **nunca** digita credencial. Sessão
+  logada → siga direto. Caiu na tela de login → **pausa e me avisa** ("logue aí que eu continuo").
 - Terminada a verificação, **me mostre a prova** (screenshot/medição/console), não só o "funcionou".
 
 ### 5. Manter o "Status atual" atualizado (regra irmã da 8)
-- Ao concluir uma mudança relevante (feature, correção, decisão de arquitetura/infra),
-  **atualize a seção "Status atual"** no topo — é ela que permite abrir um **chat novo por tarefa**.
-- **Para não virar changelog:** Status **≤ ~40 linhas** · registre **só a mudança MAIS recente** e
-  **substitua** a anterior (nada de correntes `Antes: … Antes: …`) · bullets estáveis, não parágrafos
-  de implementação (isso mora no código e no `git log`) · o **porquê** vai pro `HISTORICO.md` e o
-  item aberto pro `BACKLOG.md` — **nunca** pro Status.
-- **Status + código no MESMO commit/push** (não dois pushes seguidos). Só vira commit separado
-  quando a alteração já foi pushada e o ajuste do Status veio depois.
+- Concluída uma mudança relevante (feature, correção, decisão de arquitetura/infra), **atualize o
+  "Status atual"** — é ele que permite abrir um **chat novo por tarefa**.
+- **Para não virar changelog:** **≤ ~40 linhas** · só a mudança **MAIS recente**, **substituindo** a
+  anterior (nada de `Antes: … Antes: …`) · bullets estáveis, não parágrafo de implementação (isso
+  mora no código e no `git log`) · o **porquê** vai pro `HISTORICO.md` e o item aberto pro
+  `BACKLOG.md` — **nunca** pro Status.
+- **Status + código no MESMO commit/push.** Só vira commit separado se o código já foi pushado antes.
 
 ### 6. Sinalizar hora de trocar de chat
-- Ao **concluir uma tarefa** (fechada, commitada e pushada), lembre que aquele é um bom ponto de
-  corte: sugira encerrar este chat e abrir um novo (o "Status atual" já carrega o contexto).
-- Conversa visivelmente longa e ainda no meio de algo: avise que o contexto está grande e que pode
-  valer fechar um passo lógico e continuar em chat novo — mas **sem prometer precisão de tokens**
-  (não há medidor ao vivo; o gatilho confiável é "tarefa concluída", não contagem).
+- **Tarefa concluída** (fechada, commitada, pushada) é bom ponto de corte: sugira encerrar o chat e
+  abrir um novo (o "Status atual" carrega o contexto).
+- Conversa longa e ainda no meio de algo: avise que o contexto está grande e que pode valer fechar um
+  passo lógico e seguir em chat novo — **sem prometer precisão de tokens** (não há medidor ao vivo;
+  o gatilho confiável é "tarefa concluída", não contagem).
 
 ### 7. Dados atuais são descartáveis — priorize velocidade sobre compatibilidade
-- **O histórico de hoje (catálogo, vendas, orçamentos) NÃO é o dado real/final** — é teste. O dono
-  recadastra **tudo, inclusive os acessórios**, num **marco futuro que ele mesmo vai anunciar** —
-  decisão totalmente dele, provavelmente só depois de fechar o backlog inteiro. **Nunca presumir a
-  data.** Consequência: **nenhum item do backlog precisa de migração**, e não se reordena nada por
-  causa disso.
-- **Consequência prática:** quando compatibilidade retroativa custar trabalho extra ou complicar o
-  design, **não pague esse preço**. Vale abrir mão de: migração de documentos antigos, campos legado
-  só-leitura, fallbacks pra dado sem o campo novo, round-trip de CSV velho, backfill.
-- **Como agir:** escolha o design certo primeiro; se ele quebrar o dado atual, **avise o dono no
-  chat** (o que quebra e o que ele recadastra) e siga — não peça permissão a cada campo. Nada de
-  `window.confirm` extra nem código defensivo pra dado que vai ser jogado fora.
-- **Ainda vale a pena:** o que protege o dado **futuro** — escrita atômica, estorno correto,
-  snapshot congelado da venda, testes da matemática. Isso é fundação, não compatibilidade.
-- **Esta diretriz expira** quando o dono declarar a ferramenta madura e recadastrar. **Depois disso,
-  migração volta a ser obrigatória** — reler antes de assumir que ela ainda vale.
+- **O histórico de hoje (catálogo, vendas, orçamentos) NÃO é o dado real** — é teste. O dono
+  recadastra **tudo, inclusive os acessórios**, num **marco que ele mesmo vai anunciar** — **nunca
+  presumir a data**. Logo: **nenhum item do backlog precisa de migração**, e nada se reordena por isso.
+- **Na prática:** compatibilidade retroativa que custe trabalho extra ou complique o design **não se
+  paga**. Vale abrir mão de migração de documento antigo, campo legado só-leitura, fallback pra dado
+  sem o campo novo, round-trip de CSV velho, backfill. Nada de `window.confirm` extra nem código
+  defensivo pra dado que vai ser jogado fora.
+- **Como agir:** escolha o design certo primeiro; se quebrar o dado atual, **avise no chat** (o que
+  quebra, o que ele recadastra) e siga — não peça permissão a cada campo.
+- **Ainda vale a pena:** o que protege o dado **futuro** — escrita atômica, estorno correto, snapshot
+  congelado da venda, testes da matemática. Isso é fundação, não compatibilidade.
+- **Expira** quando o dono declarar a ferramenta madura e recadastrar; aí migração volta a ser
+  obrigatória. Reler antes de assumir que ela ainda vale.
 
 ### 8. Manter o CLAUDE.md INTEIRO enxuto — a doc é 3 arquivos por custo de token
-- **Por que:** só o `CLAUDE.md` é **auto-carregado e re-enviado a cada turno** — cada linha aqui é
-  token multiplicado por toda a conversa. Os outros dois só entram em contexto **quando eu os leio**.
-- **Os 3 papéis:** `CLAUDE.md` (auto, todo turno · alvo **≤ ~270 linhas**) = foto do AGORA + próxima
-  tarefa + stack/estrutura + diretrizes + infra + comandos, ou seja o que é preciso em TODA conversa ·
-  [`BACKLOG.md`](.claude/BACKLOG.md) (curto) = só os itens **abertos** + prioridade, é o que se lê pra
-  escolher tarefa · [`HISTORICO.md`](.claude/HISTORICO.md) (pesado) = D1–D8, auditoria (TD-*) e
-  writeups do que foi **concluído**, lido só quando um item precisa do *porquê*.
-- **Ao concluir uma tarefa, releia o arquivo INTEIRO** (não só o Status) e, bloco a bloco, pergunte
-  *isto é preciso em TODA conversa?* Se for detalhe de item ou histórico, move: o **porquê**/o item
-  concluído → `HISTORICO.md`; o que **virou a-fazer** → `BACKLOG.md`. Nunca copiar de volta pra cá.
-- **Item concluído** some do Status e vira `✅` no `HISTORICO.md` (com o writeup, se útil).
-- Esta verificação de tamanho/divisão é parte de "concluir a tarefa", igual ao `lint`/`typecheck`/
+- **Por quê:** só o `CLAUDE.md` é **auto-carregado e re-enviado a cada turno** — cada linha aqui é
+  token multiplicado pela conversa toda. Os outros dois só entram **quando eu os leio**.
+- **Os 3 papéis:** `CLAUDE.md` (auto, todo turno · alvo **≤ ~270 linhas**) = AGORA + próxima tarefa +
+  stack/estrutura + diretrizes + infra + comandos, o que é preciso em TODA conversa ·
+  [`BACKLOG.md`](.claude/BACKLOG.md) (curto) = só os itens **abertos** + prioridade ·
+  [`HISTORICO.md`](.claude/HISTORICO.md) (pesado) = D1–D8, auditoria (TD-*) e writeups do que foi
+  **concluído**, lido só quando um item precisa do *porquê*.
+- **Ao concluir uma tarefa, releia o arquivo INTEIRO** e, bloco a bloco, pergunte *isto é preciso em
+  TODA conversa?* Detalhe de item ou histórico **move**: o porquê/o concluído → `HISTORICO.md`; o
+  a-fazer → `BACKLOG.md`. Nunca copiar de volta pra cá. Item concluído some do Status e vira `✅`
+  no `HISTORICO.md`.
+- ⚠ **A regra vale pros três arquivos, não só pra este.** O `BACKLOG.md` chegou a **2167 linhas**
+  porque as 9 varreduras foram escritas lá e nenhuma saiu depois de fechar (faxina de 2026-08-31 →
+  165). Cluster que zera **sai do backlog no mesmo commit** que o fecha.
+- Esta verificação de tamanho/divisão é parte de "concluir a tarefa", igual a `lint`/`typecheck`/
   `build`/`test`.
 
 ## Infra / referência de deploy
 
 - **Projeto Vercel:** `lopo-lab/lopolabcalc` (time `lopo-lab`, plano Hobby).
 - **Vínculo:** já feito (`.vercel/repo.json` na raiz; pasta `.vercel` está no `.gitignore`).
-- **Integração Git nativa:** **conectada** — push na `main` faz deploy de produção
-  automático. Não use `vercel --prod` no fluxo normal (geraria deploy duplicado).
-  Para desconectar: `vercel git disconnect`.
+- **Integração Git nativa:** **conectada** — push na `main` faz deploy de produção automático; não
+  use `vercel --prod` no fluxo normal. Para desconectar: `vercel git disconnect`.
 - **Framework:** fixado em `vercel.json` (`"framework": "nextjs"`) — não mexer: sem isso o projeto
   cai numa config estática herdada que quebra o build. As `NEXT_PUBLIC_FIREBASE_*` da Vercel são
   **ignoradas** (a config é FIXA no `client.ts`).
-- **Domínio `lopolab.com.br`:** DNS é **só no Cloudflare** — **NÃO** gerenciar pelo registro.br (onde
-  ele é registrado). O CNAME do `calculadora` fica **"DNS only" / nuvem cinza**, nunca proxied. Já está
-  no ar com SSL. Detalhe (valores, motivo da migração): [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Domínio `lopolab.com.br`:** DNS **só no Cloudflare** — **NÃO** gerenciar pelo registro.br (onde
+  é registrado). O CNAME do `calculadora` fica **"DNS only" / nuvem cinza**, nunca proxied; no ar com
+  SSL. Detalhe (valores, motivo da migração): [`HISTORICO.md`](.claude/HISTORICO.md).
 
 ### Ambiente Windows (evita retrabalho de PATH)
 - **Node:** `C:\Program Files\nodejs` (v24). **pnpm** e **vercel** instalados globalmente — num
