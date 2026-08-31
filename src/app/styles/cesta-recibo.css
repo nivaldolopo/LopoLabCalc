@@ -176,7 +176,7 @@
 
 .discount-unit-toggle button.on {
   background: var(--accent-strong);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 /* Desconto POR ITEM: linha dentro do cartão do item. */
@@ -239,7 +239,7 @@
 
 .discount-mode-toggle button.on {
   background: var(--accent-strong);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .discount-hint {

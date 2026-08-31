@@ -862,6 +862,7 @@ export function ProductionPage() {
                       type="button"
                       onClick={() => removeFil(row.key, index)}
                       title="Remover cor"
+                      aria-label={`Remover a cor ${index + 1}`}
                     >
                       <Trash2 size={15} />
                     </button>
@@ -1228,6 +1229,7 @@ export function ProductionPage() {
                         void remove(event);
                       }}
                       title="Excluir e estornar"
+                      aria-label={`Excluir e estornar a produção ${event.productName || "sem nome"}`}
                     >
                       <Trash2 size={15} />
                     </button>

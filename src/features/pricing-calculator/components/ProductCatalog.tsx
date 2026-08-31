@@ -515,6 +515,7 @@ export function ProductCatalog({
                             onRegisterSale(product, result);
                           }}
                           title="Registrar venda"
+                          aria-label={`Registrar venda de ${product.name}`}
                         >
                           <Receipt size={15} />
                         </button>
@@ -526,6 +527,7 @@ export function ProductCatalog({
                             onProduce(product);
                           }}
                           title="Produzir item"
+                          aria-label={`Produzir ${product.name}`}
                         >
                           <Factory size={15} />
                         </button>
@@ -537,6 +539,7 @@ export function ProductCatalog({
                             onQuote(product);
                           }}
                           title="Orçar item"
+                          aria-label={`Orçar ${product.name}`}
                         >
                           <FileText size={15} />
                         </button>
@@ -548,6 +551,7 @@ export function ProductCatalog({
                             onLoadProduct(product);
                           }}
                           title="Carregar no formulário"
+                          aria-label={`Carregar ${product.name} no formulário`}
                         >
                           <Edit3 size={15} />
                         </button>
@@ -563,6 +567,7 @@ export function ProductCatalog({
                             await confirmDelete(product);
                           }}
                           title="Excluir"
+                          aria-label={`Excluir ${product.name}`}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -847,6 +852,7 @@ function CatalogDetails({
                     type="button"
                     onClick={() => onRegisterSale(product, result, subitem.id)}
                     title="Registrar venda deste subitem"
+                    aria-label={`Registrar venda do subitem ${subitem.name}`}
                   >
                     <Receipt size={15} />
                   </button>
@@ -855,6 +861,7 @@ function CatalogDetails({
                     type="button"
                     onClick={() => onProduce(product, subitem.id)}
                     title="Produzir este subitem"
+                    aria-label={`Produzir o subitem ${subitem.name}`}
                   >
                     <Factory size={15} />
                   </button>
@@ -863,6 +870,7 @@ function CatalogDetails({
                     type="button"
                     onClick={() => onQuote(product, subitem.id)}
                     title="Orçar este subitem"
+                    aria-label={`Orçar o subitem ${subitem.name}`}
                   >
                     <FileText size={15} />
                   </button>

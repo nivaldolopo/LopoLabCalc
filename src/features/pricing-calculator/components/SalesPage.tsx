@@ -731,6 +731,7 @@ export function SalesPage() {
                     type="button"
                     onClick={() => void openEdit(recibo)}
                     title="Editar venda"
+                    aria-label={`Editar a venda de ${recibo.customer || "cliente não informado"}`}
                   >
                     <Edit3 size={15} />
                   </button>
@@ -834,6 +835,7 @@ export function SalesPage() {
                                 handleDelete(sale);
                               }}
                               title="Excluir item"
+                              aria-label={`Excluir “${sale.productName}” da venda`}
                             >
                               <Trash2 size={15} />
                             </button>

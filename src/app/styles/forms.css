@@ -444,7 +444,7 @@ input[type="range"]::-moz-range-thumb {
 .btn.primary {
   flex: 1;
   background: var(--accent-strong);
-  color: white;
+  color: var(--on-accent);
 }
 
 /* UX-32 — o primário desabilitado parecia DEFEITO, não "ainda não". Preenchido

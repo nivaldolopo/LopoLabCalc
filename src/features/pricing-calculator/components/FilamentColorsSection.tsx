@@ -267,6 +267,7 @@ export function FilamentColorsSection({
                     type="button"
                     onClick={() => removeAt(index)}
                     title="Remover cor"
+                    aria-label={`Remover a cor ${index + 1}`}
                   >
                     <Trash2 size={16} />
                   </button>

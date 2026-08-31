@@ -44,6 +44,7 @@ export function FeedbackNote({
           type="button"
           onClick={onClose}
           title="Fechar aviso"
+          aria-label="Fechar aviso"
         >
           <X size={14} />
         </button>

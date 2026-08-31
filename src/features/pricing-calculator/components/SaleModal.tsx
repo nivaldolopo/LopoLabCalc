@@ -1297,6 +1297,7 @@ export function SaleModal({
                   type="button"
                   onClick={() => removeItem(item.key)}
                   title="Remover item"
+                    aria-label={`Remover o item ${item.productName || "sem nome"}`}
                 >
                   <Trash2 size={15} />
                 </button>

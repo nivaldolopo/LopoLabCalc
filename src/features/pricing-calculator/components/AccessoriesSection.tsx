@@ -155,6 +155,7 @@ export function AccessoriesSection({
                 type="button"
                 onClick={() => onRemoveAccessory(accessory.id ?? "")}
                 title="Remover acessório"
+                aria-label={`Remover o acessório ${accessory.desc || "sem descrição"}`}
               >
                 <Trash2 size={16} />
               </button>

@@ -104,6 +104,7 @@ export function SubitemsSection({
                       type="button"
                       onClick={() => onRemoveSubitem(subitem.id)}
                       title="Remover subitem"
+              aria-label={`Remover o subitem ${subitem.name || "sem nome"}`}
                     >
                       <Trash2 size={16} />
                     </button>

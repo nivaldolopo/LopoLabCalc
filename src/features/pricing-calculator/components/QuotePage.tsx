@@ -549,6 +549,7 @@ export function QuotePage() {
                     type="button"
                     onClick={() => removeItem(item.key)}
                     title="Remover item"
+                    aria-label={`Remover o item ${item.description || "sem descrição"}`}
                   >
                     <Trash2 size={15} />
                   </button>
@@ -706,6 +707,7 @@ export function QuotePage() {
                           reDownload(quote);
                         }}
                         title="Baixar PDF novamente"
+                        aria-label={`Baixar novamente o PDF do orçamento nº ${quote.number}`}
                       >
                         <Download size={15} />
                       </button>
@@ -717,6 +719,7 @@ export function QuotePage() {
                           void handleDeleteQuote(quote);
                         }}
                         title="Excluir orçamento"
+                        aria-label={`Excluir o orçamento nº ${quote.number}`}
                       >
                         <Trash2 size={15} />
                       </button>

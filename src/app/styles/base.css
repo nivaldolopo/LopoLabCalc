@@ -162,6 +162,15 @@
      Não muda com o tema: branco sobre cor não depende do fundo da página.
      Branco sobre ele mede 5,18 (era 2,84 sobre o `--accent`). */
   --accent-strong: #c2410c;
+  /* A TINTA que fica EM CIMA do `--accent-strong` (e de qualquer preenchimento
+     da marca que carregue letra). Hoje é branco em 6 lugares e nasce como
+     no-op — o motivo de existir é o rebrand: o amarelo dourado da marca
+     (~#F2B705–#F5C518) REPROVA com branco em cima (~1,8–2,1) e passa folgado
+     com preto (~10–11,5). Sem este token a troca de paleta seria paleta + 6
+     edições à mão em literais, que é exatamente o que o TD-014 desfez para a
+     cor de fundo. Não é redeclarado no escuro, pelo mesmo motivo que o
+     `--accent-strong`: tinta sobre cor não depende do fundo da página. */
+  --on-accent: #fff;
   /* Laranja que É texto, sobre o fundo da página.
      ⚠ O tom saiu da MEDIÇÃO NO DOM, e a primeira tentativa (#c74a0b) errou:
      ela passava no liso (4,55 no fundo / 4,76 no card) e REPROVAVA nos fundos
@@ -331,6 +340,24 @@ textarea {
   font: inherit;
 }
 
+/* O `<select>` cortava o texto A SECO — ressalva herdada da AUD-14, medida no
+   `/` a 375px: o seletor de cor tem 135px úteis para 186px de texto, ou seja
+   51px somem sem nenhum sinal de que sumiram. É a mesma classe de defeito do
+   UX-21 (número/nome cortado vira OUTRO número/nome), e é a única da lista que
+   PIORA com o recadastro: o dono vai cadastrar muitas cores, e nome de cor é
+   justamente onde a diferença mora no fim da string ("PLA Azul Bebê" vs
+   "PLA Azul Bebê Seda").
+   Global de propósito: o defeito é do elemento, não de uma tela — vale para os
+   `<select>` do formulário, do modal de venda, do catálogo e do estoque.
+   ⚠ NÃO resolve o `min-content` que não encolhe (por isso as colunas seguem em
+   `minmax(0, 1fr)`): resolve o que acontece DEPOIS de encolher. E quem for
+   medir a largura que um `<select>` pede mede com um clone em
+   `width: max-content`, nunca com `measureText` — a seta nativa cobra por cima
+   do texto e a medição pela fonte subestima. */
+select {
+  text-overflow: ellipsis;
+}
+
 button {
   color: inherit;
 }
@@ -387,7 +414,7 @@ h4 {
   padding: var(--space-8) var(--space-12);
   border-radius: var(--radius-md);
   background: var(--accent-strong);
-  color: #fff;
+  color: var(--on-accent);
   font-size: var(--text-md);
   font-weight: 600;
   text-decoration: none;
@@ -477,7 +504,7 @@ h4 {
   border-radius: 50%;
   /* UX-24 — seta branca sobre cor: mesmo caso do `.btn.primary`. */
   background: var(--accent-strong);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   opacity: 0;

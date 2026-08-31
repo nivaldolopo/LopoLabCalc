@@ -706,19 +706,33 @@ typecheck ✅ build ✅.**
 - ✅ **A régua de 44px** — era ressalva, **virou item e fechou no lote 4** (acima). Fica o registro
   do diagnóstico: a afirmação do `CLAUDE.md` de que a régua já valia era minha e estava errada, e a
   ressalva herdada falava em "1–4px" quando a faixa real ia de **2 a 24px**.
-- **Nome acessível por `title`, não por `aria-label`** — nos 48 botões só-ícone do `/vendas` e nos 5
-  do `/catalogo`, `aria-label` é `null`. Satisfaz a WCAG (o `title` é fonte válida de nome), mas
-  contraria a regra escrita do projeto e **não aparece no toque**. A AUD-13 afirmou "com
-  `aria-label`" no catálogo: **não bate**.
-- **Os `<select>` cortam texto sem reticências** — no `/` a 375px o seletor de cor tem 135px úteis
-  para 186px de texto (51px cortados, `text-overflow: clip`). Importa porque o dono vai cadastrar
-  **muitas cores**.
-  ⚠ **A ressalva ficou maior no lote 4:** o `.cesta-origem` do modal de venda cai no mesmo caso
-  MESMO depois do `[D4]` — "Estoque de acabados (2 disp.)" pede 273px e "Sob encomenda (produz
-  agora)" 283, contra 259 de linha a 375px (5 a 9% cortado). E a caixa nativa **cobra a seta por
-  cima do texto**, o que faz toda medição feita só com a largura da FONTE subestimar o que o
-  `<select>` precisa. Quem for mexer nisso mede com um `<select>` clone em `width: max-content`, não
-  com `measureText`.
+- ✅ **Nome acessível por `title`, não por `aria-label`** — **FECHADA em 2026-08-31.** Eram **21
+  sítios no fonte** (os "48 + 5" eram instâncias renderizadas: 24 recibos × 2 botões). Varredura por
+  script, não a olho — casa cada `<button>` com `title` e sem `aria-label` e checa se o corpo é só
+  ícone; re-rodado depois dá **0**. Medido ao vivo nas 7 rotas: **678 botões só-ícone renderizados,
+  0 sem nome** (`/catalogo` 545 · `/vendas` 51 · `/orcamento` 49 · `/producao` 27 · as outras 3 × 2).
+  ⚠ **Fiz mais que a régua:** em fileira repetida o rótulo **nomeia o quê** — `"Excluir"` virou
+  `"Excluir ovo fidget"`, `"Editar venda"` virou `"Editar a venda de <cliente>"`. Ouvir "Excluir" 97
+  vezes seguidas não diz o que se vai excluir; o `title` continua o texto curto do hover, onde o
+  contexto visual já está na tela.
+  ⚠ **Falso positivo declarado:** a varredura ao vivo acusou **4 botões sem nome** no `/orcamento`
+  que o scanner de fonte não via (não têm `title`). São os `.num-spin`, dentro de um wrapper
+  `aria-hidden="true"` com `tabindex="-1"` — **não existem para leitor de tela, por desenho**. Filtro
+  corrigido para ignorar `[aria-hidden='true']`; o número real é 0. É a mesma ressalva de steppers
+  já registrada na AUD-16.
+- ✅ **Os `<select>` cortavam texto sem reticências** — **a metade MUDA fechou em 2026-08-31.**
+  `select { text-overflow: ellipsis }` global no `base.css`: o defeito é do elemento, não de uma
+  tela. **Prova no pixel** (o mesmo `<select>` duplicado no mesmo quadro, o clone com `clip`
+  forçado): `Avulso (fora d…` ⌄ contra `Avulso (fora do est` ⌄ — sem a regra o texto entra **por
+  baixo da seta** e some no meio da palavra. Medido a 375px nas 7 rotas + o modal de venda aberto:
+  **0 `<select>` sem `ellipsis`**, rolagem lateral **0**, e o pior corte (`.cesta-add`, **300px**)
+  agora se anuncia. Escolhido por ser o único item da lista que **piora com o recadastro** — nome de
+  cor tem a diferença no FIM da string ("PLA Azul Bebê" vs "PLA Azul Bebê Seda").
+  ⚠ **O que NÃO fechou:** o `<select>` continua sem encolher (`min-content`), por isso as colunas
+  seguem em `minmax(0, 1fr)` — a regra trata o que acontece DEPOIS de encolher, não o encolher.
+  ⚠ **A receita de medição fica valendo:** a caixa nativa **cobra a seta por cima do texto**, então
+  medir só com a largura da FONTE subestima. Mede-se com um `<select>` clone em
+  `width: max-content`, nunca com `measureText` — foi assim que os 300px saíram.
 - **Lixo que o recadastro leva embora** (registrado só para não voltar como achado novo): 18 dos 97
   produtos carregam um campo `id` **dentro** do documento, e um deles aponta para **outro produto**
   (resíduo do "salvar como novo") · 65 dos 97 ainda têm `markupOnFixed`, morto desde a DEC-01 · **4**
@@ -837,11 +851,18 @@ typecheck ✅ build ✅.**
     **branco em cima reprova** (~1,8–2,1) e **preto passa folgado** (~10–11,5). As travas da marca
     nunca usam branco — não é estilo, é o único par que funciona.
   - → **O `--accent-strong` inverte de sentido.** Ele existe como *"o accent escuro o bastante pra
-    carregar BRANCO"* (UX-24), e esse branco está **cravado em 5 lugares**: `forms.css:369`
-    (`.btn.primary`) · `base.css:404` (`.back-to-top`) · `cesta-recibo.css:152` e `:212` (toggles de
-    desconto) · `sections.css:79` (badge 10px).
-    → **A troca NÃO é só de paleta:** é a paleta **+ um token novo `--on-accent`** (a tinta que fica
-    *em cima* do accent). O TD-014 não o criou porque na época o branco era constante.
+    carregar BRANCO"* (UX-24) — e o amarelo dourado reprova justamente com branco em cima.
+    ✅ **O `--on-accent` JÁ EXISTE (2026-08-31)** — criado antes da logo, de propósito, repetindo o
+    acerto do TD-014: nasceu como **no-op** (valor `#fff`, zero mudança visual) e a troca de paleta
+    virou **uma linha**. ⚠ **Eram 6 lugares, não os 5 que esta lista dizia** — faltava o
+    **`.skip-link`** (`base.css`), além de `.btn.primary`, `.back-to-top`, os 2 toggles de desconto e
+    o `.collapse-badge`. Os 6 leem o token; `grep` não acha mais branco literal sobre
+    `--accent-strong`. **Ensaio medido do rebrand:** `--on-accent: #111` + `--accent-strong: #F2B705`
+    numa linha → `.btn.primary` `rgb(255,255,255)` → `rgb(17,17,17)` sobre o mesmo fundo, e revertido
+    limpo. Não é redeclarado no escuro, pelo mesmo motivo que o `--accent-strong`: tinta sobre cor
+    não depende do fundo da página.
+    → **Logo, a troca agora é SÓ de paleta.** O que sobra do rebrand é a logo e a decisão do
+    `--accent-text` no claro, abaixo.
   - As duas travas mapeiam **1:1 nos temas**: amarelo-sobre-preto = escuro (~11:1);
     preto-sobre-amarelo = o preenchimento accent no claro. Nada a inventar.
   - **Decisão pendente pra hora do rebrand:** o `--accent-text` no tema **claro** — amarelo como

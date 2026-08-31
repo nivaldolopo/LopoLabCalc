@@ -11,26 +11,28 @@
 
 - **Estado do site:** no ar e estável (`● Ready`), em `calculadora.lopolab.com.br` (SSL ok) e
   `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-29): AUD-16 lote 3 — `[E7]` FECHADO, e com ele o cluster inteiro
-  (`[E1]`…`[E7]`, os 7).** Produção com a cor (ou o insumo) **sem lote lançado** não baixava nem
-  custeava — `simulateFifo([], 200)` → `moves: []` —, enquanto a tela prometia saldo negativo
-  (R$ 1,22 × R$ 4,89, medido). **Decisão do dono: representar a dívida, não bloquear.** A falta
-  agora vira **lote de acerto** (0 g, preço do cadastro, `note` própria) criado ANTES da simulação:
-  o overdraft do D4 cai nele, o custo entra, o estorno devolve pelo mesmo id, e lançar a compra
-  depois acerta o saldo sozinho. **824/824 · lint ✅ typecheck ✅ build ✅.**
+- **Última mudança (2026-08-31): as 3 ressalvas baratas, num commit** — as que não dependiam da
+  logo nem de venda real. **`<select>` corta com reticências** (global; era o único item que *piora*
+  com o recadastro) · **`--on-accent` criado ANTES da marca**, no-op hoje, e agora o rebrand é
+  troca de paleta · **`aria-label` nomeando o quê** nos botões só-ícone. Medições e as 2 armadilhas
+  novas: `HISTORICO.md`. **824/824 · lint ✅ typecheck ✅ build ✅.**
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, `/producao`). Custo real
   **decomponível ponta a ponta** (produção → acabado → venda), e o ROI já o lê.
-- **⏸ FEAT-03 / branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo
-  não** — destrava quando o dono avisar. Detalhe (e o `--on-accent` que a troca exige): `BACKLOG.md`.
-- **▶ PRÓXIMA TAREFA — sem item de código pendente da AUD-16:** o cluster está **ZERADO** (só
-  ressalvas, no `BACKLOG.md`). Escolher a próxima frente é do dono — o `BACKLOG.md` tem as ondas.
-- ⚠ **Decisão pendente do dono (lote 1):** bloquear ou não a confirmação do CSV com erro de
-  domínio (mantive TD-009: avisa, não bloqueia). A frente do DONO segue a mesma: cadastrar
-  cores/insumos e passar os ids pro **sistema externo dele**, que **gera** a planilha; a spec sai
-  **comigo no chat** depois do cadastro. ⚠ **"Pode recadastrar?" → SIM, sem trava.**
-- ⚠ **Ainda pendentes (dono):** **cadastrar os insumos e religar os acessórios** (os de hoje entram
-  no custo mas não dão baixa) · o Dashboard fecha as ressalvas de UX-09 e TD-006 já na tela.
+- **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
+  destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta: `BACKLOG.md`.
+- **▶ PRÓXIMA TAREFA — nenhum item de código pendente.** Triagem de 2026-08-31: o que sobra depende
+  da **logo**, de **1-2 meses de venda** (Dashboard), ou é **dado que some no recadastro** (não
+  fazer). ⚠ **Só duas frentes estão disponíveis HOJE:** **FEAT-03 sem a logo** (prazo, pagamento,
+  termos, desconto, etapas/subitens — nada disso depende de marca) e as **regras do Firestore**, sem
+  prova há 7 varreduras porque exigem uma **2ª conta Google** — é o dono quem destrava.
+- ⚠ **A frente do DONO:** cadastrar **cores e insumos**, **religar os acessórios**, e passar os ids
+  pro **sistema externo dele**, que **gera** a planilha — a spec sai **comigo no chat** depois do
+  cadastro. ⚠ **"Pode recadastrar?" → SIM, sem trava.** ⚠ Acessório sem baixa *não é bug, é vínculo
+  em branco* (`planSupplies`): com `supplyId` ligado consome por FIFO; com `null` ("avulso") entra
+  no custo e não mexe no estoque — ligar no formulário liga a baixa, **sem código novo**, e é o que
+  torna real a pergunta *"falha deve consumir insumo?"*. **Decisão ainda pendente:** bloquear ou não
+  a confirmação do CSV com erro de domínio (mantive TD-009: avisa, não bloqueia).
 - **Infra pronta:** e-mail `@lopolab.com.br` e login Google restrito (`AuthGate` + regras Firestore
   travadas); domínio/DNS na seção "Infra" abaixo.
 - **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).
@@ -106,17 +108,20 @@ src/
   em `:root` no `base.css`. Significado → `--danger`/`--warn`/`--success`/`--accent`; fundo tênue →
   `-soft`, fundo forte/hover → `-tint`, borda → `-line`. **Três papéis do laranja:** `--accent` só
   onde NÃO carrega letra · `--accent-text` quando É texto · `--accent-strong` sob texto branco.
-  Custo → `--cost-*`. Cru só para o que não é escala (largura de grade, espessura de borda) e para
-  `#fff` sobre preenchimento. Ação destrutiva se anuncia **em repouso** (UX-36); contorno de ícone é
-  `box-shadow: inset`, nunca `border`.
+  A tinta EM CIMA do accent é `--on-accent` (nunca `#fff` cru — o amarelo da marca exige preto).
+  Custo → `--cost-*`. Cru só para o que não é escala (largura de grade, espessura de borda). Ação
+  destrutiva se anuncia **em repouso** (UX-36); contorno de ícone é `box-shadow: inset`, nunca
+  `border`.
 - **Coluna flexível de grade escreve `minmax(0, 1fr)`, nunca `1fr` puro**: o mínimo implícito é o
   min-content, e `<select>`/`<input type="date">` não encolhem — a coluna estoura em vez de ceder.
 - **Fileira que não cabe no celular VIRA CARTÃO, não rolagem** (UX-38/UX-40): abaixo dos ~300px
   úteis a linha quebra em faixas (receita do `.fg-part`, hoje em 5 lugares). Rolar de lado esconde
   justamente a coluna que se quer ler.
-- **Coluna de número usa `.num`** (direita). `tabular-nums` é global (UX-27), não redeclarar. Faixa
-  de número tem **piso `max(rótulo, conteúdo)` medido no DOM**; faixa de nome tem reticências
-  (UX-21) — número cortado vira outro número.
+- **Corte que não se anuncia vira OUTRO valor** (UX-21): faixa de nome e `<select>` têm reticências
+  (`text-overflow: ellipsis`, global); faixa de número tem **piso `max(rótulo, conteúdo)` medido no
+  DOM**. Coluna de número usa `.num` (direita); `tabular-nums` é global (UX-27), não redeclarar.
+  ⚠ Largura que um `<select>` PEDE se mede com clone em `width: max-content`, nunca `measureText` —
+  a seta nativa cobra por cima do texto.
 - **Composição de custo é UM desenho só** (UX-26): `CostStack` (em `CostBars.tsx`), consumido por 3
   rotas. Barra nova não se desenha na mão; e a régua **nunca** é o maior item — é o total.
 - **Cabeçalho, introdução e MODAL são COMPONENTE** — `PageHeader`, `PageIntro`, `Modal`. Modal novo
@@ -124,7 +129,9 @@ src/
 - **Título de seção é `<h2>`, não `<div>`** (UX-29) — o `base.css` zera heading, trocar a tag não
   move pixel. **Foco é `:focus-visible` + `--focus-ring`** (UX-31), de graça. **Alvo pequeno cresce
   por `padding`/`min-height` + margem negativa igual** (UX-28/UX-37): 44px no celular, 32 no
-  desktop. **Botão só-ícone precisa de `aria-label`** (A11Y-01).
+  desktop. **Botão só-ícone precisa de `aria-label`** (A11Y-01) — e em fileira repetida ele **nomeia
+  o quê** ("Excluir ovo fidget"), porque é lido fora de qualquer contexto visual; o `title` fica com
+  o texto curto do hover. Steppers `.num-spin` são exceção: `aria-hidden`, não são alvo.
   ⚠ As armadilhas medidas dessas 7 regras (tingimento a 10%, `transition` na leitura de cor, guarda
   de `grid-template-columns` em media query, `> tbody` ao desmontar tabela, especificidade do
   `@media`) estão no [`HISTORICO.md`](.claude/HISTORICO.md), em "Regras de CSS/UI".
@@ -145,19 +152,15 @@ src/
   esperando acontecer** (AUD-02): o `SaleModal` montava o `ReciboWrite` sem `supplyUpdates` e o
   TypeScript não reclamava — a venda não debitava insumo. Campo que o repositório grava é
   **obrigatório**; lista vazia é a forma de dizer "nada".
-- **Normalizar ANTES de validar é como o dado errado entra calado** (AUD-16 [E1]/[E2]): um
-  `Math.max(0, …)` fazia `Tempo (h) = -1` virar 0 — plausível, sem aviso — enquanto a coluna irmã
-  (`Mao de obra (min)`) entrava negativa e acendia `linha-invalida`. Coluna nova **não corrige**
-  valor: entrega cru e deixa o `validateProduct` (a MESMA função do formulário) reprovar. No JSON,
-  texto passa por `textoJson` e item de lista por `objetoJson` — sem eles `colorName: []` derrubava
-  a carga e `name: 2` ia gravado como número.
-  ⚠ E **coerção cega é pior que descarte** (AUD-16 [E5]): `String(item.part)` fabricava a SKU
-  `"[object Object]"`, que o estorno não acha. Tipo errado se DESCARTA, e o descarte **se**
-  **anuncia** — inclusive o parcial.
+- **Normalizar ANTES de validar é como o dado errado entra calado** (AUD-16 [E1]/[E2]): coluna nova
+  **não corrige** valor (um `Math.max(0, …)` fazia `-1` virar 0, plausível e sem aviso) — entrega
+  cru e deixa o `validateProduct`, a MESMA função do formulário, reprovar. No JSON, texto passa por
+  `textoJson` e item de lista por `objetoJson`. ⚠ E **coerção cega é pior que descarte** ([E5]):
+  `String(item.part)` fabricava a SKU `"[object Object]"`, que o estorno não acha. Tipo errado se
+  DESCARTA, e o descarte **se anuncia** — inclusive o parcial.
 - **Estoque sem lote NÃO é exceção: a dívida vira LOTE DE ACERTO** (AUD-16 [E7]) — `simulateFifo`
-  precisa de um lote onde empurrar o negativo do D4, e sem nenhum a produção passava sem baixa e
-  sem custo. `planProduction`/`planSupplies` materializam o lote (0 g/un, preço do cadastro, `note`)
-  ANTES de simular; daí em diante não há caso especial em lugar nenhum do caminho.
+  precisa de um lote onde empurrar o negativo do D4. `planProduction`/`planSupplies` materializam o
+  lote (0 g/un, preço do cadastro, `note`) ANTES de simular; daí em diante não há caso especial.
 - **Snapshot que CHEGA não é prova de servidor** (AUD-15 [E4]): offline o `onSnapshot` serve do
   cache pelo mesmo callback de sucesso. Assinatura de coleção pede `COM_METADATA` e repassa
   `snapshot.metadata`; quem decide o chip é o `cloudStatusOf` — nunca o `navigator.onLine`. ⚠ E

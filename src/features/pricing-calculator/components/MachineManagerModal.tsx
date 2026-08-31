@@ -193,6 +193,7 @@ export function MachineManagerModal({
               type="button"
               onClick={() => removeMachine(index)}
               title="Remover máquina"
+              aria-label={`Remover a máquina ${machine.name || index + 1}`}
             >
               <Trash2 size={16} />
             </button>

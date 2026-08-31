@@ -50,6 +50,7 @@ export function ExtraStagesSection({
               type="button"
               onClick={() => onRemoveStage(stage.id ?? "")}
               title="Remover etapa"
+              aria-label={`Remover a etapa ${index + 2}`}
             >
               <Trash2 size={16} />
             </button>

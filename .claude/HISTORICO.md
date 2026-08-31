@@ -9,6 +9,93 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ As 3 ressalvas baratas — o corte mudo, a tinta cravada e o botão sem nome (2026-08-31)
+
+> Três itens antigos, escolhidos por um critério só: **não dependem da logo nem de venda real**, e
+> os três estavam parados como *ressalva* havia semanas. Um commit.
+
+### O critério de triagem (vale reusar)
+
+O dono perguntou o que valia a pena e **o que ia sumir com o recadastro**. A pergunta separou a
+lista em duas metades que ninguém tinha separado antes:
+
+- **Some com o recadastro (não fazer):** `[CSV-18]` (18 docs com campo `id`), `[CSV-19]`
+  (`markupOnFixed` em 65), `[CSV-20]` (`stage2`, hoje inalcançável), os 4 `acabados` órfãos, o
+  acabado com saldo −1, os 2 contadores de orçamento, o overdraft de −370 g na Bege, o `warn` do
+  recibo `yoRC0YZjQAq2piItJojG`. Tudo **dado**, e o código já parou de produzir os três primeiros.
+- ⚠ **O que NÃO some é a MECÂNICA:** `saveProduct` usa `tx.update`, que faz **merge** — todo campo
+  que o payload deixe de gravar fica no documento para sempre. É o que explica por que a lista
+  existe, e ela vai se reformar depois do recadastro se alguém remover um campo.
+
+### `<select>` que corta a seco → corte que se ANUNCIA
+
+`select { text-overflow: ellipsis }` global no `base.css`. **Escolhido por ser o único item da lista
+que PIORA com o recadastro:** o dono vai cadastrar muitas cores, e nome de cor tem a diferença no
+FIM da string (`PLA Azul Bebê` × `PLA Azul Bebê Seda`) — cortar o fim troca uma cor por outra, que é
+o UX-21 pela porta do `<select>`.
+
+**A prova não foi o `getComputedStyle`** (que só diz que a regra chegou, não que o Chromium a
+honra): duplicei o mesmo `<select>` no MESMO quadro com `clip` forçado no clone —
+`Avulso (fora d…` ⌄ contra `Avulso (fora do est` ⌄. Sem a regra o texto entra **por baixo da seta**
+e some no meio da palavra.
+
+**Medido a 375px, 7 rotas + o modal de venda aberto:** 0 `<select>` sem `ellipsis` · rolagem lateral
+**0** · pior corte **300px** (`.cesta-add`, "Adicionar do estoque de produtos…"), que é justamente o
+`.cesta-origem` nomeado na ressalva da AUD-14.
+
+⚠ **Não fecha o `min-content`** — o `<select>` continua sem encolher, e é por isso que as colunas
+seguem em `minmax(0, 1fr)`. A regra trata o DEPOIS de encolher.
+⚠ **A receita de medição segue valendo:** a caixa nativa cobra a seta **por cima** do texto, então
+medir pela largura da FONTE subestima. Clone em `width: max-content`, nunca `measureText`.
+
+### `--on-accent` — o token criado ANTES da marca, de propósito
+
+Repete o acerto do `[TD-014]`, e pelo mesmo argumento de prazo externo: **fazer antes ECONOMIZA**.
+O amarelo dourado da marca (~`#F2B705`–`#F5C518`) reprova com branco em cima (~1,8–2,1) e passa
+folgado com preto (~10–11,5) — ou seja, a tinta **inverte**, e ela estava cravada em literal.
+
+Nasceu **no-op**: valor `#fff`, zero mudança visual. ⚠ **Eram 6 lugares, não os 5 que o backlog
+listava** — faltava o **`.skip-link`**, além de `.btn.primary`, `.back-to-top`, os 2 toggles de
+desconto e o `.collapse-badge`.
+
+**Ensaio medido do rebrand**, uma linha: `--on-accent: #111` + `--accent-strong: #F2B705` →
+`.btn.primary` vai de `rgb(255,255,255)` a `rgb(17,17,17)` sobre o mesmo fundo `rgb(194,65,12)`, e
+reverte limpo ao remover a propriedade. **A troca de paleta virou troca de paleta.**
+
+⚠ **Armadilha de medição, nova:** ler `getComputedStyle` **síncrono** logo depois de mexer no
+`disabled` devolve o estilo VELHO — a primeira leitura acusou `.btn.primary` cinza e fundo
+transparente, e quase virou "regressão". Precisa de um tick entre mexer e ler. É irmã da armadilha
+do `transition` já registrada em "Regras de CSS/UI".
+
+Não redeclarei no escuro, pelo mesmo motivo que o `--accent-strong` não é: tinta sobre cor não
+depende do fundo da página.
+
+### `aria-label` nos botões só-ícone (A11Y-01)
+
+Eram **21 sítios no fonte** — os "48 do `/vendas` + 5 do `/catalogo`" da ressalva eram **instâncias
+renderizadas** (24 recibos × 2 botões). A varredura foi por **script**, não a olho: casa cada
+`<button>` com `title` e sem `aria-label`, checa se o corpo é só ícone. Re-rodado depois: **0**.
+
+**Ao vivo, 7 rotas:** **678 botões só-ícone renderizados, 0 sem nome** (`/catalogo` 545 · `/vendas`
+51 · `/orcamento` 49 · `/producao` 27 · `/`, `/estoque` e `/maquinas` 2 cada).
+
+⚠ **Fiz mais que a régua mínima, e é o ponto:** em fileira repetida o rótulo **nomeia o quê**.
+`"Excluir"` virou `"Excluir ovo fidget"`; `"Editar venda"` virou
+`"Editar a venda de <cliente>"`; `"Excluir item"` virou `"Excluir “<produto>” da venda"`. Um leitor
+de tela ouvindo "Excluir" 97 vezes seguidas não sabe o que vai excluir — o `aria-label` é lido FORA
+de qualquer contexto visual, enquanto o `title` só aparece no hover, onde a linha inteira está à
+vista. Por isso os dois textos são diferentes de propósito, e não é redundância.
+
+⚠ **Falso positivo MEU, declarado:** a varredura ao vivo acusou **4 botões sem nome** no
+`/orcamento` que o scanner de fonte não via — eles não têm `title` nenhum. São os `.num-spin`
+(steppers ▲▼), dentro de wrapper `aria-hidden="true"` com `tabindex="-1"`: **não existem para leitor
+de tela, por desenho**. O filtro passou a ignorar `[aria-hidden='true']` e o número real é 0. É a
+mesma ressalva de steppers já registrada na AUD-16 — e a lição é que **contar no fonte e contar no
+DOM erram para lados opostos**: o fonte não vê o que é renderizado N vezes, o DOM não vê o que é
+`aria-hidden`.
+
+`lint` ✅ · `typecheck` ✅ · **824/824** ✅ · `build` ✅.
+
 ## ✅ AUD-16 lote 1 — a fronteira de ingestão parou de corrigir calada (2026-08-29)
 
 **De onde veio:** varredura total do sistema feita por **outra IA** sobre uma cópia ZIP
