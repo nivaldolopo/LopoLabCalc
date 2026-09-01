@@ -4,6 +4,7 @@ import {
   doc,
   getCountFromServer,
   getDoc,
+  getDocs,
   limit as fsLimit,
   onSnapshot,
   orderBy,
@@ -147,6 +148,9 @@ export function productionToDocument(payload: ProductionPayload): DocumentData {
     ...(payload.productId ? { productId: payload.productId } : {}),
     ...(payload.subitemId ? { subitemId: payload.subitemId } : {}),
     productName: payload.productName ?? "",
+    // [FROTA] Fase 1 — o elo do LOTE. Indexável (é por ele que a exclusão acha
+    // os irmãos do evento, sem varrer a coleção).
+    submissionId: payload.submissionId || "",
     machineId: payload.machineId ?? "",
     machineName: payload.machineName ?? "",
     printHours: num(payload.printHours),
@@ -175,6 +179,10 @@ function toProduction(id: string, data: DocumentData): ProductionEvent {
     ...(data.productId ? { productId: String(data.productId) } : {}),
     ...(data.subitemId ? { subitemId: String(data.subitemId) } : {}),
     productName: data.productName ?? "",
+    // [FROTA] Fase 1 — evento anterior à Fase 1 não tem o campo, e o PRÓPRIO id
+    // é a leitura certa: ele era uma submissão de um evento só. Sem migração
+    // (Diretriz 7) — a exclusão dele continua apagando exatamente ele.
+    submissionId: data.submissionId ? String(data.submissionId) : id,
     machineId: data.machineId ?? "",
     machineName: data.machineName ?? "",
     printHours: num(data.printHours),
@@ -429,19 +437,48 @@ async function escreverEstoqueNaTransacao(
   };
 }
 
-// Exclui um evento e estorna a baixa no mesmo batch. `colorUpdates` vem de
-// `reverseProduction` (cores com os rolos restaurados). `finished` (FEAT-05b) é o
-// doc do acabado já SEM as camadas do evento (`removeEventLayers`), quando o
-// evento havia incrementado o estoque de produtos. Sem nada a estornar (evento
-// historico, sem acabado) → só apaga o doc.
+// [FROTA] Fase 1 — os eventos IRMÃOS de uma submissão, buscados no banco (não na
+// lista assinada, que é paginada/filtrada e pode não conter todos). Query de
+// igualdade simples, sem índice composto.
+//
+// Evento anterior à Fase 1 não tem o campo: a query volta VAZIA e quem chama fica
+// com o evento sozinho — que é exatamente o que ele sempre foi.
+export async function fetchProductionSubmission(
+  submissionId: string,
+): Promise<ProductionEvent[]> {
+  if (!submissionId) return [];
+  const snap = await getDocs(
+    query(productionCollection, where("submissionId", "==", submissionId)),
+  );
+  return snap.docs.map((item) => toProduction(item.id, item.data()));
+}
+
+// Exclui os eventos de uma SUBMISSÃO e estorna a baixa na mesma transação.
+// `colorUpdates` vem de `reverseProduction` (cores com os rolos restaurados)
+// sobre os `stockMoves` de TODOS eles. `finished` (FEAT-05b) é o doc do acabado
+// já SEM as camadas da submissão. Sem nada a estornar → só apaga os docs.
+//
+// ⚠ [FROTA] Fase 1 — antes isto apagava UM evento, e a regra de tela era "só o
+// primeiro card estorna o acabado". Ela quebrava nos dois sentidos: apagar um
+// card secundário deixava o custo do lote inflado (o acabado seguia creditado
+// pelo custo inteiro), e apagar o primeiro estornava o acabado e deixava os
+// outros eventos órfãos. Agora a unidade de exclusão é o LOTE.
 export async function removeProduction(
-  eventId: string,
+  eventIds: string[],
   colorUpdates: StockFilament[] = [],
   finished?: FinishedUpdate | null,
   supplyUpdates: Supply[] = [],
 ): Promise<void> {
+  const ids = [...new Set(eventIds)].filter(Boolean);
+  if (ids.length === 0) return;
   if (colorUpdates.length === 0 && supplyUpdates.length === 0 && !finished) {
-    await withWriteTimeout(deleteDoc(doc(db, "producao", eventId)));
+    await withWriteTimeout(
+      ids.length === 1
+        ? deleteDoc(doc(db, "producao", ids[0]))
+        : runTransaction(db, async (tx) => {
+            for (const id of ids) tx.delete(doc(db, "producao", id));
+          }),
+    );
     return;
   }
   // TD-022: mesma transação da criação — o ESTORNO tem ainda mais motivo para
@@ -454,7 +491,7 @@ export async function removeProduction(
       supplyUpdates,
       finished,
     );
-    tx.delete(doc(db, "producao", eventId));
+    for (const id of ids) tx.delete(doc(db, "producao", id));
     escrever();
   });
   await withWriteTimeout(estorno);

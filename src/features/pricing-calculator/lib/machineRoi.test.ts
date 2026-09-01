@@ -31,9 +31,12 @@ function sale(overrides: Partial<Sale> = {}): Sale {
     status: "concluida",
     productId: "p1",
     productName: "Peça",
-    machineId: "a1",
-    machineName: "A1 Combo",
     printHours: 2,
+    // [FROTA] Fase 1 — a repartição REAL substituiu `machineId`/`machineName`.
+    machineUsage: [
+      { machineId: "a1", machineName: "A1 Combo", hours: 2, depreciation: 1 },
+    ],
+    unattributedUnits: 0,
     quantity: 1,
     suggestedPrice: 50,
     salePrice: 50,
@@ -69,6 +72,7 @@ function prod(overrides: Partial<ProductionEvent> = {}): ProductionEvent {
     outcome: "estoque",
     mode: "real",
     productName: "Peça",
+    submissionId: "e1",
     machineId: "a1",
     machineName: "A1 Combo",
     printHours: 2,
@@ -93,12 +97,24 @@ describe("computeMachineRoi", () => {
     expect(roi.firstSaleDate).toBeNull();
   });
 
-  it("atribui vendas pela machineId (ignora as de outra máquina)", () => {
+  it("atribui vendas pelo machineUsage (ignora as de outra máquina)", () => {
     const roi = computeMachineRoi(
       [machine({ id: "a1" }), machine({ id: "x2d", name: "X2D" })],
       [
-        sale({ id: "s1", machineId: "a1", profit: 30 }),
-        sale({ id: "s2", machineId: "x2d", profit: 99 }),
+        sale({
+          id: "s1",
+          profit: 30,
+          machineUsage: [
+            { machineId: "a1", machineName: "A1", hours: 2, depreciation: 1 },
+          ],
+        }),
+        sale({
+          id: "s2",
+          profit: 99,
+          machineUsage: [
+            { machineId: "x2d", machineName: "X2D", hours: 2, depreciation: 1 },
+          ],
+        }),
       ],
     );
     const a1 = roi.find((r) => r.machine.id === "a1")!;
@@ -127,55 +143,28 @@ describe("computeMachineRoi", () => {
     expect(roi.lifeUsedFraction).toBe(0);
   });
 
-  it("usa a depreciação REAL (realCostBreakdown) quando presente, não a precificada", () => {
-    const [roi] = computeMachineRoi(
-      [machine({ price: 5299, lifeHours: 10000 })],
-      [
-        sale({
-          quantity: 2,
-          // precificada = 1/un; real = 3/un (ex.: máquina reprecificada depois)
-          costBreakdown: {
-            material: 5,
-            energy: 1,
-            depreciation: 1,
-            maintenance: 0.5,
-            labor: 5,
-            accessories: 0,
-            failureReserve: 0,
-            fixed: 0,
-          },
-          realCostBreakdown: {
-            material: 5,
-            energy: 1,
-            depreciation: 3,
-            maintenance: 0.5,
-            labor: 5,
-            supplies: 0,
-          },
-        }),
-      ],
-    );
-    // Usa a REAL (3/un), não a precificada (1/un): 3 × 2 unidades.
-    expect(roi.depreciationRecovered).toBeCloseTo(6, 6);
-  });
-
-  it("reparte a depreciação real entre máquinas na proporção da precificada", () => {
+  it("[FROTA] a depreciação recuperada é a REAL de cada máquina, sem malabarismo", () => {
+    // Aqui morava a repartição "real na proporção da precificada": o
+    // `realCostBreakdown` era um total por unidade e a única forma de dividi-lo
+    // entre máquinas era pela razão da PRECIFICADA — dois números de fontes
+    // diferentes num só. Desde a Fase 1 cada evento congela a sua depreciação
+    // real e ela desce até a venda por máquina, então basta somar.
     const roi = computeMachineRoi(
       [machine({ id: "a1", name: "A1" }), machine({ id: "x2d", name: "X2D" })],
       [
         sale({
-          machineId: "a1",
           printHours: 4,
-          quantity: 1,
+          quantity: 2,
           machineUsage: [
             { machineId: "a1", machineName: "A1", hours: 3, depreciation: 3 },
             { machineId: "x2d", machineName: "X2D", hours: 1, depreciation: 0.5 },
           ],
-          // real dobrou o total (7 vs 3,5 precificado): reparte 3/3,5 e 0,5/3,5.
+          // Presente e IGNORADO para este fim: o total real por unidade não
+          // reparte máquina nenhuma. Quem reparte é o `machineUsage`.
           realCostBreakdown: {
             material: 0,
             energy: 0,
-            depreciation: 7,
+            depreciation: 99,
             maintenance: 0,
             labor: 0,
             supplies: 0,
@@ -185,10 +174,68 @@ describe("computeMachineRoi", () => {
     );
     const a1 = roi.find((r) => r.machine.id === "a1")!;
     const x2d = roi.find((r) => r.machine.id === "x2d")!;
-    expect(a1.depreciationRecovered).toBeCloseTo(7 * (3 / 3.5), 6);
-    expect(x2d.depreciationRecovered).toBeCloseTo(7 * (0.5 / 3.5), 6);
-    // A soma pela frota preserva o total real congelado.
-    expect(a1.depreciationRecovered + x2d.depreciationRecovered).toBeCloseTo(7, 6);
+    expect(a1.depreciationRecovered).toBeCloseTo(3 * 2, 6);
+    expect(x2d.depreciationRecovered).toBeCloseTo(0.5 * 2, 6);
+  });
+
+  describe("[FROTA] unidades sem lastro não têm o lucro distribuído", () => {
+    it("vender 10 tendo produzido 6 credita só 60% do lucro", () => {
+      const roi = computeMachineRoi(
+        [machine({ id: "a1", name: "A1" })],
+        [
+          sale({
+            quantity: 10,
+            profit: 100,
+            totalRevenue: 500,
+            unattributedUnits: 4,
+            machineUsage: [
+              { machineId: "a1", machineName: "A1", hours: 2, depreciation: 1 },
+            ],
+          }),
+        ],
+      );
+      const a1 = roi.find((r) => r.machine.id === "a1")!;
+      // 🔴 Sem `unattributedUnits`, `horas ÷ total` daria 1 e a máquina levaria
+      // os 100 inteiros — o D4 viraria atribuição invisível.
+      expect(a1.profit).toBeCloseTo(60, 6);
+      expect(a1.revenue).toBeCloseTo(300, 6);
+      // Depreciação recuperada só das 6 que têm origem.
+      expect(a1.depreciationRecovered).toBeCloseTo(6, 6);
+      // A venda ainda conta como venda, com as 10 unidades: o que não se
+      // distribui é o dinheiro, não o fato.
+      expect(a1.salesCount).toBe(1);
+      expect(a1.units).toBe(10);
+    });
+
+    it("venda inteira sem lastro não credita máquina nenhuma", () => {
+      const roi = computeMachineRoi(
+        [machine({ id: "a1", name: "A1" })],
+        [sale({ quantity: 3, profit: 90, machineUsage: [], unattributedUnits: 3 })],
+      );
+      const a1 = roi.find((r) => r.machine.id === "a1")!;
+      expect(a1.salesCount).toBe(0);
+      expect(a1.profit).toBe(0);
+      expect(a1.depreciationRecovered).toBe(0);
+    });
+
+    it("a soma pela frota fica ABAIXO do lucro do recibo — e é isso mesmo", () => {
+      const roi = computeMachineRoi(
+        [machine({ id: "a1", name: "A1" }), machine({ id: "x2d", name: "X2D" })],
+        [
+          sale({
+            quantity: 4,
+            profit: 200,
+            unattributedUnits: 1,
+            machineUsage: [
+              { machineId: "a1", machineName: "A1", hours: 3, depreciation: 1 },
+              { machineId: "x2d", machineName: "X2D", hours: 1, depreciation: 1 },
+            ],
+          }),
+        ],
+      );
+      const total = roi.reduce((sum, r) => sum + r.profit, 0);
+      expect(total).toBeCloseTo(200 * (3 / 4), 6);
+    });
   });
 
   describe("vida útil vem da produção (FEAT-04c)", () => {
@@ -373,7 +420,6 @@ describe("computeMachineRoi", () => {
       [
         sale({
           id: "s1",
-          machineId: "a1", // principal (informativa/compat)
           printHours: 4, // total (3 na A1 + 1 na X2D)
           quantity: 1,
           totalRevenue: 100,

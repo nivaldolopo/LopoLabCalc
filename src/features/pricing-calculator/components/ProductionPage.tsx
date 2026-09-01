@@ -12,6 +12,7 @@ import {
 } from "@/lib/formatting/date";
 import { num } from "@/lib/number";
 import {
+  fetchProductionSubmission,
   newProductionId,
   type FinishedUpdate,
   type ProductionQuery,
@@ -219,7 +220,7 @@ export function ProductionPage() {
       const sub = pricingByProduct
         .get(productId ?? "")
         ?.subitems?.find((s) => s.id === subitemId);
-      setRows(product && sub ? subitemEventRows(product, sub, stock) : []);
+      setRows(product && sub ? subitemEventRows(product, sub, stock, machines) : []);
       return;
     }
     setRows([]);
@@ -370,10 +371,11 @@ export function ProductionPage() {
   );
 
   // Delta do acabado da submissão (FEAT-05b). Só quando o desfecho é `estoque` e
-  // há produto (avulso não vira acabado). O custo é a soma do `frozenCost` de todos
-  // os eventos (dedup multi-máquina). As camadas são ancoradas no PRIMEIRO evento
-  // (`built[0].id`) — excluir aquele card estorna o acabado inteiro da submissão;
-  // cards de máquina secundária só estornam filamento.
+  // há produto (avulso não vira acabado). O custo é a soma do `frozenCost` de
+  // todos os eventos (uma placa, N etapas). As camadas são ancoradas no PRIMEIRO
+  // evento (`built[0].id`) — e desde a Fase 1 do [FROTA] isso deixou de ser um
+  // problema: excluir QUALQUER card apaga o lote inteiro, então não existe mais
+  // o estado "acabado creditado, eventos meio apagados".
   // BUG-02: a submissão gera `units = piecesCount × placas` unidades (mesa de N
   // peças × P placas), não 1 — cada acabado a `custo ÷ units`.
   // FEAT-06: recebe o `summary` inteiro (não só o total) para que a composição
@@ -426,6 +428,11 @@ export function ProductionPage() {
           : undefined,
       units,
       breakdown: summary.frozenBreakdown,
+      // [FROTA] Fase 1 — a repartição por máquina da submissão INTEIRA desce
+      // junto com o custo, pelo mesmo fator. É ela que vai permitir à venda
+      // dizer quem imprimiu a peça pronta: o `sourceEventId` da camada aponta só
+      // para o 1º evento e nunca poderia responder isso.
+      machineUsage: summary.machineUsage,
     });
 
     const good = goods.find((g) => g.id === productId) ?? null;
@@ -440,22 +447,30 @@ export function ProductionPage() {
     return { productId, payload };
   }
 
-  // Estorno do acabado ao excluir um evento (FEAT-05b): só quando aquele evento
-  // criou camadas (é o PRIMEIRO da sua submissão). Devolve o doc já sem elas.
-  function finishedForRemove(event: ProductionEvent): FinishedUpdate | null {
-    if (event.outcome !== "estoque" || !event.productId) return null;
-    const good = goods.find((g) => g.id === event.productId);
+  // Estorno do acabado ao excluir um LOTE (FEAT-05b): tira as camadas de
+  // QUALQUER evento da submissão. Na prática só o primeiro criou camadas, mas
+  // varrer todos é o que torna a função indiferente a qual card foi clicado —
+  // que é justamente o ponto da exclusão por lote ([FROTA] Fase 1).
+  function finishedForRemove(batch: ProductionEvent[]): FinishedUpdate | null {
+    const productId = batch.find((e) => e.productId)?.productId;
+    if (!batch.some((e) => e.outcome === "estoque") || !productId) return null;
+    const good = goods.find((g) => g.id === productId);
     if (!good) return null;
+    const ids = new Set(batch.map((e) => e.id));
     const created = good.skus.some((sku) =>
-      sku.layers.some((layer) => layer.sourceEventId === event.id),
+      sku.layers.some((layer) => ids.has(layer.sourceEventId)),
     );
     if (!created) return null;
     // TD-026: o payload sai do `finishedGoodToPayload`, não remontado à mão —
     // era a remontagem que deixava o `rev` para trás e fazia a trava recusar
     // TODA exclusão de produção que tivesse creditado acabado.
+    const semCamadas = batch.reduce(
+      (doc, event) => removeEventLayers(doc, event.id),
+      good,
+    );
     return {
       productId: good.productId,
-      payload: finishedGoodToPayload(removeEventLayers(good, event.id)),
+      payload: finishedGoodToPayload(semCamadas),
     };
   }
 
@@ -528,10 +543,12 @@ export function ProductionPage() {
   // exclusão, nomeando quem segura. Decisão do dono (2026-08-24) entre BARRAR e
   // preservar a camada drenada; barrar é o que impede o estado ambíguo de
   // existir — nunca há unidade vendida sem a produção que a explique.
-  function soldReferences(event: ProductionEvent) {
-    if (event.outcome !== "estoque" || !event.productId) return [];
-    const good = goods.find((g) => g.id === event.productId) ?? null;
-    return finishedEventReferences(good, event.id, sales);
+  function soldReferences(batch: ProductionEvent[]) {
+    return batch.flatMap((event) => {
+      if (event.outcome !== "estoque" || !event.productId) return [];
+      const good = goods.find((g) => g.id === event.productId) ?? null;
+      return finishedEventReferences(good, event.id, sales);
+    });
   }
 
   // "24/08/2026 · Maria" — é assim que a `/vendas` identifica um recibo na tela,
@@ -541,10 +558,26 @@ export function ProductionPage() {
   }
 
   async function remove(event: ProductionEvent) {
-    const held = soldReferences(event);
+    // [FROTA] Fase 1 — a unidade de exclusão é o LOTE, não o card. Os irmãos vêm
+    // do BANCO (`submissionId`), não da lista da tela: ela é paginada e filtrada,
+    // e um irmão fora da janela carregada faria a exclusão apagar meio lote.
+    // Evento anterior à Fase 1 não tem irmãos e volta sozinho.
+    let batch: ProductionEvent[];
+    try {
+      guardOnline();
+      const irmaos = await fetchProductionSubmission(event.submissionId);
+      const byId = new Map(irmaos.map((e) => [e.id, e]));
+      byId.set(event.id, event);
+      batch = [...byId.values()].sort((a, b) => a.at - b.at);
+    } catch (err) {
+      fail(errorMessage(err));
+      return;
+    }
+
+    const held = soldReferences(batch);
     if (held.length > 0) {
       const unidades = held.reduce((sum, ref) => sum + ref.qty, 0);
-      const nomes = held.map(reciboLabel).join(", ");
+      const nomes = [...new Set(held.map(reciboLabel))].join(", ");
       fail(
         `Não dá para excluir “${event.productName || "impressão"}”: ` +
           `${unidades === 1 ? "1 peça desta produção já foi vendida" : `${formatDecimal(unidades)} peças desta produção já foram vendidas`} ` +
@@ -554,11 +587,23 @@ export function ProductionPage() {
       return;
     }
 
+    const stockMoves = batch.flatMap((e) => e.stockMoves);
     const confirmed = await ask({
-      title: `Excluir a produção “${event.productName || "impressão"}”?`,
+      title:
+        batch.length > 1
+          ? `Excluir o lote de “${event.productName || "impressão"}”?`
+          : `Excluir a produção “${event.productName || "impressão"}”?`,
       body: (
         <>
-          {event.stockMoves.length > 0 ? (
+          {batch.length > 1 ? (
+            <p>
+              Esta impressão foi registrada em{" "}
+              <strong>{batch.length} etapas</strong>, e elas são um lote só:{" "}
+              <strong>todas as {batch.length} saem juntas</strong>. Apagar uma
+              etapa sozinha deixaria o custo da peça pronta inflado.
+            </p>
+          ) : null}
+          {stockMoves.length > 0 ? (
             <p className="confirm-safe">
               O filamento e os insumos deduzidos <strong>voltam</strong> pro
               estoque, e as peças acabadas que esta produção creditou saem.
@@ -570,21 +615,27 @@ export function ProductionPage() {
           </p>
         </>
       ),
-      confirmLabel: "Excluir produção",
+      confirmLabel: batch.length > 1 ? "Excluir o lote" : "Excluir produção",
       danger: true,
     });
     if (!confirmed) return;
     try {
       guardOnline();
-      const colorUpdates = reverseProduction(event.stockMoves, stock);
-      const supplyUpdates = reverseSupplies(event.stockMoves, supplies);
+      // O estorno é sobre os moves de TODOS os eventos do lote, de uma vez: as
+      // duas funções são encadeáveis por lista, então não há ordem a preservar.
+      const colorUpdates = reverseProduction(stockMoves, stock);
+      const supplyUpdates = reverseSupplies(stockMoves, supplies);
       await deleteProduction(
-        event.id,
+        batch.map((e) => e.id),
         colorUpdates,
-        finishedForRemove(event),
+        finishedForRemove(batch),
         supplyUpdates,
       );
-      ok("Produção excluída e estoque estornado.");
+      ok(
+        batch.length > 1
+          ? `Lote de ${batch.length} etapas excluído e estoque estornado.`
+          : "Produção excluída e estoque estornado.",
+      );
     } catch (err) {
       fail(errorMessage(err));
     }

@@ -24,16 +24,28 @@ export type MachineRoi = {
   // DUAS fontes, de propósito (FEAT-04c):
   // • VIDA/HORAS vêm da PRODUÇÃO — TODA impressão desgasta a máquina, inclusive
   //   teste/falha/brinde que nunca viram venda (é o ponto do quiosque). Cada
-  //   evento já carrega uma máquina só (a 04b quebra inteiro multi-máquina em N
-  //   eventos), então é soma direta por `machineId`, sem repartição.
+  //   evento carrega uma máquina só, e desde a Fase 1 do [FROTA] ele é uma
+  //   ETAPA (não mais um grupo de etapas por máquina): duas etapas na mesma
+  //   impressora são duas impressões, e o `printedCount` passou a dizê-lo.
   // • DINHEIRO (payback/lucro/receita/depreciação recuperada) vem das VENDAS —
-  //   é sobre o que voltou em caixa. Atribuição por `machineUsage` (congelado na
-  //   venda): cada máquina recebe uma fatia do LUCRO/RECEITA proporcional às suas
-  //   horas; vendas antigas (sem `machineUsage`) caem no fallback: tudo na
-  //   máquina principal (`machineId`). A DEPRECIAÇÃO recuperada usa o custo REAL
-  //   congelado na produção (`realCostBreakdown`, FEAT-06), repartido entre as
-  //   máquinas na proporção da depreciação precificada; venda anterior ao FEAT-06
-  //   cai na precificada.
+  //   é sobre o que voltou em caixa. Atribuição por `machineUsage`, congelado na
+  //   RECONCILIAÇÃO ([FROTA] Fase 1): quem imprimiu, não quem foi precificado.
+  //   Cada máquina recebe uma fatia do LUCRO/RECEITA proporcional às suas horas —
+  //   e a fatia é sobre as horas que cobririam TODAS as unidades da venda, de
+  //   modo que as unidades sem lastro (`unattributedUnits`) NÃO têm o lucro
+  //   distribuído. A DEPRECIAÇÃO recuperada é a REAL de cada máquina, que agora
+  //   vem congelada por máquina no próprio `machineUsage`.
+  //
+  // ⚠ Aqui morava o malabarismo "depreciação real repartida na proporção da
+  //   precificada": o `realCostBreakdown` era um total por unidade e a única
+  //   forma de dividi-lo entre máquinas era pela razão da depreciação PRECIFICADA
+  //   — misturando as duas fontes num número só. Não é mais necessário: cada
+  //   evento de produção congela a sua própria depreciação real, e ela desce pela
+  //   camada do acabado até a venda.
+  //
+  // ⚠ Venda anterior à Fase 1 traz a repartição PRECIFICADA gravada na época e é
+  //   lida como está — o ROI mistura atribuição precificada (vendas velhas) com
+  //   real (novas) até o recadastro do dono (Diretriz 7, declarado).
   printedCount: number; // nº de impressões (eventos de produção) nesta máquina
   printedHours: number; // Σ printHours dos eventos de produção desta máquina
   salesCount: number; // nº de vendas em que a máquina participou
@@ -68,21 +80,26 @@ export type MachineRoi = {
   projectedPaybackDate: number | null; // now + monthsToPayback (timestamp ms)
 };
 
-// Repartição de uso da venda por máquina. Vendas novas trazem `machineUsage`;
-// as antigas caem no fallback (uma entrada: máquina principal com o total de
-// horas e a depreciação congeladas).
+// Repartição de uso da venda por máquina. Lista VAZIA é resposta legítima: a
+// venda não tem lastro nenhum e não credita máquina nenhuma. O fallback antigo
+// ("tudo na máquina principal") caiu com os campos `machineId`/`machineName` da
+// venda — inventar um dono era o oposto do que a Fase 1 foi fazer.
 function saleShares(sale: Sale): MachineUsage[] {
-  if (sale.machineUsage && sale.machineUsage.length > 0) {
-    return sale.machineUsage;
-  }
-  return [
-    {
-      machineId: sale.machineId,
-      machineName: sale.machineName,
-      hours: num(sale.printHours),
-      depreciation: num(sale.costBreakdown?.depreciation),
-    },
-  ];
+  return sale.machineUsage ?? [];
+}
+
+// [FROTA] Fase 1 — quanto da venda tem dono. As horas do `machineUsage` são POR
+// UNIDADE ATRIBUÍDA, então extrapolá-las para as `quantity` significa dividir a
+// fração por esta cobertura — e é o que faz Σ das frações dar `atribuídas/qty`
+// em vez de 1.
+//
+// 🔴 Sem isto o D4 vira atribuição invisível: vender 10 tendo produzido 6 daria
+// às máquinas 100% do lucro dos 10, porque `horas ÷ total` soma 1 de qualquer
+// jeito. O buraco não apareceria em lugar nenhum.
+function saleCoverage(sale: Sale): number {
+  const qty = Math.max(1, num(sale.quantity) || 1);
+  const atribuidas = Math.max(0, qty - num(sale.unattributedUnits));
+  return atribuidas / qty;
 }
 
 // Cruza as máquinas com o histórico. Vida/horas saem da PRODUÇÃO (todo evento
@@ -126,33 +143,23 @@ export function computeMachineRoi(
 
       const qty = Math.max(1, num(sale.quantity) || 1);
       const totalHours = shares.reduce((sum, s) => sum + num(s.hours), 0);
-      // Fatia do lucro/receita: proporcional às horas desta máquina no produto.
-      // Sem horas (produto de 0h), reparte igualmente entre as máquinas da venda.
+      // [FROTA] Fase 1 — fatia do lucro/receita: proporcional às horas desta
+      // máquina, MULTIPLICADA pela cobertura. Sem horas (produto de 0h), reparte
+      // igualmente entre as máquinas da venda — e a cobertura continua valendo.
+      const coverage = saleCoverage(sale);
       const fraction =
-        totalHours > 0 ? num(share.hours) / totalHours : 1 / shares.length;
+        (totalHours > 0 ? num(share.hours) / totalHours : 1 / shares.length) *
+        coverage;
 
-      // Depreciação RECUPERADA (Tier 4): usa a composição REAL congelada na
-      // produção (`realCostBreakdown`, FEAT-06), não a precificada do preço. O
-      // real é um total por unidade; repartimos entre as máquinas da venda na
-      // MESMA proporção da depreciação precificada por máquina (`machineUsage`).
-      // Venda sem `realCostBreakdown` (anterior ao FEAT-06) cai na precificada —
-      // o comportamento antigo, sem quebrar.
-      let unitDepreciation = num(share.depreciation);
-      if (sale.realCostBreakdown) {
-        const pricedTotal = shares.reduce(
-          (sum, s) => sum + num(s.depreciation),
-          0,
-        );
-        unitDepreciation =
-          pricedTotal > 0
-            ? num(sale.realCostBreakdown.depreciation) *
-              (num(share.depreciation) / pricedTotal)
-            : num(sale.realCostBreakdown.depreciation) / shares.length;
-      }
+      // Depreciação RECUPERADA (Tier 4): a REAL desta máquina, congelada por
+      // máquina na reconciliação. `share.depreciation` é por unidade ATRIBUÍDA,
+      // então multiplica pelas atribuídas — nunca pela quantidade vendida, que
+      // recuperaria depreciação de peça sem origem.
+      const atribuidas = qty * coverage;
 
       salesCount += 1;
       units += qty;
-      depreciationRecovered += unitDepreciation * qty;
+      depreciationRecovered += num(share.depreciation) * atribuidas;
       revenue += num(sale.totalRevenue) * fraction;
       profit += num(sale.profit) * fraction;
 

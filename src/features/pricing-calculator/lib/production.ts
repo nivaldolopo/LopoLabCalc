@@ -17,6 +17,7 @@ import type {
   FilamentUsage,
   FrozenCostBreakdown,
   Machine,
+  MachineUsage,
   ProductionMode,
   StockFilament,
   StockMove,
@@ -444,4 +445,71 @@ export function scaleFrozen(
     labor: breakdown.labor * f,
     supplies: breakdown.supplies * f,
   };
+}
+
+// ---------------------------------------------------------------------------
+// [FROTA] Fase 1 — a repartição por máquina, com as MESMAS duas operações do
+// `FrozenCostBreakdown`: somar duas e escalar uma. Elas vivem aqui, ao lado do
+// `addFrozen`/`scaleFrozen`, porque percorrem exatamente o mesmo caminho — do
+// custo congelado do evento até a camada do acabado e daí até a venda —, e um
+// par de helpers reescrito em cada parada é um par que um dia diverge.
+//
+// A LISTA (e não um mapa) é a forma armazenada porque é ela que o Firestore
+// aceita e é ela que o `MachineUsage` já usava desde o TD-003. A ordem é a de
+// primeira aparição, estável entre simulação e gravação.
+// ---------------------------------------------------------------------------
+
+export function addMachineUsage(
+  a: MachineUsage[],
+  b: MachineUsage[],
+): MachineUsage[] {
+  const out: MachineUsage[] = a.map((u) => ({ ...u }));
+  for (const usage of b) {
+    const prev = out.find((u) => u.machineId === usage.machineId);
+    if (prev) {
+      prev.hours += num(usage.hours);
+      prev.depreciation += num(usage.depreciation);
+      // Nome vazio não apaga um nome bom já registrado (evento avulso).
+      if (!prev.machineName && usage.machineName)
+        prev.machineName = usage.machineName;
+    } else {
+      out.push({
+        machineId: usage.machineId,
+        machineName: usage.machineName ?? "",
+        hours: num(usage.hours),
+        depreciation: num(usage.depreciation),
+      });
+    }
+  }
+  return out;
+}
+
+// `factor` pode ser negativo (estorno), pelo mesmo motivo do `scaleFrozen`.
+export function scaleMachineUsage(
+  usage: MachineUsage[],
+  factor: number,
+): MachineUsage[] {
+  const f = num(factor);
+  return usage.map((u) => ({
+    machineId: u.machineId,
+    machineName: u.machineName ?? "",
+    hours: num(u.hours) * f,
+    depreciation: num(u.depreciation) * f,
+  }));
+}
+
+// [FROTA] Fase 1 — o RÓTULO da repartição, para recibo/CSV/histórico. Nomes
+// distintos, na ordem em que aparecem: "A1", "A1 +2", ou "—" quando não há
+// lastro. É a mesma leitura que o `/catalogo` já fazia da precificação — a
+// diferença é que aqui ela responde quem IMPRIMIU, não quem poderia.
+//
+// O travessão não é enfeite: a venda sem lastro precisa dizer isso na cara, e não
+// deixar a célula vazia parecendo dado que não carregou.
+export function machineUsageLabel(usage: MachineUsage[]): string {
+  const names = Array.from(
+    new Set(usage.map((u) => u.machineName).filter(Boolean)),
+  );
+  if (names.length === 0) return "—";
+  if (names.length === 1) return names[0];
+  return `${names[0]} +${names.length - 1}`;
 }

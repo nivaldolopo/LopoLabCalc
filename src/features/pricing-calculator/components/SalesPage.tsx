@@ -21,6 +21,7 @@ import { useStock } from "../hooks/useStock";
 import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
 import { marginTierClass, marginTierTitle } from "../lib/marginTier";
+import { machineUsageLabel } from "../lib/production";
 import { reverseReciboReconciliation } from "../lib/saleReconciliation";
 import type { ProductionEvent, RoundingMode, Sale } from "../types";
 import {
@@ -95,22 +96,11 @@ function contextFromSale(
     productId: sale.productId,
     // FEAT-01: preserva o subitem vendido ao reabrir para editar.
     ...(sale.subitemId ? { subitemId: sale.subitemId } : {}),
-    machineId: sale.machineId,
-    machineName: sale.machineName,
     printHours: sale.printHours,
-    // Vendas antigas não têm a repartição → reconstrói uma entrada única com a
-    // máquina principal (mantém o snapshot congelado ao reabrir para editar).
-    machineUsage:
-      sale.machineUsage && sale.machineUsage.length > 0
-        ? sale.machineUsage
-        : [
-            {
-              machineId: sale.machineId,
-              machineName: sale.machineName,
-              hours: sale.printHours,
-              depreciation: sale.costBreakdown.depreciation,
-            },
-          ],
+    // [FROTA] Fase 1 — a máquina saiu do contexto do modal de propósito: ao
+    // reabrir para editar, a repartição é RECALCULADA da reconciliação (que roda
+    // de novo, estornando e reaplicando). Carregá-la daqui seria carregar a foto
+    // velha e regravá-la como se fosse nova.
     suggestedPrice: sale.suggestedPrice,
     roundingMode,
     unitCost: sale.unitCost,
@@ -155,7 +145,7 @@ function buildCsv(sales: Sale[]): string {
       escape(sale.customer),
       channelLabel.get(sale.channel) ?? sale.channel,
       paymentLabel.get(sale.paymentMethod) ?? sale.paymentMethod,
-      escape(sale.machineName),
+      escape(machineUsageLabel(sale.machineUsage)),
       formatDecimal(sale.printHours),
       String(sale.quantity),
       formatDecimal(sale.suggestedPrice),
@@ -848,7 +838,11 @@ export function SalesPage() {
                                 <div className="cd-meta">
                                   <span>
                                     <span className="db-label">Máquina</span>{" "}
-                                    {sale.machineName || "—"}
+                                    {/* [FROTA] Fase 1 — quem IMPRIMIU, derivado
+                                        da repartição real. "—" quando a venda
+                                        não tem lastro (peça de camada antiga,
+                                        ou overdraft do D4). */}
+                                    {machineUsageLabel(sale.machineUsage)}
                                   </span>
                                   <span>
                                     <span className="db-label">Tempo</span>{" "}

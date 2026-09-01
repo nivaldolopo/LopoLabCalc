@@ -431,12 +431,30 @@ export type SaleInput = {
   // livre). Informativo aqui; vira a SKU do estoque de acabados no FEAT-05.
   subitemId?: string;
   productName: string;
-  machineId: string; // máquina PRINCIPAL (informativa/compat)
-  machineName: string;
   printHours: number; // horas TOTAIS (principal + etapas), por unidade
-  // Repartição por máquina (por unidade). Presente nas vendas novas; ausente
-  // nas antigas (o ROI cai no fallback: tudo na máquina principal acima).
-  machineUsage?: MachineUsage[];
+  // [FROTA] Fase 1 — a repartição REAL por máquina, POR UNIDADE ATRIBUÍDA. Ela
+  // deixou de vir da precificação (quem foi precificado) e passa a ser calculada
+  // na RECONCILIAÇÃO, de quem de fato imprimiu: os eventos de produção
+  // (encomenda) ou as camadas drenadas do acabado.
+  //
+  // ⚠ OBRIGATÓRIA no tipo de escrita (AUD-02: `supplyUpdates` opcional fez a
+  // venda não debitar insumo — campo que o repositório grava é obrigatório).
+  // Lista VAZIA é a forma de dizer "sem lastro", não a ausência do campo.
+  //
+  // ⚠ A base é a unidade ATRIBUÍDA, não a vendida: as horas aqui são
+  // `Σ horas atribuídas ÷ (quantity − unattributedUnits)`. É o que permite ao
+  // ROI extrapolar para todas as unidades e distribuir MENOS de 100% do lucro
+  // quando parte da venda não tem origem.
+  machineUsage: MachineUsage[];
+  // [FROTA] Fase 1 — unidades desta linha SEM lastro de produção (D4: vendeu-se
+  // mais do que se produziu, ou a peça saiu de camada anterior à Fase 1).
+  //
+  // 🔴 Sem este campo o D4 vira atribuição INVISÍVEL: `fraction = horas ÷ total`
+  // soma 1 de qualquer jeito, então o lucro das órfãs seria distribuído entre as
+  // máquinas como se elas o tivessem produzido. Com ele, a fração passa a ser
+  // sobre as horas que cobririam TODAS as unidades — e a sobra fica sem dono, que
+  // é a verdade.
+  unattributedUnits: number;
   // FEAT-02: consumo de filamento por cor CONGELADO no momento da venda (pesos
   // por impressão, incluindo torre/purga). Presente nas vendas novas; ausente
   // nas antigas (tratadas como monocolor pelo `costBreakdown.material`). É o que
@@ -826,8 +844,22 @@ export type ProductionInput = {
   productId?: string;
   subitemId?: string;
   productName: string;
-  // Máquina da impressão (04b escolhe uma). 04c lê estas horas para o ROI —
-  // migrando a fonte das horas da venda para a produção (casa com TD-003).
+  // [FROTA] Fase 1 — o ELO entre os N eventos de uma mesma submissão (uma
+  // impressão que roda em mais de uma etapa/máquina vira N documentos). É o id do
+  // PRIMEIRO evento, carimbado em todos, inclusive nele mesmo.
+  //
+  // Por que ele precisava existir: o único elo era o `sourceEventId` da camada do
+  // acabado, que aponta só para `built[0]` — os outros eventos ficavam órfãos.
+  // Excluir um card secundário deixava o custo do lote inflado; excluir o
+  // primeiro estornava o acabado e deixava os demais soltos. Com o
+  // `submissionId`, excluir qualquer card apaga o LOTE INTEIRO.
+  //
+  // Evento anterior à Fase 1 não tem o campo: o repositório o lê como o PRÓPRIO
+  // id (submissão de um evento só), que é exatamente o comportamento de antes.
+  submissionId: string;
+  // Máquina da impressão. Desde a Fase 1 do [FROTA] cada evento é UMA ETAPA (não
+  // mais um grupo de etapas por máquina): duas etapas na mesma impressora são
+  // duas impressões, e o `printedCount` do ROI passa a contá-las como tal.
   machineId: string;
   machineName: string;
   printHours: number;
@@ -898,6 +930,18 @@ export type FinishedLayer = {
   // detalhar o COGS REAL, em vez do snapshot do catálogo vivo. Ausente em camada
   // anterior ao FEAT-06 (Diretriz 7 — sem migração).
   costBreakdown?: FrozenCostBreakdown;
+  // [FROTA] Fase 1 — a REPARTIÇÃO por máquina que produziu esta camada, POR
+  // UNIDADE (mesma escala do `unitCost`), cobrindo TODOS os eventos da submissão.
+  // Horas + depreciação REAIS, direto do custo congelado de cada evento.
+  //
+  // Por que não dava para usar o `sourceEventId`: ele aponta só para o PRIMEIRO
+  // evento da submissão (`built[0]`), então nunca poderia responder "quem
+  // imprimiu" num produto que roda em duas máquinas. A resposta tinha de descer
+  // junto com a camada.
+  //
+  // Ausente em camada anterior à Fase 1 (Diretriz 7, sem migração): a venda que a
+  // drenar conta essas unidades em `unattributedUnits` em vez de inventar dono.
+  machineUsage?: MachineUsage[];
   sourceEventId: string;
 };
 
@@ -986,4 +1030,13 @@ export type FinishedConsumptionResult = {
   // peso morto no doc da venda.
   breakdown: FrozenCostBreakdown;
   costUnknown: number;
+  // [FROTA] Fase 1 — a repartição por máquina do que foi drenado, TOTAL (não por
+  // unidade), somada das camadas na proporção de cada move. Vazia quando nenhuma
+  // camada drenada trouxe a repartição.
+  machineUsage: MachineUsage[];
+  // [FROTA] Fase 1 — unidades drenadas de camada SEM repartição (produzidas antes
+  // da Fase 1), MAIS o `shortfall` (D4: unidade que não existia em camada
+  // nenhuma). São as unidades que não têm a quem creditar — a venda as leva ao
+  // `Sale.unattributedUnits` em vez de deixá-las serem rateadas calado.
+  unattributedUnits: number;
 };

@@ -9,6 +9,103 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ [FROTA] Fase 1 — o ROI parou de atribuir por quem foi PRECIFICADO (2026-09-01)
+
+> **A Fase 1 não toca em preço** — e a prova disso é um teste, não uma afirmação
+> (`frotaFase1.test.ts`, com os componentes do preço colados como literal). O que ela conserta é
+> quem leva o crédito: o ROI atribuía horas, lucro e depreciação à máquina que o **cadastro** dizia,
+> não à que de fato imprimiu. Isso já estava errado ANTES de qualquer mudança de preço — a Fase 2
+> (taxa de frota) fica intacta no `BACKLOG.md`.
+
+### O que estava quebrado (4 coisas independentes, um problema só)
+
+1. **`printedCount` contava grupos, não impressões.** O `wholeEventRows` agrupava as etapas **por
+   máquina**: duas etapas na mesma impressora viravam **um** evento. O ROI dizia 1 impressão onde
+   houve 2, e o desgaste da máquina ficava subcontado no número (as HORAS estavam certas; a
+   CONTAGEM, não).
+2. **Subitem carimbava tudo na `machineUsage[0]`.** O `subitemEventRows` devolvia UMA linha, com
+   todas as horas do subitem na primeira máquina dele. Um corpo na A1 + acabamento na X2D creditava
+   as duas coisas na A1 — errava a máquina, não só a contagem.
+3. **A camada do acabado não sabia quem a produziu.** O único elo era o `sourceEventId`, que aponta
+   só para `built[0]` — ele **nunca** poderia responder "quem imprimiu" numa submissão multi-etapa.
+4. **A venda copiava a repartição PRECIFICADA** do `saleContext` (`result.machineUsage`), que é a
+   resposta a outra pergunta: em que máquina o produto *pode* rodar.
+
+### As 6 mudanças
+
+- **Uma linha por ETAPA** (`wholeEventRows` e `subitemEventRows`). O agrupamento por máquina não
+  economizava nada — a baixa já era encadeada e o custo já era somado componente a componente —,
+  então N eventos de uma placa custam exatamente o que o grupo custava. Uma etapa = uma impressão =
+  um evento. O nome do evento passou a desambiguar pela **etapa** (`Kit — Tampa`), porque a máquina
+  não distingue duas etapas que rodam nela.
+  ⚠ **A mão de obra do SUBITEM não é a soma das etapas dele:** o rateio aditivo (FEAT-01) embute a
+  fatia dos **passos internos** que cabe àquela parte, e essa fatia não tem etapa onde morar. O
+  total continua sendo `costBreakdown.labor × pieces` (o MESMO de antes) e só a **repartição** entre
+  as linhas é nova — proporcional ao labor próprio de cada etapa, em partes iguais quando nenhuma
+  tem. Somar só o labor das etapas barataria o evento em silêncio.
+- **`submissionId`** — o id do 1º evento, carimbado nos N, decidido em UM lugar
+  (`buildProductionPayloads`), por onde passam os **dois** caminhos que gravam produção. Evento
+  anterior é lido como `submissionId = próprio id` (Diretriz 7, sem migração) e a exclusão dele
+  segue apagando exatamente ele.
+- **Excluir qualquer card apaga o LOTE INTEIRO** (decisão do dono). Substitui a regra que quebrava
+  nos dois sentidos: card secundário deixava o custo do lote inflado; 1º card estornava o acabado e
+  deixava os outros eventos órfãos. Os irmãos vêm do **banco** (`fetchProductionSubmission`), nunca
+  da lista da tela — ela é paginada/filtrada, e um irmão fora da janela apagaria meio lote. O
+  diálogo anuncia o tamanho ("registrada em 3 etapas… todas as 3 saem juntas").
+  ⚠ **Não vale para o estorno da VENDA** — ele já reverte exatamente o conjunto que criou.
+- **A camada carrega a REPARTIÇÃO** (`FinishedLayer.machineUsage`), por unidade, na mesma escala do
+  `unitCost` e pelo **mesmo fator**. Fusão de camadas soma repartições pela mesma regra do
+  breakdown: **só sobrevive se TODAS as entradas trouxerem** — meia repartição diria que a camada
+  inteira saiu de uma máquina só, o que é pior que dizer "não sei".
+  ⚠ No inteiro-com-subitens o fator é a proporção de **custo** da parte, não a de horas: assumido, e
+  é a única que mantém Σ partes = submissão sem inventar um 2º critério de rateio.
+- **A venda calcula na RECONCILIAÇÃO** — dos eventos (encomenda) ou das camadas drenadas (acabado).
+  `machineUsage` virou **obrigatório** no tipo de escrita (AUD-02: `supplyUpdates` opcional fez a
+  venda não debitar insumo); lista vazia é a forma de dizer "sem lastro". Saíram `sale.machineId`,
+  `sale.machineName` e os três campos de máquina do `SaleModalContext` — **agora**, e não junto da
+  Fase 2, porque campo carregado e ignorado é campo que volta a ser lido por engano. Recibo e CSV
+  derivam o rótulo do `machineUsage` (`machineUsageLabel`: "A1", "A1 +2", `—` sem lastro).
+- **`unattributedUnits`, também obrigatório.** 🔴 **Sem ele o D4 vira atribuição invisível:**
+  `fraction = share.hours / totalHours` **soma 1 de qualquer jeito**, então vender 10 tendo
+  produzido 6 daria às máquinas 100% do lucro dos 10 e o buraco não apareceria em lugar nenhum. A
+  fração passou a ser sobre as horas que cobririam **todas** as unidades, e Σ frações = 6/10.
+
+### O que CAIU junto
+
+O malabarismo **"depreciação real repartida na proporção da precificada"** (follow-up registrado
+desde o FEAT-06). Ele existia porque o `realCostBreakdown` é um total por unidade e a única forma de
+dividi-lo entre máquinas era pela razão da **precificada** — dois números de fontes diferentes num
+só. Não é mais necessário: cada evento congela a sua depreciação **real** e ela desce pela camada
+até a venda, por máquina.
+
+### As armadilhas medidas
+
+- ⚠ **A escala do `machineUsage` da venda é a unidade ATRIBUÍDA, não a vendida.** É o que permite ao
+  ROI extrapolá-la para as `quantity` e descobrir sozinho quanto sobra sem dono. Usar a vendida
+  faria a cobertura sumir na conta.
+- ⚠ **Venda antiga lê `unattributedUnits: 0`, nunca `quantity`.** Ela tem a repartição precificada
+  gravada na época e o campo simplesmente não existe; ler `quantity` apagaria o ROI inteiro
+  retroativamente. Consequência declarada: **até o recadastro o ROI mistura atribuição precificada
+  (vendas velhas) com real (novas)**.
+- ⚠ **Overdraft do acabado (D4) NÃO gera órfã.** As unidades a mais saem da camada mais nova, que
+  tem repartição — o buraco vive no `shortfall`, que é quem o descreve. Órfã é a unidade que veio de
+  **camada sem repartição** (anterior à Fase 1) ou de **SKU que não existe**.
+- ⚠ **Lista vazia gravada ≠ campo ausente.** Na camada, a ausência é o dado ("não sei quem
+  imprimiu"), então lista vazia **não** é gravada. Na venda, o campo é **sempre** gravado, porque lá
+  a lista vazia significa "sem lastro" — e as duas coisas levam a contas diferentes.
+
+### A prova
+
+`frotaFase1.test.ts` (21 casos). Duas travas que importam:
+1. **O preço, componente a componente, como literal.** Uma asserção que recalculasse
+   `calculatePricing` acompanharia qualquer regressão — só o número colado é trava.
+2. **O dinheiro contra o agrupamento ANTIGO**, reconstruído à mão no próprio teste: 3 eventos contra
+   2, e `frozen`/`grams`/`material` e os 6 componentes idênticos a 1e-10. É a prova de que o split
+   mudou a atribuição e nada mais. (⚠ Ao montar o fixture antigo, esquecer os acessórios na 1ª linha
+   deu exatamente R$ 1,00 de diferença — o teste pegou o teste.)
+
+Medições: `pnpm test` 848/848 · `lint`, `typecheck` e `build` limpos.
+
 ## ✅ As 3 ressalvas baratas — o corte mudo, a tinta cravada e o botão sem nome (2026-08-31)
 
 > Três itens antigos, escolhidos por um critério só: **não dependem da logo nem de venda real**, e

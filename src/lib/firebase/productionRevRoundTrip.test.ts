@@ -159,12 +159,14 @@ const filamentos = (): ProductionFilament[] => [
 
 const eventoPayload = (
   stockMoves: ProductionPayload["stockMoves"],
+  submissionId = "sub-1",
 ): ProductionPayload => ({
   at: 1000,
   outcome: "estoque",
   mode: "real",
   productId: PRODUTO,
   productName: "ZZ AUDIT sonda",
+  submissionId,
   machineId: "a1",
   machineName: "A1",
   printHours: 1,
@@ -189,7 +191,7 @@ async function produzir(eventId: string) {
     1000,
   );
   await saveProduction(
-    [{ id: eventId, payload: eventoPayload(plano.moves) }],
+    [{ id: eventId, payload: eventoPayload(plano.moves, eventId) }],
     plano.colorUpdates,
     { productId: PRODUTO, payload: acabado },
   );
@@ -199,7 +201,7 @@ async function produzir(eventId: string) {
 async function excluirEEstornar(eventId: string) {
   const evento = store.get(`producao/${eventId}`) as unknown as ProductionEvent;
   const cores = reverseProduction(evento.stockMoves, [lerCor()]);
-  await removeProduction(eventId, cores, {
+  await removeProduction([eventId], cores, {
     productId: PRODUTO,
     payload: finishedGoodToPayload(removeEventLayers(lerAcabado()!, eventId)),
   });

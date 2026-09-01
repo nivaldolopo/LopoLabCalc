@@ -3,7 +3,6 @@ import { grossUpForFee } from "./paymentFees";
 import { roundPrice } from "./roundPrice";
 import type {
   FilamentUsage,
-  MachineUsage,
   PricingResult,
   RoundingMode,
   SaleCostBreakdown,
@@ -19,13 +18,14 @@ export type SaleModalContext = {
   // FEAT-01: quando a unidade vendável é um SUBITEM (parte do produto), guarda o
   // `Subitem.id`. Ausente = produto inteiro. Congelado no snapshot da venda.
   subitemId?: string;
-  machineId: string;
-  machineName: string;
   printHours: number;
-  // Repartição de horas/depreciação por máquina (por unidade). Congelada no
-  // snapshot para o ROI atribuir corretamente produtos com 2ª etapa em outra
-  // impressora.
-  machineUsage: MachineUsage[];
+  // ⚠ [FROTA] Fase 1 — aqui viviam `machineId`, `machineName` e `machineUsage`.
+  // Os três saíram: eles diziam quem foi PRECIFICADO, e a venda precisa de quem
+  // IMPRIMIU. Essa resposta só existe na reconciliação (eventos da encomenda ou
+  // camadas drenadas do acabado), e é lá que ela passou a nascer.
+  //
+  // Saíram agora, e não junto da Fase 2, para não ficarem carregados e ignorados
+  // entre as duas — campo que ninguém lê é campo que volta a ser lido por engano.
   suggestedPrice: number;
   // Critério de arredondamento do produto — reaplicado ao preço inflado quando
   // a taxa é repassada ao cliente, pra não expor centavo quebrado.
@@ -49,10 +49,7 @@ export function saleContextFromResult(
   return {
     defaultProductName: productName,
     productId,
-    machineId: result.machine.id,
-    machineName: result.machine.name,
     printHours,
-    machineUsage: result.machineUsage,
     suggestedPrice: result.suggestedPrice,
     roundingMode,
     unitCost: result.totalCost,
@@ -71,26 +68,21 @@ export function saleContextFromResult(
 }
 
 // FEAT-01: foto congelada de UM SUBITEM vendável a partir do seu preço rateado.
-// O subitem já carrega custo/preço/filamentos/uso-de-máquina próprios (aditivos),
-// então a venda de uma parte congela exatamente o dela — e a baixa do passo 8
-// deduz só os filamentos deste subitem. A máquina "principal" (informativa) é a
-// primeira do uso do subitem.
+// O subitem já carrega custo/preço/filamentos próprios (aditivos), então a venda
+// de uma parte congela exatamente o dela — e a baixa do passo 8 deduz só os
+// filamentos deste subitem.
 export function saleContextFromSubitem(
   baseName: string,
   productId: string,
   subitem: SubitemPrice,
   roundingMode: RoundingMode,
 ): SaleModalContext {
-  const primary = subitem.machineUsage[0];
   const subName = subitem.name?.trim();
   return {
     defaultProductName: subName ? `${baseName} — ${subName}` : baseName,
     productId,
     subitemId: subitem.id,
-    machineId: primary?.machineId ?? "",
-    machineName: primary?.machineName ?? "",
     printHours: subitem.printHours,
-    machineUsage: subitem.machineUsage,
     suggestedPrice: subitem.price,
     roundingMode,
     unitCost: subitem.cost,

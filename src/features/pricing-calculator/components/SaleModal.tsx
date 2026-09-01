@@ -825,10 +825,15 @@ export function SaleModal({
           ? { subitemId: item.source.subitemId }
           : {}),
         productName: item.productName.trim(),
-        machineId: item.source.machineId,
-        machineName: item.source.machineName,
         printHours: item.source.printHours,
-        machineUsage: item.source.machineUsage,
+        // [FROTA] Fase 1 — quem imprimiu vem da RECONCILIAÇÃO, não do snapshot
+        // do catálogo: dos eventos criados (encomenda) ou das camadas drenadas
+        // (acabado). Os dois campos são gravados SEMPRE, inclusive vazio/zero —
+        // AUD-02: campo que o repositório grava é obrigatório, e lista vazia é a
+        // forma de dizer "sem lastro". Item sem resultado (não deveria existir)
+        // entra como órfão inteiro, nunca como atribuído por omissão.
+        machineUsage: r?.machineUsage ?? [],
+        unattributedUnits: r ? r.unattributedUnits : qty,
         filaments: frozenFilaments,
         quantity: qty,
         suggestedPrice: item.source.suggestedPrice,

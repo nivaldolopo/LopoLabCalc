@@ -395,10 +395,19 @@ describe("submissionColors (FEAT-11)", () => {
     expect(colors.whole.label).toBe("Azul + Vermelho");
   });
 
-  it("as duas etapas rodam na MESMA máquina (uma linha só) e ainda assim separam", () => {
+  it("[FROTA] duas etapas na MESMA máquina são DUAS linhas (uma por etapa)", () => {
     const rows = wholeEventRows(kit, DEFAULT_MACHINES, []);
-    expect(rows).toHaveLength(1); // mono-máquina: um evento com as 2 cores
-    expect(rows[0].filaments.map((f) => f.stageKey)).toEqual(["main", "s1"]);
+    // Antes da Fase 1 isto era UMA linha: as etapas vinham agrupadas por
+    // máquina, e o `printedCount` do ROI contava 1 impressão onde houve 2.
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.filaments.map((f) => f.stageKey))).toEqual([
+      ["main"],
+      ["s1"],
+    ]);
+    // A separação por etapa continua chegando na parte certa.
+    const colors = submissionColors(rows, kit.subitems);
+    expect(colors.bySubitem.get("corpo")?.label).toBe("Azul");
+    expect(colors.bySubitem.get("tampa")?.label).toBe("Vermelho");
   });
 
   it("trocar a cor de uma linha reflete na parte certa", () => {

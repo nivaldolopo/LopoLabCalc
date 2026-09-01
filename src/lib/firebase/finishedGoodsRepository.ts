@@ -5,7 +5,12 @@ import {
 } from "firebase/firestore";
 import { db } from "./client";
 import { COM_METADATA, type SnapshotOrigin } from "@/lib/cloudStatus";
-import { frozenFromDocument, frozenToDocument } from "./frozenCost";
+import {
+  frozenFromDocument,
+  frozenToDocument,
+  machineUsageFromDocument,
+  machineUsageToDocument,
+} from "./frozenCost";
 import {
   NO_COLOR_KEY,
   NO_COLOR_LABEL,
@@ -26,6 +31,7 @@ import { num } from "@/lib/number";
 const finishedCollection = collection(db, "acabados");
 
 function toLayer(data: DocumentData): FinishedLayer {
+  const machineUsage = machineUsageFromDocument(data.machineUsage);
   return {
     id: String(data.id ?? ""),
     at: num(data.at),
@@ -34,6 +40,11 @@ function toLayer(data: DocumentData): FinishedLayer {
     ...(data.costBreakdown
       ? { costBreakdown: frozenFromDocument(data.costBreakdown) }
       : {}),
+    // [FROTA] Fase 1 — a repartição por máquina. Camada anterior à Fase 1 não
+    // tem o campo, e a AUSÊNCIA é o dado: a venda que a drenar conta as unidades
+    // em `unattributedUnits` em vez de fingir uma origem. Por isso lista vazia
+    // não é gravada como campo — ela some (Diretriz 7, sem migração).
+    ...(machineUsage.length > 0 ? { machineUsage } : {}),
     sourceEventId: String(data.sourceEventId ?? ""),
   };
 }
@@ -81,6 +92,12 @@ function layerToDocument(layer: FinishedLayer): DocumentData {
     // condicional (o Firestore rejeita `undefined`).
     ...(layer.costBreakdown
       ? { costBreakdown: frozenToDocument(layer.costBreakdown) }
+      : {}),
+    // [FROTA] Fase 1 — idem: só grava quando há repartição de verdade. Uma lista
+    // vazia gravada seria indistinguível de "não sei" na leitura, e as duas
+    // coisas levam a contas diferentes.
+    ...(layer.machineUsage && layer.machineUsage.length > 0
+      ? { machineUsage: machineUsageToDocument(layer.machineUsage) }
       : {}),
     sourceEventId: layer.sourceEventId,
   };

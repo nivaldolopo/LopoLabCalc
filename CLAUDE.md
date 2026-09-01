@@ -9,31 +9,31 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
-- **Estado do site:** no ar (`● Ready`) em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-09-01): escopo do [FROTA] fechado no chat, sem tocar em código.** Com a
-  3ª impressora (A1 Mini, R$2.000), a mesma peça sai por **R$33,06 · R$37,45 · R$49,01** — **48%**
-  decidido por qual máquina estava livre. Virou escopo de 2 fases, inteiro no `BACKLOG.md`.
+- **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`.
+- **Última mudança (2026-09-01): [FROTA] Fase 1 fechada — o ROI atribui por quem IMPRIMIU.**
+  Uma linha por **etapa** (conserta o `printedCount`) · `submissionId` liga o lote e **excluir
+  qualquer card apaga o lote inteiro** · a camada carrega a repartição, a venda a congela na
+  reconciliação · saíram `sale.machineId`/`machineName` e a máquina do `SaleModalContext` · caiu o
+  malabarismo "depreciação real na proporção da precificada". **O preço não mudou, e há teste
+  literal disso** (`frotaFase1.test.ts`; 848/848 no total).
   ⚠ **Avaliadas e DESCARTADAS, não repropor:** mexer em `lifeHours` (é o **DEC-02** do dono) e criar
   `residualValue` — ajustar entrada depois de ver a saída é encaixar premissa no resultado querido.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
-  **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, `/producao`). Custo real
-  **decomponível ponta a ponta** (produção → acabado → venda), e o ROI já o lê.
+  **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**). Custo real **decomponível ponta a
+  ponta** (produção → acabado → venda), e o ROI já o lê — agora pela máquina certa.
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
   destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta.
-- **▶ PRÓXIMA TAREFA — [FROTA] Fase 1 (ROI real).** Não toca em preço, logo é verificável sozinha:
-  uma linha por **etapa** na `/producao` · `submissionId` · excluir card apaga o **lote inteiro** ·
-  a camada do acabado carrega a **repartição** máquina→horas · a venda congela a máquina **real** na
-  reconciliação (obrigatória no write, AUD-02) · unidade sem lastro **não** é creditada. Depois, a
-  **Fase 2** (taxa de frota no preço, pesos 30/40/30 em `Machine.weight`). **Escopo e armadilhas
-  medidas: `BACKLOG.md`.** FEAT-03 sem logo e regras do Firestore seguem disponíveis, sem competir.
-  recadastro. **Itens, lacunas de prova e ressalvas: `BACKLOG.md`, agora curto.**
-- ⚠ **A frente do DONO:** cadastrar **cores e insumos**, **religar os acessórios**, e passar os ids
-  pro **sistema externo dele**, que **gera** a planilha — a spec sai **comigo no chat** depois do
-  cadastro. ⚠ **"Pode recadastrar?" → SIM, sem trava.** ⚠ Acessório sem baixa *não é bug, é vínculo
-  em branco* (`planSupplies`): com `supplyId` consome por FIFO; com `null` ("avulso") só entra no
-  custo — ligar no formulário liga a baixa, **sem código novo**.
-- **Infra pronta:** e-mail `@lopolab.com.br` e login Google restrito (`AuthGate` + regras Firestore
-  travadas); domínio/DNS na seção "Infra" abaixo.
+- **▶ PRÓXIMA TAREFA — [FROTA] Fase 2 (a taxa de frota, o PREÇO).** `machineId` vira **conjunto** ·
+  **cada componente com a sua média ponderada**, nunca ratear um total · `Machine.weight` em **%
+  puro** (30/40/30; horas criariam 2ª fonte da verdade — D6.1) · peso zero → média simples · o
+  round-trip (FORM-01/CSV-05) é a maior parte do trabalho. ⚠ **A trava de preço da Fase 1 VAI mudar
+  de propósito** — recalcular os literais faz parte da tarefa. **Escopo: `BACKLOG.md`.** FEAT-03 sem
+  logo e regras do Firestore seguem disponíveis, sem competir.
+- ⚠ **A frente do DONO:** cadastrar **cores e insumos**, **religar os acessórios** e passar os ids
+  pro sistema externo dele — a spec sai **comigo no chat** depois do cadastro (detalhe no
+  `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, sem trava.** ⚠ Acessório sem baixa *não é bug, é
+  vínculo em branco* (`planSupplies`): ligar o `supplyId` no formulário liga a baixa, sem código novo.
+- **Infra pronta:** login Google restrito (`AuthGate` + regras travadas); DNS na seção "Infra".
 - **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).
 
 ## Resumo do projeto (contexto rápido)
@@ -149,6 +149,12 @@ src/lib/
 - **Estoque sem lote NÃO é exceção: a dívida vira LOTE DE ACERTO** (AUD-16 [E7]) — `simulateFifo`
   precisa de um lote onde empurrar o negativo do D4. `planProduction`/`planSupplies` materializam o
   lote (0 g/un, preço do cadastro, `note`) ANTES de simular; daí em diante não há caso especial.
+- **Atribuir MÁQUINA é papel da RECONCILIAÇÃO, não da precificação** ([FROTA] Fase 1): a
+  precificação diz onde o produto *pode* rodar; quem *imprimiu* sai dos eventos (encomenda) ou das
+  camadas drenadas (acabado). **Um evento = uma etapa.** Na venda, `machineUsage` e
+  `unattributedUnits` são **obrigatórios** (vazio = "sem lastro"); na CAMADA a ausência É o dado, e
+  vazio não se grava. 🔴 Sem `unattributedUnits` o D4 vira atribuição invisível (`horas ÷ total`
+  soma 1 e ratearia o lucro das órfãs). Excluir produção apaga o **lote** (`submissionId`).
 - **Snapshot que CHEGA não é prova de servidor** (AUD-15 [E4]): offline o `onSnapshot` serve do
   cache pelo mesmo callback de sucesso. Assinatura de coleção pede `COM_METADATA` e repassa
   `snapshot.metadata`; quem decide o chip é o `cloudStatusOf` — nunca o `navigator.onLine`. ⚠ E

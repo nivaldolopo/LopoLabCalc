@@ -1,6 +1,9 @@
 import type { DocumentData } from "firebase/firestore";
 import { num } from "@/lib/number";
-import type { FrozenCostBreakdown } from "@/features/pricing-calculator/types";
+import type {
+  FrozenCostBreakdown,
+  MachineUsage,
+} from "@/features/pricing-calculator/types";
 
 // FEAT-06 — serialização da composição do custo congelado. Mora fora dos dois
 // repositórios porque exatamente o mesmo objeto é gravado em três coleções:
@@ -35,4 +38,42 @@ export function frozenFromDocument(
     labor: num(raw.labor),
     supplies: num(raw.supplies),
   };
+}
+
+// ---------------------------------------------------------------------------
+// [FROTA] Fase 1 — serialização da REPARTIÇÃO por máquina. Mora aqui pelo mesmo
+// motivo do bloco acima: é o mesmo objeto gravado em duas coleções (`acabados`,
+// por camada, e `vendas`, por item), e ele viaja pelo mesmo caminho do custo
+// congelado — do evento à camada, da camada à venda.
+//
+// A leitura DESCARTA a entrada sem `machineId` em vez de coagi-la (AUD-16 [E5]:
+// `String(item)` fabricava chave que não existe). Lista vazia é resposta
+// legítima: quer dizer "sem lastro", e é assim que o ROI a lê.
+// ---------------------------------------------------------------------------
+
+export function machineUsageToDocument(usage: MachineUsage[]): DocumentData[] {
+  return usage.map((u) => ({
+    machineId: u.machineId,
+    machineName: u.machineName ?? "",
+    hours: num(u.hours),
+    depreciation: num(u.depreciation),
+  }));
+}
+
+export function machineUsageFromDocument(data: unknown): MachineUsage[] {
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter(
+      (item): item is DocumentData =>
+        Boolean(item) &&
+        typeof item === "object" &&
+        typeof (item as DocumentData).machineId === "string" &&
+        (item as DocumentData).machineId !== "",
+    )
+    .map((item) => ({
+      machineId: String(item.machineId),
+      machineName: typeof item.machineName === "string" ? item.machineName : "",
+      hours: num(item.hours),
+      depreciation: num(item.depreciation),
+    }));
 }

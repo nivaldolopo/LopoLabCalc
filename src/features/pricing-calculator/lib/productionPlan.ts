@@ -26,6 +26,7 @@ import type {
   ProductionFilament,
   FrozenCostBreakdown,
   Machine,
+  MachineUsage,
   ProductionMode,
   ProductionOutcome,
   ProductionPayload,
@@ -38,7 +39,7 @@ import type {
 
 // Builder puro da PRODUÇÃO a partir de um produto/subitem (FEAT-04b, extraído da
 // `ProductionPage` na 8a). Duas fases:
-//  1. `wholeEventRows`/`subitemEventRows` → as LINHAS-evento (uma por máquina) de
+//  1. `wholeEventRows`/`subitemEventRows` → as LINHAS-evento (uma por ETAPA) de
 //     uma seleção. Editáveis na tela (a `ProductionPage` guarda em estado); a
 //     encomenda do passo 8 usa direto, sem editar.
 //  2. `planEventRows` → a baixa FIFO encadeada + o custo congelado de cada linha.
@@ -71,9 +72,10 @@ export type FilRow = {
   };
 };
 
-// Uma linha = UM evento de produção a gravar. Mono-máquina = 1 linha; um produto
-// inteiro que roda em máquinas diferentes semeia N linhas (uma por máquina), para
-// o ROI (04c) atribuir à impressora certa.
+// Uma linha = UM evento de produção a gravar. [FROTA] Fase 1: uma linha por
+// ETAPA — produto de etapa única = 1 linha; produto de N etapas = N linhas, mesmo
+// que duas caiam na mesma impressora. É o que faz o `printedCount` do ROI contar
+// impressões, e não grupos.
 export type EventRow = {
   key: string;
   productName: string;
@@ -85,9 +87,9 @@ export type EventRow = {
   laborCost: number; // labor congelado da etapa/subitem (não editado)
   energyTariff: number; // tarifa do produto, congelada na linha
   // 7e: insumos da SUBMISSÃO, já em unidades por PLACA (qtd/peça × peças), para
-  // escalarem junto das gramas. Vão só na PRIMEIRA linha do grupo: o acessório é
-  // do produto, não da máquina — repetido por linha, um produto que roda em duas
-  // impressoras consumiria o ímã duas vezes.
+  // escalarem junto das gramas. Vão só na PRIMEIRA linha: o acessório é do
+  // PRODUTO, não da etapa — repetido por linha, um produto de duas etapas
+  // consumiria o ímã duas vezes.
   supplies: SupplyUsage[];
 };
 
@@ -192,9 +194,26 @@ function stageLabor(laborMinutes: number, productRate: number): number {
 const productEnergyTariff = (product: SavedProduct): number =>
   num(product.energyTariff ?? DEFAULT_PRODUCT_INPUT.energyTariff);
 
-// Linhas-evento de um produto INTEIRO: agrupa etapas (principal + extras) por
-// máquina; cada grupo vira uma linha (hora Σ, filamentos concat, labor Σ).
-// Mono-máquina = 1 linha; multi-máquina = N linhas (decisão do dono).
+// [FROTA] Fase 1 — o RÓTULO de uma etapa dentro do nome do evento. Antes o
+// desambiguador era a MÁQUINA (as etapas vinham agrupadas por ela); agora que
+// cada etapa é um evento, quem desambigua é o nome da etapa — e a máquina só
+// entra quando a etapa não tem nome.
+function stageLabel(
+  name: string | undefined,
+  machineName: string,
+  index: number,
+): string {
+  return name?.trim() || machineName || `etapa ${index + 1}`;
+}
+
+// Linhas-evento de um produto INTEIRO: UMA LINHA POR ETAPA (principal + extras).
+//
+// ⚠ [FROTA] Fase 1 — antes isto AGRUPAVA por máquina, e o agrupamento mentia no
+// ROI: duas etapas na mesma impressora viravam um evento só, então o
+// `printedCount` contava 1 impressão onde houve 2. O agrupamento também não
+// economizava nada — a baixa é encadeada e o custo é somado componente a
+// componente, então N eventos de uma placa custam exatamente o que o grupo
+// custava. Uma etapa = uma impressão = um evento.
 export function wholeEventRows(
   product: SavedProduct,
   machines: Machine[],
@@ -208,6 +227,7 @@ export function wholeEventRows(
   const stages = [
     {
       key: MAIN_STAGE_KEY,
+      name: product.mainStageName,
       machineId: product.machineId,
       printHours: num(product.printHours),
       filaments: normalizeFilaments(product),
@@ -215,6 +235,7 @@ export function wholeEventRows(
     },
     ...normalizeStages(product).map((stage, index) => ({
       key: stageKeyFor(stage, index),
+      name: stage.name,
       machineId: stage.machineId,
       printHours: num(stage.printHours),
       filaments: normalizeFilaments(stage),
@@ -222,42 +243,23 @@ export function wholeEventRows(
     })),
   ];
 
-  const byMachine = new Map<
-    string,
-    {
-      printHours: number;
-      filaments: { usage: FilamentUsage; stageKey: string }[];
-      labor: number;
-    }
-  >();
-  for (const stage of stages) {
-    const group = byMachine.get(stage.machineId) ?? {
-      printHours: 0,
-      filaments: [],
-      labor: 0,
-    };
-    group.printHours += stage.printHours;
-    group.filaments.push(
-      ...stage.filaments.map((usage) => ({ usage, stageKey: stage.key })),
-    );
-    group.labor += stage.labor;
-    byMachine.set(stage.machineId, group);
-  }
-
-  const multi = byMachine.size > 1;
+  const multi = stages.length > 1;
   const supplies = accessoryRows(product, num(product.piecesCount));
-  return Array.from(byMachine.entries()).map(([machineId, group], index) => {
-    const machineName = machines.find((m) => m.id === machineId)?.name ?? "";
+  return stages.map((stage, index) => {
+    const machineName =
+      machines.find((m) => m.id === stage.machineId)?.name ?? "";
     return {
       key: nextRowKey(),
-      productName: multi ? `${base} (${machineName})` : base,
+      productName: multi
+        ? `${base} — ${stageLabel(stage.name, machineName, index)}`
+        : base,
       productId: product.id,
-      machineId,
-      printHours: group.printHours,
-      filaments: group.filaments.map((f) =>
-        resolveFilRow(f.usage, stock, f.stageKey),
+      machineId: stage.machineId,
+      printHours: stage.printHours,
+      filaments: stage.filaments.map((usage) =>
+        resolveFilRow(usage, stock, stage.key),
       ),
-      laborCost: group.labor,
+      laborCost: stage.labor,
       energyTariff: tariff,
       // Só a 1ª linha carrega os acessórios (ver `EventRow.supplies`).
       supplies: index === 0 ? supplies : [],
@@ -265,36 +267,118 @@ export function wholeEventRows(
   });
 }
 
-// Linha-evento de UM subitem vendável (o `SubitemPrice` já vem calculado). A
-// máquina exibida sai do `machineUsage` do subitem, então não precisa da lista.
+// Linhas-evento de UM subitem vendável — também UMA POR ETAPA do subitem
+// (`Subitem.stageKeys`), pelo mesmo motivo do inteiro.
 //
-// ⚠ BUG-02: o evento representa 1 PLACA (crua), como `wholeEventRows`. O
-// `SubitemPrice` mistura escalas — `printHours`/`filaments` são CRUS (placa
-// inteira), mas o `costBreakdown` já vem dividido por `piecesCount` (por peça).
-// Multiplico o labor de volta por `pieces` para a linha ficar toda em termos de
-// placa; senão o `frozenCost` somaria material cru + labor por peça (subestimado).
+// ⚠ [FROTA] Fase 1 — antes era UMA linha só, com TODAS as horas do subitem
+// carimbadas na `machineUsage[0]`. Um subitem cujo corpo sai na A1 e o acabamento
+// na X2D creditava as duas coisas na A1: o ROI errava a máquina, não só a
+// contagem.
+//
+// ⚠ BUG-02 (inalterado): o evento representa 1 PLACA (crua). O `SubitemPrice`
+// mistura escalas — `printHours`/`filaments` são CRUS, mas o `costBreakdown` já
+// vem dividido por `piecesCount`. Por isso a mão de obra volta a ser multiplicada
+// por `pieces`.
+//
+// ⚠ A mão de obra do subitem NÃO é a soma das etapas dele: o rateio aditivo
+// (FEAT-01) embute a fatia dos PASSOS INTERNOS que cabe a esta parte. Distribuir
+// só o labor de cada etapa perderia essa fatia e baratearia o evento. Então o
+// total continua sendo `costBreakdown.labor × pieces` — o MESMO de antes — e o
+// que muda é só como ele se reparte entre as linhas: na proporção do labor
+// próprio de cada etapa (em partes iguais quando nenhuma tem labor próprio).
 export function subitemEventRows(
   product: SavedProduct,
   subitem: SubitemPrice,
   stock: StockFilament[],
+  machines: Machine[] = [],
 ): EventRow[] {
   const base = product.name || product.mainStageName || "(sem nome)";
-  const primary = subitem.machineUsage[0];
   const pieces = Math.max(1, num(product.piecesCount) || 1);
-  return [
+  const tariff = productEnergyTariff(product);
+  const totalLabor = subitem.costBreakdown.labor * pieces;
+
+  // As etapas DESTE subitem, nas mesmas chaves estáveis do rateio.
+  const config = (product.subitems ?? []).find((s) => s.id === subitem.id);
+  const byKey = new Map<
+    string,
     {
+      key: string;
+      name?: string;
+      machineId: string;
+      printHours: number;
+      filaments: FilamentUsage[];
+      labor: number;
+    }
+  >();
+  byKey.set(MAIN_STAGE_KEY, {
+    key: MAIN_STAGE_KEY,
+    name: product.mainStageName,
+    machineId: product.machineId,
+    printHours: num(product.printHours),
+    filaments: normalizeFilaments(product),
+    labor: stageLabor(product.laborMinutes, product.laborRate),
+  });
+  normalizeStages(product).forEach((stage, index) => {
+    const key = stageKeyFor(stage, index);
+    byKey.set(key, {
+      key,
+      name: stage.name,
+      machineId: stage.machineId,
+      printHours: num(stage.printHours),
+      filaments: normalizeFilaments(stage),
+      labor: stageLabor(stage.laborMinutes, product.laborRate),
+    });
+  });
+  const stages = (config?.stageKeys ?? [])
+    .map((key) => byKey.get(key))
+    .filter((stage): stage is NonNullable<typeof stage> => Boolean(stage));
+
+  // Subitem sem etapa resolvível (config sumiu, chaves órfãs) cai no
+  // comportamento antigo: uma linha só, com o que o `SubitemPrice` traz. É o
+  // único jeito de ainda produzir alguma coisa, e o total continua certo.
+  if (stages.length === 0) {
+    const primary = subitem.machineUsage[0];
+    return [
+      {
+        key: nextRowKey(),
+        productName: `${base} — ${subitem.name || "subitem"}`,
+        productId: product.id,
+        subitemId: subitem.id,
+        machineId: primary?.machineId ?? product.machineId,
+        printHours: subitem.printHours,
+        filaments: subitem.filaments.map((f) => resolveFilRow(f, stock)),
+        laborCost: totalLabor,
+        energyTariff: tariff,
+        supplies: accessoryRows(product, pieces, subitem.id),
+      },
+    ];
+  }
+
+  const ownLabor = stages.reduce((sum, stage) => sum + stage.labor, 0);
+  const supplies = accessoryRows(product, pieces, subitem.id);
+  const multi = stages.length > 1;
+  return stages.map((stage, index) => {
+    const machineName =
+      machines.find((m) => m.id === stage.machineId)?.name ?? "";
+    const share =
+      ownLabor > 0 ? stage.labor / ownLabor : 1 / stages.length;
+    return {
       key: nextRowKey(),
-      productName: `${base} — ${subitem.name || "subitem"}`,
+      productName: multi
+        ? `${base} — ${subitem.name || "subitem"} · ${stageLabel(stage.name, machineName, index)}`
+        : `${base} — ${subitem.name || "subitem"}`,
       productId: product.id,
       subitemId: subitem.id,
-      machineId: primary?.machineId ?? product.machineId,
-      printHours: subitem.printHours,
-      filaments: subitem.filaments.map((f) => resolveFilRow(f, stock)),
-      laborCost: subitem.costBreakdown.labor * pieces,
-      energyTariff: productEnergyTariff(product),
-      supplies: accessoryRows(product, pieces, subitem.id),
-    },
-  ];
+      machineId: stage.machineId,
+      printHours: stage.printHours,
+      filaments: stage.filaments.map((usage) =>
+        resolveFilRow(usage, stock, stage.key),
+      ),
+      laborCost: totalLabor * share,
+      energyTariff: tariff,
+      supplies: index === 0 ? supplies : [],
+    };
+  });
 }
 
 /**
@@ -380,6 +464,15 @@ export type PlannedRows = {
     // 7e: custo dos insumos (já dentro de `frozen`) e o que faltou no estoque.
     supplies: number;
     supplyShortfall: number;
+    // [FROTA] Fase 1 — a REPARTIÇÃO da submissão por máquina, na escala das
+    // linhas (placa/tiragem inteira). Uma entrada por impressora distinta, com
+    // as HORAS de todas as etapas que caíram nela e a DEPRECIAÇÃO REAL congelada
+    // dos eventos correspondentes.
+    //
+    // É esta lista que desce até a camada do acabado (por unidade) e até a
+    // reconciliação da venda — ela existe porque o `sourceEventId` da camada
+    // aponta só para o 1º evento e nunca poderia responder "quem imprimiu".
+    machineUsage: MachineUsage[];
     // AUD-16 [E7]: cores e insumos que não tinham lote e ganharam um de acerto
     // (a dívida ficou representada e custeada). É o que a tela avisa ANTES de
     // confirmar — e o que ela avisa é exatamente o que vai ser gravado.
@@ -472,6 +565,25 @@ export function planEventRows(
       acc.shortfallG += e.plan.shortfallG;
       acc.supplies += e.supplyPlan.cost;
       acc.supplyShortfall += e.supplyPlan.shortfall;
+      // [FROTA] Fase 1 — agrega por máquina no MESMO laço do custo, pelo mesmo
+      // motivo do `frozenBreakdown`: dois laços sobre os mesmos eventos são dois
+      // números que um dia divergem. A depreciação aqui é a REAL (a do custo
+      // congelado do evento), não a precificada.
+      {
+        const machineId = e.machine?.id ?? e.row.machineId;
+        const prev = acc.machineUsage.find((u) => u.machineId === machineId);
+        if (prev) {
+          prev.hours += num(e.row.printHours);
+          prev.depreciation += e.cost.depreciation;
+        } else {
+          acc.machineUsage.push({
+            machineId,
+            machineName: e.machine?.name ?? "",
+            hours: num(e.row.printHours),
+            depreciation: e.cost.depreciation,
+          });
+        }
+      }
       acc.debtLots = [
         ...acc.debtLots,
         ...e.plan.debtLots,
@@ -488,6 +600,7 @@ export function planEventRows(
       shortfallG: 0,
       supplies: 0,
       supplyShortfall: 0,
+      machineUsage: [] as MachineUsage[],
       debtLots: [] as DebtLot[],
     },
   );
@@ -516,11 +629,17 @@ export function buildProductionPayloads(
     createdAt: number;
   },
 ): { id: string; payload: ProductionPayload }[] {
+  // [FROTA] Fase 1 — o elo do LOTE. É o id do PRIMEIRO evento, carimbado em
+  // todos (nele inclusive). Aqui é o único lugar onde ele se decide, e os DOIS
+  // caminhos que gravam produção passam por esta função (a `/producao` e a
+  // encomenda da venda) — é por isso que ela é o lugar certo.
+  const submissionId = built[0]?.id ?? "";
   return built.map((e) => {
     const payload: ProductionPayload = {
       at: meta.at,
       outcome: meta.outcome,
       mode: meta.mode,
+      submissionId,
       ...(e.row.productId ? { productId: e.row.productId } : {}),
       ...(e.row.subitemId ? { subitemId: e.row.subitemId } : {}),
       productName: e.row.productName.trim(),

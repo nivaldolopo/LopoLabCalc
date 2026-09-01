@@ -19,7 +19,12 @@ import { COM_METADATA, type SnapshotOrigin } from "@/lib/cloudStatus";
 import { withWriteTimeout } from "@/lib/errors";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import { productionToDocument } from "./productionRepository";
-import { frozenFromDocument, frozenToDocument } from "./frozenCost";
+import {
+  frozenFromDocument,
+  frozenToDocument,
+  machineUsageFromDocument,
+  machineUsageToDocument,
+} from "./frozenCost";
 import { readFinishedColors } from "@/features/pricing-calculator/lib/finishedGoods";
 import { lerEConferirRevs } from "./revGuard";
 import { serializeRolls } from "./stockRepository";
@@ -76,18 +81,12 @@ function toSale(id: string, data: DocumentData): Sale {
         "para ler foi descartado, e o rótulo da cor não será exibido.",
     );
   }
-  // Repartição por máquina (vendas novas). Ausente nas antigas → deixa undefined
-  // e o ROI cai no fallback (tudo na máquina principal). Filtra entradas inválidas.
-  const machineUsage = Array.isArray(data.machineUsage)
-    ? data.machineUsage
-        .filter((usage: DocumentData) => usage && usage.machineId)
-        .map((usage: DocumentData) => ({
-          machineId: String(usage.machineId),
-          machineName: usage.machineName ?? "",
-          hours: num(usage.hours),
-          depreciation: num(usage.depreciation),
-        }))
-    : undefined;
+  // [FROTA] Fase 1 — a repartição por máquina. Deixou de ser opcional: lista
+  // VAZIA é a resposta de "sem lastro", e é ela que o ROI lê para não distribuir
+  // lucro nenhum. Venda anterior à Fase 1 traz a repartição PRECIFICADA gravada
+  // na época — o ROI a lê como está e a mistura fica declarada (Diretriz 7).
+  // Venda mais velha ainda (sem o campo) chega vazia, e aí ela é toda órfã.
+  const machineUsage = machineUsageFromDocument(data.machineUsage);
   return {
     id,
     reciboId: data.reciboId ?? id,
@@ -104,10 +103,12 @@ function toSale(id: string, data: DocumentData): Sale {
     // FEAT-01: subitem vendido (só em vendas de parte; ausente nas de inteiro).
     ...(data.subitemId ? { subitemId: String(data.subitemId) } : {}),
     productName: data.productName ?? "",
-    machineId: data.machineId ?? "",
-    machineName: data.machineName ?? "",
     printHours: num(data.printHours),
-    ...(machineUsage ? { machineUsage } : {}),
+    machineUsage,
+    // [FROTA] Fase 1 — venda antiga não tem o campo, e 0 é a leitura certa dela:
+    // toda a quantidade estava atribuída (à máquina PRECIFICADA, que era o que
+    // existia). Nunca `quantity` — isso apagaria retroativamente o ROI inteiro.
+    unattributedUnits: num(data.unattributedUnits),
     // FEAT-02: consumo por cor congelado (vendas novas). Ausente nas antigas →
     // undefined (tratadas como monocolor pelo costBreakdown.material).
     ...(Array.isArray(data.filaments) && data.filaments.length > 0
@@ -393,11 +394,24 @@ function finishedMoveToDocument(move: FinishedMove): DocumentData {
 // Serializa o doc da venda, tratando os campos do passo 8 (o restante já vem
 // limpo do `SaleModal`, como antes). Só grava origem/moves/ids quando existem.
 function saleToDocument(payload: ReciboUpsert["payload"]): DocumentData {
-  const { finishedMoves, productionEventIds, origem, realCostBreakdown, ...rest } =
-    payload;
+  const {
+    finishedMoves,
+    productionEventIds,
+    origem,
+    realCostBreakdown,
+    machineUsage,
+    unattributedUnits,
+    ...rest
+  } = payload;
   return {
     ...rest,
     ...(origem ? { origem } : {}),
+    // [FROTA] Fase 1 — explícitos (e não pelo spread) pelo mesmo motivo do
+    // `realCostBreakdown`: passam pela coerção numérica em vez de escaparem
+    // como vieram. Os dois SEMPRE são gravados, inclusive vazio/zero — é a
+    // diferença entre "sem lastro" e "não sei se tem".
+    machineUsage: machineUsageToDocument(machineUsage ?? []),
+    unattributedUnits: num(unattributedUnits),
     // FEAT-06: explícito (e não pelo spread) para passar pela mesma coerção
     // numérica dos outros breakdowns e nunca escapar como `undefined`.
     ...(realCostBreakdown

@@ -53,16 +53,17 @@ export function useProduction() {
     await saveProduction(entries, colorUpdates, finished, supplyUpdates);
   }
 
-  // Exclui um evento e estorna sua baixa. `colorUpdates` vem de
-  // `reverseProduction` (cores com os rolos restaurados); vazio no historico.
-  // `finished` estorna o acabado quando o evento o havia incrementado (05b).
+  // [FROTA] Fase 1 — exclui a SUBMISSÃO inteira (os N eventos do lote) e estorna
+  // a baixa de todos. `colorUpdates` vem de `reverseProduction` sobre os
+  // `stockMoves` somados; vazio no historico. `finished` estorna o acabado que a
+  // submissão havia creditado (05b).
   async function deleteProduction(
-    eventId: string,
+    eventIds: string[],
     colorUpdates: StockFilament[],
     finished?: FinishedUpdate | null,
     supplyUpdates: Supply[] = [],
   ) {
-    await removeProduction(eventId, colorUpdates, finished, supplyUpdates);
+    await removeProduction(eventIds, colorUpdates, finished, supplyUpdates);
   }
 
   return { events, status, error, addProduction, deleteProduction };

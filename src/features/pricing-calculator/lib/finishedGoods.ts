@@ -1,6 +1,13 @@
 import { num } from "@/lib/number";
 import { NO_COLOR, type ColorKey } from "./filaments";
-import { addFrozen, scaleFrozen, sumFrozen, ZERO_FROZEN } from "./production";
+import {
+  addFrozen,
+  addMachineUsage,
+  scaleFrozen,
+  scaleMachineUsage,
+  sumFrozen,
+  ZERO_FROZEN,
+} from "./production";
 import type {
   FinishedColorEntry,
   FinishedConsumptionResult,
@@ -10,6 +17,7 @@ import type {
   FinishedMove,
   FinishedSku,
   FrozenCostBreakdown,
+  MachineUsage,
 } from "../types";
 
 // Matemática pura do Estoque de Produtos / acabados (FEAT-05a). Espelha o FIFO do
@@ -37,6 +45,10 @@ export type FinishedEntry = {
   // FEAT-06: a composição do `unitCost`, escalada pelo MESMO fator que ele.
   // Ausente quando quem chamou não passou o breakdown da submissão.
   unitBreakdown?: FrozenCostBreakdown;
+  // [FROTA] Fase 1 — a repartição por máquina da submissão, escalada pelo MESMO
+  // fator do `unitCost` (então também POR UNIDADE). Ausente quando quem chamou
+  // não a passou.
+  unitMachineUsage?: MachineUsage[];
 };
 
 /**
@@ -77,16 +89,24 @@ export function submissionEntries(
     subitems?: { id: string; name: string; cost: number; color?: ColorKey }[];
     units?: number;
     breakdown?: FrozenCostBreakdown;
+    // [FROTA] Fase 1 — a repartição por máquina da submissão INTEIRA, na escala
+    // da tiragem (a mesma do `totalFrozenCost`). Desce pelo MESMO fator, então
+    // Σ (qty × unitMachineUsage) reconstrói a repartição submetida.
+    machineUsage?: MachineUsage[];
   } = {},
 ): FinishedEntry[] {
   const total = num(totalFrozenCost);
   const units = Math.max(1, Math.round(num(opts.units ?? 1)));
   const breakdown = opts.breakdown;
+  const machineUsage = opts.machineUsage;
 
   // `share` = a fatia da submissão que cabe a esta SKU (1 = tudo). O fator final
   // divide pelas unidades físicas — total e componentes passam pelo MESMO.
   const entry = (
-    base: Omit<FinishedEntry, "qty" | "unitCost" | "unitBreakdown">,
+    base: Omit<
+      FinishedEntry,
+      "qty" | "unitCost" | "unitBreakdown" | "unitMachineUsage"
+    >,
     share: number,
   ): FinishedEntry => {
     const factor = share / units;
@@ -95,6 +115,14 @@ export function submissionEntries(
       qty: units,
       unitCost: total * factor,
       ...(breakdown ? { unitBreakdown: scaleFrozen(breakdown, factor) } : {}),
+      // [FROTA] Fase 1 — a repartição segue o MESMO fator do custo. No inteiro
+      // COM subitens o `share` é a proporção de CUSTO da parte, não a de horas:
+      // é uma aproximação assumida, e é a única que mantém a soma das partes
+      // igual à submissão sem inventar um segundo critério de rateio ao lado do
+      // que já reparte o dinheiro.
+      ...(machineUsage
+        ? { unitMachineUsage: scaleMachineUsage(machineUsage, factor) }
+        : {}),
     };
   };
 
@@ -394,7 +422,11 @@ export function addProductionLayers(
   // `unitCost` que ela deveria somar.
   const somas = new Map<
     string,
-    { valor: number; breakdown: FrozenCostBreakdown | null }
+    {
+      valor: number;
+      breakdown: FrozenCostBreakdown | null;
+      machineUsage: MachineUsage[] | null;
+    }
   >();
 
   for (const entry of entries) {
@@ -407,6 +439,9 @@ export function addProductionLayers(
       qty,
       unitCost: num(entry.unitCost),
       ...(entry.unitBreakdown ? { costBreakdown: entry.unitBreakdown } : {}),
+      ...(entry.unitMachineUsage
+        ? { machineUsage: entry.unitMachineUsage }
+        : {}),
       sourceEventId: eventId,
     };
     const key = skuKey(entry.subitemId, color.key);
@@ -431,12 +466,31 @@ export function addProductionLayers(
         acumulado.breakdown && entry.unitBreakdown
           ? addFrozen(acumulado.breakdown, scaleFrozen(entry.unitBreakdown, qty))
           : null;
+      // [FROTA] Fase 1 — a repartição funde pela MESMA regra do breakdown: só
+      // sobrevive se TODAS as entradas a trouxerem. Meia repartição diria que a
+      // camada inteira saiu de uma máquina só, o que é pior do que dizer "não
+      // sei" — e "não sei" é justamente o que o `unattributedUnits` conta.
+      acumulado.machineUsage =
+        acumulado.machineUsage && entry.unitMachineUsage
+          ? addMachineUsage(
+              acumulado.machineUsage,
+              scaleMachineUsage(entry.unitMachineUsage, qty),
+            )
+          : null;
       criada.qty = num(criada.qty) + qty;
       criada.unitCost = criada.qty !== 0 ? acumulado.valor / criada.qty : 0;
       if (acumulado.breakdown && criada.qty !== 0) {
         criada.costBreakdown = scaleFrozen(acumulado.breakdown, 1 / criada.qty);
       } else {
         delete criada.costBreakdown;
+      }
+      if (acumulado.machineUsage && criada.qty !== 0) {
+        criada.machineUsage = scaleMachineUsage(
+          acumulado.machineUsage,
+          1 / criada.qty,
+        );
+      } else {
+        delete criada.machineUsage;
       }
       const alvo = byKey.get(key);
       if (alvo) {
@@ -450,6 +504,9 @@ export function addProductionLayers(
       valor: qty * num(entry.unitCost),
       breakdown: entry.unitBreakdown
         ? scaleFrozen(entry.unitBreakdown, qty)
+        : null,
+      machineUsage: entry.unitMachineUsage
+        ? scaleMachineUsage(entry.unitMachineUsage, qty)
         : null,
     });
 
@@ -620,6 +677,9 @@ export function consumeFifo(
       shortfall: want > 0 ? want : 0,
       breakdown: ZERO_FROZEN,
       costUnknown: 0,
+      machineUsage: [],
+      // SKU inexistente: TODAS as unidades pedidas ficam sem lastro.
+      unattributedUnits: want > 0 ? want : 0,
     };
   }
 
@@ -668,6 +728,13 @@ export function consumeFifo(
   const byId = new Map(ordered.map((layer) => [layer.id, layer]));
   let breakdown = ZERO_FROZEN;
   let costUnknown = 0;
+  // [FROTA] Fase 1 — a repartição por máquina do que saiu, pelo mesmo caminho do
+  // breakdown e pelo mesmo motivo (o overdraft engrossa o move da camada mais
+  // nova DEPOIS do laço de consumo). Camada sem repartição não vira zero: as
+  // unidades dela contam em `unattributedUnits`, e é isso que impede o lucro
+  // delas de ser distribuído entre máquinas que não as imprimiram.
+  let machineUsage: MachineUsage[] = [];
+  let unattributed = 0;
   for (const move of moves) {
     const layer = byId.get(move.layerId);
     if (layer?.costBreakdown) {
@@ -675,7 +742,19 @@ export function consumeFifo(
     } else {
       costUnknown += move.cost;
     }
+    if (layer?.machineUsage && layer.machineUsage.length > 0) {
+      machineUsage = addMachineUsage(
+        machineUsage,
+        scaleMachineUsage(layer.machineUsage, move.qty),
+      );
+    } else {
+      unattributed += move.qty;
+    }
   }
+  // O `shortfall` já está DENTRO de algum move (o D4 o lança na camada mais
+  // nova), exceto quando não havia camada nenhuma — e aí `moves` é vazio e o
+  // laço acima não o contou. Só nesse caso ele entra à parte.
+  if (moves.length === 0) unattributed += shortfall;
 
   return {
     moves,
@@ -683,6 +762,8 @@ export function consumeFifo(
     shortfall,
     breakdown,
     costUnknown,
+    machineUsage,
+    unattributedUnits: unattributed,
   };
 }
 
@@ -719,6 +800,8 @@ export function consumeWholeFifo(
       shortfall: want > 0 ? want : 0,
       breakdown: ZERO_FROZEN,
       costUnknown: 0,
+      machineUsage: [],
+      unattributedUnits: want > 0 ? want : 0,
     };
   }
   const moves: FinishedMove[] = [];
@@ -726,6 +809,12 @@ export function consumeWholeFifo(
   let breakdown = ZERO_FROZEN;
   let costUnknown = 0;
   let shortfall = 0;
+  let machineUsage: MachineUsage[] = [];
+  // [FROTA] Fase 1 — um CONJUNTO é uma montagem: as partes somam custo e horas,
+  // mas a unidade vendida continua sendo uma só. Por isso a falta de lastro é o
+  // MAIOR entre as partes (como o `shortfall`), não a soma: um conjunto cuja
+  // tampa não sabe quem a imprimiu é UM conjunto sem lastro, não dois.
+  let unattributed = 0;
   for (const part of parts) {
     const res = consumeFifo(good, part.subitemId, part.colorKey, qty);
     moves.push(...res.moves);
@@ -733,8 +822,18 @@ export function consumeWholeFifo(
     breakdown = addFrozen(breakdown, res.breakdown);
     costUnknown += res.costUnknown;
     shortfall = Math.max(shortfall, res.shortfall);
+    machineUsage = addMachineUsage(machineUsage, res.machineUsage);
+    unattributed = Math.max(unattributed, res.unattributedUnits);
   }
-  return { moves, cost, shortfall, breakdown, costUnknown };
+  return {
+    moves,
+    cost,
+    shortfall,
+    breakdown,
+    costUnknown,
+    machineUsage,
+    unattributedUnits: unattributed,
+  };
 }
 
 // O mínimo para mexer no saldo de uma camada — satisfeito pelo `FinishedMove` que

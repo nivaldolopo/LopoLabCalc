@@ -9,7 +9,12 @@ import {
   reverseFinishedConsumption,
   WHOLE_PART_KEY,
 } from "./finishedGoods";
-import { reverseProduction, reverseSupplies, scaleFrozen } from "./production";
+import {
+  reverseProduction,
+  reverseSupplies,
+  scaleFrozen,
+  scaleMachineUsage,
+} from "./production";
 import {
   buildProductionPayloads,
   planEventRows,
@@ -25,6 +30,7 @@ import type {
   FixedCostSettings,
   FrozenCostBreakdown,
   Machine,
+  MachineUsage,
   ProductionPayload,
   SaleItemOrigin,
   SavedProduct,
@@ -77,6 +83,15 @@ export type ReconItemResult = {
   // meio-a-meio: parte do COGS veio de camada sem composição.
   cogsBreakdown?: FrozenCostBreakdown;
   cogsBreakdownPartial: boolean;
+  // [FROTA] Fase 1 — a repartição REAL por máquina desta linha, POR UNIDADE
+  // ATRIBUÍDA. É AQUI que ela nasce, e não mais no `saleContext`: quem imprimiu
+  // só se sabe na reconciliação — dos EVENTOS (encomenda) ou das CAMADAS
+  // drenadas (acabado). Vazia = sem lastro nenhum.
+  machineUsage: MachineUsage[];
+  // [FROTA] Fase 1 — quantas das `quantity` unidades não têm origem conhecida
+  // (camada anterior à Fase 1, overdraft D4, produto fora do catálogo). É o que
+  // impede o ROI de distribuir 100% do lucro quando parte da venda não tem dono.
+  unattributedUnits: number;
   // Caminho `acabado`: camadas drenadas (para estornar). Vazio na encomenda.
   finishedMoves: FinishedMove[];
   // Caminho `encomenda`: eventos de produção criados. Vazio no acabado.
@@ -211,6 +226,10 @@ function applyForward(
       cogsUnit: 0,
       cogsTotal: 0,
       cogsBreakdownPartial: false,
+      machineUsage: [],
+      // Nada é atribuído até que se prove o contrário: o item que cai fora dos
+      // dois caminhos (produto sumido do catálogo) fica inteiro sem lastro.
+      unattributedUnits: qty,
       finishedMoves: [],
       productionEventIds: [],
       finishedShortfall: 0,
@@ -250,8 +269,19 @@ function applyForward(
         );
         state.touchedGoods.add(item.productId);
       }
+      // [FROTA] Fase 1 — a repartição sai das CAMADAS drenadas, que é a única
+      // testemunha de quem imprimiu a peça pronta. `res.machineUsage` é o TOTAL
+      // do consumo; a escala guardada é POR UNIDADE ATRIBUÍDA (não por unidade
+      // vendida), de modo que o ROI possa extrapolá-la para as `quantity` e
+      // descobrir sozinho que sobra uma parte sem dono.
+      const atribuidas = Math.max(0, qty - res.unattributedUnits);
       return {
         ...base,
+        machineUsage:
+          atribuidas > 0
+            ? scaleMachineUsage(res.machineUsage, 1 / atribuidas)
+            : [],
+        unattributedUnits: res.unattributedUnits,
         cogsTotal: res.cost,
         cogsUnit: qty > 0 ? res.cost / qty : 0,
         // FEAT-06: `res.breakdown` é o TOTAL do consumo — ÷ qty para virar a
@@ -276,7 +306,9 @@ function applyForward(
     let rows: EventRow[];
     if (item.subitemId) {
       const sub = subitemsOf(item.productId).find((s) => s.id === item.subitemId);
-      rows = sub ? subitemEventRows(product, sub, colorsNow) : [];
+      rows = sub
+        ? subitemEventRows(product, sub, colorsNow, ctx.machines)
+        : [];
     } else {
       rows = wholeEventRows(product, ctx.machines, colorsNow);
     }
@@ -318,6 +350,23 @@ function applyForward(
 
     return {
       ...base,
+      // [FROTA] Fase 1 — na encomenda a testemunha são os EVENTOS que acabaram
+      // de ser planejados: cada um é uma etapa numa máquina, com a depreciação
+      // REAL do custo congelado. As linhas já foram escaladas para `qty` peças,
+      // então a repartição cobre exatamente essas unidades — e nenhuma delas
+      // fica sem lastro.
+      ...(qty > 0 && planned.summary.machineUsage.length > 0
+        ? {
+            machineUsage: scaleMachineUsage(
+              planned.summary.machineUsage,
+              1 / qty,
+            ),
+            unattributedUnits: 0,
+          }
+        : // Encomenda que não produziu nada (subitem cujo preço não resolveu, ou
+          // qty 0): sem máquina não há origem, e as unidades ficam órfãs em vez
+          // de "atribuídas a ninguém" — que é o que soma 1 e some do radar.
+          { machineUsage: [], unattributedUnits: qty }),
       cogsTotal: planned.summary.frozen,
       cogsUnit: qty > 0 ? planned.summary.frozen / qty : 0,
       // Encomenda: o evento acabou de ser planejado, então a composição está

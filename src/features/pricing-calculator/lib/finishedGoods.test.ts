@@ -459,6 +459,11 @@ describe("consumeFifo (passo 8 — descreve)", () => {
       shortfall: 4,
       breakdown: ZERO_FROZEN,
       costUnknown: 0,
+      // [FROTA] Fase 1 — sem SKU não há a quem creditar: as 4 unidades do pedido
+      // são todas órfãs, e é essa contagem que impede o ROI de distribuir o
+      // lucro delas.
+      machineUsage: [],
+      unattributedUnits: 4,
     });
     expect(consumeFifo(good, undefined, AZUL.key, 0).moves).toHaveLength(0);
   });

@@ -97,12 +97,12 @@ export function useProductionPage(filter: ProductionQuery) {
   }
 
   async function deleteProduction(
-    eventId: string,
+    eventIds: string[],
     colorUpdates: StockFilament[],
     finished?: FinishedUpdate | null,
     supplyUpdates: Supply[] = [],
   ) {
-    await removeProduction(eventId, colorUpdates, finished, supplyUpdates);
+    await removeProduction(eventIds, colorUpdates, finished, supplyUpdates);
   }
 
   return {

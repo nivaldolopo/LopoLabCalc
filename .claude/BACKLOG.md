@@ -5,57 +5,28 @@
 > vivem em [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob
 > demanda. A foto do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-01: há UM item de código pendente** — o **[FROTA]** logo abaixo, com escopo
-> fechado no chat. As nove varreduras seguem zeradas; o resto depende de algo de fora — a logo, o
-> cadastro do dono, ou ~1-2 meses de venda real.
+> **Estado em 2026-09-01: há UM item de código pendente** — a **Fase 2 do [FROTA]** logo abaixo
+> (a Fase 1 fechou hoje). As nove varreduras seguem zeradas; o resto depende de algo de fora — a
+> logo, o cadastro do dono, ou ~1-2 meses de venda real.
 >
 > ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho.
 
-## ▶▶ [FROTA] Preço de frota + ROI real — **a próxima tarefa de código** (escopo fechado 2026-09-01)
+## ▶▶ [FROTA] Fase 2 — a taxa de frota (o PREÇO) — **a próxima tarefa de código**
 
-**O problema (2 independentes, decididos juntos):**
-1. A mesma peça sai por **R$33,06 (A1 Mini) · R$37,45 (A1) · R$49,01 (X2D)** — **48%** de diferença
-   decidida por qual impressora estava livre. Com 3 máquinas de 7× de diferença de preço, não é
-   ajustável por parâmetro.
-2. O ROI atribui dinheiro por **quem foi precificado**, não por quem imprimiu — já errado hoje,
-   antes de qualquer mudança de preço.
+> **A Fase 1 fechou em 2026-09-01** (ROI real: uma linha por etapa, `submissionId`, exclusão por
+> lote, repartição na camada, `machineUsage`/`unattributedUnits` na venda). Writeup e armadilhas
+> medidas no [`HISTORICO.md`](HISTORICO.md).
+
+**O problema:** a mesma peça sai por **R$33,06 (A1 Mini) · R$37,45 (A1) · R$49,01 (X2D)** — **48%**
+de diferença decidida por qual impressora estava livre. Com 3 máquinas de 7× de diferença de preço,
+não é ajustável por parâmetro.
 
 ⚠ **Duas premissas foram AVALIADAS E DESCARTADAS** (não repropor): mexer em `lifeHours` por máquina
 e criar `residualValue`. O `lifeHours` 7.500 é o **DEC-02**, martelado pelo dono; e ajustar entrada
 depois de ver a saída é encaixar premissa no resultado desejado. A taxa de frota **não toca em
 nenhum número pesquisado** — aceita os R$2,187/h da X2D como verdade e muda só a **distribuição**.
 
-### Fase 1 — ROI real *(não toca em preço; verificável sozinha)*
-- **Produção: uma linha por ETAPA** (`wholeEventRows` + `subitemEventRows`, hoje agrupam por
-  máquina). Conserta o `printedCount`: 2 etapas na mesma máquina contam como **1 impressão** hoje.
-- **`submissionId` = id do 1º evento**, carimbado nos N — nos DOIS caminhos (`/producao` e encomenda).
-  O evento não tem esse elo hoje; o único é o ponteiro da camada.
-- **Excluir qualquer card remove o LOTE INTEIRO** (dono, 2026-09-01), com aviso do tamanho.
-  Substitui a regra atual, que quebra nos **dois** sentidos ([ProductionPage.tsx:373](../src/features/pricing-calculator/components/ProductionPage.tsx)):
-  card secundário deixa o custo do lote inflado; 1º card estorna o acabado e deixa os outros
-  eventos órfãos. ⚠ Muda comportamento da tela de todo dia.
-- **A camada carrega a REPARTIÇÃO** `{A1: 2h, X2D: 1h}`, cobrindo todos os eventos da submissão.
-  O `sourceEventId` aponta só pro 1º (`built[0].id`) — ele **nunca** poderá responder "quem
-  imprimiu". Fusão de camadas soma repartições (regra do breakdown: só sobrevive se TODAS trouxerem).
-- **Venda:** `machineUsage` sai do `saleContext` e passa a ser calculado na **reconciliação** — dos
-  eventos (encomenda) ou das camadas drenadas (acabado). Vira **OBRIGATÓRIO** no tipo de escrita
-  (AUD-02: `supplyUpdates` opcional fez a venda não debitar insumo). Lista vazia = "sem origem".
-- **`unattributedUnits` novo, também obrigatório** — unidades sem lastro (D4).
-  🔴 **Sem ele o D4 vira atribuição invisível:** `fraction = share.hours / totalHours` **soma 1 de
-  qualquer jeito**, então o lucro das órfãs é distribuído. A fração passa a ser sobre as horas que
-  cobririam TODAS as unidades.
-- **Saem:** `sale.machineId`, `sale.machineName` e o `machineUsage` do `SaleModalContext` (senão fica
-  carregado e ignorado entre as fases). ✅ Barato: o `SaleModal` **nunca exibe** máquina (só grava,
-  linhas 828-829) e **não existe importação** de CSV de vendas. Recibo e CSV derivam do
-  `machineUsage` pelo helper "A1 +1" do `ProductCatalog`; sem lastro → `—`.
-- **Cai o malabarismo** "depreciação real repartida na proporção da precificada" — fecha follow-up
-  já registrado no `HISTORICO.md`.
-- ⚠ **NÃO aplicar a regra de exclusão no estorno da VENDA** — ele já reverte o conjunto que criou.
-- **Verificação:** preço não muda em NADA (qualquer diferença é bug). Muda o `printedCount` em
-  produto multi-etapa e a redistribuição do payback.
-
-### Fase 2 — Taxa de frota *(o preço)*
 - **`machineId` (produto e etapa) vira CONJUNTO.** Chips viram checkboxes, **todos marcados por
   padrão**; **sem máquina padrão** (era vestígio de o preço precisar de um escalar); mínimo 1;
   conjunto vazio/ids inexistentes → frota inteira + badge de dado órfão (molde TD-009).
@@ -81,6 +52,9 @@ nenhum número pesquisado** — aceita os R$2,187/h da X2D como verdade e muda s
 - **Round-trip (FORM-01/CSV-05):** `buildLoadedProduct` ⇄ `buildProductPayload` · `toSavedProduct` ·
   `parseProductsCsv` + coluna nova com checagem + testes de diff campo a campo. **Maior parte do
   trabalho, e invisível.**
+- **Verificação:** ⚠ a trava de preço da Fase 1 (`frotaFase1.test.ts`) **vai mudar de propósito** —
+  os literais são de antes da taxa de frota. Recalcular os números e trocá-los é parte da Fase 2;
+  reaproveitar o teste sem olhar é o contrário do que ele existe para impedir.
 
 ### Fica de fora (registrado, não esquecido)
 Unificar as horas do custo fixo com a frota · desembaraçar o duplo papel do campo "Máquinas" (fato
@@ -91,8 +65,7 @@ como está** (tirar não simplificaria: o trio `hoursDay`/`daysMonth`/`machines`
 ficaria de qualquer jeito).
 
 **Efeito no dado (Diretriz 7, sem migração):** produto perde `machineId` e entra com todas
-elegíveis; venda perde `machineId`/`machineName`. ⚠ Até o recadastro o ROI mistura atribuição
-**precificada** (vendas antigas) com **real** (novas).
+elegíveis.
 
 ## ▶ Disponível HOJE — as outras duas frentes que não esperam ninguém
 

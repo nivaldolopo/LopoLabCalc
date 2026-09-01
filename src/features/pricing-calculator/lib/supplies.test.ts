@@ -49,6 +49,7 @@ function prod(
     at: 0,
     outcome: "estoque",
     mode: "real",
+    submissionId: "e1",
     productName: "Chaveiro",
     machineId: "a1",
     machineName: "A1",
