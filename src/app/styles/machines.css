@@ -294,13 +294,19 @@
   white-space: nowrap;
 }
 
-/* Peso 0% = fora da média ponderada. Se anuncia em repouso (UX-36). */
+/* Peso 0% ENQUANTO outras pesam = fora da média ponderada. Se anuncia em
+   repouso (UX-36). ⚠ Frota inteira em zero NÃO usa isto: ali a média é simples e
+   todas entram nela — ver o comentário no `MachinesPage`. */
 .fleet-table .fleet-zero td {
   color: var(--muted2);
 }
 
 .fleet-zero-tag {
   color: var(--warn);
+}
+
+.fleet-simples-tag {
+  color: var(--muted2);
 }
 
 .fleet-table .fleet-total td {

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Machine } from "../types";
+import { weightOf } from "../lib/fleet";
 
 type MachineCheckboxesProps = {
   machines: Machine[];
@@ -14,13 +15,14 @@ type MachineCheckboxesProps = {
  *
  * Eram chips de escolha ÚNICA, e a mudança não é cosmética: um chip aceso dizia
  * "é nesta que vai rodar" (e o preço saía do custo dela); a caixa marcada diz
- * "cabe nesta", e o preço é a média ponderada de todas as marcadas. Radio → checkbox
- * é a única forma do controle não continuar prometendo a semântica antiga.
+ * "cabe nesta", e o preço é a média ponderada de todas as marcadas. Radio →
+ * checkbox é a única forma do controle não continuar prometendo a semântica
+ * antiga.
  *
  * ⚠ Desmarcar a ÚLTIMA é no-op de propósito. Um produto sem máquina nenhuma não
  * tem preço definível, e o `validateProduct` o reprovaria só na hora de salvar —
- * longe do clique que causou o problema. O conjunto vazio continua existindo como
- * DADO (os produtos anteriores à fase), só não como algo que se produz aqui.
+ * longe do clique que causou o problema. O conjunto vazio continua existindo
+ * como DADO (os produtos anteriores à fase), só não como algo que se produz aqui.
  */
 export function MachineCheckboxes({
   machines,
@@ -31,6 +33,13 @@ export function MachineCheckboxes({
   const selected = new Set(selectedIds);
   const orphan = selectedIds.length === 0;
 
+  // A soma dos pesos DO SUBCONJUNTO marcado — é ela que decide se a média é
+  // ponderada ou simples, e é sobre ela que a fatia de cada uma se renormaliza.
+  // A frota inteira não serve aqui: marcar duas de três muda a fatia das duas.
+  const pesoMarcado = machines
+    .filter((machine) => selected.has(machine.id))
+    .reduce((sum, machine) => sum + weightOf(machine), 0);
+
   function toggle(id: string, checked: boolean) {
     if (!checked && selected.size <= 1) return;
     const next = machines
@@ -39,6 +48,21 @@ export function MachineCheckboxes({
       )
       .map((machine) => machine.id);
     onChange(next);
+  }
+
+  // O que a máquina contribui, dito do jeito que vale AGORA — sem ele, o dono
+  // não tem como prever o efeito de marcar mais uma.
+  //
+  // ⚠ Com TODOS os pesos do subconjunto em zero a média é SIMPLES, e todas
+  // entram nela. Dizer "0% (fora da média)" em cada uma seria o oposto do que
+  // acontece — foi o que a tela mostrou antes de qualquer peso ser cadastrado,
+  // que é justamente o estado em que o app nasce.
+  function contribuicao(machine: Machine): string {
+    if (!selected.has(machine.id)) return `peso ${weightOf(machine)}%`;
+    if (pesoMarcado <= 0) return "média simples";
+    const peso = weightOf(machine);
+    if (peso <= 0) return "0% — fora da média";
+    return `${Math.round((peso / pesoMarcado) * 100)}% da média`;
   }
 
   return (
@@ -58,11 +82,8 @@ export function MachineCheckboxes({
                 onChange={(event) => toggle(machine.id, event.target.checked)}
               />
               <span className="mname">{machine.name}</span>
-              {/* O peso é o que decide quanto esta máquina puxa a média — sem
-                  ele à vista, o dono não tem como prever o efeito de marcar
-                  mais uma. 0% se anuncia como fora da conta. */}
               <span className="mmeta">
-                {machine.watts}W · {machine.weight > 0 ? `${machine.weight}%` : "0% (fora da média)"}
+                {machine.watts}W · {contribuicao(machine)}
               </span>
             </label>
           );
@@ -72,6 +93,13 @@ export function MachineCheckboxes({
         <p className="machine-orphan-note">
           ⚠ Nenhuma máquina marcada — este produto está sendo precificado pela{" "}
           <strong>frota inteira</strong>. Marque onde ele realmente cabe.
+        </p>
+      ) : null}
+      {!orphan && pesoMarcado <= 0 ? (
+        <p className="machine-orphan-note">
+          ⚠ As máquinas marcadas estão todas com <strong>peso 0%</strong>, então
+          a média está <strong>simples</strong> (todas pesam igual). Defina a
+          proporção de uso em <em>Gerenciar</em> para o preço refletir a frota.
         </p>
       ) : null}
     </>

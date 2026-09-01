@@ -110,6 +110,10 @@ export function PricingCalculator() {
   // começa a corrigir.
   function handleProductChange(patch: Partial<typeof form.product>) {
     if (saveError) setSaveError(null);
+    // [FROTA] Fase 2 — o primeiro toque no conjunto de máquinas desliga o
+    // acompanhamento automático da frota (ver `machinesTouched`, abaixo). Sem
+    // isto, desmarcar uma caixa seria desfeito no render seguinte.
+    if (patch.machineIds) setMachinesTouched(true);
     form.updateProduct(patch);
   }
 
@@ -188,25 +192,39 @@ export function PricingCalculator() {
 
   function resetFormKeepingFixedCosts() {
     setSaveError(null);
+    setMachinesTouched(false);
     form.resetForm(allMachineIds);
     form.updateProduct({
       includeFixed: fixedCosts.enabled,
     });
   }
 
-  // O formulário nasce (useState) antes de as máquinas chegarem do Firestore, e
-  // um produto NOVO tem de acabar com todas marcadas. Ajuste DURANTE o render —
-  // o mesmo padrão do `?load=` acima — e só enquanto não se está editando nada:
+  // Produto NOVO acompanha a FROTA VIVA até o dono mexer no conjunto.
+  //
+  // ⚠ Semear UMA VEZ não serve, e o motivo só aparece no navegador: o
+  // `useMachines` inicia o estado com os `DEFAULT_MACHINES` (2 máquinas) e só
+  // DEPOIS o snapshot do Firestore traz as 3 reais. Uma semeadura de tiro único
+  // roda nas duas primeiras, e a terceira — a A1 Mini — nunca era marcada. Medido
+  // ao vivo: produto novo abria com A1 e X2D marcadas e a Mini de fora, ou seja
+  // com uma restrição que ninguém declarou, e precificado por 2 das 3 impressoras.
+  //
+  // Por isso o gatilho é "o dono TOCOU no conjunto?", não "já semeei?". Enquanto
+  // ele não tocou, o conjunto persegue a lista viva; no primeiro clique numa
+  // caixa o acompanhamento para para sempre (naquele produto).
+  //
+  // Ajuste DURANTE o render — o mesmo padrão do `?load=` acima. Não há laço: o
+  // `updateProduct` deixa a condição falsa. E só vale com o formulário LIVRE:
   // produto CARREGADO com conjunto vazio é dado órfão, não estado por preencher,
   // e semear ali apagaria justamente o aviso que a Fase 2 acende.
-  const [seededMachines, setSeededMachines] = useState(false);
+  const [machinesTouched, setMachinesTouched] = useState(false);
+  const conjuntoAtual = form.product.machineIds ?? [];
   if (
-    !seededMachines &&
-    machines.length > 0 &&
+    !machinesTouched &&
     !form.editingProductId &&
-    (form.product.machineIds ?? []).length === 0
+    machines.length > 0 &&
+    (conjuntoAtual.length !== allMachineIds.length ||
+      allMachineIds.some((id) => !conjuntoAtual.includes(id)))
   ) {
-    setSeededMachines(true);
     form.updateProduct({ machineIds: allMachineIds });
   }
 

@@ -209,8 +209,9 @@ export function MachinesPage() {
             <>
               {" "}
               <span className="fleet-warn">
-                ⚠ Todos os pesos estão em 0%: a média está <strong>simples</strong>
-                . Ajuste em Gerenciar Máquinas, na calculadora.
+                ⚠ Nenhuma máquina tem peso cadastrado, então a média está{" "}
+                <strong>simples</strong> — todas pesam igual. Defina a proporção
+                de uso em <em>Gerenciar Máquinas</em>, na calculadora.
               </span>
             </>
           ) : null}
@@ -228,16 +229,30 @@ export function MachinesPage() {
               </tr>
             </thead>
             <tbody>
-              {frota.linhas.map((linha) => (
+              {frota.linhas.map((linha) => {
+                // ⚠ "Excluída da média" e "média simples" são estados
+                // DIFERENTES, e só o primeiro é problema. Com a frota inteira em
+                // zero não há quem excluir: todas entram, em partes iguais — e
+                // esse é o estado em que o app nasce. Marcar as três como
+                // excluídas ali seria o oposto do que acontece.
+                const excluida =
+                  frota.pesoTotal > 0 && weightOf(linha.machine) <= 0;
+                return (
                 <tr
                   key={linha.machine.id}
-                  className={weightOf(linha.machine) > 0 ? "" : "fleet-zero"}
+                  className={excluida ? "fleet-zero" : ""}
                 >
                   <td>{linha.machine.name}</td>
                   <td className="num mono">
-                    {(linha.share * 100).toFixed(0)}%
-                    {weightOf(linha.machine) > 0 ? null : (
-                      <span className="fleet-zero-tag"> (0%)</span>
+                    {excluida ? (
+                      <span className="fleet-zero-tag">0% — fora da média</span>
+                    ) : (
+                      <>
+                        {(linha.share * 100).toFixed(0)}%
+                        {frota.pesoTotal > 0 ? null : (
+                          <span className="fleet-simples-tag"> simples</span>
+                        )}
+                      </>
                     )}
                   </td>
                   <td className="num mono">
@@ -251,7 +266,8 @@ export function MachinesPage() {
                     {formatCurrency(linha.depreciation + linha.maintenance)}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               <tr className="fleet-total">
                 <td>Frota inteira</td>
                 <td className="num mono">100%</td>

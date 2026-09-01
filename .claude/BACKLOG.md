@@ -150,8 +150,9 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
 - **Excel/Sheets de verdade** — BOM, CRLF, latin-1 e notação científica foram **simulados**. O
   Sheets exigiria login e envio de arquivo.
 - **Exportação de CSV do `/vendas`** — o botão existe e nunca foi exercitado.
-- **iOS Safari real, Firefox** e qualquer navegador fora do Chromium embutido · o **modal de
-  máquinas nas larguras de celular** · a exclusão de produto **offline ao vivo**.
+- **iOS Safari real, Firefox** e qualquer navegador fora do Chromium embutido · a exclusão de
+  produto **offline ao vivo**. ✅ O **modal de máquinas no celular** saiu desta lista: medido a 375px
+  na Fase 2 (4 fileiras no cartão, Excluir 44×44 dentro da caixa, sem rolagem lateral).
 
 ## Ressalvas vivas (não são itens; viram item se o dono mandar)
 

@@ -175,7 +175,32 @@ contém a antiga como caso particular. Os números da taxa de frota de verdade (
 no `frotaFase2.test.ts`, que é a trava nova — e ela guarda outra promessa: *"o preço parou de
 depender de qual impressora estava livre"*.
 
-**Verificação:** 895/895 (26 testes novos), `lint`/`typecheck`/`build` limpos.
+**Verificação:** 895/895 (26 testes novos), `lint`/`typecheck`/`build` limpos — **e o navegador,
+que pegou três coisas que nenhum teste pegaria:**
+
+1. **Produto novo abria com 2 das 3 máquinas marcadas.** O `useMachines` inicia o estado com os
+   `DEFAULT_MACHINES` (2) e só DEPOIS o snapshot do Firestore traz as 3 reais; uma semeadura de tiro
+   único rodava nas duas primeiras e a A1 Mini nunca era marcada — produto novo nascia com uma
+   restrição que ninguém declarou. O gatilho virou *"o dono tocou no conjunto?"*, não *"já semeei?"*:
+   enquanto não tocou, o conjunto persegue a lista viva; no primeiro clique numa caixa o
+   acompanhamento para. ⚠ Teste de unidade não pega isto — o defeito mora na ORDEM em que dois
+   estados assíncronos chegam.
+2. **"0% (fora da média)" em TODAS as máquinas**, que é o oposto do que acontece. Com a frota
+   inteira em zero não há quem excluir: a média é SIMPLES e todas entram nela — e esse é justamente
+   o estado em que o app nasce, antes de qualquer peso ser cadastrado. Corrigido nos três lugares
+   que diziam isso (chips, nota do modal, coluna "Peso" da `/maquinas`), com a distinção explícita
+   entre *excluída* e *média simples*.
+3. **A coluna "Peso" da `/maquinas` mostrava "33% (0%)"** — dois números contraditórios na mesma
+   célula. Virou `33% simples` (frota sem peso), `0% — fora da média` (excluída) ou `40% da média`.
+
+**Medições guardadas** (frota real do dono, pesos ainda em 0 → média simples): A1 Mini R$0,27/h de
+desgaste · A1 R$0,71 · X2D R$1,87; frota R$0,95 + R$0,14 = **R$1,09/h**. Com 30/40/30 seriam R$0,92
++ R$0,14 = R$1,06/h — os literais do `frotaFase2.test.ts` batem com a frota real.
+· `/catalogo`: 6 colunas, cabeçalho e linha com trilhas idênticas, nome ganhou 279,7px, **103 badges
+em 103 produtos** (todos anteriores à fase) · modal a 680px com o Nome em 182px · **modal de
+máquinas a 375px**: 4 fileiras no cartão (Peso na 4ª), Excluir 44×44 dentro da caixa, sem rolagem
+lateral — isto fecha uma das "lacunas de prova" que o BACKLOG listava como nunca medida ·
+`/producao`: linha nasce vazia, borda âmbar, botão travado com o motivo, e destrava ao escolher.
 
 ### CSS — o que a fase mexeu
 

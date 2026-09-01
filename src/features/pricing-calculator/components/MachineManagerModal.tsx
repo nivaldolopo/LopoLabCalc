@@ -241,8 +241,19 @@ export function MachineManagerModal({
       </button>
       {/* Os pesos NÃO precisam somar 100 — a fórmula renormaliza dentro do
           subconjunto elegível de cada produto. O que precisa de aviso é o peso
-          ZERO, que tira a máquina da média sem que nada na tela diga. */}
-      {zeradas.length > 0 ? (
+          ZERO, que tira a máquina da média sem que nada na tela diga.
+          ⚠ E os dois casos são DIFERENTES: com a frota INTEIRA em zero não há
+          quem excluir, a média vira simples e todas entram nela. Dizer "não
+          entram na média" ali seria o oposto do que acontece — e esse é
+          justamente o estado em que o app nasce, antes de qualquer peso ser
+          cadastrado. */}
+      {zeradas.length > 0 && zeradas.length === draft.length ? (
+        <div className="machine-weight-note">
+          ⚠ Nenhuma máquina tem peso: a média da frota está{" "}
+          <strong>simples</strong> (todas pesam igual). Defina a proporção de uso
+          de cada uma para o preço refletir a frota de verdade.
+        </div>
+      ) : zeradas.length > 0 ? (
         <div className="machine-weight-note">
           ⚠ {zeradas.length === 1 ? "A máquina" : "As máquinas"}{" "}
           <strong>{zeradas.map((m) => m.name || "sem nome").join(", ")}</strong>{" "}
