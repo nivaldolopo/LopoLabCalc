@@ -31,7 +31,15 @@ function toSavedProduct(id: string, data: DocumentData): SavedProduct {
     mainStageName: data.mainStageName ?? "",
     weightG: Number(data.weightG) || 0,
     printHours: Number(data.printHours) || 0,
-    machineId: data.machineId ?? "a1",
+    // [FROTA] Fase 2 — o conjunto de máquinas elegíveis. Ausente (todo doc
+    // anterior à fase, que guardava um `machineId` escalar) vira lista VAZIA:
+    // o cálculo cai na frota inteira e o badge de dado órfão acende. Diretriz 7
+    // — não há migração, o dono recadastra.
+    machineIds: Array.isArray(data.machineIds)
+      ? data.machineIds.filter(
+          (id: unknown): id is string => typeof id === "string" && id !== "",
+        )
+      : [],
     // FEAT-02: cores por produto (etapa principal). Ausente em docs legados →
     // `calculatePricing`/form migram a partir do escalar `weightG`/preço abaixo.
     filaments: Array.isArray(data.filaments) ? data.filaments : undefined,

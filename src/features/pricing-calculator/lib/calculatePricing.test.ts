@@ -12,7 +12,13 @@ import type {
 } from "../types";
 
 function makeProduct(overrides: Partial<ProductInput> = {}): ProductInput {
-  return { ...DEFAULT_PRODUCT_INPUT, ...overrides };
+  // [FROTA] Fase 2 — o `DEFAULT_PRODUCT_INPUT` nasce com `machineIds: []` (ele
+  // não conhece a frota viva; quem marca todas é o formulário). A cobaia declara
+  // a A1 explicitamente para os números abaixo continuarem sendo os da A1 pura —
+  // um conjunto UNITÁRIO tem média ponderada igual ao seu único membro, então a
+  // taxa de frota reduz ao custo daquela máquina. Quem exercita conjunto de 2+ é
+  // o `frotaFase2.test.ts`.
+  return { ...DEFAULT_PRODUCT_INPUT, machineIds: ["a1"], ...overrides };
 }
 
 // Cor do Estoque para os testes de preço vivo (7c). Rolos na ordem informada.
@@ -57,7 +63,10 @@ describe("calculatePricing — componentes de custo", () => {
     expect(r.depreciationCost).toBeCloseTo(2.1196, 4); // (5299/7500)*3 — DEC-02
     expect(r.maintenanceCost).toBeCloseTo(0.36, 6); // 3*0.12
     expect(r.laborCost).toBeCloseTo(5, 6); // (10/60)*30
-    expect(r.machine.id).toBe("a1");
+    // [FROTA] Fase 2 — não há mais UMA máquina: há o conjunto elegível. Este
+    // produto declara só a a1, então a taxa de frota é a da a1 pura — e é por
+    // isso que os componentes acima seguem idênticos aos de antes da fase.
+    expect(r.eligibleMachines.map((m) => m.id)).toEqual(["a1"]);
   });
 
   it("reserva de falha infla o custo variável e some com taxa 0", () => {
@@ -192,7 +201,7 @@ describe("calculatePricing — múltiplas etapas / máquinas", () => {
   // onde ser digitado, e a produção (que sempre usou a do produto) discordaria.
   it("ignora tarifa/valor-hora repetidos na etapa por documento antigo", () => {
     const stage = {
-      machineId: "x2d",
+      machineIds: ["x2d"],
       weightG: 20,
       printHours: 1,
       filamentPricePerKg: 110,
@@ -220,12 +229,12 @@ describe("calculatePricing — múltiplas etapas / máquinas", () => {
     expect(comLixo.suggestedPrice).toBeCloseTo(limpo.suggestedPrice, 6);
   });
 
-  it("soma etapa extra nas mesmas categorias e reparte uso por máquina", () => {
+  it("soma etapa extra nas mesmas categorias e une os conjuntos elegíveis", () => {
     const r = calculatePricing(
       makeProduct({
         stages: [
           {
-            machineId: "x2d",
+            machineIds: ["x2d"],
             weightG: 20,
             printHours: 1,
             filamentPricePerKg: 110,
@@ -238,10 +247,11 @@ describe("calculatePricing — múltiplas etapas / máquinas", () => {
     );
     expect(r.stagesCount).toBe(1);
     expect(r.materialCost).toBeCloseTo(6.6, 6); // 4,4 (a1) + 2,2 (x2d)
-    // Uma entrada de uso por máquina participante.
-    expect(r.machineUsage).toHaveLength(2);
-    const ids = r.machineUsage.map((u) => u.machineId).sort();
-    expect(ids).toEqual(["a1", "x2d"]);
+    // ⚠ [FROTA] Fase 2 — era `machineUsage` (horas/depreciação POR máquina), e
+    // ele saiu do resultado: a precificação não sabe quem imprimiu. O que sobra
+    // é o conjunto ELEGÍVEL, a união do da principal com o de cada etapa — a
+    // pergunta que ela de fato responde ("onde pode rodar").
+    expect(r.eligibleMachines.map((m) => m.id)).toEqual(["a1", "x2d"]);
   });
 });
 
@@ -294,7 +304,7 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
         ],
         stages: [
           {
-            machineId: "a1",
+            machineIds: ["a1"],
             printHours: 1,
             laborMinutes: 0,
             filaments: [
@@ -332,7 +342,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
       stages: [
         {
           id: "s1",
-          machineId: "a1",
+          machineIds: ["a1"],
           printHours: 1,
           laborMinutes: 0,
           filaments: [
@@ -397,7 +407,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
         stages: [
           {
             id: "s1",
-            machineId: "a1",
+            machineIds: ["a1"],
             printHours: 1,
             laborMinutes: 0,
             filaments: [
@@ -406,7 +416,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
           },
           {
             id: "s2", // interna: não está em nenhum subitem
-            machineId: "a1",
+            machineIds: ["a1"],
             printHours: 2,
             laborMinutes: 0,
             filaments: [
@@ -487,7 +497,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
         stages: [
           {
             id: "s1",
-            machineId: "a1",
+            machineIds: ["a1"],
             printHours: 0,
             laborMinutes: 0,
             filaments: [
@@ -515,15 +525,20 @@ describe("calculatePricing — máquina órfã (TD-009)", () => {
     expect(r.machineMissing).toBe(false);
   });
 
-  it("sinaliza e cai no fallback (1ª máquina) quando o machineId não existe", () => {
+  it("sinaliza e cai na FROTA INTEIRA quando nenhum id do conjunto existe", () => {
     const r = calculatePricing(
-      makeProduct({ machineId: "inexistente" }),
+      makeProduct({ machineIds: ["inexistente"] }),
       DEFAULT_MACHINES,
       NO_FIXED,
     );
     expect(r.machineMissing).toBe(true);
-    // Fallback: usa a 1ª máquina para não quebrar o preço.
-    expect(r.machine.id).toBe(DEFAULT_MACHINES[0].id);
+    // ⚠ [FROTA] Fase 2 — o fallback deixou de ser "a 1ª máquina" e passou a ser
+    // a frota INTEIRA. A 1ª máquina era um palpite que se disfarçava de escolha;
+    // a média de todas é o mesmo default que um produto sem restrição tem, e
+    // aqui o `machineMissing` diz que ele não foi declarado.
+    expect(r.eligibleMachines.map((m) => m.id)).toEqual(
+      DEFAULT_MACHINES.map((m) => m.id),
+    );
   });
 
   it("sinaliza quando a máquina órfã está numa etapa extra", () => {
@@ -531,7 +546,7 @@ describe("calculatePricing — máquina órfã (TD-009)", () => {
       makeProduct({
         stages: [
           {
-            machineId: "inexistente",
+            machineIds: ["inexistente"],
             weightG: 20,
             printHours: 1,
             filamentPricePerKg: 110,
@@ -620,7 +635,7 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
       makeProduct({
         stages: [
           {
-            machineId: "a1",
+            machineIds: ["a1"],
             printHours: 1,
             laborMinutes: 0,
             filaments: [
@@ -641,7 +656,7 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
 // TD-024 (AUD-12) — lista de máquinas VAZIA lançava TypeError.
 // ---------------------------------------------------------------------------
 describe("TD-024 — lista de máquinas vazia não derruba o preço", () => {
-  const produto = makeProduct({ weightG: 40, printHours: 3, machineId: "a1" });
+  const produto = makeProduct({ weightG: 40, printHours: 3, machineIds: ["a1"] });
 
   it("não lança, e marca a máquina como ausente", () => {
     const r = calculatePricing(produto, [], NO_FIXED);

@@ -34,12 +34,27 @@ import type {
 // [FROTA] Fase 1 — o ROI passa a atribuir por quem IMPRIMIU, não por quem foi
 // precificado. A promessa da fase é dupla, e este arquivo cobre as duas:
 //
-//  1. O PREÇO NÃO MUDA. Nada aqui toca `calculatePricing`, e a trava abaixo é
-//     literal: se um centavo se mexer, é bug — não é "o teste ficou velho".
+//  1. O PREÇO NÃO MUDA. A trava abaixo é literal: se um centavo se mexer, é bug
+//     — não é "o teste ficou velho".
 //  2. A repartição em N eventos (uma linha por ETAPA) não muda o DINHEIRO da
 //     produção; muda só a atribuição. O que era 1 evento agrupado por máquina
 //     vira N eventos que somam exatamente o mesmo custo, as mesmas gramas e a
 //     mesma mão de obra.
+//
+// ⚠ A FASE 2 PASSOU POR AQUI, e o que ela mudou tem de ser dito, porque o
+// BACKLOG previa o contrário ("os literais são de antes da taxa de frota;
+// recalcular faz parte da tarefa"):
+//
+//   · O KIT declara UM conjunto de UMA máquina por etapa (`machineIds: ["a1"]`,
+//     `["x2d"]`) — exatamente as impressoras que ele nomeava como escalar. Um
+//     conjunto unitário tem média ponderada igual ao único membro, então a taxa
+//     de frota REDUZ ao custo daquela máquina e **os literais não se mexeram**.
+//     Isso não é o teste ficando velho: é a prova de que a matemática nova
+//     contém a antiga como caso particular. Os números da taxa de frota de
+//     verdade (conjuntos de 2+) vivem no `frotaFase2.test.ts`.
+//   · A repartição PRECIFICADA por máquina saiu do resultado — a precificação
+//     não responde mais "quem imprimiu". O que sobrou no lugar dela está no
+//     último teste da seção 1.
 // ---------------------------------------------------------------------------
 
 // Um produto que exercita tudo de uma vez: 3 etapas, DUAS delas na MESMA máquina
@@ -50,7 +65,7 @@ const KIT = {
   id: "kit",
   name: "Kit",
   piecesCount: 2,
-  machineId: "a1",
+  machineIds: ["a1"],
   printHours: 3,
   laborMinutes: 10,
   laborRate: 30,
@@ -63,7 +78,7 @@ const KIT = {
     {
       id: "s1",
       name: "Tampa",
-      machineId: "a1", // a MESMA da principal — o caso do printedCount
+      machineIds: ["a1"], // a MESMA da principal — o caso do printedCount
       printHours: 1,
       laborMinutes: 5,
       filaments: [{ colorName: "Vermelho", pricePerKg: 120, totalG: 20 }],
@@ -71,7 +86,7 @@ const KIT = {
     {
       id: "s2",
       name: "Base",
-      machineId: "x2d",
+      machineIds: ["x2d"],
       printHours: 2,
       laborMinutes: 0,
       filaments: [{ colorName: "Preto", pricePerKg: 90, totalG: 40 }],
@@ -123,25 +138,15 @@ describe("[FROTA] Fase 1 — o preço NÃO muda", () => {
     expect(corpo.cost + base.cost).toBeCloseTo(r.totalCost, 10);
   });
 
-  it("a repartição PRECIFICADA por máquina continua igual — ela só deixou de ir para a venda", () => {
-    // A Fase 1 não mexeu no `PricingResult.machineUsage`: ele segue existindo
-    // para o `/catalogo` dizer em que máquinas o produto PODE rodar. O que mudou
-    // é que a VENDA parou de copiá-lo — ela agora pergunta a quem imprimiu.
+  it("a precificação diz onde o produto PODE rodar — e só isso", () => {
+    // A Fase 1 tirou o `machineUsage` da VENDA e o deixou no resultado, para o
+    // /catalogo. A Fase 2 tirou dali também: horas e depreciação POR MÁQUINA
+    // pressupõem que alguém atribuiu a impressora na hora de precificar, e é
+    // essa atribuição que a taxa de frota desfez. Sobrou o conjunto ELEGÍVEL, a
+    // união do da etapa principal com o de cada extra.
     const r = calculatePricing(KIT, MACHINES, DEFAULT_FIXED_COSTS, []);
-    expect(r.machineUsage).toEqual([
-      {
-        machineId: "a1",
-        machineName: "A1 Combo",
-        hours: 2,
-        depreciation: 1.4130666666666667,
-      },
-      {
-        machineId: "x2d",
-        machineName: "X2D Combo",
-        hours: 1,
-        depreciation: 1.8665333333333334,
-      },
-    ]);
+    expect(r.eligibleMachines.map((m) => m.id)).toEqual(["a1", "x2d"]);
+    expect(r.machineMissing).toBe(false);
   });
 });
 
@@ -156,13 +161,15 @@ function linhasAgrupadasPorMaquina(product: SavedProduct): EventRow[] {
   const porMaquina = new Map<string, EventRow>();
   const etapas = [
     {
-      machineId: product.machineId,
+      machineId: product.machineIds[0],
+      fleetMachineIds: product.machineIds,
       printHours: product.printHours,
       filaments: product.filaments ?? [],
       labor: (product.laborMinutes / 60) * product.laborRate,
     },
     ...(product.stages ?? []).map((stage) => ({
-      machineId: stage.machineId,
+      machineId: stage.machineIds[0],
+      fleetMachineIds: stage.machineIds,
       printHours: stage.printHours,
       filaments: stage.filaments ?? [],
       labor: ((stage.laborMinutes ?? 0) / 60) * product.laborRate,
@@ -180,6 +187,7 @@ function linhasAgrupadasPorMaquina(product: SavedProduct): EventRow[] {
         productName: product.name,
         productId: product.id,
         machineId: etapa.machineId,
+        fleetMachineIds: etapa.fleetMachineIds,
         printHours: etapa.printHours,
         filaments: etapa.filaments.map((f) => resolveFilRow(f, [])),
         laborCost: etapa.labor,
@@ -310,7 +318,7 @@ describe("[FROTA] Fase 1 — subitem também vira uma linha por etapa", () => {
         {
           id: "s3",
           name: "Lixamento",
-          machineId: "a1",
+          machineIds: ["a1"],
           printHours: 0.5,
           laborMinutes: 30,
           filaments: [],
@@ -379,14 +387,14 @@ const PECA = {
   id: "peca",
   name: "Peça",
   piecesCount: 1,
-  machineId: "a1",
+  machineIds: ["a1"],
   printHours: 3,
   filaments: [{ colorName: "Azul", pricePerKg: 100, totalG: 60 }],
   stages: [
     {
       id: "s2",
       name: "Base",
-      machineId: "x2d",
+      machineIds: ["x2d"],
       printHours: 2,
       laborMinutes: 0,
       filaments: [{ colorName: "Preto", pricePerKg: 90, totalG: 40 }],

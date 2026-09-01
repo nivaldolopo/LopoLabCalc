@@ -10,25 +10,29 @@
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-09-01): [FROTA] Fase 1 fechada — o ROI atribui por quem IMPRIMIU.**
-  Uma linha por **etapa** (conserta o `printedCount`) · `submissionId` liga o lote e **excluir
-  qualquer card apaga o lote inteiro** · a camada carrega a repartição, a venda a congela na
-  reconciliação · saíram `sale.machineId`/`machineName` e a máquina do `SaleModalContext` · caiu o
-  malabarismo "depreciação real na proporção da precificada". **O preço não mudou, e há teste
-  literal disso** (`frotaFase1.test.ts`; 848/848 no total).
-  ⚠ **Avaliadas e DESCARTADAS, não repropor:** mexer em `lifeHours` (é o **DEC-02** do dono) e criar
-  `residualValue` — ajustar entrada depois de ver a saída é encaixar premissa no resultado querido.
-- **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
-  **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**). Custo real **decomponível ponta a
-  ponta** (produção → acabado → venda), e o ROI já o lê — agora pela máquina certa.
+- **Última mudança (2026-09-01): [FROTA] Fase 2 fechada — a TAXA DE FROTA.** A mesma peça saía por
+  **R$33,06 / 37,45 / 49,01** conforme a impressora livre; hoje `machineId` (produto e etapa) é
+  **conjunto** e o preço é a média ponderada da frota elegível. Saíram `MachineUsage` da
+  precificação, a coluna "Máquina" da tabela do `/catalogo` e o gargalo por máquina da capacidade;
+  `/maquinas` ganhou o **cartão de R$/h**. **895/895** — regra viva nos Pontos-chave.
+  ⚠ **A trava da Fase 1 não mudou de número:** conjunto UNITÁRIO reduz à máquina única, prova de que
+  a matemática nova contém a antiga. A trava da fase é o `frotaFase2.test.ts`.
+  ⚠ **Avaliadas e DESCARTADAS, não repropor:** `lifeHours` por máquina (**DEC-02**), `residualValue`,
+  peso em **horas/dia** (2ª fonte da verdade contra o custo fixo — D6.1) e chutar a de maior peso na
+  `/producao` (palpite que ninguém confere = ROI errado, calado).
+- **Contexto macro:** **✅ TIER 1** e **✅ [FROTA] (fases 1 e 2)** fechados. Custo real decomponível
+  ponta a ponta; o ROI lê pela máquina certa, e o PREÇO não depende mais de quem estava livre.
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
   destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta.
-- **▶ PRÓXIMA TAREFA — [FROTA] Fase 2 (a taxa de frota, o PREÇO).** `machineId` vira **conjunto** ·
-  **cada componente com a sua média ponderada**, nunca ratear um total · `Machine.weight` em **%
-  puro** (30/40/30; horas criariam 2ª fonte da verdade — D6.1) · peso zero → média simples · o
-  round-trip (FORM-01/CSV-05) é a maior parte do trabalho. ⚠ **A trava de preço da Fase 1 VAI mudar
-  de propósito** — recalcular os literais faz parte da tarefa. **Escopo: `BACKLOG.md`.** FEAT-03 sem
-  logo e regras do Firestore seguem disponíveis, sem competir.
+- **▶ PRÓXIMA TAREFA — não há item de código pendente.** Disponíveis: **FEAT-03 sem logo** (5
+  sementes do PDF) e **AUD-08** (regras do Firestore — exige 2ª conta Google, quem destrava é o
+  dono). O resto espera logo, cadastro ou ~1-2 meses de venda. **Escopo: `BACKLOG.md`.**
+- ⚠ **A `/producao` agora PERGUNTA a máquina** quando o produto é elegível a mais de uma (decisão do
+  dono, 2026-09-01: *"vazia só quando há dúvida"*). Uma elegível → já vem preenchida. Sem escolher,
+  o botão Registrar fica travado com o motivo na tela. Não é bug.
+- ⚠ **Todo produto anterior à fase entra SEM conjunto** → precificado pela **frota inteira**, com
+  badge de dado órfão (Diretriz 7 — sem migração; o dono recadastra). Os **pesos 30/40/30 precisam
+  ser digitados** em Gerenciar Máquinas: doc antigo não tem o campo e vale 0 → média simples.
 - ⚠ **A frente do DONO:** cadastrar **cores e insumos**, **religar os acessórios** e passar os ids
   pro sistema externo dele — a spec sai **comigo no chat** depois do cadastro (detalhe no
   `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, sem trava.** ⚠ Acessório sem baixa *não é bug, é
@@ -55,7 +59,7 @@ src/app/          # App Router. layout.tsx · page.tsx (calculadora) · catalogo
 src/features/pricing-calculator/
   components/     # calculadora: PricingCalculator (raiz) + ProductForm + PricingResultCard +
                   #   CapacityPanel/MachineSelector/FixedCostsPanel/Accessories/ExtraStages/
-                  #   Subitems/LinksSection
+                  #   Subitems/LinksSection + MachineCheckboxes (as elegíveis)
                   # uma por rota: CatalogPage(+ProductCatalog) · SalesPage · QuotePage ·
                   #   MachinesPage · ProductionPage · StockPage (abas) + SuppliesTab
                   # venda: SaleModal + SaleFlow (a fiação, usada pelas 2 páginas)
@@ -68,6 +72,7 @@ src/features/pricing-calculator/
                   #   coleção: useSales/useSupplies/useStock/useProduction/useFinishedGoods/
                   #   useQuotes/useQuoteConfig/useFees
   lib/            # TODA a matemática, pura. calculatePricing · calculateCapacity ·
+                  #   fleet (taxa de frota: média ponderada por componente) ·
                   #   validateProduct · productCsv · idTable (de-para nome→id, TSV) ·
                   #   fifo (ordem + overdraft D4) → stock (g) + supplies (unidades) ·
                   #   production (baixa por evento + custo congelado, em 3 escalas) ·
@@ -115,31 +120,27 @@ src/lib/
 - **Cabeçalho, introdução e MODAL são COMPONENTE** — `PageHeader`, `PageIntro`, `Modal`. Modal novo
   não escreve `.modal-overlay` na mão: usa o `<Modal>` e ganha papel, Escape, trava de rolagem e ✕.
 - **Título de seção é `<h2>`, não `<div>`** (UX-29) — o `base.css` zera heading, trocar a tag não
-  move pixel. **Foco é `:focus-visible` + `--focus-ring`** (UX-31), de graça. **Alvo pequeno cresce
-  por `padding`/`min-height` + margem negativa igual** (UX-28/UX-37): 44px no celular, 32 no
-  desktop. **Botão só-ícone precisa de `aria-label`** (A11Y-01) — e em fileira repetida ele **nomeia
-  o quê** ("Excluir ovo fidget"), porque é lido fora de qualquer contexto visual; o `title` fica com
-  o texto curto do hover. Steppers `.num-spin` são exceção: `aria-hidden`, não são alvo.
+  move pixel. **Foco é `:focus-visible` + `--focus-ring`** (UX-31). **Alvo pequeno cresce por
+  `padding`/`min-height` + margem negativa igual** (UX-28/UX-37): 44px no celular, 32 no desktop.
+  **Botão só-ícone precisa de `aria-label`** (A11Y-01) — em fileira repetida ele **nomeia o quê**
+  ("Excluir ovo fidget"), porque é lido fora de contexto visual; o `title` fica com o hover.
+  Steppers `.num-spin` são exceção: `aria-hidden`, não são alvo.
   ⚠ As armadilhas medidas dessas 7 regras (tingimento a 10%, `transition` na leitura de cor, guarda
   de `grid-template-columns` em media query, `> tbody` ao desmontar tabela, especificidade do
   `@media`) estão no [`HISTORICO.md`](.claude/HISTORICO.md), em "Regras de CSS/UI".
-- **Máquinas são compartilhadas entre dispositivos** (doc `config/machines`, realtime): editar
-  watts/`lifeHours` recalcula energia e desgaste de TODOS os produtos, que guardam só o `machineId`.
-  `useMachines` semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
 - **Função que REMONTA objeto salvo copia TODO campo — ou come dado calado** (FORM-01/RT-01): o par
   `buildLoadedProduct` ⇄ `buildProductPayload` (puros e exportados, `usePricingForm.ts` /
   `lib/productPayload.ts`), o `toSavedProduct` e o `parseProductsCsv`; o que falta vira `null` no
-  save seguinte. Campo novo entra em **todos** os lados no mesmo commit.
-  ⚠ **Preço não é canário** (o `supplyId` sumia sem mover um centavo): o teste é **diff campo a
-  campo do documento** — `productPayload.test.ts` (form) e `productCsvRoundTrip.test.ts` (CSV); e
-  diff de célula JSON exige **stringify canônico** (o Firestore não preserva ordem de chave em mapa,
-  e comparar o texto dá falso positivo). **Tarifa e valor-hora são do PRODUTO**, nunca da etapa. O
-  **`id` não é campo do documento** — é o caminho. O export escreve etapa **normalizada**, não crua.
-  ⚠ **A importação de CSV AVISA, não engole** (CSV-05): coluna nova que possa falhar calada entra
-  com a checagem dela no mesmo commit. ⚠ **Campo OPCIONAL num tipo de escrita é omissão silenciosa
-  esperando acontecer** (AUD-02): o `SaleModal` montava o `ReciboWrite` sem `supplyUpdates` e o
-  TypeScript não reclamava — a venda não debitava insumo. Campo que o repositório grava é
-  **obrigatório**; lista vazia é a forma de dizer "nada".
+  save seguinte. Campo novo entra em **todos** os lados no mesmo commit, gravado EXPLÍCITO (chave de
+  carona num spread é a que some). ⚠ **Preço não é canário** — o teste é **diff campo a campo do
+  documento** (`productPayload.test.ts` e `productCsvRoundTrip.test.ts`), e diff de célula JSON exige
+  **stringify canônico** (o Firestore não preserva ordem de chave em mapa). **Tarifa e valor-hora são
+  do PRODUTO**, nunca da etapa; o **`id` não é campo do documento**, é o caminho; o export escreve
+  etapa **normalizada**, não crua. ⚠ **A importação de CSV AVISA, não engole** (CSV-05): coluna nova
+  que possa falhar calada entra com a checagem dela no mesmo commit — e renomear coluna pede `alias`
+  na passada EXATA, senão o nome que o app mesmo escrevia vira "lido por aproximação".
+  ⚠ **Campo OPCIONAL num tipo de escrita é omissão silenciosa esperando acontecer** (AUD-02): campo
+  que o repositório grava é **obrigatório**; lista vazia é a forma de dizer "nada".
 - **Normalizar ANTES de validar é como o dado errado entra calado** (AUD-16 [E1]/[E2]): coluna nova
   **não corrige** valor (um `Math.max(0, …)` fazia `-1` virar 0, plausível e sem aviso) — entrega
   cru e deixa o `validateProduct`, a MESMA função do formulário, reprovar. No JSON, texto passa por
@@ -149,12 +150,19 @@ src/lib/
 - **Estoque sem lote NÃO é exceção: a dívida vira LOTE DE ACERTO** (AUD-16 [E7]) — `simulateFifo`
   precisa de um lote onde empurrar o negativo do D4. `planProduction`/`planSupplies` materializam o
   lote (0 g/un, preço do cadastro, `note`) ANTES de simular; daí em diante não há caso especial.
-- **Atribuir MÁQUINA é papel da RECONCILIAÇÃO, não da precificação** ([FROTA] Fase 1): a
-  precificação diz onde o produto *pode* rodar; quem *imprimiu* sai dos eventos (encomenda) ou das
-  camadas drenadas (acabado). **Um evento = uma etapa.** Na venda, `machineUsage` e
-  `unattributedUnits` são **obrigatórios** (vazio = "sem lastro"); na CAMADA a ausência É o dado, e
-  vazio não se grava. 🔴 Sem `unattributedUnits` o D4 vira atribuição invisível (`horas ÷ total`
-  soma 1 e ratearia o lucro das órfãs). Excluir produção apaga o **lote** (`submissionId`).
+- **"PODE rodar" (conjunto, do produto/etapa) ≠ "RODOU" (escalar, do evento)** — as duas fases do
+  [FROTA], e a regra que não se desfaz. A precificação lê `machineIds` e cobra a **taxa de frota**
+  (média ponderada por `Machine.weight`, **por componente** — ratear um total só dá mistura sem
+  significado); quem imprimiu sai dos eventos (encomenda) ou das camadas drenadas (acabado).
+  **Um evento = uma etapa = UMA máquina.** Conjunto vazio/órfão → frota inteira + badge (TD-009);
+  soma de pesos 0 → média simples (senão `NaN`). Na venda, `machineUsage` e `unattributedUnits` são
+  **obrigatórios** (vazio = "sem lastro"); na CAMADA a ausência É o dado, e vazio não se grava.
+  🔴 Horas sem máquina NUNCA entram no `machineUsage` com id vazio: `horas ÷ total` fecharia em 1
+  sobre as conhecidas e ratearia a elas o lucro das órfãs. Evento sem máquina custa a **frota** (a
+  mesma taxa do preço) e conta como órfão. Excluir produção apaga o **lote** (`submissionId`).
+  ⚠ As máquinas são COMPARTILHADAS entre dispositivos (doc `config/machines`, realtime): editar
+  watts/`lifeHours`/`weight` reprecifica TODOS os produtos, que guardam só os ids. `useMachines`
+  semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
 - **Snapshot que CHEGA não é prova de servidor** (AUD-15 [E4]): offline o `onSnapshot` serve do
   cache pelo mesmo callback de sucesso. Assinatura de coleção pede `COM_METADATA` e repassa
   `snapshot.metadata`; quem decide o chip é o `cloudStatusOf` — nunca o `navigator.onLine`. ⚠ E

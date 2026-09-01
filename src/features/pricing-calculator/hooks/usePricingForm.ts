@@ -38,13 +38,20 @@ function cloneDefaultProduct(): ProductInput {
 
 // Exportada só para teste, mesmo motivo do `createAccessory`: é ela que
 // reconstrói a etapa ao CARREGAR um produto salvo.
-export function createStage(index: number, data?: Partial<PrintStage>): PrintStage {
+export function createStage(
+  index: number,
+  data?: Partial<PrintStage>,
+  // [FROTA] Fase 2 — o conjunto com que uma etapa NOVA nasce: todas as máquinas
+  // da frota viva, que o chamador conhece e este módulo não. O default `[]` é só
+  // para dado carregado (que traz o próprio conjunto) e para os testes.
+  defaultMachineIds: string[] = [],
+): PrintStage {
   return {
     // FEAT-01: preserva o id salvo (os `stageKeys` dos subitens referenciam-no);
     // só gera um novo quando a etapa nasce sem id.
     id: data?.id ?? `stage_${Date.now()}_${index}`,
     name: data?.name ?? "",
-    machineId: data?.machineId ?? "a1",
+    machineIds: data?.machineIds ?? [...defaultMachineIds],
     printHours: data?.printHours ?? 0,
     laborMinutes: data?.laborMinutes ?? 0,
     filaments: withFilamentIds(
@@ -88,6 +95,9 @@ export function buildLoadedProduct(savedProduct: SavedProduct): ProductInput {
   return {
     ...cloneDefaultProduct(),
     ...savedProduct,
+    // Mesmo motivo das etapas, no nível do produto: o vazio é DADO, não estado
+    // por preencher. O `?? []` só protege de documento sem a chave.
+    machineIds: savedProduct.machineIds ?? [],
     filaments: withFilamentIds(normalizeFilaments(savedProduct)),
     // RT-02: etapa salva SEM `id` recebe a chave POSICIONAL — a mesma que o
     // `stageKeyFor` e o export já usam (`stage_${index}`). Deixar o
@@ -97,8 +107,16 @@ export function buildLoadedProduct(savedProduct: SavedProduct): ProductInput {
     // um aviso. Etapa NOVA (criada no formulário) continua nascendo com o id
     // por timestamp — ali o índice não serve, porque remover uma etapa faria a
     // seguinte reusar um id vivo.
+    // [FROTA] Fase 2 — a etapa salva traz o PRÓPRIO conjunto (lista vazia
+    // inclusive, que é como chega toda etapa anterior à fase). Nada de semear
+    // aqui: preencher o vazio ao ABRIR converteria dado órfão em escolha
+    // deliberada, e o badge que avisa disso nunca acenderia.
     stages: (loadedStages ?? []).map((stage, index) =>
-      createStage(index, { ...stage, id: stage.id ?? `stage_${index}` }),
+      createStage(index, {
+        ...stage,
+        id: stage.id ?? `stage_${index}`,
+        machineIds: stage.machineIds ?? [],
+      }),
     ),
     accessories: (savedProduct.accessories ?? []).map((accessory, index) =>
       createAccessory(index, accessory),
@@ -142,10 +160,13 @@ export function usePricingForm() {
     }));
   }
 
-  function addStage(data?: Partial<PrintStage>) {
+  function addStage(data?: Partial<PrintStage>, defaultMachineIds: string[] = []) {
     setProduct((current) => ({
       ...current,
-      stages: [...current.stages, createStage(current.stages.length, data)],
+      stages: [
+        ...current.stages,
+        createStage(current.stages.length, data, defaultMachineIds),
+      ],
     }));
   }
 
@@ -253,10 +274,13 @@ export function usePricingForm() {
     }));
   }
 
-  function resetForm() {
+  // [FROTA] Fase 2 — `defaultMachineIds` = a frota viva. Produto novo nasce com
+  // TODAS as máquinas marcadas (não há mais "máquina padrão"; o preço é a média
+  // da frota, e restringir é a exceção que o dono declara).
+  function resetForm(defaultMachineIds: string[] = []) {
     setEditingProductId(null);
     setEditingProductRev(0);
-    setProduct(cloneDefaultProduct());
+    setProduct({ ...cloneDefaultProduct(), machineIds: [...defaultMachineIds] });
   }
 
   function loadProduct(

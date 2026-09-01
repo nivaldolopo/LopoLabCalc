@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { errorMessage, guardOnline } from "@/lib/errors";
-import { DEFAULT_FIXED_COSTS, DEFAULT_MACHINES } from "../constants";
+import { DEFAULT_FIXED_COSTS } from "../constants";
 import type {
   CapacitySettings,
   FixedCostRate,
@@ -178,12 +178,36 @@ export function PricingCalculator() {
     }));
   }
 
+  // [FROTA] Fase 2 — a frota viva, para produto/etapa NOVOS nascerem com todas as
+  // máquinas marcadas. Não há mais "máquina padrão": o preço é a média da frota,
+  // e restringir é a exceção que o dono declara marcando menos.
+  const allMachineIds = useMemo(
+    () => machines.map((machine) => machine.id),
+    [machines],
+  );
+
   function resetFormKeepingFixedCosts() {
     setSaveError(null);
-    form.resetForm();
+    form.resetForm(allMachineIds);
     form.updateProduct({
       includeFixed: fixedCosts.enabled,
     });
+  }
+
+  // O formulário nasce (useState) antes de as máquinas chegarem do Firestore, e
+  // um produto NOVO tem de acabar com todas marcadas. Ajuste DURANTE o render —
+  // o mesmo padrão do `?load=` acima — e só enquanto não se está editando nada:
+  // produto CARREGADO com conjunto vazio é dado órfão, não estado por preencher,
+  // e semear ali apagaria justamente o aviso que a Fase 2 acende.
+  const [seededMachines, setSeededMachines] = useState(false);
+  if (
+    !seededMachines &&
+    machines.length > 0 &&
+    !form.editingProductId &&
+    (form.product.machineIds ?? []).length === 0
+  ) {
+    setSeededMachines(true);
+    form.updateProduct({ machineIds: allMachineIds });
   }
 
   function buildPayload(includeCreatedAt: boolean): ProductPayload {
@@ -307,9 +331,22 @@ export function PricingCalculator() {
     // TD-020: repassa a falha ao modal, que a mostra em vez de fechar.
     const falha = await saveMachines(nextMachines);
     if (falha) return falha;
-    const fallbackMachine = nextMachines[0] ?? DEFAULT_MACHINES[0];
-    if (!nextMachines.some((machine) => machine.id === form.product.machineId)) {
-      form.updateProduct({ machineId: fallbackMachine.id });
+    // [FROTA] Fase 2 — máquina REMOVIDA some do conjunto do produto e de cada
+    // etapa; o que sobra continua valendo. Antes isto trocava o escalar pelo
+    // fallback (a 1ª da lista), o que reprecificava o produto por uma impressora
+    // que ninguém escolheu. Esvaziar o conjunto é um resultado possível (removeu
+    // a única elegível) e o `validateProduct` avisa na hora de salvar.
+    const vivos = new Set(nextMachines.map((machine) => machine.id));
+    const filtrar = (ids: string[]) => ids.filter((id) => vivos.has(id));
+    const atuais = form.product.machineIds ?? [];
+    if (atuais.some((id) => !vivos.has(id))) {
+      form.updateProduct({ machineIds: filtrar(atuais) });
+    }
+    for (const stage of form.product.stages) {
+      const daEtapa = stage.machineIds ?? [];
+      if (daEtapa.some((id) => !vivos.has(id))) {
+        form.updateStage(stage.id ?? "", { machineIds: filtrar(daEtapa) });
+      }
     }
     return null;
   }
@@ -404,7 +441,7 @@ export function PricingCalculator() {
             supplies={activeSupplies}
             onChange={handleProductChange}
             onManageMachines={() => setMachineModalOpen(true)}
-            onAddStage={form.addStage}
+            onAddStage={() => form.addStage(undefined, allMachineIds)}
             onRemoveStage={form.removeStage}
             onUpdateStage={form.updateStage}
             onAddAccessory={form.addAccessory}

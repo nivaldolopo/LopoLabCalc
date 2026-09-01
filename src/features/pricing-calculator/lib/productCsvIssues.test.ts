@@ -12,8 +12,8 @@ import type {
 // passa a ser contado e mostrado antes de gravar (nada bloqueia).
 
 const machines: Machine[] = [
-  { id: "a1", name: "A1 Combo", price: 3200, lifeHours: 5000, watts: 95, maintenancePerHour: 0.15 },
-  { id: "x2d", name: "X2D Combo", price: 9000, lifeHours: 5000, watts: 150, maintenancePerHour: 0.25 },
+  { id: "a1", name: "A1 Combo", price: 3200, lifeHours: 5000, watts: 95, maintenancePerHour: 0.15, weight: 50 },
+  { id: "x2d", name: "X2D Combo", price: 9000, lifeHours: 5000, watts: 150, maintenancePerHour: 0.25, weight: 50 },
 ];
 const fixedCosts: FixedCostSettings = {
   enabled: true, rent: 1500, other: 0, machines: 2, hoursDay: 10, daysMonth: 26,
@@ -138,7 +138,7 @@ describe("CSV-05 — a importação conta o que engoliu", () => {
       csv({
         ...LINHA_BOA,
         "Etapas JSON": JSON.stringify([
-          { id: "st_1", name: "Tampa", machineId: "a1", printHours: 1, laborMinutes: 0 },
+          { id: "st_1", name: "Tampa", machineIds: ["a1"], printHours: 1, laborMinutes: 0 },
         ]),
         "Vende por Subitens": "sim",
         "Subitens JSON": JSON.stringify([
@@ -322,7 +322,7 @@ describe("auditoria — cor declarada que não pesa nada", () => {
         ...LINHA_BOA,
         "Etapas JSON": JSON.stringify([
           {
-            id: "s1", name: "Tampa", machineId: "a1", printHours: 1, laborMinutes: 5,
+            id: "s1", name: "Tampa", machineIds: ["a1"], printHours: 1, laborMinutes: 5,
             filaments: [{ filamentId: null, colorName: "X", pricePerKg: 90, totalG: 0 }],
           },
         ]),
@@ -357,7 +357,7 @@ describe("auditoria — cor declarada que não pesa nada", () => {
       csv({
         ...LINHA_BOA,
         "Etapas JSON": JSON.stringify([
-          { id: "s1", name: "Montagem", machineId: "a1", printHours: 0, laborMinutes: 20, filaments: [] },
+          { id: "s1", name: "Montagem", machineIds: ["a1"], printHours: 0, laborMinutes: 20, filaments: [] },
         ]),
       }),
       machines,
@@ -973,7 +973,7 @@ describe("CSV-22 — nome da cor × id", () => {
           {
             id: "stage_1",
             name: "Base",
-            machineId: "a1",
+            machineIds: ["a1"],
             printHours: 1,
             laborMinutes: 0,
             filaments: [
@@ -1137,7 +1137,7 @@ describe("AUD-11/D-2 — cor que PESA mas não CUSTA", () => {
         "Etapas JSON": JSON.stringify([
           {
             id: "st",
-            machineId: "a1",
+            machineIds: ["a1"],
             printHours: 1,
             laborMinutes: 0,
             filaments: [{ filamentId: null, colorName: "Tampa", pricePerKg: 0, totalG: 30 }],
@@ -1271,7 +1271,7 @@ describe("CSV-23 — booleano em vocabulário de planilha", () => {
 describe("CSV-24 — o palpite de máquina se anuncia", () => {
   it("nome exato não é palpite: nenhum apontamento", () => {
     const r = parseProductsCsv(csv(LINHA_BOA), machines, opcoes);
-    expect(r.products[0].machineId).toBe("a1");
+    expect(r.products[0].machineIds).toEqual(["a1"]);
     expect(achar(r.issues, "maquina-por-aproximacao")).toBeUndefined();
   });
 
@@ -1285,7 +1285,7 @@ describe("CSV-24 — o palpite de máquina se anuncia", () => {
       machines,
       opcoes,
     );
-    expect(r.products[0].machineId).toBe(id);
+    expect(r.products[0].machineIds).toEqual([id]);
     const issue = achar(r.issues, "maquina-por-aproximacao");
     expect(issue?.linhas).toBe(1);
     expect(issue?.exemplos[0]).toContain(nome);
@@ -1297,18 +1297,21 @@ describe("CSV-24 — o palpite de máquina se anuncia", () => {
       machines,
       opcoes,
     );
-    expect(r.products[0].machineId).toBe("x2d");
+    expect(r.products[0].machineIds).toEqual(["x2d"]);
   });
 
-  it("nome que não casa com nada segue no aviso de fallback, não na classe nova", () => {
+  it("nome que não casa com nada é DESCARTADO — e a classe é outra", () => {
+    // ⚠ [FROTA] Fase 2 — antes ele caía na 1ª máquina, com um `warning` por
+    // linha. Agora o nome é descartado e, como não sobrou ninguém, a linha fica
+    // elegível à frota inteira: o aviso mudou de classe porque o EFEITO mudou.
     const r = parseProductsCsv(
       csv({ ...LINHA_BOA, Maquina: "Prusa MK4" }),
       machines,
       opcoes,
     );
-    expect(r.products[0].machineId).toBe("a1");
+    expect(r.products[0].machineIds).toEqual(machines.map((m) => m.id));
     expect(achar(r.issues, "maquina-por-aproximacao")).toBeUndefined();
-    expect(r.warnings.join(" ")).toContain("não encontrada");
+    expect(achar(r.issues, "maquina-nenhuma-casou")?.linhas).toBe(1);
   });
 });
 
@@ -1608,7 +1611,7 @@ describe("UX-48 — id de máquina é identidade, não palpite", () => {
         machines,
         opcoes,
       );
-      expect(r.products[0].machineId).toBe(nome.trim().toLowerCase());
+      expect(r.products[0].machineIds).toEqual([nome.trim().toLowerCase()]);
       expect(achar(r.issues, "maquina-por-aproximacao")).toBeUndefined();
     },
   );
@@ -1619,7 +1622,7 @@ describe("UX-48 — id de máquina é identidade, não palpite", () => {
       machines,
       opcoes,
     );
-    expect(r.products[0].machineId).toBe("a1");
+    expect(r.products[0].machineIds).toEqual(["a1"]);
     expect(achar(r.issues, "maquina-por-aproximacao")).toBeUndefined();
   });
 
@@ -1637,7 +1640,7 @@ describe("UX-48 — id de máquina é identidade, não palpite", () => {
       machines,
       opcoes,
     );
-    expect(r.products[0].machineId).toBe("a1");
+    expect(r.products[0].machineIds).toEqual(["a1"]);
     expect(achar(r.issues, "maquina-por-aproximacao")?.linhas).toBe(1);
   });
 });
@@ -2147,7 +2150,7 @@ describe("AUD-16 [E4] — a FORMA do JSON: nem estoura, nem grava tipo errado", 
       csv({
         ...LINHA_BOA,
         "Etapas JSON": JSON.stringify([
-          { id: "st2", name: "Pintura", machineId: "a1", printHours: 1, laborMinutes: 10,
+          { id: "st2", name: "Pintura", machineIds: ["a1"], printHours: 1, laborMinutes: 10,
             filaments: [{ filamentId: "cor_laranja", colorName: "Laranja", pricePerKg: 110, totalG: 10 }] },
         ]),
       }),

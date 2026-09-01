@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import { computeMachineRoi, type MachineRoi } from "../lib/machineRoi";
+import { depreciationPerHourOf, resolveFleet, weightOf } from "../lib/fleet";
 import { useMachines } from "../hooks/useMachines";
 import { useProduction } from "../hooks/useProduction";
 import { useSales } from "../hooks/useSales";
@@ -86,6 +87,28 @@ export function MachinesPage() {
     () => computeMachineRoi(machines, sales, production),
     [machines, sales, production],
   );
+
+  // [FROTA] Fase 2 — a taxa de frota, só-leitura. O R$/h de cada máquina era
+  // invisível em QUALQUER tela do app: o preço saía dele, ninguém o via, e a
+  // diferença de 7× entre a Mini e a X2D só aparecia depois, no preço final.
+  // A frota INTEIRA é o denominador certo aqui — é o que um produto sem
+  // restrição paga.
+  const frota = useMemo(() => {
+    const fleet = resolveFleet(
+      machines,
+      machines.map((machine) => machine.id),
+    );
+    const pesoTotal = machines.reduce((sum, m) => sum + weightOf(m), 0);
+    const linhas = machines.map((machine) => ({
+      machine,
+      depreciation: depreciationPerHourOf(machine),
+      maintenance: machine.maintenancePerHour,
+      // A fatia REAL depois da renormalização — é ela que o dono precisa ler,
+      // não o percentual digitado (os pesos não precisam somar 100).
+      share: pesoTotal > 0 ? weightOf(machine) / pesoTotal : 1 / (machines.length || 1),
+    }));
+    return { fleet, linhas, pesoTotal };
+  }, [machines]);
 
   const totals = useMemo(() => {
     const investment = rois.reduce((sum, r) => sum + r.machine.price, 0);
@@ -171,6 +194,92 @@ export function MachinesPage() {
           barra mostra — trate-a como teto otimista, não como caixa.
         </p>
       </details>
+
+      {/* [FROTA] Fase 2 — a taxa de frota. Fica ANTES dos cartões de ROI porque é
+          a premissa deles: o desgaste que o payback recupera é o que o preço
+          embutiu, e o preço embute a MÉDIA, não a máquina. */}
+      <section className="fleet-card">
+        <h2 className="fleet-title">Taxa de frota — o que entra no preço</h2>
+        <p className="fleet-sub">
+          Um produto que pode rodar em todas paga a{" "}
+          <strong>média ponderada</strong> abaixo, e não o custo da impressora em
+          que ele por acaso saiu. Cada componente tem a sua média — as três somam
+          a taxa cheia.
+          {frota.pesoTotal <= 0 ? (
+            <>
+              {" "}
+              <span className="fleet-warn">
+                ⚠ Todos os pesos estão em 0%: a média está <strong>simples</strong>
+                . Ajuste em Gerenciar Máquinas, na calculadora.
+              </span>
+            </>
+          ) : null}
+        </p>
+        <div className="fleet-table-wrap">
+          <table className="fleet-table">
+            <thead>
+              <tr>
+                <th>Máquina</th>
+                <th className="num">Peso</th>
+                <th className="num">Desgaste</th>
+                <th className="num">Manutenção</th>
+                <th className="num">Watts</th>
+                <th className="num">R$/h (sem energia)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {frota.linhas.map((linha) => (
+                <tr
+                  key={linha.machine.id}
+                  className={weightOf(linha.machine) > 0 ? "" : "fleet-zero"}
+                >
+                  <td>{linha.machine.name}</td>
+                  <td className="num mono">
+                    {(linha.share * 100).toFixed(0)}%
+                    {weightOf(linha.machine) > 0 ? null : (
+                      <span className="fleet-zero-tag"> (0%)</span>
+                    )}
+                  </td>
+                  <td className="num mono">
+                    {formatCurrency(linha.depreciation)}
+                  </td>
+                  <td className="num mono">
+                    {formatCurrency(linha.maintenance)}
+                  </td>
+                  <td className="num mono">{linha.machine.watts}</td>
+                  <td className="num mono">
+                    {formatCurrency(linha.depreciation + linha.maintenance)}
+                  </td>
+                </tr>
+              ))}
+              <tr className="fleet-total">
+                <td>Frota inteira</td>
+                <td className="num mono">100%</td>
+                <td className="num mono">
+                  {formatCurrency(frota.fleet.depreciationPerHour)}
+                </td>
+                <td className="num mono">
+                  {formatCurrency(frota.fleet.maintenancePerHour)}
+                </td>
+                <td className="num mono">{formatDecimal(frota.fleet.watts)}</td>
+                <td className="num mono">
+                  {formatCurrency(
+                    frota.fleet.depreciationPerHour +
+                      frota.fleet.maintenancePerHour,
+                  )}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {/* A energia fica FORA da coluna de R$/h porque depende da tarifa, que é
+            do PRODUTO (conta de luz), não da máquina. Os watts médios estão ao
+            lado para quem quiser fechar a conta. */}
+        <p className="fleet-foot">
+          A energia não entra na coluna de R$/h: ela é{" "}
+          <code>horas × watts ÷ 1000 × tarifa</code>, e a tarifa é do produto.
+        </p>
+      </section>
 
       <div className="roi-list">
         {rois.map((roi) => {

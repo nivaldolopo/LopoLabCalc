@@ -52,6 +52,16 @@ export function validateProduct(product: ProductInput): string | null {
 
   if (product.markup < 1) return "⚠️ O markup deve ser no mínimo 1x.";
 
+  // [FROTA] Fase 2 — pelo menos uma máquina elegível. O CÁLCULO sobrevive ao
+  // conjunto vazio (cai na frota inteira e acende o badge de dado órfão, molde
+  // TD-009), e é isso que salva os 97 produtos anteriores à fase; o que não pode
+  // é o dono SALVAR um produto novo sem dizer onde ele roda, porque aí o preço
+  // seria a média de uma frota que ninguém declarou. A importação de CSV não
+  // esbarra aqui: célula vazia lá vira a frota inteira, com aviso próprio.
+  if ((product.machineIds ?? []).length === 0) {
+    return "⚠️ Marque ao menos uma máquina onde o produto pode ser impresso.";
+  }
+
   // AUD-16 [E2] — a taxa de falha nunca foi validada aqui: quem cuidava dela era
   // um clamp escondido no importador (`Math.min(95, Math.max(0, …))`), que
   // mudava o número sem dizer. O domínio é o mesmo que o formulário já pinta no
@@ -84,6 +94,9 @@ export function validateProduct(product: ProductInput): string | null {
     const stage = stages[index];
     if (num(stage.printHours) < 0 || num(stage.laborMinutes) < 0) {
       return `⚠️ A etapa ${index + 2} contém valores negativos.`;
+    }
+    if ((stage.machineIds ?? []).length === 0) {
+      return `⚠️ Marque ao menos uma máquina na etapa ${index + 2}.`;
     }
     const stageError = filamentError(
       normalizeFilaments(stage),

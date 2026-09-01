@@ -3,7 +3,6 @@ import type {
   FixedCostSettings,
   FixedCostSummary,
   Machine,
-  MachineUsage,
   PricingResult,
   PrintStage,
   ProductInput,
@@ -21,6 +20,7 @@ import {
   normalizeFilaments,
 } from "./filaments";
 import { catalogPricePerKg } from "./stock";
+import { resolveFleet, unionEligible } from "./fleet";
 import { num } from "@/lib/number";
 import type { FilamentUsage } from "../types";
 
@@ -61,42 +61,6 @@ function resolveFilamentPrices(
     return { ...f, pricePerKg: live > 0 ? live : num(f.pricePerKg) };
   });
   return { filaments: resolved, missing };
-}
-
-// TD-024: com a lista de máquinas VAZIA, o fallback `machines[0]` é `undefined`
-// e a próxima linha a ler `machine.watts` lança
-// `Cannot read properties of undefined`. Não achei caminho pela UI (o
-// `useMachines` semeia dos `DEFAULT_MACHINES` e cai em fallback local no erro),
-// mas "não achei caminho" não é o mesmo que "não existe" — e o preço inteiro
-// depende de a função não explodir. Uma máquina de zeros devolve custo de
-// energia/desgaste/manutenção 0 e mantém o `machineMissing: true`, que é
-// exatamente o que a tela já sabe mostrar.
-// `lifeHours: 0` é seguro: a depreciação já é guardada por `lifeHours > 0`.
-const MAQUINA_AUSENTE: Machine = {
-  id: "",
-  name: "—",
-  price: 0,
-  lifeHours: 0,
-  watts: 0,
-  maintenancePerHour: 0,
-};
-
-function findMachine(
-  machines: Machine[],
-  machineId: string,
-): { machine: Machine; found: boolean } {
-  const match = machines.find((machine) => machine.id === machineId);
-  if (match) return { machine: match, found: true };
-  // Dado órfão: o produto aponta para uma máquina que não existe mais. Mantemos
-  // o fallback (1ª máquina) para não quebrar o preço, mas sinalizamos — antes
-  // isso caía em silêncio e mascarava o erro (TD-009).
-  if (process.env.NODE_ENV !== "production") {
-    console.warn(
-      `[pricing] máquina "${machineId}" não encontrada; usando ` +
-        `"${machines[0]?.name ?? "—"}" como fallback.`,
-    );
-  }
-  return { machine: machines[0] ?? MAQUINA_AUSENTE, found: false };
 }
 
 export function normalizeStages(product: ProductInput): PrintStage[] {
@@ -158,7 +122,10 @@ export function calculateStageCost(
   laborRate: number,
   stockById: Map<string, StockFilament> = new Map(),
 ): StageCost {
-  const { machine, found } = findMachine(machines, stage.machineId);
+  // [FROTA] Fase 2 — a etapa não tem mais UMA máquina: tem um conjunto elegível,
+  // e o custo por hora é a média ponderada da frota. Cada componente com a sua
+  // média (desgaste, manutenção, watts), nunca um total rateado.
+  const fleet = resolveFleet(machines, stage.machineIds);
   // FEAT-02: material = soma por cor (peso total × preço/kg). Migra o escalar
   // legado (weightG/filamentPricePerKg) para uma cor única quando `filaments`
   // não existe. 7c: resolve o preço vivo (rolo mais novo) das cores ligadas.
@@ -167,24 +134,17 @@ export function calculateStageCost(
     stockById,
   );
   const materialCost = filamentsMaterialCost(filaments);
-  const energyCost =
-    num(stage.printHours) *
-    (num(machine.watts) / 1000) *
-    num(energyTariff);
-  const depreciationCost =
-    machine.lifeHours > 0
-      ? (num(machine.price) / machine.lifeHours) *
-        num(stage.printHours)
-      : 0;
-  const maintenanceCost =
-    num(stage.printHours) * num(machine.maintenancePerHour);
+  const hours = num(stage.printHours);
+  const energyCost = hours * (fleet.watts / 1000) * num(energyTariff);
+  const depreciationCost = hours * fleet.depreciationPerHour;
+  const maintenanceCost = hours * fleet.maintenancePerHour;
   const laborCost =
     (num(stage.laborMinutes) / 60) *
     num(laborRate);
 
   return {
-    machine,
-    machineMissing: !found,
+    fleet,
+    machineMissing: fleet.missing,
     filaments,
     filamentMissing,
     materialCost,
@@ -207,7 +167,7 @@ export function calculatePricing(
   const stockById = new Map(stock.map((color) => [color.id, color]));
   const mainStage = calculateStageCost(
     {
-      machineId: product.machineId,
+      machineIds: product.machineIds,
       filaments: product.filaments,
       weightG: product.weightG,
       printHours: product.printHours,
@@ -220,29 +180,17 @@ export function calculatePricing(
     stockById,
   );
 
-  // Repartição de uso por máquina (agregada por máquina, somando as etapas que
-  // caem na mesma impressora). Vira `machineUsage` no resultado, dividido por
-  // peça. É o que permite ao ROI atribuir horas/vida/lucro à máquina certa.
-  const usageMap = new Map<string, MachineUsage>();
-  function addUsage(machine: Machine, hours: number, depreciation: number) {
-    const prev = usageMap.get(machine.id);
-    if (prev) {
-      prev.hours += hours;
-      prev.depreciation += depreciation;
-    } else {
-      usageMap.set(machine.id, {
-        machineId: machine.id,
-        machineName: machine.name,
-        hours,
-        depreciation,
-      });
-    }
-  }
-  addUsage(
-    mainStage.machine,
-    num(product.printHours),
-    mainStage.depreciationCost,
-  );
+  // [FROTA] Fase 2 — aqui era montado o `machineUsage` do resultado: horas e
+  // depreciação POR MÁQUINA, a partir da impressora escolhida em cada etapa. Ele
+  // saiu inteiro. A precificação não sabe mais quem imprimiu — e nunca soube: o
+  // que ela tinha era a máquina escolhida para PRECIFICAR, que a Fase 1 já
+  // provou não ser a mesma coisa. Quem imprimiu vem do evento de produção (uma
+  // máquina por etapa) ou da camada do acabado.
+  //
+  // O que sobra aqui é o conjunto ELEGÍVEL, a união dos conjuntos das etapas —
+  // "onde este produto pode rodar", que é a pergunta que a precificação
+  // responde.
+  const fleets = [mainStage.fleet];
 
   let anyMachineMissing = mainStage.machineMissing;
   let anyFilamentMissing = mainStage.filamentMissing;
@@ -282,7 +230,7 @@ export function calculatePricing(
     if (cost.machineMissing) anyMachineMissing = true;
     if (cost.filamentMissing) anyFilamentMissing = true;
     allFilaments.push(...cost.filaments);
-    addUsage(cost.machine, num(stage.printHours), cost.depreciationCost);
+    fleets.push(cost.fleet);
     stageDetails.push({
       key: stageKeyFor(stage, index),
       cost,
@@ -290,13 +238,7 @@ export function calculatePricing(
     });
   });
 
-  const machineUsage: MachineUsage[] = Array.from(usageMap.values()).map(
-    (usage) => ({
-      ...usage,
-      hours: usage.hours / pieces,
-      depreciation: usage.depreciation / pieces,
-    }),
-  );
+  const eligibleMachines = unionEligible(fleets, machines);
 
   // Os custos das etapas extras entram nas MESMAS categorias da etapa principal
   // (filamento -> material, tempo -> energia/desgaste/manutenção, mão de obra ->
@@ -422,7 +364,7 @@ export function calculatePricing(
       : 0;
 
   return {
-    machine: mainStage.machine,
+    eligibleMachines,
     materialCost,
     energyCost,
     depreciationCost,
@@ -441,7 +383,6 @@ export function calculatePricing(
     stagesCount: stagesList.length,
     profitPerPiece,
     filaments: mergeFilaments(allFilaments),
-    machineUsage,
     machineMissing: anyMachineMissing,
     filamentMissing: anyFilamentMissing,
     subitems,
@@ -525,11 +466,13 @@ function computeSubitems(
     if (!assignedKeys.has(d.key)) addStageToCat(internal, d.cost, pieces);
   }
 
-  // Agrega cada subitem: categorias próprias, horas, cores e uso por máquina.
+  // Agrega cada subitem: categorias próprias, horas e cores. O uso por máquina
+  // saiu junto com o do produto ([FROTA] Fase 2) — a parte também não sabe quem
+  // imprimiu, e o `subitemEventRows` da produção passou a resolver a etapa pelas
+  // `stageKeys`, que é a fonte certa.
   const parts = subitemConfigs.map((config) => {
     const own = zeroCat();
     const filaments: FilamentUsage[] = [];
-    const usage = new Map<string, MachineUsage>();
     let printHours = 0;
     for (const key of config.stageKeys ?? []) {
       const d = detailByKey.get(key);
@@ -537,22 +480,8 @@ function computeSubitems(
       addStageToCat(own, d.cost, pieces);
       printHours += d.printHours;
       filaments.push(...d.cost.filaments);
-      const hours = d.printHours / pieces;
-      const depreciation = d.cost.depreciationCost / pieces;
-      const prev = usage.get(d.cost.machine.id);
-      if (prev) {
-        prev.hours += hours;
-        prev.depreciation += depreciation;
-      } else {
-        usage.set(d.cost.machine.id, {
-          machineId: d.cost.machine.id,
-          machineName: d.cost.machine.name,
-          hours,
-          depreciation,
-        });
-      }
     }
-    return { config, own, printHours, filaments, usage };
+    return { config, own, printHours, filaments };
   });
 
   // Peso = custo de impressão próprio. Guarda contra divisão por zero (tudo
@@ -612,7 +541,6 @@ function computeSubitems(
       markup,
       printHours: p.printHours,
       filaments: mergeFilaments(p.filaments),
-      machineUsage: Array.from(p.usage.values()),
       costBreakdown,
     };
   });

@@ -29,6 +29,9 @@ function readLocalMachines(): Machine[] | null {
           typeof machine.maintenancePerHour === "number"
             ? machine.maintenancePerHour
             : defaultMaintenanceForId(machine.id),
+        // [FROTA] Fase 2 — cache local escrito antes da fase não tem o peso.
+        // Mesmo default do repositório: 0 = frota em média simples.
+        weight: typeof machine.weight === "number" ? machine.weight : 0,
       }));
     }
   } catch {

@@ -9,7 +9,13 @@ import type {
 } from "../types";
 
 function makeProduct(overrides: Partial<ProductInput> = {}): ProductInput {
-  return { ...DEFAULT_PRODUCT_INPUT, ...overrides };
+  // [FROTA] Fase 2 — o `DEFAULT_PRODUCT_INPUT` nasce com `machineIds: []` (ele
+  // não conhece a frota viva; quem marca todas é o formulário). A cobaia declara
+  // a A1 explicitamente para os números abaixo continuarem sendo os da A1 pura —
+  // um conjunto UNITÁRIO tem média ponderada igual ao seu único membro, então a
+  // taxa de frota reduz ao custo daquela máquina. Quem exercita conjunto de 2+ é
+  // o `frotaFase2.test.ts`.
+  return { ...DEFAULT_PRODUCT_INPUT, machineIds: ["a1"], ...overrides };
 }
 
 const NO_FIXED: FixedCostSettings = {
@@ -63,7 +69,7 @@ describe("calculateCapacity", () => {
     const product = makeProductNoFail({
       stages: [
         {
-          machineId: "a1",
+          machineIds: ["a1"],
           weightG: 10,
           printHours: 1,
           filamentPricePerKg: 110,
@@ -76,12 +82,19 @@ describe("calculateCapacity", () => {
     expect(cap?.cyclesMonth).toBe(150);
   });
 
-  it("gargalo: máquinas diferentes rodam em paralelo (limita a mais lenta)", () => {
+  // ⚠ [FROTA] Fase 2 — este teste provava o CONTRÁRIO até hoje: "o gargalo é a
+  // A1 (3h), então 200 ciclos, não 120". O gargalo saía do `machineUsage` da
+  // precificação, e ele era a máquina escolhida para PRECIFICAR — a Fase 1 já
+  // tinha provado que não é a que imprime. Com a etapa declarando um CONJUNTO,
+  // não existe mais atribuição de onde tirar paralelismo: as duas etapas podem
+  // cair na mesma impressora. O ciclo voltou a ser a SOMA (o pior caso honesto),
+  // e o `machineBreakdown` saiu do resultado.
+  it("etapas em máquinas diferentes: o ciclo é a SOMA, sem inventar paralelismo", () => {
     const product = makeProductNoFail({
-      printHours: 3, // etapa principal na A1
+      printHours: 3,
       stages: [
         {
-          machineId: "x2d",
+          machineIds: ["x2d"],
           weightG: 10,
           printHours: 2,
           filamentPricePerKg: 110,
@@ -90,14 +103,9 @@ describe("calculateCapacity", () => {
       ],
     });
     const cap = calculateCapacity(priceOf(product), product, legacySettings());
-    // Somar daria 5h -> floor(600/5)=120; o gargalo é a A1 (3h) -> floor(600/3)=200.
-    expect(cap?.cyclesMonth).toBe(200);
-    expect(cap?.piecesMonth).toBe(200);
-    const a1 = cap?.machineBreakdown.find((m) => m.machineId === "a1");
-    const x2d = cap?.machineBreakdown.find((m) => m.machineId === "x2d");
-    expect(a1?.isBottleneck).toBe(true);
-    expect(x2d?.isBottleneck).toBe(false);
-    expect(x2d?.piecesMonth).toBe(300); // folga: floor(600/2)=300
+    // 3 + 2 = 5h -> floor(600/5) = 120.
+    expect(cap?.cyclesMonth).toBe(120);
+    expect(cap?.piecesMonth).toBe(120);
   });
 
   // DEC-06 (dono, 2026-08-16) — este caso é a definição de `machines`, não um
@@ -107,12 +115,12 @@ describe("calculateCapacity", () => {
   // preencher `machines: 2` pensando "tenho 2 impressoras" projeta o dobro. A
   // saída escolhida foi tornar a premissa VISÍVEL (aviso no CapacityPanel), não
   // mudar a conta.
-  it("o multiplicador de máquinas escala o gargalo", () => {
+  it("o multiplicador de máquinas escala o ciclo", () => {
     const product = makeProductNoFail({
       printHours: 3,
       stages: [
         {
-          machineId: "x2d",
+          machineIds: ["x2d"],
           weightG: 10,
           printHours: 2,
           filamentPricePerKg: 110,
@@ -125,7 +133,10 @@ describe("calculateCapacity", () => {
       product,
       legacySettings({ machines: 2 }),
     );
-    expect(cap?.cyclesMonth).toBe(400); // gargalo 3h -> 200, ×2 máquinas
+    // [FROTA] Fase 2 — o ciclo é a soma (3 + 2 = 5h): floor(600/5) = 120, ×2
+    // conjuntos = 240. O `× machines` (DEC-06) é o que este teste guarda, e ele
+    // não mudou; o que mudou é o ciclo sobre o qual ele incide.
+    expect(cap?.cyclesMonth).toBe(240);
   });
 
   it("piecesCount multiplica as peças por ciclo", () => {
@@ -211,13 +222,16 @@ describe("calculateCapacity", () => {
       expect(cap?.failureRatePct).toBe(0);
     });
 
-    it("a máquina com folga também rende peças boas, não ciclos", () => {
+    it("a taxa de falha desconta sobre o ciclo somado", () => {
+      // [FROTA] Fase 2 — era "a máquina com folga também rende peças boas", e a
+      // folga por máquina saiu com o `machineBreakdown`. O que continua valendo
+      // (e é o ponto do TD-011) é que a falha deflaciona PEÇAS, não CICLOS.
       const product = makeProduct({
         failureRate: 3,
         printHours: 3,
         stages: [
           {
-            machineId: "x2d",
+            machineIds: ["x2d"],
             weightG: 10,
             printHours: 2,
             filamentPricePerKg: 110,
@@ -226,8 +240,8 @@ describe("calculateCapacity", () => {
         ],
       });
       const cap = calculateCapacity(priceOf(product), product, legacySettings());
-      const x2d = cap?.machineBreakdown.find((m) => m.machineId === "x2d");
-      expect(x2d?.piecesMonth).toBe(291); // floor(300 × 0,97)
+      expect(cap?.cyclesMonth).toBe(120); // 5h de ciclo, o mês inteiro
+      expect(cap?.piecesMonth).toBe(116); // floor(120 × 0,97)
     });
   });
 });

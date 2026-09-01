@@ -467,8 +467,9 @@
   font-weight: 600;
 }
 
-/* Máquina órfã no catálogo (TD-009): destaca o produto cujo machineId não
-   existe mais e caiu no fallback. */
+/* Dado órfão no catálogo (TD-009): destaca o produto cujo conjunto de máquinas
+   elegíveis está vazio ou aponta para impressora que não existe mais, e o preço
+   caiu na FROTA INTEIRA ([FROTA] Fase 2). Reusado pela cor removida do Estoque. */
 .machine-missing-badge {
   color: var(--warn);
   font-weight: 600;

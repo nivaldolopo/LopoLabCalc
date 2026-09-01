@@ -361,11 +361,22 @@ function applyForward(
               planned.summary.machineUsage,
               1 / qty,
             ),
-            unattributedUnits: 0,
+            // ⚠ [FROTA] Fase 2 — antes era `unattributedUnits: 0` fixo, porque
+            // toda etapa tinha uma máquina. Agora ela pode não ter: o produto é
+            // elegível a mais de uma e a encomenda não tem quem escolha (a
+            // `/producao` pergunta; a venda, não). Essas horas não somem — elas
+            // saem da cobertura, na PROPORÇÃO delas.
+            //
+            // 🔴 Sem isto, o `horas ÷ total` do ROI voltaria a fechar em 1 sobre
+            // as máquinas conhecidas e rataria para elas o lucro das horas
+            // órfãs: exatamente o defeito que o `unattributedUnits` existe para
+            // impedir, só que entrando pela porta nova.
+            unattributedUnits: qty * orfas(planned.summary),
           }
         : // Encomenda que não produziu nada (subitem cujo preço não resolveu, ou
-          // qty 0): sem máquina não há origem, e as unidades ficam órfãs em vez
-          // de "atribuídas a ninguém" — que é o que soma 1 e some do radar.
+          // qty 0), ou nenhuma etapa com máquina declarada: sem máquina não há
+          // origem, e as unidades ficam órfãs em vez de "atribuídas a ninguém" —
+          // que é o que soma 1 e some do radar.
           { machineUsage: [], unattributedUnits: qty }),
       cogsTotal: planned.summary.frozen,
       cogsUnit: qty > 0 ? planned.summary.frozen / qty : 0,
@@ -457,6 +468,24 @@ export type ReciboWritePlan = {
  * `old` null = venda nova (nada a estornar). É como editar 3 → 2 unidades devolve
  * exatamente 1 ao estoque sem corromper nada.
  */
+/**
+ * [FROTA] Fase 2 — a fração das horas do lote que ficou SEM máquina declarada.
+ *
+ * É por horas, e não por evento, porque é assim que o ROI reparte lucro e
+ * receita (`share.hours ÷ Σ hours`): uma etapa de 6h sem dono ao lado de uma de
+ * 1h com dono não é "metade atribuída".
+ */
+function orfas(summary: {
+  machineUsage: { hours: number }[];
+  unattributedHours: number;
+}): number {
+  const orfa = Math.max(0, summary.unattributedHours);
+  const total =
+    summary.machineUsage.reduce((sum, u) => sum + Math.max(0, u.hours), 0) + orfa;
+  if (total <= 0) return 0;
+  return Math.min(1, orfa / total);
+}
+
 export function reconcileReciboWrite(
   items: ReconItem[],
   old: OldReciboState | null,

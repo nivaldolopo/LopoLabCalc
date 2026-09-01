@@ -51,7 +51,11 @@ function parseRoundingMode(value: string | undefined): RoundingMode {
 const CSV_HEADERS = [
   "Produto",
   "Nome Etapa Principal",
-  "Maquina",
+  // [FROTA] Fase 2 — PLURAL, e a célula passa a ser uma LISTA separada por "|"
+  // ("A1 Combo | X2D Combo"). Não é a máquina que imprime: é onde a peça CABE, e
+  // o preço é a média ponderada dessas. O separador é "|" porque o do arquivo é
+  // ";" e nome de impressora leva espaço e vírgula com naturalidade.
+  "Maquinas",
   "Peso (g)",
   "Tempo (h)",
   "Pecas",
@@ -412,7 +416,12 @@ function printTimeHours(
 const COLUMN_SPECS = {
   name: { exact: "Produto", needle: "produto" },
   mainName: { exact: "Nome Etapa Principal", needle: "nome etapa principal" },
-  machine: { exact: "Maquina", needle: "maquina" },
+  // [FROTA] Fase 2 — a coluna virou PLURAL, e o `alias` é o nome que o próprio
+  // app escreveu em todo export até aqui. Sem ele, "Maquina" cairia na passada
+  // por PEDAÇO e acenderia "coluna lida por aproximação" em toda planilha antiga
+  // — um palpite anunciado sobre um nome que nós mesmos escolhemos. É a lição do
+  // UX-48 aplicada à coluna: nome canônico anterior é IDENTIDADE, não palpite.
+  machine: { exact: "Maquinas", alias: "Maquina", needle: "maquina" },
   weight: { exact: "Peso (g)", needle: "peso" },
   time: { exact: "Tempo (h)", needle: "tempo" },
   // CSV-16: needle sem o parêntese de fechar, para pegar também
@@ -513,9 +522,14 @@ function resolveColumns(headers: string[]): {
   };
 
   keys.forEach((key) => {
-    const alvo = normalizeText(COLUMN_SPECS[key].exact).trim();
+    const spec = COLUMN_SPECS[key] as { exact: string; alias?: string };
+    // O `alias` entra na passada EXATA, ao lado do nome canônico: ele é um nome
+    // canônico ANTIGO, não uma aproximação (ver o comentário em `machine`).
+    const alvos = [spec.exact, ...(spec.alias ? [spec.alias] : [])].map(
+      (nome) => normalizeText(nome).trim(),
+    );
     take(
-      normalized.findIndex((header, i) => !claimed.has(i) && header === alvo),
+      normalized.findIndex((header, i) => !claimed.has(i) && alvos.includes(header)),
       key,
     );
   });
@@ -665,9 +679,35 @@ function parseFilaments(
   return parseFilamentList(parseJsonArray(value), onde, report);
 }
 
+// [FROTA] Fase 2 — lista de ids dentro de uma célula JSON. Tipo errado se
+// DESCARTA e o descarte se anuncia (AUD-16 [E5]): `String(item)` fabricaria um
+// id que não existe, e a etapa seria precificada pela frota inteira sem que nada
+// dissesse. Lista ausente ou totalmente descartada herda o `fallback`.
+function idsJson(
+  raw: unknown,
+  campo: string,
+  report: NumReporter | undefined,
+  fallback: string[],
+): string[] {
+  if (raw === undefined || raw === null) return [...fallback];
+  if (!Array.isArray(raw)) {
+    report?.(campo, String(raw), "ilegivel");
+    return [...fallback];
+  }
+  const ids: string[] = [];
+  for (const item of raw) {
+    if (typeof item === "string" && item.trim() !== "") {
+      if (!ids.includes(item.trim())) ids.push(item.trim());
+    } else {
+      report?.(campo, JSON.stringify(item) ?? String(item), "ilegivel");
+    }
+  }
+  return ids.length > 0 ? ids : [...fallback];
+}
+
 function parseStages(
   value: string | undefined,
-  fallbackMachineId: string,
+  fallbackMachineIds: string[],
   report?: NumReporter,
 ): PrintStage[] {
   return parseJsonArray(value).flatMap((stage, index) => {
@@ -682,9 +722,10 @@ function parseStages(
       // apontando para o vazio, então ele vem antes de qualquer outra coisa.
       ...(stageId ? { id: stageId } : {}),
       name: textoJson(item.name, campo("name"), report),
-      machineId:
-        textoJson(item.machineId, campo("machineId"), report) ||
-        fallbackMachineId,
+      // [FROTA] Fase 2 — conjunto. Lista de ids (não de nomes: dentro do JSON o
+      // que o export escreve é id). Ausente/ilegível herda o conjunto do
+      // PRODUTO, que é o que a etapa fazia antes com o escalar.
+      machineIds: idsJson(item.machineIds, campo("machineIds"), report, fallbackMachineIds),
       printHours: numFromJson(item.printHours, campo("printHours"), report),
       laborMinutes: numFromJson(item.laborMinutes, campo("laborMinutes"), report),
       // `energyTariff`/`laborRate` da etapa são IGNORADOS de propósito: valem os
@@ -888,11 +929,10 @@ function parseSubitems(
 function machineNameToId(
   name: string | undefined,
   machines: Machine[],
-  onFallback?: (usada: Machine | undefined) => void,
+  onFallback?: (nome: string) => void,
   onFuzzy?: (usada: Machine) => void,
-): string {
-  const fallback = machines[0];
-  if (!name?.trim()) return fallback?.id ?? "a1";
+): string | null {
+  if (!name?.trim()) return null;
   const normalized = name.toLowerCase().trim();
   // UX-48: o valor MAIS preciso que a planilha pode trazer é o próprio id, e
   // ele caía no palpite por substring — `Maquina = A1` em 100 linhas acendia
@@ -919,8 +959,64 @@ function machineNameToId(
     onFuzzy?.(fuzzy);
     return fuzzy.id;
   }
-  onFallback?.(fallback);
-  return fallback?.id ?? "a1";
+  // ⚠ [FROTA] Fase 2 — aqui havia um `return fallback.id`: nome que não casava
+  // com nada entrava na PRIMEIRA máquina do cadastro. Com conjunto isso é pior
+  // que inútil (uma máquina inventada no meio da lista muda a média ponderada
+  // sem que ninguém tenha pedido), então o nome ilegível é DESCARTADO e quem
+  // decide o que fazer com a lista vazia é o chamador. Descarte que se anuncia,
+  // como o AUD-16 [E5] pede.
+  onFallback?.(name.trim());
+  return null;
+}
+
+/**
+ * [FROTA] Fase 2 — a célula "Maquinas" (lista separada por "|") → o conjunto de
+ * ids elegíveis.
+ *
+ * Célula vazia, ou lista em que NADA casou, cai na FROTA INTEIRA — o mesmo
+ * destino que o `resolveFleet` dá ao conjunto vazio, e o mesmo que os 97
+ * produtos anteriores à fase terão. Ela avisa nos dois casos (CSV-05: coluna
+ * nova entra com a checagem dela no mesmo commit), porque "frota inteira" é uma
+ * decisão de preço, não um detalhe: um produto que só cabia na X2D passaria a
+ * ser precificado pela média das três.
+ *
+ * Descarte PARCIAL (dois nomes bons, um ilegível) também avisa — é o caso que
+ * some mais fácil, porque o produto entra com preço plausível.
+ */
+export function machineNamesToIds(
+  cell: string | undefined,
+  machines: Machine[],
+  report: {
+    onVazio: () => void;
+    onNenhumCasou: (bruto: string) => void;
+    onDescartado: (nome: string) => void;
+    onFuzzy: (usada: Machine) => void;
+  },
+): string[] {
+  const bruto = (cell ?? "").trim();
+  const todas = machines.map((machine) => machine.id);
+  if (!bruto) {
+    report.onVazio();
+    return todas;
+  }
+  const nomes = bruto
+    .split("|")
+    .map((parte) => parte.trim())
+    .filter((parte) => parte !== "");
+  const ids: string[] = [];
+  for (const nome of nomes) {
+    const id = machineNameToId(nome, machines, report.onDescartado, report.onFuzzy);
+    // Repetido na mesma célula não vira peso dobrado: o conjunto é um CONJUNTO,
+    // e a ponderação já vem do `Machine.weight`.
+    if (id && !ids.includes(id)) ids.push(id);
+  }
+  if (ids.length === 0) {
+    report.onNenhumCasou(bruto);
+    return todas;
+  }
+  // Na ordem do CADASTRO, não na que a planilha escreveu — mesma normalização
+  // do `resolveFleet`, para o export do que acabou de entrar ser estável.
+  return machines.filter((machine) => ids.includes(machine.id)).map((m) => m.id);
 }
 
 // AUD-14/D1 — o arquivo é pt-BR INTEIRO, sem exceção. Onze colunas de dinheiro
@@ -962,7 +1058,10 @@ export function exportProductsCsv(
     const exportedStages = (product.stages ?? []).map((stage, index) => ({
       id: stage.id ?? `stage_${index}`,
       name: stage.name ?? "",
-      machineId: stage.machineId,
+      // [FROTA] Fase 2 — conjunto, e por ID: dentro do JSON não há por que
+      // reescrever o nome e obrigar a volta a adivinhá-lo de novo. A ordem é a
+      // do documento; quem normaliza é o `resolveFleet`.
+      machineIds: [...(stage.machineIds ?? [])],
       printHours: stage.printHours,
       laborMinutes: stage.laborMinutes,
       filaments: stripFilamentIds(normalizeFilaments(stage)),
@@ -1008,7 +1107,19 @@ export function exportProductsCsv(
     return [
       csvCell(product.name),
       csvCell(product.mainStageName || ""),
-      result.machine.name,
+      // [FROTA] Fase 2 — os NOMES das máquinas elegíveis do PRODUTO, separados
+      // por "|". Antes saía `result.machine.name`, a máquina da etapa principal.
+      // Nome (e não id) porque esta é a coluna humana da planilha, a que o
+      // sistema externo do dono preenche; o id exato viaja no "Etapas JSON".
+      // ⚠ Vem do PRODUTO, não do resultado: o resultado traz a UNIÃO com as
+      // etapas, e reimportar essa união apagaria a diferença entre o conjunto do
+      // produto e o de cada etapa.
+      csvCell(
+        machines
+          .filter((machine) => (product.machineIds ?? []).includes(machine.id))
+          .map((machine) => machine.name)
+          .join(" | "),
+      ),
       formatDecimal(filamentsTotalG(mainFilaments)),
       numeroPtBr(product.printHours),
       product.piecesCount || 1,
@@ -1404,30 +1515,45 @@ export function parseProductsCsv(
     const markupLido = markupRaw ? parseDecimalPtBr(markupRaw) : null;
     const markupUsavel = markupLido !== null && markupLido > 0;
     const markup = markupUsavel ? markupLido : 3;
-    const machineName = columns[indexMachine];
-    const machineId = machineNameToId(
-      machineName,
-      machines,
-      (usada) => {
-        warnings.push(
-          `Linha ${offset + 2} ("${name}"): máquina "${machineName?.trim()}" ` +
-            `não encontrada — usando "${usada?.name ?? "a primeira máquina"}".`,
-        );
-      },
-      // CSV-24: classe agrupada, e não um `warnings.push` por linha como o
-      // fallback acima. O palpite por substring erra em BLOCO — se o sistema
-      // externo escrever "AnyCubic A1 Mini", são as 100 linhas de uma vez, e
-      // 100 avisos iguais escondem o resto do diálogo.
-      (usada) => {
+    const machineCell = columns[indexMachine];
+    // [FROTA] Fase 2 — a célula virou LISTA, e cada desfecho tem a sua classe.
+    // Todas agrupadas (CSV-24): planilha gerada fora erra em BLOCO, e 100 avisos
+    // iguais escondem o resto do diálogo.
+    const machineIds = machineNamesToIds(machineCell, machines, {
+      onVazio: () =>
+        addIssue(
+          "maquina-vazia",
+          "Coluna “Maquinas” vazia — o produto entrou elegível à FROTA " +
+            "INTEIRA. O preço vira a média ponderada de todas as impressoras; " +
+            "se a peça só cabe em algumas, escreva os nomes separados por “|”",
+          ondeEstou,
+        ),
+      onNenhumCasou: (bruto) =>
+        addIssue(
+          "maquina-nenhuma-casou",
+          "Nenhum nome da coluna “Maquinas” bateu com uma impressora " +
+            "cadastrada — o produto entrou elegível à FROTA INTEIRA",
+          `${ondeEstou}: "${bruto}"`,
+        ),
+      // O descarte PARCIAL é o que some mais fácil: dois nomes bons e um
+      // ilegível deixam o produto com preço plausível e conjunto errado.
+      onDescartado: (nome) =>
+        addIssue(
+          "maquina-descartada",
+          "Nome de máquina DESCARTADO da lista “Maquinas” (não bateu com " +
+            "nenhuma cadastrada). As demais da linha valeram — confira, porque " +
+            "o conjunto elegível é o que define a média do preço",
+          `${ondeEstou}: "${nome}"`,
+        ),
+      onFuzzy: (usada) =>
         addIssue(
           "maquina-por-aproximacao",
           "Nome de máquina lido por APROXIMAÇÃO (o id apareceu dentro do " +
-            "nome) — confira, porque energia e desgaste saem da máquina " +
-            "escolhida",
-          `${ondeEstou}: "${machineName?.trim()}" → ${usada.name}`,
-        );
-      },
-    );
+            "nome) — confira, porque desgaste e manutenção saem da média das " +
+            "máquinas elegíveis",
+          `${ondeEstou}: "${machineCell?.trim()}" → ${usada.name}`,
+        ),
+    });
     // CSV-06: todo número dentro dos 4 JSONs passa a ser lido em pt-BR, e o que
     // não der para ler vira aviso NOMEANDO o campo — em vez de virar 0 calado.
     const reportNumero: NumReporter = (campo, bruto, kind = "ilegivel") => {
@@ -1539,7 +1665,7 @@ export function parseProductsCsv(
     const piecesUsavel = piecesLido >= 1;
     const piecesCount = piecesUsavel ? piecesLido : 1;
 
-    const stages = parseStages(columns[indexStages], machineId, reportNumero);
+    const stages = parseStages(columns[indexStages], machineIds, reportNumero);
     const accessories = parseAccessories(
       columns[indexAccessories],
       reportNumero,
@@ -1575,7 +1701,7 @@ export function parseProductsCsv(
         name,
         mainStageName:
           indexMainName >= 0 ? columns[indexMainName]?.trim() ?? "" : "",
-        machineId,
+        machineIds,
         // CSV-09: as 7 colunas escalares passam pelo `cellNumber` — coluna
         // ausente e célula vazia caem no mesmo default, ilegível avisa. O
         // `Markup`, a 8ª, segue logo abaixo com a checagem própria dele.

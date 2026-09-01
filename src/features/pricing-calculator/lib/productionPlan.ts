@@ -14,12 +14,14 @@ import {
   planProduction,
   planSupplies,
   productionCost,
+  productionCostAtRate,
   type ProductionCostBreakdown,
   type ProductionPlan,
   type SupplyPlan,
   ZERO_FROZEN,
 } from "./production";
 import { catalogPricePerKg, filamentLabel } from "./stock";
+import { resolveFleet } from "./fleet";
 import type {
   DebtLot,
   FilamentUsage,
@@ -81,7 +83,18 @@ export type EventRow = {
   productName: string;
   productId?: string;
   subitemId?: string;
+  // Quem IMPRIMIU — escalar, um evento = uma etapa = uma máquina (Fase 1).
+  // [FROTA] Fase 2: pode nascer VAZIO quando o produto é elegível a mais de uma
+  // e ninguém escolheu ainda (ver `initialRowMachineId`). A `/producao` bloqueia
+  // o registro nesse estado; a encomenda, que não tem quem escolher, cai na taxa
+  // de frota abaixo e conta as unidades como órfãs.
   machineId: string;
+  // [FROTA] Fase 2 — onde a etapa PODERIA rodar. Não decide nada quando a
+  // `machineId` está preenchida; é o denominador do custo quando ela não está.
+  // ⚠ Obrigatório de propósito (AUD-02): campo opcional num tipo de escrita é
+  // omissão silenciosa esperando acontecer, e aqui a omissão viraria energia e
+  // desgaste ZERO num evento real. Lista vazia é a forma de dizer "frota inteira".
+  fleetMachineIds: string[];
   printHours: number;
   filaments: FilRow[];
   laborCost: number; // labor congelado da etapa/subitem (não editado)
@@ -206,6 +219,37 @@ function stageLabel(
   return name?.trim() || machineName || `etapa ${index + 1}`;
 }
 
+/**
+ * [FROTA] Fase 2 — a máquina com que uma linha de produção NASCE.
+ *
+ * A etapa passou a declarar um CONJUNTO ("onde cabe"), e o evento continua
+ * exigindo um escalar ("quem imprimiu") — é o alicerce do ROI que a Fase 1
+ * montou, e não se desfaz. Falta a ponte, e a decisão do dono (2026-09-01) é:
+ * **vazia só quando há dúvida**.
+ *
+ * · Conjunto com UMA elegível → não há escolha a fazer, a linha já nasce nela.
+ * · Conjunto com DUAS OU MAIS → nasce VAZIA, e o dono escolhe antes de
+ *   registrar (a `/producao` bloqueia o botão enquanto houver linha sem
+ *   máquina).
+ *
+ * O que isso recusa: chutar a de maior peso. O peso diz com que frequência a
+ * frota roda, não quem rodou ESTA placa — e um palpite que ninguém confere vira
+ * atribuição errada no ROI, calada. O atrito só aparece onde a ambiguidade é
+ * real.
+ *
+ * ⚠ Conjunto VAZIO (todo produto anterior à fase) também é dúvida: elegível a
+ * tudo é o oposto de "só cabe numa".
+ */
+export function initialRowMachineId(
+  machineIds: string[] | undefined,
+  machines: Machine[],
+): string {
+  const eligible = (machineIds ?? []).filter((id) =>
+    machines.some((machine) => machine.id === id),
+  );
+  return eligible.length === 1 ? eligible[0] : "";
+}
+
 // Linhas-evento de um produto INTEIRO: UMA LINHA POR ETAPA (principal + extras).
 //
 // ⚠ [FROTA] Fase 1 — antes isto AGRUPAVA por máquina, e o agrupamento mentia no
@@ -228,7 +272,8 @@ export function wholeEventRows(
     {
       key: MAIN_STAGE_KEY,
       name: product.mainStageName,
-      machineId: product.machineId,
+      machineId: initialRowMachineId(product.machineIds, machines),
+      fleetMachineIds: product.machineIds ?? [],
       printHours: num(product.printHours),
       filaments: normalizeFilaments(product),
       labor: stageLabor(product.laborMinutes, product.laborRate),
@@ -236,7 +281,8 @@ export function wholeEventRows(
     ...normalizeStages(product).map((stage, index) => ({
       key: stageKeyFor(stage, index),
       name: stage.name,
-      machineId: stage.machineId,
+      machineId: initialRowMachineId(stage.machineIds, machines),
+      fleetMachineIds: stage.machineIds ?? [],
       printHours: num(stage.printHours),
       filaments: normalizeFilaments(stage),
       labor: stageLabor(stage.laborMinutes, product.laborRate),
@@ -255,6 +301,7 @@ export function wholeEventRows(
         : base,
       productId: product.id,
       machineId: stage.machineId,
+      fleetMachineIds: stage.fleetMachineIds,
       printHours: stage.printHours,
       filaments: stage.filaments.map((usage) =>
         resolveFilRow(usage, stock, stage.key),
@@ -305,6 +352,7 @@ export function subitemEventRows(
       key: string;
       name?: string;
       machineId: string;
+      fleetMachineIds: string[];
       printHours: number;
       filaments: FilamentUsage[];
       labor: number;
@@ -313,7 +361,8 @@ export function subitemEventRows(
   byKey.set(MAIN_STAGE_KEY, {
     key: MAIN_STAGE_KEY,
     name: product.mainStageName,
-    machineId: product.machineId,
+    machineId: initialRowMachineId(product.machineIds, machines),
+    fleetMachineIds: product.machineIds ?? [],
     printHours: num(product.printHours),
     filaments: normalizeFilaments(product),
     labor: stageLabor(product.laborMinutes, product.laborRate),
@@ -323,7 +372,8 @@ export function subitemEventRows(
     byKey.set(key, {
       key,
       name: stage.name,
-      machineId: stage.machineId,
+      machineId: initialRowMachineId(stage.machineIds, machines),
+      fleetMachineIds: stage.machineIds ?? [],
       printHours: num(stage.printHours),
       filaments: normalizeFilaments(stage),
       labor: stageLabor(stage.laborMinutes, product.laborRate),
@@ -336,15 +386,22 @@ export function subitemEventRows(
   // Subitem sem etapa resolvível (config sumiu, chaves órfãs) cai no
   // comportamento antigo: uma linha só, com o que o `SubitemPrice` traz. É o
   // único jeito de ainda produzir alguma coisa, e o total continua certo.
+  //
+  // ⚠ [FROTA] Fase 2 — a máquina desta linha vinha de `subitem.machineUsage[0]`,
+  // e o `machineUsage` saiu do resultado da precificação (ele dizia com que
+  // impressora a PARTE foi precificada, que a Fase 1 já provou não ser quem
+  // imprimiu). A resposta nova é a mesma das outras linhas: o conjunto do
+  // PRODUTO, e vazio quando há mais de uma elegível. Aqui isso é ainda mais
+  // certo — se nem a etapa se resolveu, não há de onde deduzir a máquina.
   if (stages.length === 0) {
-    const primary = subitem.machineUsage[0];
     return [
       {
         key: nextRowKey(),
         productName: `${base} — ${subitem.name || "subitem"}`,
         productId: product.id,
         subitemId: subitem.id,
-        machineId: primary?.machineId ?? product.machineId,
+        machineId: initialRowMachineId(product.machineIds, machines),
+        fleetMachineIds: product.machineIds ?? [],
         printHours: subitem.printHours,
         filaments: subitem.filaments.map((f) => resolveFilRow(f, stock)),
         laborCost: totalLabor,
@@ -370,6 +427,7 @@ export function subitemEventRows(
       productId: product.id,
       subitemId: subitem.id,
       machineId: stage.machineId,
+      fleetMachineIds: stage.fleetMachineIds,
       printHours: stage.printHours,
       filaments: stage.filaments.map((usage) =>
         resolveFilRow(usage, stock, stage.key),
@@ -473,6 +531,13 @@ export type PlannedRows = {
     // reconciliação da venda — ela existe porque o `sourceEventId` da camada
     // aponta só para o 1º evento e nunca poderia responder "quem imprimiu".
     machineUsage: MachineUsage[];
+    // [FROTA] Fase 2 — as HORAS dos eventos SEM máquina declarada (o produto é
+    // elegível a mais de uma e ninguém escolheu). Ficam FORA do `machineUsage`
+    // de propósito: um id vazio na lista faria a soma `horas ÷ total` do ROI
+    // fechar em 1 sobre as máquinas conhecidas, rateando para elas o lucro das
+    // horas órfãs. Quem lê isto é a reconciliação, que converte a proporção em
+    // `unattributedUnits`.
+    unattributedHours: number;
     // AUD-16 [E7]: cores e insumos que não tinham lote e ganharam um de acerto
     // (a dívida ficou representada e custeada). É o que a tela avisa ANTES de
     // confirmar — e o que ela avisa é exatamente o que vai ser gravado.
@@ -529,7 +594,14 @@ export function planEventRows(
       supplyMap.set(supply.id, supply);
       supplyTouched.add(supply.id);
     }
-    const machine = machines.find((m) => m.id === row.machineId) ?? machines[0];
+    // ⚠ [FROTA] Fase 2 — aqui morava `?? machines[0]`: linha sem máquina
+    // resolvível caía na PRIMEIRA do cadastro, e a energia, o desgaste e a
+    // manutenção do evento saíam dela, creditados a ela. Com escalar isso era
+    // quase inalcançável (o id vinha do produto); com conjunto passou a ser o
+    // caminho normal da encomenda. O fallback mudo vira EXPLÍCITO: sem máquina
+    // declarada, o custo é a taxa da FROTA ELEGÍVEL — a mesma que o preço usou —
+    // e o evento fica SEM DONO para o ROI.
+    const machine = machines.find((m) => m.id === row.machineId);
     const cost = machine
       ? productionCost(
           machine,
@@ -539,15 +611,14 @@ export function planEventRows(
           row.laborCost,
           supplyPlan.cost,
         )
-      : {
-          material: plan.materialCost,
-          energy: 0,
-          depreciation: 0,
-          maintenance: 0,
-          labor: row.laborCost,
-          supplies: supplyPlan.cost,
-          total: plan.materialCost + row.laborCost + supplyPlan.cost,
-        };
+      : productionCostAtRate(
+          resolveFleet(machines, row.fleetMachineIds),
+          row.printHours,
+          row.energyTariff,
+          plan.materialCost,
+          row.laborCost,
+          supplyPlan.cost,
+        );
     return { id, row, plan, supplyPlan, cost, machine, filaments };
   });
 
@@ -569,8 +640,14 @@ export function planEventRows(
       // motivo do `frozenBreakdown`: dois laços sobre os mesmos eventos são dois
       // números que um dia divergem. A depreciação aqui é a REAL (a do custo
       // congelado do evento), não a precificada.
-      {
-        const machineId = e.machine?.id ?? e.row.machineId;
+      // ⚠ [FROTA] Fase 2 — evento SEM máquina não entra aqui, e as horas dele
+      // vão para `unattributedHours`. Empurrá-lo com `machineId: ""` (o que o
+      // antigo `?? e.row.machineId` fazia) era o pior dos dois mundos: ninguém
+      // no ROI casa com id vazio, mas a soma `horas ÷ total` da venda passaria a
+      // fechar em 1 sobre as máquinas conhecidas — rateando para elas o lucro
+      // das horas órfãs. É o 🔴 da Fase 1, escrito às avessas.
+      if (e.machine) {
+        const machineId = e.machine.id;
         const prev = acc.machineUsage.find((u) => u.machineId === machineId);
         if (prev) {
           prev.hours += num(e.row.printHours);
@@ -578,11 +655,13 @@ export function planEventRows(
         } else {
           acc.machineUsage.push({
             machineId,
-            machineName: e.machine?.name ?? "",
+            machineName: e.machine.name,
             hours: num(e.row.printHours),
             depreciation: e.cost.depreciation,
           });
         }
+      } else {
+        acc.unattributedHours += num(e.row.printHours);
       }
       acc.debtLots = [
         ...acc.debtLots,
@@ -601,6 +680,9 @@ export function planEventRows(
       supplies: 0,
       supplyShortfall: 0,
       machineUsage: [] as MachineUsage[],
+      // [FROTA] Fase 2 — horas de eventos sem máquina declarada. É o que impede
+      // a venda de dizer "tudo atribuído" quando parte não está.
+      unattributedHours: 0,
       debtLots: [] as DebtLot[],
     },
   );

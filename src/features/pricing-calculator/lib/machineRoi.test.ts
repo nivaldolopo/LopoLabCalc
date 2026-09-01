@@ -14,6 +14,7 @@ function machine(overrides: Partial<Machine> = {}): Machine {
     lifeHours: 10000,
     watts: 95,
     maintenancePerHour: 0.12,
+    weight: 50,
     ...overrides,
   };
 }

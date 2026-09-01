@@ -699,9 +699,15 @@ th.col-price {
      O nome fica no piso do próprio rótulo (64px) de propósito — é ele quem
      absorve a folga quando há espaço, e o `min-width` do bloco abaixo é que
      impede a linha de espremer além do legível. */
+  /* ⚠ [FROTA] Fase 2 — a 6ª faixa era "Máquina" (`minmax(70px, 1.2fr)`) e saiu:
+     no caso normal ela repetia "A1 Mini +2" em toda linha, e era lida como
+     "onde foi impresso" em vez de "onde pode rodar". Foi para o painel expandido
+     (`Pode rodar em`). Os pisos das outras cinco NÃO se mexem — eles são
+     `max(rótulo, conteúdo)` medidos no DOM, e o que a faixa liberou vai para o
+     nome, a maior flexível. */
   grid-template-columns:
     minmax(64px, 2.4fr) minmax(92px, 1.1fr) minmax(50px, 0.6fr)
-    minmax(93px, 1fr) minmax(67px, 0.7fr) minmax(70px, 1.2fr) 196px;
+    minmax(93px, 1fr) minmax(67px, 0.7fr) 196px;
   align-items: center;
   column-gap: var(--space-12);
 }

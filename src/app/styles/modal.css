@@ -88,9 +88,38 @@
   /* UX-41: "Vida (h)" era 64px e "Watts" 60px. Com o stepper ocupando a direita
      do campo, "7500" deixava de caber (34px de texto para 28 disponíveis) e
      aparecia como "750". Os 8px vêm da coluna do NOME, que tem folga. */
-  grid-template-columns: minmax(0, 1fr) 82px 72px 68px 78px 32px;
+  /* [FROTA] Fase 2 — 7 trilhas: entrou "Peso (%)" (0–100 + stepper cabe em 68).
+     A caixa deste modal alarga para 680px (`.machine-modal`, logo abaixo) porque
+     com os 560px da casca padrão o campo Nome ficaria com 76px. */
+  grid-template-columns: minmax(0, 1fr) 82px 72px 68px 78px 68px 32px;
   gap: var(--space-8);
   align-items: center;
+}
+
+/* A única exceção de largura da casca do TD-015, e ela é medida: 680 − 48 de
+   padding = 632px de corpo, dos quais 446 são as 6 trilhas fixas + 6 folgas —
+   sobram ~186px para o Nome (contra os 140 que ele tinha com 5 trilhas). */
+.modal-box.machine-modal {
+  max-width: 680px;
+}
+
+/* [FROTA] Fase 2 — as duas notas de peso, abaixo da lista. A de peso ZERO se
+   anuncia EM REPOUSO (UX-36): a máquina está fora da média da frota, e isso
+   muda o preço de todo produto que a inclui. */
+.machine-weight-note {
+  margin-top: var(--space-10);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-md);
+  padding: var(--space-8) var(--space-10);
+  color: var(--warn);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-line);
+}
+
+.machine-weight-note.muted-note {
+  color: var(--muted2);
+  background: transparent;
+  border-color: var(--border-soft);
 }
 
 .machine-edit-row {

@@ -103,22 +103,7 @@
   line-height: 1.5;
 }
 
-/* TD-003: gargalo/folga — só aparece em produto multi-máquina. */
-.capacity-bottleneck {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4) var(--space-14);
-  margin-top: var(--space-12);
-  padding-top: var(--space-12);
-  border-top: 1px solid var(--success-tint);
-  font-size: var(--text-xs);
-}
-
-.capacity-bottleneck .cb-limit {
-  color: var(--ink);
-}
-
-.capacity-bottleneck .cb-slack {
-  color: var(--muted2);
-}
+/* ⚠ [FROTA] Fase 2 — as regras do gargalo/folga (TD-003) saíram junto com o
+   `machineBreakdown`. Ele saía da máquina atribuída a cada etapa na
+   precificação, e a taxa de frota desfez essa atribuição. */
 

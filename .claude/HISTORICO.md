@@ -9,6 +9,194 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ [FROTA] Fase 2 — a taxa de frota: o preço parou de depender de quem estava livre (2026-09-01)
+
+> **O problema, em uma linha:** a mesma peça saía por **R$33,06 (A1 Mini) · R$37,45 (A1) · R$49,01
+> (X2D)** — 48% de diferença decidida por qual impressora estava livre no dia em que alguém abriu a
+> calculadora. Com três máquinas de 7× de diferença de preço, isso não é ajustável por parâmetro.
+>
+> **A saída não toca em NENHUM número pesquisado.** O `lifeHours` de 7.500h segue sendo o DEC-02, e
+> os R$2,187/h da X2D continuam verdade. O que mudou é a **distribuição**: a etapa deixou de
+> escolher UMA impressora e passou a declarar em quais ela **pode** rodar; o preço é a média
+> ponderada dessas.
+
+### A decisão central: `machineId` (produto e etapa) virou CONJUNTO
+
+Não é renomear campo. O escalar respondia "quem vai imprimir", e a Fase 1 já tinha provado que essa
+resposta era ficção — quem imprime sai do evento de produção. O conjunto responde a pergunta que a
+precificação de fato consegue responder: **onde a peça cabe**. Os chips de escolha única viraram
+**caixas de seleção** (`MachineCheckboxes`) porque radio→checkbox é a única forma de o controle
+parar de prometer a semântica antiga.
+
+- **Todas marcadas por padrão**, e **não existe mais "máquina padrão"** — ela era vestígio de o
+  preço precisar de um escalar. Restringir é a exceção que o dono declara marcando menos.
+- **Desmarcar a última é no-op.** Produto sem máquina nenhuma não tem preço definível, e deixar o
+  `validateProduct` reprovar só na hora de salvar afastaria o aviso do clique que causou o problema.
+- **O `DEFAULT_PRODUCT_INPUT` nasce com `machineIds: []`** de propósito: aquele literal não conhece
+  a frota viva, e um `["a1"]` fixo reintroduziria a máquina padrão pela porta dos fundos. Quem marca
+  todas é o `PricingCalculator`, que tem a lista — e **só para produto NOVO**: semear o vazio ao
+  ABRIR um produto salvo converteria dado órfão em escolha deliberada e apagaria o badge.
+
+### A média é POR COMPONENTE — nunca um total rateado
+
+Cada componente tem a sua ponderada (`lib/fleet.ts`, `resolveFleet`): desgaste, manutenção e watts.
+Ratear **um** total daria uma "mistura de mistura" sem significado ao lado da coluna do custo real
+do `CostDetail`, que compara **linha a linha** (desgaste com desgaste). Como a média é linear, a
+soma das médias é a média das somas: as 3 linhas continuam fechando a taxa cheia, sem resíduo a
+distribuir. Com os pesos 30/40/30 do dono:
+
+```
+desgaste 0,9226 + manutenção 0,1380 + energia 0,0808 = 1,1414 R$/h
+```
+
+(travado em teste — `frotaFase2.test.ts` reproduz essa aritmética, não só a prosa.)
+
+### `Machine.weight` em PERCENTUAL PURO — e por que não em horas
+
+O peso vive na máquina, editado no modal de gerenciar, junto dos outros campos dela.
+
+⚠ **Percentual, nunca horas/dia (D6.1).** O `FixedCostSettings` já tem `hoursDay`/`daysMonth`/
+`machines`, e é dele que saem a capacidade **e** o rateio do custo fixo. Hora aqui seria uma
+**segunda fonte da verdade do mesmo fato** — 20h × 2 = 40 h-máquina/dia contra 8+12+8 = 28.
+Proporção e hora são grandezas diferentes: não se contradizem, e por isso convivem.
+
+- **Os pesos NÃO precisam somar 100.** A fórmula divide pela soma dos pesos **presentes**, então a
+  renormalização no subconjunto sai de graça: um produto que só cabe na X2D é precificado pela X2D
+  pura, sem ninguém reescrever percentual. Um subconjunto de 30 e 40 vira 3/7 e 4/7.
+- **🔴 Soma de pesos ZERO no subconjunto → média SIMPLES dele.** Sem esse caso, a peça que só cabe
+  na máquina recém-cadastrada daria `NaN` e contaminaria o preço inteiro.
+- **Máquina nova nasce a 0%**, com aviso visível no modal. Dar-lhe fatia igual automática
+  reprecificaria o catálogo inteiro no ato do cadastro, antes de ela imprimir uma peça.
+- Peso negativo é **saneado** (`weightOf`), não propagado.
+
+### O dado órfão: dois casos, e eles são diferentes
+
+| Conjunto | O que acontece | Por quê |
+|---|---|---|
+| Vazio, ou **só** ids que sumiram | Frota INTEIRA + badge | Nada foi declarado; a média de todas é o mesmo default de um produto sem restrição |
+| **Parcialmente** órfão (`["a1","sumiu"]`) | As vivas VALEM (`["a1"]`) + badge | Cair na frota **adicionaria** máquinas que o dono nunca nomeou — o preço subiria por conta de uma X2D que ele excluiu de propósito |
+
+O segundo caso foi encontrado escrevendo o teste: a primeira versão do teste afirmava "frota
+inteira" nos dois, e o código estava certo e o teste errado. Vale registrar porque o instinto puxa
+para a regra única.
+
+Todo produto anterior à fase chega no primeiro caso (Diretriz 7 — sem migração, o dono recadastra),
+e o preço deles passa a ser o da frota inteira, com o badge aceso.
+
+### O fallback mudo que o escopo mandou matar
+
+O `planEventRows` tinha `machines.find(...) ?? machines[0]`: linha sem máquina resolvível caía na
+**primeira do cadastro**, e energia, desgaste e manutenção do evento saíam dela — creditados a ela.
+Com escalar isso era quase inalcançável (o id vinha do produto); com conjunto virou o caminho normal
+da encomenda. Ele virou **explícito**:
+
+- **Custo:** sem máquina declarada, o evento custa a **taxa da frota elegível** — exatamente a que o
+  preço de venda embutiu (`productionCostAtRate`, em `production.ts`).
+- **Atribuição:** o evento fica **sem dono**. As horas dele vão para `summary.unattributedHours`,
+  fora do `machineUsage`.
+
+⚠ **Custo certo e dono desconhecido são coisas separadas** — foi confundi-las que a Fase 1 desfez.
+
+🔴 **E é por isso que as horas órfãs não podem entrar no `machineUsage` com id vazio:** ninguém no
+ROI casa com id vazio, mas a soma `horas ÷ total` da venda passaria a fechar em **1** sobre as
+máquinas conhecidas, rateando para elas o lucro das horas sem dono. É o 🔴 da Fase 1 escrito às
+avessas. Na reconciliação da encomenda, `unattributedUnits` deixou de ser `0` fixo e virou a
+**proporção por HORAS** das etapas sem máquina — por horas, e não por evento, porque é assim que o
+ROI reparte lucro e receita (uma etapa de 6h sem dono ao lado de uma de 1h com dono não é "metade
+atribuída").
+
+### A ponte com a `/producao`: "vazia só quando há dúvida" (decisão do dono, 2026-09-01)
+
+O evento continua exigindo um escalar. `initialRowMachineId` faz a ponte:
+
+- **Uma elegível** → não há escolha a fazer, a linha já nasce nela.
+- **Duas ou mais (ou conjunto vazio)** → nasce **vazia**, e o botão Registrar fica travado com o
+  motivo na tela (UX-32) até o dono escolher.
+
+**A alternativa recusada foi chutar a de maior peso.** O peso diz com que frequência a frota roda,
+não quem rodou ESTA placa — e um palpite que ninguém confere vira atribuição errada no ROI, calada.
+O atrito aparece só onde a ambiguidade é real. A impressão **avulsa** também nasce vazia: sem
+produto não há conjunto de onde deduzir nada, e o `machines[0]` de antes era o mesmo palpite mudo.
+
+### O round-trip (FORM-01 / CSV-05) — a maior parte do trabalho, e invisível
+
+- `buildLoadedProduct` ⇄ `buildProductPayload` ⇄ `toSavedProduct` ⇄ `parseProductsCsv`, os quatro no
+  mesmo commit. O `machineIds` é gravado **explícito** no payload, não de carona no spread: a regra
+  é que toda chave gravada seja uma decisão, e a que fica implícita é a que some.
+- **A coluna "Maquina" virou "Maquinas"**, e a célula virou **lista separada por `|`** ("A1 Combo |
+  X2D Combo"). O separador é `|` porque o do arquivo é `;` e nome de impressora leva espaço e
+  vírgula com naturalidade. Ela sai do **PRODUTO**, não do resultado — o resultado traz a união com
+  as etapas, e reimportá-la apagaria a diferença entre o conjunto do produto e o de cada etapa.
+- **`alias: "Maquina"`** no `COLUMN_SPECS`, entrando na passada EXATA. Sem ele, o nome que o próprio
+  app escreveu em todo export até aqui cairia na passada por pedaço e acenderia "coluna lida por
+  aproximação" em toda planilha antiga — um palpite anunciado sobre um nome que nós mesmos
+  escolhemos. É a lição do UX-48 aplicada à coluna: nome canônico anterior é **identidade**, não
+  palpite. (Foi assim que 9 testes de outros clusters, poluídos pelo aviso, voltaram ao verde.)
+- **Nome que não casa é DESCARTADO, não redirecionado.** Antes ele entrava na 1ª máquina do
+  cadastro; com conjunto isso é pior que inútil — uma impressora que ninguém pediu passaria a puxar
+  a média. Quatro classes de aviso, todas agrupadas (CSV-24), porque planilha gerada fora erra em
+  bloco: `maquina-vazia`, `maquina-nenhuma-casou`, **`maquina-descartada`** (o descarte PARCIAL, que
+  é o que some mais fácil — a linha entra com preço plausível e conjunto errado) e
+  `maquina-por-aproximacao`.
+- Dentro do "Etapas JSON" o conjunto viaja por **id**, com `idsJson` descartando item de tipo errado
+  e anunciando (AUD-16 [E5]: `String(item)` fabricaria um id inexistente).
+
+### A limpeza que veio junto
+
+- **`MachineUsage` saiu do `PricingResult` e do `SubitemPrice`.** Virou conceito só de
+  produção/venda. No lugar dele, `eligibleMachines`: a união dos conjuntos das etapas.
+- **A coluna "Máquina" saiu da tabela do `/catalogo`** e foi para o dropdown de detalhe, como "Pode
+  rodar em". Na tabela ela repetiria "A1 Mini +2" em toda linha (o caso normal passou a ser "cabe em
+  todas") e, pior, era lida como "foi impresso na A1 Mini" — a confusão que a Fase 1 existiu para
+  desfazer. A faixa liberada (`minmax(70px, 1.2fr)`) foi para o nome, a maior flexível.
+- **A capacidade perdeu o gargalo por máquina** (`machineBreakdown`, TD-003). Ele saía do
+  `machineUsage` da precificação, e a taxa de frota desfez essa atribuição: dizer "a A1 é o gargalo"
+  seria inventar um plano de produção que ninguém declarou. O ciclo voltou a ser a **soma** das
+  horas — o pior caso honesto. Somar a capacidade das elegíveis fica no BACKLOG.
+  ⚠ Junto foi o aviso do **DEC-06** ("2 máquinas dedicadas num produto de 2 impressoras = QUATRO"),
+  que dependia do mesmo dado. O `× machines` continua igual e continua significando conjuntos
+  completos; o que não existe mais é o dado que dizia quando a premissa deixava de ser óbvia.
+- **`validateProduct` exige ≥1 elegível**, no produto e em cada etapa. O CÁLCULO sobrevive ao vazio
+  (é o que salva os 97 produtos antigos); o que não pode é SALVAR um produto novo sem dizer onde ele
+  roda. A importação de CSV não esbarra nisso: célula vazia lá vira frota inteira, com aviso próprio.
+- **`/maquinas` ganhou o cartão da taxa de frota** — o R$/h de cada impressora não aparecia em tela
+  nenhuma. Era o número que decidia 48% de diferença de preço e só se via depois, no preço final.
+  A coluna de R$/h **não inclui energia** de propósito: ela depende da tarifa, que é do PRODUTO
+  (conta de luz), não da máquina; os watts médios ficam ao lado para quem quiser fechar a conta.
+
+### A trava de preço da Fase 1 — o que aconteceu com ela
+
+O escopo previa "os literais são de antes da taxa de frota; recalcular faz parte da tarefa". O que
+se mediu foi diferente, e é melhor: o KIT do `frotaFase1.test.ts` declara **um conjunto de UMA
+máquina por etapa** — exatamente as impressoras que ele nomeava como escalar. Conjunto unitário tem
+média ponderada igual ao único membro, então a taxa de frota **reduz** ao custo daquela máquina e
+**nenhum literal se mexeu**. Isso não é o teste ficando velho: é a prova de que a matemática nova
+contém a antiga como caso particular. Os números da taxa de frota de verdade (conjuntos de 2+) vivem
+no `frotaFase2.test.ts`, que é a trava nova — e ela guarda outra promessa: *"o preço parou de
+depender de qual impressora estava livre"*.
+
+**Verificação:** 895/895 (26 testes novos), `lint`/`typecheck`/`build` limpos.
+
+### CSS — o que a fase mexeu
+
+- `.machine-chip` virou `<label>` com checkbox nativo cobrindo o cartão (`opacity: 0`, não
+  `display: none`, que tiraria do foco por tabulação); `:has(:focus-visible)` leva o anel para o
+  cartão, porque o input é invisível. A fileira ganhou `flex-wrap` — com escolha única eram 2-3
+  itens e cabia; agora ela lista a frota inteira, e a 4ª máquina não pode achatar as outras (UX-38).
+- O modal de máquinas ganhou a 7ª trilha (Peso %) e, com ela, a **única exceção de largura** da
+  casca do TD-015: `.machine-modal` a 680px. Com os 560px padrão o campo Nome ficaria com 76px.
+  Abaixo de 640 a fileira já vira cartão (UX-44) e a largura deixa de importar; o Peso abre a 4ª
+  fileira do cartão, com colocação **explícita** pelo mesmo motivo dos outros cinco.
+- `.field-pending` — a linha da `/producao` que espera escolha se anuncia **em repouso** (UX-36).
+  Sem isso o dono só descobriria o que falta ao clicar em Registrar, e com várias linhas na tela não
+  saberia qual delas.
+
+### ⚠ Continua valendo (não desfazer)
+
+`ProductionEvent.machineId`, `EventRow.machineId`, `MachineUsage`, `FinishedLayer.machineUsage` e
+`Sale.machineUsage` seguem **escalares por evento** — um evento = uma etapa = UMA máquina. O
+conjunto é do **produto/etapa** (quem PODE rodar), nunca do evento (quem RODOU).
+
 ## ✅ [FROTA] Fase 1 — o ROI parou de atribuir por quem foi PRECIFICADO (2026-09-01)
 
 > **A Fase 1 não toca em preço** — e a prova disso é um teste, não uma afirmação

@@ -295,6 +295,7 @@ describe("productionCost", () => {
     lifeHours: 3000,
     watts: 100,
     maintenancePerHour: 0.5,
+    weight: 100,
   };
 
   it("soma material + energia + depreciação + manutenção + labor", () => {

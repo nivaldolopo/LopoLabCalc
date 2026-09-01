@@ -49,41 +49,29 @@ function formatCount(value: number): string {
   return value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 }
 
-// UX-04: um produto pode usar mais de uma impressora (etapas em máquinas
-// diferentes). `machineUsage` traz cada máquina que participou; a principal nem
-// sempre é a única. Devolve os nomes DISTINTOS, na ordem em que aparecem.
-function machineNames(result: PricingResult): string[] {
-  const names = result.machineUsage.map((u) => u.machineName);
-  return names.length > 0 ? Array.from(new Set(names)) : [result.machine.name];
-}
-
-// Célula "Máquina" reusada na linha fechada (compacta: "A1 +1") e no painel
-// expandido (`full`: lista inteira). Mantém o badge de máquina órfã (TD-009).
-function MachineCell({
-  result,
-  full = false,
-}: {
-  result: PricingResult;
-  full?: boolean;
-}) {
+// [FROTA] Fase 2 — as máquinas ELEGÍVEIS do produto ("onde pode rodar"), não
+// mais as que ele "usa": a precificação deixou de atribuir impressora, e o
+// conjunto é o que sobra — que é justamente a pergunta que ela responde.
+//
+// ⚠ Isto vive SÓ no painel expandido agora. Como coluna da tabela ele repetia
+// "A1 Mini +2" em toda linha (o caso normal passou a ser "cabe em todas") e,
+// pior, era lido como "foi impresso na A1 Mini" — a confusão que a Fase 1
+// existiu para desfazer. A máquina que IMPRIMIU tem tela própria: /producao e o
+// ROI de /maquinas.
+function MachineCell({ result }: { result: PricingResult }) {
   if (result.machineMissing) {
     return (
       <span
         className="machine-missing-badge"
-        title="Máquina não encontrada — usando esta como fallback. Reatribua a impressora."
+        title="Sem conjunto elegível válido — precificando pela frota inteira. Marque onde o produto cabe."
       >
-        ⚠ {result.machine.name}
+        ⚠ frota inteira
       </span>
     );
   }
-  const names = machineNames(result);
-  if (names.length <= 1) return <>{names[0]}</>;
-  if (full) return <>{names.join(" · ")}</>;
-  return (
-    <span title={names.join(" · ")}>
-      {names[0]} <span className="muted">+{names.length - 1}</span>
-    </span>
-  );
+  const names = result.eligibleMachines.map((machine) => machine.name);
+  if (names.length === 0) return <>—</>;
+  return <>{names.join(" · ")}</>;
 }
 
 type ProductCatalogProps = {
@@ -438,14 +426,13 @@ export function ProductCatalog({
                 <th className="num">Peças</th>
                 <th className="num">Custo/peça</th>
                 <th className="num">Margem</th>
-                <th>Máquina</th>
                 <th className="col-actions">Ações</th>
               </tr>
             </thead>
             <tbody>
               {filteredProducts.length === 0 ? (
                 <tr className="catalog-no-results">
-                  <td colSpan={7}>
+                  <td colSpan={6}>
                     Nenhum produto encontrado para “{query.trim()}”.
                   </td>
                 </tr>
@@ -499,9 +486,6 @@ export function ProductCatalog({
                           {result.margin.toFixed(0)}%
                         </span>
                         <NetMarginHint result={result} fees={fees} compact />
-                      </td>
-                      <td data-label="Máquina">
-                        <MachineCell result={result} />
                       </td>
                       <td className="col-actions">
                         {/* FEAT-08: a linha fechada age só sobre o produto
@@ -574,7 +558,7 @@ export function ProductCatalog({
                       </td>
                     </tr>
                     <tr className={`details-row ${isOpen ? "open" : ""}`}>
-                      <td colSpan={7}>
+                      <td colSpan={6}>
                         <CatalogDetails
                           product={product}
                           result={result}
@@ -667,8 +651,8 @@ function CatalogDetails({
       <h3 className="cd-product-name">{product.name}</h3>
       <div className="cd-meta">
         <span>
-          <span className="db-label">Máquina</span>{" "}
-          <MachineCell result={result} full />
+          <span className="db-label">Pode rodar em</span>{" "}
+          <MachineCell result={result} />
         </span>
         <span>
           <span className="db-label">Markup</span> {product.markup.toFixed(1)}x

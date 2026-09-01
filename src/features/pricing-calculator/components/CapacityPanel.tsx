@@ -34,9 +34,6 @@ export function CapacityPanel({
   // entra no totalCost; sem o fixo, o líquido é apenas "Contribuição".
   const term = result?.fixedIncluded ? "Lucro" : "Contribuição";
   const failurePct = result?.failureRatePct ?? 0;
-  // DEC-06: mesmo saneamento do `calculateCapacity` (piso 1), para o aviso falar
-  // o número que a conta de fato usou, não o que está digitado no campo.
-  const machinesCount = Math.max(1, Number(settings.machines) || 1);
 
   return (
     <div className="capacity-box">
@@ -127,37 +124,18 @@ export function CapacityPanel({
           rodados (a que falha ocupa a máquina do mesmo jeito).
         </div>
       ) : null}
-      {result && result.machineBreakdown.length > 1 ? (
-        <div className="capacity-bottleneck">
-          {result.machineBreakdown.map((m) =>
-            m.isBottleneck ? (
-              <span key={m.machineId} className="cb-limit">
-                🔧 Gargalo: <strong>{m.machineName}</strong> ({m.piecesMonth}/mês)
-              </span>
-            ) : (
-              <span key={m.machineId} className="cb-slack">
-                {m.machineName} tem folga (daria {m.piecesMonth}/mês)
-              </span>
-            ),
-          )}
-        </div>
-      ) : null}
-      {/* DEC-06 (dono, 2026-08-16) — `machines` significa N CÓPIAS IDÊNTICAS do
-          conjunto que o produto usa, e o `× machines` de calculateCapacity é
-          intencional sob essa definição. O que faltava era o app dizer isso: um
-          produto que roda em 2 máquinas com "Máquinas dedicadas: 2" pressupõe
-          QUATRO impressoras, e nada na tela avisava. Só aparece quando as duas
-          condições coexistem — é aí que a premissa deixa de ser óbvia. */}
-      {result && result.machineBreakdown.length > 1 && machinesCount > 1 ? (
-        <div className="capacity-note">
-          Este produto usa <strong>{result.machineBreakdown.length}</strong>{" "}
-          máquinas. “Máquinas dedicadas: {machinesCount}” significa{" "}
-          <strong>{machinesCount} conjuntos completos</strong> ({machinesCount}×
-          cada uma delas ={" "}
-          {machinesCount * result.machineBreakdown.length} impressoras), não{" "}
-          {machinesCount} impressoras no total.
-        </div>
-      ) : null}
+
+      {/* ⚠ [FROTA] Fase 2 — aqui vivia o aviso do DEC-06 ("2 máquinas dedicadas
+          num produto de 2 impressoras = QUATRO"). Ele dependia do
+          `machineBreakdown`, que dependia da máquina atribuída a cada etapa na
+          PRECIFICAÇÃO — e é essa atribuição que a taxa de frota desfez. O `×
+          machines` do `calculateCapacity` continua igual e continua significando
+          conjuntos completos; o que não existe mais é o dado que dizia quando a
+          premissa deixava de ser óbvia. Desembaraçar o duplo papel do campo
+          "Máquinas" está no BACKLOG, e é lá que este aviso volta com base real.
+
+          O ciclo também deixou de ser o gargalo por máquina: virou a soma das
+          horas (o pior caso honesto). Ver o comentário no `calculateCapacity`. */}
     </div>
   );
 }

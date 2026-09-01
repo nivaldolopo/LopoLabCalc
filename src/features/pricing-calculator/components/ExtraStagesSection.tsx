@@ -4,6 +4,7 @@ import { useId } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { Machine, PrintStage, StockFilament } from "../types";
 import { FilamentColorsSection } from "./FilamentColorsSection";
+import { MachineCheckboxes } from "./MachineCheckboxes";
 import { NumberInput } from "./NumberInput";
 import { PrintTimeField } from "./ProductForm";
 
@@ -74,29 +75,20 @@ export function ExtraStagesSection({
             {/* Rotula um grupo de BOTÕES (chips), não um campo — `role="group"`
                 em vez de <label>, mesmo tratamento das caixas do subitem. */}
             <div className="section-label" id={`${rowId}-machine-label`}>
-              Máquina
+              Máquinas
             </div>
-            <div
-              className="machine-row"
-              role="group"
-              aria-labelledby={`${rowId}-machine-label`}
-            >
-              {machines.map((machine) => (
-                <button
-                  className={`machine-chip ${
-                    stage.machineId === machine.id ? "active" : ""
-                  }`}
-                  key={machine.id}
-                  type="button"
-                  onClick={() =>
-                    onUpdateStage(stage.id ?? "", { machineId: machine.id })
-                  }
-                >
-                  <span className="mname">{machine.name}</span>
-                  <span className="mmeta">{machine.watts}W</span>
-                </button>
-              ))}
-            </div>
+            {/* [FROTA] Fase 2 — a etapa também tem CONJUNTO, não escalar: uma
+                etapa de acabamento pode caber em qualquer impressora enquanto a
+                principal só cabe na maior, e é essa diferença que a média
+                ponderada por etapa preserva. */}
+            <MachineCheckboxes
+              machines={machines}
+              selectedIds={stage.machineIds ?? []}
+              onChange={(machineIds) =>
+                onUpdateStage(stage.id ?? "", { machineIds })
+              }
+              labelledBy={`${rowId}-machine-label`}
+            />
           </div>
           <FilamentColorsSection
             filaments={stage.filaments ?? []}

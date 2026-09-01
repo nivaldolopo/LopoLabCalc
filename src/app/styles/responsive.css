@@ -654,6 +654,14 @@
     grid-area: 3 / 2;
   }
 
+  /* [FROTA] Fase 2 — o Peso é o 5º número e abre a 4ª fileira do cartão. A
+     colocação é EXPLÍCITA pelo mesmo motivo dos outros cinco (ver acima): item
+     posicionado não reserva trilha para os vizinhos, e sem isto ele cairia na
+     coluna de 44px do botão Excluir. */
+  .machine-edit-row .me-field:nth-child(6) {
+    grid-area: 4 / 1;
+  }
+
   .machine-edit-row .me-label {
     display: block;
     margin-bottom: var(--space-2);

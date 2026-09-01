@@ -17,6 +17,7 @@ const machines: Machine[] = [
     lifeHours: 5000,
     watts: 95,
     maintenancePerHour: 0.2,
+    weight: 60,
   },
   {
     id: "x2d",
@@ -25,6 +26,7 @@ const machines: Machine[] = [
     lifeHours: 8000,
     watts: 150,
     maintenancePerHour: 0.35,
+    weight: 40,
   },
 ];
 
@@ -47,7 +49,7 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
     id: "p1",
     name: "Vaso Espiral; Grande",
     mainStageName: "CORPO PRINCIPAL",
-    machineId: "x2d",
+    machineIds: ["x2d"],
     printHours: 3.8,
     piecesCount: 2,
     energyTariff: 0.92,
@@ -79,7 +81,7 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
       {
         id: "stage_1784581966745_0",
         name: "ETAPA2",
-        machineId: "a1",
+        machineIds: ["a1"],
         printHours: 0.9,
         laborMinutes: 5,
         filaments: [
@@ -94,7 +96,7 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
       {
         id: "stage_1784334659661_1",
         name: "Etapa 3",
-        machineId: "x2d",
+        machineIds: ["x2d"],
         printHours: 1.5,
         laborMinutes: 3,
         filaments: [
@@ -320,11 +322,11 @@ describe("productCsv — CSV escrito à mão (números em pt-BR)", () => {
 
   it("importa etapa sem energyTariff/laborRate, sem gravar undefined", () => {
     const etapas = JSON.stringify([
-      { name: "Tampa", machineId: "x2d", printHours: 1.25, laborMinutes: 10 },
+      { name: "Tampa", machineIds: ["x2d"], printHours: 1.25, laborMinutes: 10 },
     ]);
     const stage = importar(linha({ etapas })).stages[0];
 
-    expect(stage.machineId).toBe("x2d");
+    expect(stage.machineIds).toEqual(["x2d"]);
     expect("energyTariff" in stage).toBe(false);
     expect("laborRate" in stage).toBe(false);
   });
@@ -336,7 +338,7 @@ describe("productCsv — CSV escrito à mão (números em pt-BR)", () => {
     const etapas = JSON.stringify([
       {
         name: "Tampa",
-        machineId: "x2d",
+        machineIds: ["x2d"],
         printHours: 1.25,
         laborMinutes: 10,
         energyTariff: 2,
@@ -356,31 +358,82 @@ describe("productCsv — CSV escrito à mão (números em pt-BR)", () => {
   });
 });
 
-describe("productCsv — máquina que não casa", () => {
+describe("productCsv — a coluna Maquinas (lista, [FROTA] Fase 2)", () => {
   it("casa por nome exato e por id contido no nome", () => {
     const { products, warnings } = parseProductsCsv(
-      `Produto;Maquina\nUm;X2D Combo\nDois;Bambu Lab A1`,
+      `Produto;Maquinas\nUm;X2D Combo\nDois;Bambu Lab A1`,
       machines,
     );
 
-    expect(products.map((p) => p.machineId)).toEqual(["x2d", "a1"]);
+    expect(products.map((p) => p.machineIds)).toEqual([["x2d"], ["a1"]]);
     expect(warnings).toEqual([]);
   });
 
-  it("avisa quando cai na primeira máquina em vez de decidir calado", () => {
-    const { products, warnings } = parseProductsCsv(
-      `Produto;Maquina\nUm;Creality K2\n`,
+  it("lê a LISTA separada por barra vertical, normalizando a ordem", () => {
+    const { products } = parseProductsCsv(
+      `Produto;Maquinas\nUm;X2D Combo | A1 Combo\n`,
+      machines,
+    );
+    // Ordem do CADASTRO, não a que a planilha escreveu — é o que faz o export
+    // do que acabou de entrar ser idêntico ao arquivo de origem.
+    expect(products[0].machineIds).toEqual(["a1", "x2d"]);
+  });
+
+  it("nome repetido na mesma célula não vira peso dobrado", () => {
+    const { products } = parseProductsCsv(
+      `Produto;Maquinas\nUm;A1 Combo | A1 Combo\n`,
+      machines,
+    );
+    // A ponderação vem do `Machine.weight`; a célula é um CONJUNTO.
+    expect(products[0].machineIds).toEqual(["a1"]);
+  });
+
+  it("nome que não casa é DESCARTADO e a linha cai na frota inteira", () => {
+    // ⚠ Antes ele entrava na 1ª máquina do cadastro. Com conjunto isso é pior
+    // que inútil: uma impressora que ninguém pediu passaria a puxar a média do
+    // preço, e o `machineMissing` ficava `false` — nada avisava.
+    const { products, issues } = parseProductsCsv(
+      `Produto;Maquinas\nUm;Creality K2\n`,
       machines,
     );
 
-    expect(products[0].machineId).toBe("a1");
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toContain("Creality K2");
-    expect(warnings[0]).toContain("A1 Combo");
+    expect(products[0].machineIds).toEqual(["a1", "x2d"]);
+    expect((issues ?? []).some((i) => i.kind === "maquina-nenhuma-casou")).toBe(
+      true,
+    );
   });
 
-  it("não avisa quando a coluna de máquina está ausente", () => {
-    const { warnings } = parseProductsCsv(`Produto\nUm`, machines);
+  it("descarte PARCIAL: as boas valem, e o aviso é próprio", () => {
+    // O caso que some sozinho: a linha entra com preço plausível (a A1 existe)
+    // e conjunto errado.
+    const { products, issues } = parseProductsCsv(
+      `Produto;Maquinas\nUm;A1 Combo | Creality K2\n`,
+      machines,
+    );
+
+    expect(products[0].machineIds).toEqual(["a1"]);
+    expect((issues ?? []).some((i) => i.kind === "maquina-descartada")).toBe(
+      true,
+    );
+  });
+
+  it("célula vazia avisa — frota inteira é decisão de preço, não detalhe", () => {
+    const { products, issues } = parseProductsCsv(
+      `Produto;Maquinas\nUm;\n`,
+      machines,
+    );
+    expect(products[0].machineIds).toEqual(["a1", "x2d"]);
+    expect((issues ?? []).some((i) => i.kind === "maquina-vazia")).toBe(true);
+  });
+
+  it("coluna de máquina AUSENTE também vale frota inteira, com aviso", () => {
+    const { products, issues, warnings } = parseProductsCsv(
+      `Produto\nUm`,
+      machines,
+    );
+    expect(products[0].machineIds).toEqual(["a1", "x2d"]);
+    expect((issues ?? []).some((i) => i.kind === "maquina-vazia")).toBe(true);
+    // Continua sem `warnings` por linha: quem fala é a classe agrupada.
     expect(warnings).toEqual([]);
   });
 });

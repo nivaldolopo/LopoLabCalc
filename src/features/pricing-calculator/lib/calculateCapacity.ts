@@ -18,40 +18,33 @@ export function calculateCapacity(
   const totalPrintHours = product.printHours + extraHours;
   const hoursDay = Number(settings.hoursDay) || 0;
   const daysMonth = Number(settings.daysMonth) || 0;
-  // DEC-06 (dono, 2026-08-16) — `machines` = N CÓPIAS IDÊNTICAS do conjunto de
-  // máquinas que o produto usa. O TD-003 abaixo já credita o paralelismo entre
-  // máquinas DIFERENTES; este fator multiplica conjuntos inteiros, então num
-  // produto A1+X2D o `machines: 2` pressupõe 2 A1 e 2 X2D (quatro impressoras).
-  // A conta fica; o que faltava era dizer isso — o `CapacityPanel` avisa quando
-  // as duas condições coexistem.
+  // DEC-06 (dono, 2026-08-16) — `machines` = N conjuntos completos rodando em
+  // paralelo. A conta fica; o aviso do `CapacityPanel` que a explicava saiu junto
+  // com o `machineBreakdown` ([FROTA] Fase 2), porque ele só aparecia quando o
+  // produto usava mais de uma máquina — e não há mais como saber isso a partir
+  // do preço. Desembaraçar este duplo papel está no BACKLOG.
   const machines = Math.max(1, Number(settings.machines) || 1);
 
   if (totalPrintHours <= 0 || hoursDay <= 0 || daysMonth <= 0) return null;
 
-  // TD-003 — capacidade pelo GARGALO, não pela soma. Máquinas diferentes rodam
-  // em PARALELO (a A1 imprime uma etapa enquanto a X2D imprime outra), então
-  // quem dita o ritmo é a máquina mais ocupada, não o total somado. As horas por
-  // máquina vêm do `machineUsage` (que é POR PEÇA em calculatePricing → multiplico
-  // de volta por `pieces` para voltar ao tempo por IMPRESSÃO/ciclo). Produto de
-  // uma máquina só: max === soma === totalPrintHours → número idêntico ao antigo.
   // TD-010 — o horizonte mensal usa `daysMonth` (o MESMO do rateio do custo
   // fixo), não um 30 fixo. O mês tinha 26 dias de um lado e 30 do outro: o
   // fixo/h saía ~13% maior que a capacidade que o justificava.
   const horizon = hoursDay * daysMonth;
-  const perMachine = result.machineUsage.map((usage) => ({
-    machineId: usage.machineId,
-    machineName: usage.machineName,
-    cycleHours: usage.hours * result.pieces,
-  }));
-  const bottleneckHours =
-    perMachine.length > 0
-      ? Math.max(...perMachine.map((m) => m.cycleHours))
-      : totalPrintHours;
+  // ⚠ [FROTA] Fase 2 — o ciclo voltou a ser a SOMA das horas. O TD-003 tirava o
+  // gargalo do `machineUsage` da precificação (etapas em máquinas diferentes
+  // rodam em paralelo, então mandava a mais ocupada). Esse `machineUsage` era a
+  // máquina escolhida para PRECIFICAR, e ela deixou de existir: hoje a etapa tem
+  // um conjunto elegível, e qualquer uma dele pode rodá-la. Dizer que "a A1 é o
+  // gargalo" seria inventar um plano de produção que ninguém declarou — a soma é
+  // o pior caso honesto (tudo em série). Creditar o paralelismo somando as
+  // elegíveis está registrado no BACKLOG, fora do escopo desta fase.
+  const cycleHours = totalPrintHours;
 
   // Cada máquina imprime continuamente ao longo do mês; um job pode atravessar
   // vários dias. Por isso contamos os ciclos sobre o horizonte mensal — assim
   // uma mesa que leva mais que "horas/dia" não zera (ela só rende <1 peça/dia).
-  const cyclesMonth = Math.floor(horizon / bottleneckHours) * machines;
+  const cyclesMonth = Math.floor(horizon / cycleHours) * machines;
   // TD-011 — CICLO ≠ PEÇA VENDÁVEL. A taxa de falha já infla o custo (reserva de
   // falha, `calculatePricing`); aqui ela deflaciona o volume, que é o outro lado
   // da mesma moeda — antes a falha subia o preço e deixava a receita projetada
@@ -70,26 +63,6 @@ export function calculateCapacity(
   const grossPerPiece = result.suggestedPrice;
   const netPerPiece = result.suggestedPrice - result.totalCost;
 
-  // Repartição por máquina: quantas peças/mês CADA impressora renderia se fosse
-  // o único limite. A do gargalo bate com `piecesMonth`; as outras têm folga.
-  const machineBreakdown = perMachine
-    .map((m) => ({
-      machineId: m.machineId,
-      machineName: m.machineName,
-      cycleHours: m.cycleHours,
-      piecesMonth:
-        m.cycleHours > 0
-          ? Math.floor(
-              Math.floor(horizon / m.cycleHours) *
-                machines *
-                result.pieces *
-                yieldFactor,
-            )
-          : 0,
-      isBottleneck: m.cycleHours === bottleneckHours,
-    }))
-    .sort((a, b) => b.cycleHours - a.cycleHours);
-
   return {
     piecesDay,
     cyclesDay,
@@ -101,6 +74,5 @@ export function calculateCapacity(
     netMonth: netPerPiece * piecesMonth,
     fixedIncluded: result.fixedCost > 0,
     failureRatePct: failureFraction * 100,
-    machineBreakdown,
   };
 }

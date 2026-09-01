@@ -231,3 +231,85 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ---------------------------------------------------------------------------
+   [FROTA] Fase 2 — o cartão da TAXA DE FROTA.
+
+   O R$/h de cada impressora não aparecia em tela nenhuma: era o número que
+   decidia 48% de diferença de preço entre a Mini e a X2D e só se via depois, no
+   preço final. Aqui ele fica ao lado da média que o substituiu.
+   --------------------------------------------------------------------------- */
+.fleet-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-20);
+  margin-bottom: var(--space-20);
+}
+
+.fleet-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: var(--space-6);
+}
+
+.fleet-sub {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  margin-bottom: var(--space-14);
+}
+
+.fleet-warn {
+  color: var(--warn);
+}
+
+/* A tabela é numérica e tem 6 colunas: no celular ela rola DENTRO do próprio
+   invólucro, nunca empurrando a página de lado. */
+.fleet-table-wrap {
+  overflow-x: auto;
+}
+
+.fleet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.fleet-table th {
+  text-align: left;
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--muted2);
+  padding: 0 var(--space-8) var(--space-6);
+  white-space: nowrap;
+}
+
+.fleet-table td {
+  padding: var(--space-8);
+  border-top: 1px solid var(--border-soft);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+/* Peso 0% = fora da média ponderada. Se anuncia em repouso (UX-36). */
+.fleet-table .fleet-zero td {
+  color: var(--muted2);
+}
+
+.fleet-zero-tag {
+  color: var(--warn);
+}
+
+.fleet-table .fleet-total td {
+  border-top: 2px solid var(--border);
+  font-weight: 700;
+}
+
+.fleet-foot {
+  margin-top: var(--space-12);
+  font-size: var(--text-xs);
+  color: var(--muted2);
+}

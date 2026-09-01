@@ -137,11 +137,19 @@ export function PricingResultCard({
         <NetMarginHint result={result} fees={fees} />
       </div>
 
+      {/* [FROTA] Fase 2 — o aviso mudou de fato: antes era "a máquina salva não
+          existe mais, estou usando outra"; agora é "não há conjunto elegível
+          válido, estou precificando pela FROTA INTEIRA". O efeito no preço é
+          maior, não menor — a média de todas costuma ficar longe da máquina que
+          o produto usava. */}
       {result.machineMissing ? (
         <div className="form-error machine-missing">
-          ⚠ Máquina não encontrada — usando “{result.machine.name}” como
-          fallback. Reatribua a impressora do produto (o custo pode estar
-          errado).
+          ⚠ Sem máquinas elegíveis válidas — precificando pela{" "}
+          <strong>frota inteira</strong>
+          {result.eligibleMachines.length > 0
+            ? ` (${result.eligibleMachines.map((m) => m.name).join(", ")})`
+            : ""}
+          . Marque onde o produto realmente cabe.
         </div>
       ) : null}
 

@@ -19,7 +19,7 @@ const salvo: SavedProduct = {
   createdAt: 1_700_000_000_000,
   name: 'Cobaia "Full"; Round-Trip',
   mainStageName: "Corpo principal",
-  machineId: "x2d",
+  machineIds: ["x2d"],
   printHours: 4.75,
   energyTariff: 1.07,
   laborMinutes: 42,
@@ -42,12 +42,12 @@ const salvo: SavedProduct = {
   ],
   stages: [
     {
-      id: "stage_extra_1", name: "Tampa (outra maquina)", machineId: "a1",
+      id: "stage_extra_1", name: "Tampa (outra maquina)", machineIds: ["a1"],
       printHours: 1.25, laborMinutes: 12,
       filaments: [{ filamentId: "fil_verde", colorName: "Verde", pricePerKg: 105, totalG: 22.4 }],
     },
     {
-      id: "stage_extra_2", name: "Encaixe (mesma maquina)", machineId: "x2d",
+      id: "stage_extra_2", name: "Encaixe (mesma maquina)", machineIds: ["x2d"],
       printHours: 0.6, laborMinutes: 5,
       filaments: [{ filamentId: null, colorName: "Preto avulso", pricePerKg: 89.9, totalG: 11 }],
     },
@@ -201,7 +201,7 @@ describe("RT-02 — etapa salva sem id", () => {
     id: "prod_legado",
     stages: [
       {
-        name: "Etapa antiga", machineId: "a1", printHours: 1, laborMinutes: 5,
+        name: "Etapa antiga", machineIds: ["a1"], printHours: 1, laborMinutes: 5,
         filaments: [{ filamentId: null, colorName: "Cinza", pricePerKg: 100, totalG: 20 }],
       },
     ],

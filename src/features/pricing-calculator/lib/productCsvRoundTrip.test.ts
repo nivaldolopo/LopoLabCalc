@@ -9,8 +9,8 @@ import type {
 } from "../types";
 
 const machines: Machine[] = [
-  { id: "a1", name: "Bambu Lab A1", price: 5299, lifeHours: 7500, watts: 85, maintenancePerHour: 0.12 },
-  { id: "x2d", name: "Bambu Lab X2D", price: 13999, lifeHours: 7500, watts: 160, maintenancePerHour: 0.2 },
+  { id: "a1", name: "Bambu Lab A1", price: 5299, lifeHours: 7500, watts: 85, maintenancePerHour: 0.12, weight: 40 },
+  { id: "x2d", name: "Bambu Lab X2D", price: 13999, lifeHours: 7500, watts: 160, maintenancePerHour: 0.2, weight: 30 },
 ];
 const fixedCosts: FixedCostSettings = {
   enabled: true, rent: 900, other: 250, machines: 2, hoursDay: 10, daysMonth: 26,
@@ -23,7 +23,7 @@ const cobaia: SavedProduct = {
   createdAt: 1_700_000_000_000,
   name: 'Cobaia "Full"; Round-Trip',
   mainStageName: "Corpo principal",
-  machineId: "x2d",
+  machineIds: ["x2d"],
   printHours: 4.75,
   energyTariff: 1.07,          // != 0.8
   laborMinutes: 42,            // != 15
@@ -46,12 +46,12 @@ const cobaia: SavedProduct = {
   ],
   stages: [
     {
-      id: "stage_extra_1", name: "Tampa (outra maquina)", machineId: "a1",
+      id: "stage_extra_1", name: "Tampa (outra maquina)", machineIds: ["a1"],
       printHours: 1.25, laborMinutes: 12,
       filaments: [{ filamentId: "fil_verde", colorName: "Verde", pricePerKg: 105, totalG: 22.4 }],
     },
     {
-      id: "stage_extra_2", name: "Encaixe (mesma maquina)", machineId: "x2d",
+      id: "stage_extra_2", name: "Encaixe (mesma maquina)", machineIds: ["x2d"],
       printHours: 0.6, laborMinutes: 5,
       filaments: [{ filamentId: null, colorName: "Preto avulso", pricePerKg: 89.9, totalG: 11 }],
     },
@@ -129,7 +129,7 @@ describe("round-trip do CSV — export -> import -> export", () => {
         falhas.push(`${label}: esperado ${JSON.stringify(esperado)} - obtido ${JSON.stringify(obtido)}`);
       }
     };
-    (["name", "mainStageName", "machineId", "printHours", "energyTariff", "laborMinutes",
+    (["name", "mainStageName", "machineIds", "printHours", "energyTariff", "laborMinutes",
       "laborRate", "markup", "failureRate", "includeFixed", "roundingMode", "piecesCount",
       "linkModel", "linkCompetitor", "linkFile", "sellBySubitems"] as const)
       .forEach((k) => eq(k, cobaia[k], p[k]));
@@ -175,12 +175,55 @@ describe("round-trip do CSV — bordas", () => {
     expect("accessories" in back).toBe(true);
   });
 
-  it("maquina inexistente: avisa ou engole?", () => {
+  // [FROTA] Fase 2 — a coluna virou LISTA, e cada desfecho tem a sua checagem
+  // (CSV-05: coluna nova entra com a checagem dela no mesmo commit). Antes o
+  // nome ilegível caía na 1ª máquina com um aviso; agora ele é DESCARTADO, e o
+  // que a linha ganha depende do que sobrou.
+  it("maquina inexistente SOZINHA: avisa e cai na frota inteira", () => {
     const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock)
       .replace("Bambu Lab X2D", "Impressora Fantasma");
     const r = parseProductsCsv(csv, machines);
-    expect(r.warnings.length).toBe(1);
-    expect(r.products[0].machineId).toBe("a1");
+    // O produto da cobaia declara só a X2D, então descartá-la esvazia a lista.
+    expect((r.issues ?? []).some((i) => i.kind === "maquina-nenhuma-casou")).toBe(true);
+    expect(r.products[0].machineIds).toEqual(["a1", "x2d"]);
+  });
+
+  it("descarte PARCIAL avisa — as boas valem, e o preço muda", () => {
+    const duas: SavedProduct = { ...cobaia, machineIds: ["a1", "x2d"] };
+    const csv = exportProductsCsv([duas], machines, fixedCosts, stock)
+      .replace("Bambu Lab X2D", "Impressora Fantasma");
+    const r = parseProductsCsv(csv, machines);
+    // ⚠ É o caso que some sozinho: o produto entra com preço plausível (a A1
+    // existe) e conjunto errado. Sem esta classe, nada diria.
+    expect((r.issues ?? []).some((i) => i.kind === "maquina-descartada")).toBe(true);
+    expect(r.products[0].machineIds).toEqual(["a1"]);
+  });
+
+  it("celula VAZIA avisa e vale frota inteira", () => {
+    const semNada: SavedProduct = { ...cobaia, machineIds: [] };
+    const r = parseProductsCsv(
+      exportProductsCsv([semNada], machines, fixedCosts, stock),
+      machines,
+    );
+    expect((r.issues ?? []).some((i) => i.kind === "maquina-vazia")).toBe(true);
+    expect(r.products[0].machineIds).toEqual(["a1", "x2d"]);
+  });
+
+  it("lista de DUAS sobrevive ao round-trip, na ordem do cadastro", () => {
+    const duas: SavedProduct = { ...cobaia, machineIds: ["x2d", "a1"] };
+    const csvA = exportProductsCsv([duas], machines, fixedCosts, stock);
+    const back = reimport(csvA)[0];
+    // A ordem normaliza para a do cadastro nos dois lados — é o que faz o
+    // export do que acabou de entrar ser byte a byte igual.
+    expect(back.machineIds).toEqual(["a1", "x2d"]);
+    const csvB = exportProductsCsv(
+      [asSaved(back, "copia")],
+      machines,
+      fixedCosts,
+      stock,
+    );
+    const A = rows(csvA), B = rows(csvB);
+    expect(diffRows(A.headers, A.body[0], B.body[0]).diffs).toEqual([]);
   });
 
   it("escape de ; e aspas sobrevive", () => {
@@ -221,7 +264,7 @@ describe("round-trip do CSV — bordas", () => {
     const legado: SavedProduct = {
       ...cobaia,
       stages: [
-        { id: "s_legado", name: "Antiga", machineId: "a1", printHours: 1,
+        { id: "s_legado", name: "Antiga", machineIds: ["a1"], printHours: 1,
           laborMinutes: 0, weightG: 30, filamentPricePerKg: 110 },
       ],
     };
@@ -413,7 +456,7 @@ describe("importação — arquivo escrito à mão", () => {
     ].join("\n");
     const r = parseProductsCsv(csv, machines);
     expect(r.products[0].name).toBe("Chaveiro");
-    expect(r.products[0].machineId).toBe("a1");
+    expect(r.products[0].machineIds).toEqual(["a1"]);
     expect(r.products[0].weightG).toBe(40);
     expect(r.products[0].roundingMode).toBe("0.90");
     // Coluna reconhecida = nenhum aviso de "coluna ignorada".

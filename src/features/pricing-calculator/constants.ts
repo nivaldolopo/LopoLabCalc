@@ -62,9 +62,16 @@ export function defaultMaintenanceForId(id: string): number {
 //   TOPO da faixa → levemente conservadores (superestimam pouco a energia; nunca
 //   subprecificam). Energia é componente pequeno do custo, então o impacto é de
 //   centavos. Câmara aquecida (ABS/PC) puxaria muito mais — não é o caso (quase só PLA).
+//
+// • weight ([FROTA] Fase 2) — a fatia declarada de uso de cada máquina, em %.
+//   A semente de duas máquinas divide meio a meio: sem histórico de produção não
+//   há o que ponderar, e 50/50 é a média simples escrita explicitamente. Os pesos
+//   REAIS do dono (30/40/30 entre Mini/A1/X2D) vivem no doc `config/machines` e
+//   se editam em "Gerenciar Máquinas" — este literal só semeia instalação nova.
+//   ⚠ Máquina que o dono ADICIONA nasce com 0% de propósito (ver `Machine.weight`).
 export const DEFAULT_MACHINES: Machine[] = [
-  { id: "a1", name: "A1 Combo", price: 5299, lifeHours: 7500, watts: 95, maintenancePerHour: 0.12 },
-  { id: "x2d", name: "X2D Combo", price: 13999, lifeHours: 7500, watts: 150, maintenancePerHour: 0.2 },
+  { id: "a1", name: "A1 Combo", price: 5299, lifeHours: 7500, watts: 95, maintenancePerHour: 0.12, weight: 50 },
+  { id: "x2d", name: "X2D Combo", price: 13999, lifeHours: 7500, watts: 150, maintenancePerHour: 0.2, weight: 50 },
 ];
 
 export const DEFAULT_FIXED_COSTS: FixedCostSettings = {
@@ -98,7 +105,12 @@ export const DEFAULT_PRODUCT_INPUT: ProductInput = {
   mainStageName: "",
   weightG: 40,
   printHours: 3,
-  machineId: "a1",
+  // [FROTA] Fase 2 — nasce VAZIO porque este literal não conhece a frota. Quem
+  // marca todas é o formulário, que tem a lista viva (`PricingCalculator`); um
+  // `["a1"]` fixo aqui reintroduziria a máquina padrão que a fase existe para
+  // matar. Produto que chegue ao cálculo assim é precificado pela frota inteira,
+  // com badge de dado órfão.
+  machineIds: [],
   filamentPricePerKg: 110,
   energyTariff: 0.8,
   laborMinutes: 10,

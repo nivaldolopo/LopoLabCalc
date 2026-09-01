@@ -353,16 +353,53 @@ export function productionCost(
   laborCost: number,
   suppliesCost = 0,
 ): ProductionCostBreakdown {
+  return productionCostAtRate(
+    {
+      watts: num(machine.watts),
+      depreciationPerHour:
+        machine.lifeHours > 0 ? num(machine.price) / machine.lifeHours : 0,
+      maintenancePerHour: num(machine.maintenancePerHour),
+    },
+    printHours,
+    energyTariff,
+    materialCost,
+    laborCost,
+    suppliesCost,
+  );
+}
+
+/**
+ * A mesma conta, a partir de uma TAXA POR HORA em vez de uma máquina.
+ *
+ * [FROTA] Fase 2 — existe para o evento cuja máquina não foi declarada (a
+ * encomenda de um produto elegível a mais de uma impressora: ninguém está na
+ * tela para escolher). Ali o custo honesto é a MÉDIA DA FROTA — exatamente a
+ * taxa que o preço de venda embutiu —, e não a primeira máquina do cadastro,
+ * que era o que o `?? machines[0]` do `planEventRows` fazia em silêncio.
+ *
+ * ⚠ Isto NÃO reabre a atribuição: o evento continua sem máquina, e as unidades
+ * que ele gera contam em `unattributedUnits`. Custo certo e dono desconhecido
+ * são coisas separadas — foi confundi-las que a Fase 1 desfez.
+ */
+export function productionCostAtRate(
+  rate: {
+    watts: number;
+    depreciationPerHour: number;
+    maintenancePerHour: number;
+  },
+  printHours: number,
+  energyTariff: number,
+  materialCost: number,
+  laborCost: number,
+  suppliesCost = 0,
+): ProductionCostBreakdown {
   const hours = Math.max(0, num(printHours));
   const material = Math.max(0, num(materialCost));
   const labor = Math.max(0, num(laborCost));
   const supplies = Math.max(0, num(suppliesCost));
-  const energy = hours * (num(machine.watts) / 1000) * num(energyTariff);
-  const depreciation =
-    machine.lifeHours > 0
-      ? (num(machine.price) / machine.lifeHours) * hours
-      : 0;
-  const maintenance = hours * num(machine.maintenancePerHour);
+  const energy = hours * (num(rate.watts) / 1000) * num(energyTariff);
+  const depreciation = hours * num(rate.depreciationPerHour);
+  const maintenance = hours * num(rate.maintenancePerHour);
   return {
     material,
     energy,

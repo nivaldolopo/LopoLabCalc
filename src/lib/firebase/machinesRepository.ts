@@ -28,6 +28,12 @@ function toMachine(data: DocumentData): Machine {
     lifeHours: Number(data.lifeHours) || 0,
     watts: Number(data.watts) || 0,
     maintenancePerHour,
+    // [FROTA] Fase 2 — o peso na taxa de frota (%). Doc anterior à fase não tem
+    // o campo e vale 0: a frota inteira a zero cai em MÉDIA SIMPLES, que é o
+    // ponto de partida honesto — semear 30/40/30 aqui seria martelar no código
+    // uma decisão de negócio que se edita em "Gerenciar Máquinas".
+    // Negativo é saneado no `resolveFleet` (`weightOf`), junto do dado do form.
+    weight: Number(data.weight) || 0,
   };
 }
 
@@ -63,6 +69,7 @@ export async function persistMachines(machines: Machine[]): Promise<void> {
       lifeHours: machine.lifeHours,
       watts: machine.watts,
       maintenancePerHour: machine.maintenancePerHour,
+      weight: machine.weight ?? 0,
     })),
   });
   await withWriteTimeout(gravacao);

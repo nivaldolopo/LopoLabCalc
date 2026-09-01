@@ -182,7 +182,15 @@ export function ProductionPage() {
     return {
       key: nextRowKey(),
       productName: "",
-      machineId: machines[0]?.id ?? "",
+      // [FROTA] Fase 2 — a impressão AVULSA também nasce sem máquina. Ela não
+      // tem produto, logo não tem conjunto elegível de onde deduzir nada: o
+      // `machines[0]` de antes era o mesmo palpite mudo do `planEventRows`, e
+      // aqui há quem escolha.
+      machineId: "",
+      // Sem produto não há conjunto: lista vazia = frota inteira, que é o
+      // denominador certo se a máquina ficasse sem escolher (não fica — a
+      // `/producao` bloqueia o registro).
+      fleetMachineIds: [],
       printHours: 0,
       filaments: [
         {
@@ -490,6 +498,17 @@ export function ProductionPage() {
         );
         return;
       }
+      // [FROTA] Fase 2 — a linha nasce SEM máquina quando o produto é elegível a
+      // mais de uma (decisão do dono, 2026-09-01): o ROI só recebe impressora
+      // que o dono afirmou. Sem esta trava, o evento entraria com `machineId`
+      // vazio e as horas ficariam sem dono — o oposto do que a Fase 1 montou.
+      if (!row.machineId) {
+        fail(
+          `Escolha a máquina de “${row.productName || "impressão"}” — ` +
+            `o produto pode rodar em mais de uma.`,
+        );
+        return;
+      }
     }
 
     try {
@@ -732,7 +751,11 @@ export function ProductionPage() {
     return null;
   }, [selectedKey, pricingByProduct]);
 
-  const canSave = rows.length > 0 && !saving;
+  // [FROTA] Fase 2 — o botão também espera a máquina, não só o `save`: o UX-32
+  // pede que o desabilitado DIGA o que falta, e descobrir só no clique é o que
+  // essa regra existe para evitar.
+  const semMaquina = rows.filter((row) => !row.machineId);
+  const canSave = rows.length > 0 && semMaquina.length === 0 && !saving;
 
   return (
     <main className="wrap" id="conteudo">
@@ -810,12 +833,19 @@ export function ProductionPage() {
                   </label>
                   <select
                     id={`${rowId}-machine`}
-                    className="field-input"
+                    className={`field-input ${row.machineId ? "" : "field-pending"}`}
                     value={row.machineId}
                     onChange={(event) =>
                       updateRow(row.key, { machineId: event.target.value })
                     }
                   >
+                    {/* [FROTA] Fase 2 — a opção vazia só existe enquanto a
+                        escolha não foi feita: depois de escolher, ela sairia do
+                        caminho de qualquer jeito, e mantê-la convidaria a
+                        desfazer a atribuição sem querer. */}
+                    {row.machineId ? null : (
+                      <option value="">Escolha a máquina…</option>
+                    )}
                     {machines.map((machine) => (
                       <option key={machine.id} value={machine.id}>
                         {machine.name}
@@ -1193,6 +1223,15 @@ export function ProductionPage() {
         {rows.length === 0 ? (
           <div className="disabled-why">
             escolha o que foi impresso para registrar
+          </div>
+        ) : null}
+        {rows.length > 0 && semMaquina.length > 0 ? (
+          <div className="disabled-why">
+            escolha a máquina de{" "}
+            {semMaquina.length === 1
+              ? `“${semMaquina[0].productName || "uma impressão"}”`
+              : `${semMaquina.length} linhas`}{" "}
+            — o produto pode rodar em mais de uma
           </div>
         ) : null}
       </div>

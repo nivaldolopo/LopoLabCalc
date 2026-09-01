@@ -239,12 +239,24 @@ input[type="date"].field-input {
 
 .machine-row {
   display: flex;
+  /* [FROTA] Fase 2 — as caixas quebram em vez de espremer. Com escolha ÚNICA a
+     fileira tinha 2-3 itens e cabia; agora ela lista a frota inteira, e a 4ª
+     máquina que o dono cadastrar não pode achatar as outras (UX-38: fileira que
+     não cabe vira cartão, não rolagem). A base de 130px é o piso onde nome +
+     "150W · 40%" ainda cabem lado a lado. */
+  flex-wrap: wrap;
   gap: var(--space-8);
   margin-top: var(--space-8);
 }
 
 .machine-chip {
-  flex: 1;
+  flex: 1 1 130px;
+  /* A caixa nativa fica escondida atrás do próprio cartão (que já anuncia o
+     estado por borda + fundo, o `.active`), mas continua existindo para o
+     teclado e o leitor de tela — é ela que dá o papel de checkbox ao <label>.
+     `position: relative` ancora o input, e não muda o fluxo de nada. */
+  position: relative;
+  display: block;
   padding: var(--space-10) var(--space-14);
   border-radius: var(--radius-lg);
   border: 1.5px solid var(--field-border);
@@ -264,9 +276,31 @@ input[type="date"].field-input {
   background: var(--chip-active-bg);
 }
 
+/* O input cobre o cartão inteiro: clique em qualquer ponto marca, e o alvo é o
+   cartão todo (UX-28), não uma caixinha de 13px. `opacity: 0` em vez de
+   `display: none` porque o segundo tira o elemento do foco por tabulação. */
+.machine-chip-box {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* UX-31 — o anel de foco tem de acompanhar o CARTÃO, porque o input é
+   invisível: sem isso, tabular pela lista não mostra onde se está. */
+.machine-chip:has(.machine-chip-box:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .machine-chip .mname,
 .machine-chip .mmeta {
   display: block;
+  position: relative;
+  pointer-events: none;
 }
 
 .machine-chip .mname {
@@ -280,6 +314,30 @@ input[type="date"].field-input {
   color: var(--muted2);
   margin-top: var(--space-2);
   font-family: var(--font-jetbrains-mono), monospace;
+}
+
+/* [FROTA] Fase 2 — o campo que ESPERA uma escolha. A linha da /producao de um
+   produto elegível a mais de uma impressora nasce sem máquina (decisão do dono:
+   "vazia só quando há dúvida"), e o botão de registrar fica travado até ela ser
+   preenchida. A borda se anuncia EM REPOUSO (UX-36): sem isso o dono só
+   descobriria o que falta ao clicar em Registrar — e com várias linhas na tela
+   não saberia qual delas. Fundo tênue + borda, o mesmo par do aviso órfão. */
+.field-input.field-pending {
+  border-color: var(--warn-line);
+  background: var(--warn-soft);
+}
+
+/* [FROTA] Fase 2 — o aviso de conjunto vazio (dado órfão, molde TD-009). Se
+   anuncia EM REPOUSO (UX-36): o produto está sendo precificado por uma frota que
+   ninguém declarou, e isso não pode depender de hover. */
+.machine-orphan-note {
+  margin-top: var(--space-8);
+  font-size: var(--text-xs);
+  color: var(--warn);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-8) var(--space-10);
 }
 
 /* UX-46 — a caixa do range ERA a pista: 313x4 px de área para o dedo, o menor

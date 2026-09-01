@@ -11,6 +11,23 @@ export type Machine = {
   // Custo de manutenção por hora (bicos, hotend, placa, correias, graxa...).
   // Separado da depreciação (price/lifeHours = compra da máquina).
   maintenancePerHour: number;
+  // [FROTA] Fase 2 — o peso desta máquina na TAXA DE FROTA, em PERCENTUAL PURO.
+  // É a proporção declarada de quanto a produção roda nela; a precificação usa
+  // esse peso para tirar a média ponderada de desgaste, manutenção e watts entre
+  // as máquinas ELEGÍVEIS de cada etapa. Não precisa somar 100: a fórmula
+  // renormaliza pelo subconjunto (é o que faz uma peça que só cabe na X2D sair
+  // pela X2D pura).
+  //
+  // ⚠ Percentual, NUNCA horas/dia (D6.1). O `FixedCostSettings` já tem
+  // `hoursDay`/`daysMonth`/`machines`, e é dele que saem a capacidade e o rateio
+  // do fixo. Hora aqui seria uma SEGUNDA fonte da verdade do mesmo fato —
+  // proporção e hora são grandezas diferentes e não se contradizem.
+  //
+  // 0 = fora da média ponderada. Máquina nova nasce assim de propósito: dar-lhe
+  // uma fatia igual automática reprecificaria o catálogo inteiro no ato do
+  // cadastro. Subconjunto cuja soma de pesos é ZERO cai em média SIMPLES — sem
+  // isso, a peça que só cabe na máquina de peso 0 daria `NaN`.
+  weight: number;
 };
 
 // Um filamento/cor consumido numa impressão (FEAT-02). `totalG` é o campo
@@ -43,7 +60,12 @@ export type FilamentUsage = {
 export type PrintStage = {
   id?: string;
   name?: string;
-  machineId: string;
+  // [FROTA] Fase 2 — as máquinas em que esta etapa PODE rodar. Conjunto, não
+  // escalar: o preço passou a ser a média ponderada da frota elegível, e não o
+  // custo de uma impressora escolhida na hora de precificar. Vazio (ou só com
+  // ids que não existem mais) = frota inteira, com badge de dado órfão.
+  // ⚠ Quem RODOU continua escalar, e mora no evento de produção — não aqui.
+  machineIds: string[];
   printHours: number;
   laborMinutes: number;
   // ⚠ NÃO devolver `energyTariff`/`laborRate` para cá. Os dois são do PRODUTO:
@@ -100,7 +122,8 @@ export type ProductInput = {
   name: string;
   mainStageName: string;
   printHours: number;
-  machineId: string;
+  // [FROTA] Fase 2 — as máquinas elegíveis da ETAPA PRINCIPAL. Ver `PrintStage`.
+  machineIds: string[];
   energyTariff: number;
   // FEAT-02: filamentos por cor da ETAPA PRINCIPAL (mono = array de 1). Fonte da
   // verdade do custo de material. Ausente em produtos legados → migrado a partir
@@ -178,10 +201,38 @@ export type CapacitySettings = {
   daysMonth: number;
 };
 
+// [FROTA] Fase 2 — a TAXA DE FROTA de um conjunto de máquinas elegíveis.
+//
+// Cada componente tem a SUA PRÓPRIA média ponderada. Ratear um total único
+// daria uma "mistura de mistura" sem significado ao lado da coluna de custo real
+// do `CostDetail`, que continua comparando linha a linha (desgaste com desgaste,
+// manutenção com manutenção). A média é linear, então as três linhas somam
+// exatamente a taxa cheia — não há resíduo a distribuir.
+export type FleetRate = {
+  // As máquinas que de fato entraram na média, na ordem do cadastro.
+  machines: Machine[];
+  // true quando o conjunto declarado estava vazio, ou tinha id que não existe
+  // mais, e a média caiu na FROTA INTEIRA. Molde do TD-009: sinaliza dado órfão
+  // em vez de mascarar em silêncio.
+  missing: boolean;
+  // false = a soma dos pesos do subconjunto era ZERO e a média virou SIMPLES.
+  // A UI usa isso para dizer que aqueles pesos não estão sendo respeitados.
+  weighted: boolean;
+  // R$/h de depreciação (price ÷ lifeHours), média do conjunto.
+  depreciationPerHour: number;
+  // R$/h de manutenção, média do conjunto.
+  maintenancePerHour: number;
+  // Watts médios do conjunto — a energia continua saindo de horas × W/1000 ×
+  // tarifa, que é do PRODUTO e não da máquina.
+  watts: number;
+};
+
 export type StageCost = {
-  machine: Machine;
-  // true quando o machineId da etapa não existe na lista de máquinas e o
-  // cálculo caiu no fallback (1ª máquina). Sinaliza dado órfão em vez de
+  // [FROTA] Fase 2 — no lugar da `machine` escalar: a taxa de frota das máquinas
+  // elegíveis desta etapa.
+  fleet: FleetRate;
+  // true quando o conjunto da etapa está vazio ou aponta para máquina que não
+  // existe, e a média caiu na frota inteira. Sinaliza dado órfão em vez de
   // mascarar em silêncio (ver TD-009).
   machineMissing: boolean;
   // Filamentos por cor desta etapa, normalizados (legado migrado). Usado para
@@ -200,10 +251,14 @@ export type StageCost = {
   laborCost: number;
 };
 
-// Repartição do uso de impressora de um produto (valores POR UNIDADE). Uma
-// entrada por máquina que participou (etapa principal + etapas extras, somadas
-// por máquina). É o que permite atribuir horas, vida útil e lucro à impressora
-// certa quando um produto usa mais de uma máquina em partes diferentes.
+// Repartição do uso de impressora (valores POR UNIDADE). Uma entrada por máquina
+// que participou. É o que permite atribuir horas, vida útil e lucro à impressora
+// certa quando um produto sai de mais de uma.
+//
+// ⚠ [FROTA] Fase 2 — isto é conceito de PRODUÇÃO e VENDA, e só. Saiu do
+// `PricingResult`/`SubitemPrice`: a precificação diz onde o produto PODE rodar
+// (o conjunto elegível, que vira taxa de frota), nunca quem rodou. Quem rodou
+// vem do evento de produção ou da camada do acabado, cada um com UMA máquina.
 export type MachineUsage = {
   machineId: string;
   machineName: string;
@@ -226,12 +281,15 @@ export type SubitemPrice = {
   markup: number; // markup EFETIVO (override do subitem ou o do produto)
   printHours: number; // horas das etapas do subitem (total, como o inteiro)
   filaments: FilamentUsage[]; // cores das etapas do subitem (pesos por impressão)
-  machineUsage: MachineUsage[]; // por unidade
   costBreakdown: SaleCostBreakdown; // por unidade, para o snapshot da venda
 };
 
 export type PricingResult = {
-  machine: Machine;
+  // [FROTA] Fase 2 — as máquinas ELEGÍVEIS do produto inteiro (união do conjunto
+  // da etapa principal com o de cada etapa extra), na ordem do cadastro. É "onde
+  // este produto pode rodar", e substitui a `machine` escalar: o preço não é
+  // mais o de uma impressora, é a média ponderada da frota.
+  eligibleMachines: Machine[];
   materialCost: number;
   energyCost: number;
   depreciationCost: number;
@@ -260,12 +318,10 @@ export type PricingResult = {
   // `filaments.length`. Alimenta o card informativo e o snapshot congelado da
   // venda; a baixa de estoque (passo 8) consome estes pesos.
   filaments: FilamentUsage[];
-  // Repartição por máquina (por unidade), para atribuir horas/vida/lucro à
-  // impressora certa quando o produto usa mais de uma.
-  machineUsage: MachineUsage[];
-  // true quando alguma etapa (principal ou extra) referencia uma máquina que
-  // não existe e o cálculo caiu no fallback. A UI usa isso para avisar em vez
-  // de mascarar o dado órfão (TD-009). Opcional: ausente em snapshots antigos.
+  // true quando alguma etapa (principal ou extra) tem conjunto de máquinas vazio
+  // ou aponta para máquina que não existe, e a média caiu na frota inteira. A UI
+  // usa isso para avisar em vez de mascarar o dado órfão (TD-009). Opcional:
+  // ausente em snapshots antigos.
   machineMissing?: boolean;
   // true quando algum filamento aponta para uma COR removida do Estoque (7c). A
   // UI avisa com badge, no mesmo molde do `machineMissing`. Opcional: ausente em
@@ -300,19 +356,15 @@ export type CapacityResult = {
   // faturamento derivado). Viaja no resultado para a UI poder dizer que "peças"
   // são peças BOAS, não ciclos rodados. 0 = produto sem falha configurada.
   failureRatePct: number;
-  // TD-003 — repartição por máquina. Uma entrada por impressora distinta que o
-  // produto usa, ordenada da mais ocupada (o gargalo) para a menos. `piecesMonth`
-  // é a capacidade mensal SE aquela máquina fosse o único limite; a do gargalo
-  // bate com o `piecesMonth` do produto, as outras mostram folga. Produto de uma
-  // máquina só tem uma entrada (a própria capacidade).
-  machineBreakdown: {
-    machineId: string;
-    machineName: string;
-    cycleHours: number; // horas desta máquina por impressão (ciclo)
-    piecesMonth: number;
-    isBottleneck: boolean;
-  }[];
 };
+
+// ⚠ [FROTA] Fase 2 — aqui vivia o `machineBreakdown` (TD-003): o gargalo por
+// máquina, calculado a partir do `machineUsage` da precificação. Ele pressupunha
+// que cada etapa tinha UMA impressora atribuída, e é justamente essa atribuição
+// que a taxa de frota desfaz — a etapa agora pode rodar em qualquer elegível, e
+// dizer que "a A1 é o gargalo" seria inventar um plano de produção que ninguém
+// declarou. O ciclo volta a ser a soma das horas. Somar a capacidade das
+// elegíveis (em vez de gargalar numa) está registrado no BACKLOG, fora do escopo.
 
 // AUD-15 [E4] — `pending` e `offline` nasceram do chip que dizia "Sincronizado"
 // com a rede caída. Quem os decide é o `cloudStatusOf` (`src/lib/cloudStatus.ts`),

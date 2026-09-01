@@ -28,6 +28,14 @@ export function MachineManagerModal({
 
   if (!open) return null;
 
+  // Calculados no render (a lista é de 2-4 itens): memoizar aqui esconderia a
+  // conta atrás de um hook que não pode existir antes do `return null` acima.
+  const zeradas = draft.filter((machine) => !(machine.weight > 0));
+  const somaPesos = draft.reduce(
+    (sum, machine) => sum + Math.max(0, machine.weight || 0),
+    0,
+  );
+
   function updateMachine(index: number, patch: Partial<Machine>) {
     setDraft((current) =>
       current.map((machine, machineIndex) =>
@@ -46,6 +54,11 @@ export function MachineManagerModal({
         lifeHours: 7500, // DEC-02 — mesmo padrão do DEFAULT_MACHINES
         watts: 100,
         maintenancePerHour: 0,
+        // [FROTA] Fase 2 — máquina nova nasce a 0% DE PROPÓSITO. Dar-lhe uma
+        // fatia igual automática reprecificaria o catálogo inteiro no ato do
+        // cadastro, antes de ela ter imprimido uma peça. O aviso abaixo da lista
+        // cobra o ajuste; até lá ela fica fora da média ponderada.
+        weight: 0,
       },
     ]);
   }
@@ -71,7 +84,8 @@ export function MachineManagerModal({
         machine.price < 0 ||
         machine.lifeHours <= 0 ||
         machine.watts < 0 ||
-        machine.maintenancePerHour < 0
+        machine.maintenancePerHour < 0 ||
+        machine.weight < 0
       ) {
         setError(`Valores inválidos em "${machine.name}".`);
         return;
@@ -92,10 +106,14 @@ export function MachineManagerModal({
   }
 
   return (
+    // UX-44/[FROTA] Fase 2 — `machine-modal`: a 6ª coluna (Peso) não cabia nos
+    // 560px da casca padrão, o campo Nome ficaria com 76px. A caixa alarga para
+    // 680; abaixo de 640 a fileira já vira cartão e a largura deixa de importar.
     <Modal
       title="Gerenciar Máquinas"
-      sub="Adicione, edite ou remova impressoras. Preço e vida útil calculam a depreciação; watts calcula a energia; manutenção/hora cobre bicos, placa, correias e demais consumíveis."
+      sub="Adicione, edite ou remova impressoras. Preço e vida útil calculam a depreciação; watts calcula a energia; manutenção/hora cobre bicos, placa, correias e demais consumíveis. O peso é a fatia de uso de cada uma na taxa de frota que precifica os produtos."
       onClose={onClose}
+      className="machine-modal"
       footer={
         <>
           <button
@@ -122,6 +140,7 @@ export function MachineManagerModal({
         <span>Vida (h)</span>
         <span>Watts</span>
         <span>Manut. (R$/h)</span>
+        <span>Peso (%)</span>
         <span />
       </div>
       <div>
@@ -188,6 +207,22 @@ export function MachineManagerModal({
                 }
               />
             </span>
+            {/* [FROTA] Fase 2 — o peso na taxa de frota. Mora AQUI, junto dos
+                outros campos da máquina, porque é atributo dela e não do
+                produto. ⚠ Percentual puro: horas/dia criariam uma segunda fonte
+                da verdade contra o `hoursDay`/`machines` do custo fixo (D6.1). */}
+            <span className="me-field">
+              <span className="me-label" aria-hidden="true">
+                Peso (%)
+              </span>
+              <NumberInput
+                aria-label="Peso na taxa de frota, em porcentagem"
+                min={0}
+                max={100}
+                value={machine.weight}
+                onChange={(weight) => updateMachine(index, { weight })}
+              />
+            </span>
             <button
               className="icon-button danger"
               type="button"
@@ -204,6 +239,23 @@ export function MachineManagerModal({
         <Plus size={15} />
         Adicionar máquina
       </button>
+      {/* Os pesos NÃO precisam somar 100 — a fórmula renormaliza dentro do
+          subconjunto elegível de cada produto. O que precisa de aviso é o peso
+          ZERO, que tira a máquina da média sem que nada na tela diga. */}
+      {zeradas.length > 0 ? (
+        <div className="machine-weight-note">
+          ⚠ {zeradas.length === 1 ? "A máquina" : "As máquinas"}{" "}
+          <strong>{zeradas.map((m) => m.name || "sem nome").join(", ")}</strong>{" "}
+          {zeradas.length === 1 ? "está" : "estão"} com peso 0% e não{" "}
+          {zeradas.length === 1 ? "entra" : "entram"} na média da frota. Um
+          produto que só possa rodar {zeradas.length === 1 ? "nela" : "nelas"} cai
+          em média simples.
+        </div>
+      ) : null}
+      <div className="machine-weight-note muted-note">
+        Soma atual: <strong>{somaPesos}%</strong>. Não precisa dar 100 — o que
+        vale é a proporção entre as máquinas <em>elegíveis</em> de cada produto.
+      </div>
       {error ? <div className="form-error">{error}</div> : null}
     </Modal>
   );

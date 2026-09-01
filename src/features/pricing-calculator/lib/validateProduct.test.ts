@@ -4,12 +4,42 @@ import { DEFAULT_PRODUCT_INPUT } from "../constants";
 import type { ProductInput } from "../types";
 
 function makeProduct(overrides: Partial<ProductInput> = {}): ProductInput {
-  return { ...DEFAULT_PRODUCT_INPUT, ...overrides };
+  // [FROTA] Fase 2 — o `DEFAULT_PRODUCT_INPUT` nasce com `machineIds: []` (ele
+  // não conhece a frota; quem marca todas é o formulário), e conjunto vazio
+  // passou a ser erro de validação. A cobaia declara uma máquina para os DEMAIS
+  // testes continuarem provando o que provavam — o conjunto vazio tem teste
+  // próprio, logo abaixo.
+  return { ...DEFAULT_PRODUCT_INPUT, machineIds: ["a1"], ...overrides };
 }
 
 describe("validateProduct", () => {
   it("produto padrão é válido (sem erro)", () => {
     expect(validateProduct(makeProduct())).toBeNull();
+  });
+
+  // [FROTA] Fase 2 — o CÁLCULO sobrevive ao conjunto vazio (cai na frota inteira
+  // e acende o badge de dado órfão), e é isso que salva os produtos anteriores à
+  // fase. O que não pode é SALVAR um produto novo sem dizer onde ele roda: o
+  // preço seria a média de uma frota que ninguém declarou.
+  it("exige ao menos uma máquina elegível — no produto e em cada etapa", () => {
+    expect(validateProduct(makeProduct({ machineIds: [] }))).toContain(
+      "ao menos uma máquina",
+    );
+    expect(
+      validateProduct(
+        makeProduct({
+          stages: [
+            {
+              id: "s1",
+              machineIds: [],
+              printHours: 1,
+              laborMinutes: 0,
+              filaments: [],
+            },
+          ],
+        }),
+      ),
+    ).toContain("etapa 2");
   });
 
   it("rejeita campos numéricos negativos", () => {
@@ -85,7 +115,7 @@ describe("validateProduct", () => {
       makeProduct({
         stages: [
           {
-            machineId: "a1",
+            machineIds: ["a1"],
             weightG: 10,
             printHours: 1,
             filamentPricePerKg: 100,

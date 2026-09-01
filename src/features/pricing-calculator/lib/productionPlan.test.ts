@@ -97,13 +97,13 @@ describe("wholeEventRows — ancoragem dos insumos", () => {
     const rows = wholeEventRows(
       makeProduct({
         piecesCount: 1,
-        machineId: "a1",
+        machineIds: ["a1"],
         accessories,
         stages: [
           {
             id: "s1",
             name: "Base",
-            machineId: "x2d",
+            machineIds: ["x2d"],
             printHours: 1,
             laborMinutes: 0,
             filaments: [],
@@ -366,7 +366,7 @@ describe("submissionColors (FEAT-11)", () => {
 
   // Corpo (etapa principal) em azul; tampa (etapa extra) em vermelho.
   const kit = makeProduct({
-    machineId: DEFAULT_MACHINES[0].id,
+    machineIds: [DEFAULT_MACHINES[0].id],
     printHours: 2,
     filaments: [AZUL],
     sellBySubitems: true,
@@ -378,7 +378,7 @@ describe("submissionColors (FEAT-11)", () => {
       {
         id: "s1",
         name: "Tampa",
-        machineId: DEFAULT_MACHINES[0].id,
+        machineIds: [DEFAULT_MACHINES[0].id],
         printHours: 1,
         laborMinutes: 0,
         filaments: [VERMELHO],

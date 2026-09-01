@@ -83,8 +83,8 @@ export function ProductForm({
 
       <MachineSelector
         machines={machines}
-        selectedMachineId={product.machineId}
-        onSelect={(machineId) => onChange({ machineId })}
+        selectedMachineIds={product.machineIds ?? []}
+        onChange={(machineIds) => onChange({ machineIds })}
         onManage={onManageMachines}
       />
 

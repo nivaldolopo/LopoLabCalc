@@ -35,13 +35,18 @@ export function buildProductPayload(
     name: product.name.trim(),
     mainStageName: product.mainStageName.trim(),
     includeFixed,
+    // [FROTA] Fase 2 — o conjunto elegível do produto. Explícito aqui (e não só
+    // de carona no spread) porque é campo novo: a regra FORM-01 é que toda chave
+    // gravada seja uma decisão, e a que fica implícita é a que some.
+    machineIds: [...(product.machineIds ?? [])],
     filaments: stripFilamentIds(product.filaments),
     stages: product.stages.map((stage, index) => ({
       // FEAT-01: persiste o id (chave estável dos subitens); sempre presente
       // no estado do form, com fallback por posição por segurança.
       id: stage.id ?? `stage_${index}`,
       name: stage.name ?? "",
-      machineId: stage.machineId,
+      // [FROTA] Fase 2: conjunto, não escalar. Ver `PrintStage.machineIds`.
+      machineIds: [...(stage.machineIds ?? [])],
       printHours: stage.printHours,
       laborMinutes: stage.laborMinutes,
       // Tarifa e valor-hora NÃO se repetem aqui: são do produto. Copiá-los
