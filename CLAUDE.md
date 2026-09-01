@@ -10,21 +10,22 @@
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
 - **Estado do site:** no ar (`● Ready`) em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-08-31): faxina da doc, sem tocar em código.** O `BACKLOG.md` guardava os
-  **9 clusters de varredura já fechados** (AUD-07…AUD-16) — ~85% do arquivo era material concluído.
-  Foram inteiros pro `HISTORICO.md` ("📒 Arquivo do BACKLOG", faxina de 2026-08-31): **2167 → 165
-  linhas**. Antes disso, no mesmo dia, as **3 ressalvas baratas** (`<select>` com reticências ·
-  `--on-accent` criado antes da marca · `aria-label` nomeando o quê). **824/824 · lint ✅
-  typecheck ✅ build ✅.**
+- **Última mudança (2026-09-01): escopo do [FROTA] fechado no chat, sem tocar em código.** Com a
+  3ª impressora (A1 Mini, R$2.000), a mesma peça sai por **R$33,06 · R$37,45 · R$49,01** — **48%**
+  decidido por qual máquina estava livre. Virou escopo de 2 fases, inteiro no `BACKLOG.md`.
+  ⚠ **Avaliadas e DESCARTADAS, não repropor:** mexer em `lifeHours` (é o **DEC-02** do dono) e criar
+  `residualValue` — ajustar entrada depois de ver a saída é encaixar premissa no resultado querido.
 - **Contexto macro:** **✅ TIER 1 FECHADO** — Estoque + FEAT-01/02/04/05 + passo 8 (venda virou
   **reconciliação**; a **primitiva de baixa mora na PRODUÇÃO**, `/producao`). Custo real
   **decomponível ponta a ponta** (produção → acabado → venda), e o ROI já o lê.
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
   destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta.
-- **▶ PRÓXIMA TAREFA — nenhum item de código pendente.** Só **duas frentes** estão disponíveis HOJE:
-  **FEAT-03 sem a logo** (prazo, pagamento, termos, desconto, etapas/subitens) e as **regras do
-  Firestore**, sem prova há 7 varreduras porque exigem uma **2ª conta Google** — é o dono quem
-  destrava. O resto espera a logo, ~1-2 meses de venda (Dashboard), ou é dado que some no
+- **▶ PRÓXIMA TAREFA — [FROTA] Fase 1 (ROI real).** Não toca em preço, logo é verificável sozinha:
+  uma linha por **etapa** na `/producao` · `submissionId` · excluir card apaga o **lote inteiro** ·
+  a camada do acabado carrega a **repartição** máquina→horas · a venda congela a máquina **real** na
+  reconciliação (obrigatória no write, AUD-02) · unidade sem lastro **não** é creditada. Depois, a
+  **Fase 2** (taxa de frota no preço, pesos 30/40/30 em `Machine.weight`). **Escopo e armadilhas
+  medidas: `BACKLOG.md`.** FEAT-03 sem logo e regras do Firestore seguem disponíveis, sem competir.
   recadastro. **Itens, lacunas de prova e ressalvas: `BACKLOG.md`, agora curto.**
 - ⚠ **A frente do DONO:** cadastrar **cores e insumos**, **religar os acessórios**, e passar os ids
   pro **sistema externo dele**, que **gera** a planilha — a spec sai **comigo no chat** depois do
