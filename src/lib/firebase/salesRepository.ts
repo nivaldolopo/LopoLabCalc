@@ -69,7 +69,10 @@ function toFinishedMove(data: DocumentData): FinishedMove {
   };
 }
 
-function toSale(id: string, data: DocumentData): Sale {
+// Exportada para o round-trip do [FROTA] Fase 1 — ver a nota gêmea em
+// `toProduction`. O `machineUsage` da venda nasceu opcional e virou obrigatório
+// justamente porque o opcional já sumiu calado uma vez (AUD-02).
+export function toSale(id: string, data: DocumentData): Sale {
   const breakdown = data.costBreakdown ?? {};
   // AUD-14 [D6]: o campo tem forma antiga em parte do banco (mapa em vez de
   // lista) e o leitor de antes o descartava calado — ver `readFinishedColors`.
@@ -393,7 +396,10 @@ function finishedMoveToDocument(move: FinishedMove): DocumentData {
 
 // Serializa o doc da venda, tratando os campos do passo 8 (o restante já vem
 // limpo do `SaleModal`, como antes). Só grava origem/moves/ids quando existem.
-function saleToDocument(payload: ReciboUpsert["payload"]): DocumentData {
+// Exportada pelo mesmo motivo do `toSale` logo acima: é a metade ESCRITA do
+// par, e o round-trip do [FROTA] Fase 1 precisa das duas para conferir o
+// documento campo a campo.
+export function saleToDocument(payload: ReciboUpsert["payload"]): DocumentData {
   const {
     finishedMoves,
     productionEventIds,

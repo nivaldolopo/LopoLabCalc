@@ -94,17 +94,47 @@ até a venda, por máquina.
   imprimiu"), então lista vazia **não** é gravada. Na venda, o campo é **sempre** gravado, porque lá
   a lista vazia significa "sem lastro" — e as duas coisas levam a contas diferentes.
 
-### A prova
+### A prova — em TRÊS camadas, porque cada uma passa com a outra quebrada
 
-`frotaFase1.test.ts` (21 casos). Duas travas que importam:
-1. **O preço, componente a componente, como literal.** Uma asserção que recalculasse
-   `calculatePricing` acompanharia qualquer regressão — só o número colado é trava.
-2. **O dinheiro contra o agrupamento ANTIGO**, reconstruído à mão no próprio teste: 3 eventos contra
-   2, e `frozen`/`grams`/`material` e os 6 componentes idênticos a 1e-10. É a prova de que o split
-   mudou a atribuição e nada mais. (⚠ Ao montar o fixture antigo, esquecer os acessórios na 1ª linha
-   deu exatamente R$ 1,00 de diferença — o teste pegou o teste.)
+**1. A matemática — `frotaFase1.test.ts` (21 casos).**
+- **O preço, componente a componente, como literal.** Uma asserção que recalculasse
+  `calculatePricing` acompanharia qualquer regressão — só o número colado é trava.
+- **O dinheiro contra o agrupamento ANTIGO**, reconstruído à mão no próprio teste: 3 eventos contra
+  2, e `frozen`/`grams`/`material` e os 6 componentes idênticos a 1e-10. (⚠ Ao montar o fixture
+  antigo, esquecer os acessórios na 1ª linha deu exatamente R$ 1,00 de diferença — o teste pegou o
+  teste.)
 
-Medições: `pnpm test` 848/848 · `lint`, `typecheck` e `build` limpos.
+**2. A SERIALIZAÇÃO — `frotaFase1RoundTrip.test.ts` (14 casos).** ⚠ **Este arquivo existe porque o
+de cima passa inteiro com um serializador que joga o campo fora** — as funções puras nunca chegam
+perto do documento, e é exatamente aí que este projeto já perdeu dado calado duas vezes (o
+`supplyId` do FORM-01, o `supplyUpdates` do AUD-02). Diff campo a campo do documento nos dois
+sentidos, com o SDK falso do `productionRevRoundTrip`. Cobre as três assimetrias que decidem conta:
+`submissionId` ausente → o PRÓPRIO id (ler `""` faria a query de irmãos casar com todos os eventos
+antigos de uma vez); camada sem repartição → campo AUSENTE, nunca `[]`; venda sem lastro → `[]`
+GRAVADO, porque ali a ausência seria indistinguível de venda velha.
+(Para isso, `toProduction`, `toSale` e `saleToDocument` viraram `export`, no precedente do
+`toFinishedGood`, que já era exportado para o teste do TD-026.)
+
+**3. O SITE, ponta a ponta (2026-09-01, navegador embutido, dado real).** Produto "Teste 4b
+produção": principal **X2D 4h36** + etapa 2 **A1 2h35** + Etapa 3 **X2D 1h30** — duas etapas na
+mesma X2D, o caso que o `printedCount` contava errado.
+- **3 cards** onde antes havia 2; custos somando R$ 7,53 + 34,48 + 10,33 = **R$ 52,34**, o mesmo da
+  prévia.
+- **Excluir o card SECUNDÁRIO** (o da A1) abriu "registrada em **3 etapas**… todas as 3 saem
+  juntas" e apagou o lote. ROI: A1 **34 → 33** impressões (−2,58 h) e X2D **26 → 24** (−6,10 h). A
+  X2D caiu **2** clicando num card da A1 — as duas coisas que a regra antiga errava, medidas juntas.
+- **Real ≠ precificado, medido:** as 3 etapas foram trocadas para a **A1 Mini** na tela de produção.
+  Custo caiu de R$ 52,34 → **R$ 40,27**. Vendendo duas peças do MESMO produto, o FIFO drenou a
+  camada velha e depois a nova: a 1ª venda mostra **"X2D Combo +1"**, a 2ª mostra **"A1 Mini"**, e o
+  desgaste real dela é **R$ 1,16** contra R$ 6,61 precificado. O ROI deu à A1 Mini **3 impressões,
+  8,68 h, 1 venda, R$ 52,44 de lucro** — 100% dela. No comportamento antigo esse lucro teria ido
+  para X2D+A1 e a A1 Mini seguiria com 0 vendas tendo feito o trabalho.
+- **A venda sem lastro, em dado real:** vender uma peça do "Insert Emberheart Luiz" (camada anterior
+  à Fase 1) mostra **"Máquina —"**, e o **lucro acumulado da frota ficou parado em R$ 1.851,55**
+  enquanto o lucro das vendas subiu R$ 86,80. Nenhuma máquina foi creditada. É o `unattributedUnits`
+  funcionando: sem ele, os R$ 86,80 teriam ido para a A1 Combo sem nada indicar.
+
+Medições: `pnpm test` 861/861 · `lint`, `typecheck` e `build` limpos · console sem erro.
 
 ## ✅ As 3 ressalvas baratas — o corte mudo, a tinta cravada e o botão sem nome (2026-08-31)
 

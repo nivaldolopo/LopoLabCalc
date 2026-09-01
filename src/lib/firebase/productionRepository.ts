@@ -170,7 +170,11 @@ export function productionToDocument(payload: ProductionPayload): DocumentData {
   };
 }
 
-function toProduction(id: string, data: DocumentData): ProductionEvent {
+// Exportada para o round-trip do [FROTA] Fase 1, no mesmo espírito do
+// `toFinishedGood`: ela é a metade LEITURA do par com `productionToDocument`, e
+// campo novo que só existe de um lado morre calado (FORM-01/AUD-02). Testar só
+// a escrita provaria metade.
+export function toProduction(id: string, data: DocumentData): ProductionEvent {
   return {
     id,
     at: num(data.at) || num(data.createdAt),
