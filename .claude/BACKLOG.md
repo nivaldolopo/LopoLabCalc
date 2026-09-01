@@ -56,6 +56,32 @@ nenhum número pesquisado** — aceita os R$2,187/h da X2D como verdade e muda s
   os literais são de antes da taxa de frota. Recalcular os números e trocá-los é parte da Fase 2;
   reaproveitar o teste sem olhar é o contrário do que ele existe para impedir.
 
+### ⚠ O que a Fase 1 deixou pronto — e o que ela deixou EM ABERTO
+
+**NÃO desfazer (é o alicerce do ROI real):** `ProductionEvent.machineId`, `EventRow.machineId`,
+`MachineUsage`, `FinishedLayer.machineUsage` e `Sale.machineUsage` continuam **escalares por
+evento** — um evento = uma etapa = UMA máquina. O conjunto é do **produto/etapa** (quem PODE rodar),
+nunca do evento (quem RODOU). Os arquivos da produção/venda (`production.ts`,
+`productionRepository.ts`, `machineRoi.ts`, `frozenCost.ts`, `ProductionPage.tsx`) ficam **fora** da
+Fase 2.
+
+**🔴 DECISÃO EM ABERTO — qual máquina a linha da `/producao` assume.** O `wholeEventRows` lê
+`product.machineId`/`stage.machineId` **direto** para o `EventRow.machineId`
+([productionPlan.ts:231](../src/features/pricing-calculator/lib/productionPlan.ts)). Vira conjunto e
+não há mais escalar de onde tirar — e o escopo mata a "máquina padrão" de propósito. As opções:
+a maior de `weight`; a 1ª do conjunto; ou **nascer vazia** e o dono escolher antes de registrar
+(mais honesto, mas põe uma trava numa tela de todo dia). ⚠ Some junto o fallback mudo
+`?? machines[0]` do `planEventRows` (linha ~532), que com conjunto passa a ser alcançável.
+
+**Quebra concreta já localizada:** `subitemEventRows` usa `subitem.machineUsage[0]` como máquina do
+subitem sem etapas resolvíveis (linha ~347) — e a Fase 2 tira o `MachineUsage` do resultado da
+precificação. O caminho precisa de outra resposta no MESMO commit.
+
+**Raio de alcance medido:** `machineId` aparece em **68 lugares** fora de teste, em 20 arquivos —
+mas só a metade do PRODUTO vira conjunto (`types` · `calculatePricing` · `calculateCapacity` ·
+`productCsv` · `productPayload` · `usePricingForm` · `constants` · `productsRepository` +
+`MachineSelector`/`ExtraStagesSection`/`ProductForm`/`PricingCalculator`/`CapacityPanel`).
+
 ### Fica de fora (registrado, não esquecido)
 Unificar as horas do custo fixo com a frota · desembaraçar o duplo papel do campo "Máquinas" (fato
 no fixo, **hipótese** no DEC-06) · capacidade somar as elegíveis em vez de gargalar numa · pesos
