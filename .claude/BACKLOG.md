@@ -61,29 +61,6 @@
 - **O custo fixo fica DESLIGADO como está.** Tirar não simplificaria: o trio
   `hoursDay`/`daysMonth`/`machines` é da capacidade e ficaria de qualquer jeito.
 
-## ▶ [FROTA] Buraco conhecido — a ENCOMENDA não pergunta a máquina
-
-> Levantado com o dono em 2026-09-02, olhando o código. **Não é regressão da Fase 2** — o modal de
-> venda nunca teve seletor (a Fase 1 tirou o `machineId` de lá porque ele copiava a máquina
-> PRECIFICADA, que era ficção). A Fase 2 só tornou a consequência visível.
-
-**O que acontece hoje:** vendendo "sob encomenda", a reconciliação cria os eventos de produção
-sozinha. Produto elegível a **1** máquina → o evento nasce nela e o ROI conta. Elegível a **2+** (o
-caso normal) → o evento nasce **sem máquina**: o custo sai certo (taxa da frota, a mesma do preço),
-mas as unidades viram `unattributedUnits` e **aquela venda não credita horas nem lucro a impressora
-nenhuma** no `/maquinas`.
-
-**Custo real:** se boa parte das vendas é por encomenda, o payback do `/maquinas` fica cego pra essa
-fatia. Não é dado errado — é dado ausente, e o `unattributedUnits` o mantém honesto em vez de
-rateá-lo para quem não imprimiu.
-
-- **Contorno que já funciona, sem código:** registrar em `/producao` primeiro (lá se escolhe a
-  máquina) e vender como **peça pronta**. A camada do acabado carrega quem imprimiu e a venda herda.
-- **Correção:** o MESMO seletor da `/producao` no item de encomenda do `SaleModal`, com a mesma
-  regra do dono (*"vazia só quando há dúvida"*) e a mesma trava no botão. Pequeno; encosta em
-  `SaleModal`/`SaleFlow`, que a Fase 2 deixou de fora de propósito.
-- ⏸ **Aguardando decisão do dono** (2026-09-02): fazer agora ou conviver com o contorno.
-
 ## ⚠ A frente do DONO (bloqueia a carga em massa)
 
 Cadastrar as **cores e os insumos definitivos**, **religar os acessórios** (`planSupplies`) e passar

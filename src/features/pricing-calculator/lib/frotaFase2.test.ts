@@ -3,6 +3,7 @@ import { DEFAULT_FIXED_COSTS, DEFAULT_PRODUCT_INPUT } from "../constants";
 import { calculatePricing } from "./calculatePricing";
 import { depreciationPerHourOf, resolveFleet } from "./fleet";
 import {
+  encomendaMachineOptions,
   initialRowMachineId,
   planEventRows,
   wholeEventRows,
@@ -429,5 +430,194 @@ describe("[FROTA] Fase 2 — a encomenda conta as unidades sem lastro", () => {
     // 3 das 4 horas ficaram sem dono → 3/4 das 2 unidades. É por HORAS, e não
     // por evento, porque é assim que o ROI reparte lucro e receita.
     expect(r.unattributedUnits).toBeCloseTo(1.5, 10);
+  });
+});
+
+// ===========================================================================
+// 8. A ENCOMENDA PERGUNTA A MÁQUINA — o buraco que a Fase 2 deixou aberto
+// ===========================================================================
+//
+// A encomenda cria os eventos SOZINHA, sem passar pela /producao. Sem uma
+// escolha no modal de venda, todo produto elegível a 2+ impressoras vendia sem
+// creditar horas a nenhuma no ROI: o custo saía certo (taxa da frota), a
+// atribuição não existia. O seletor fecha isso — com a MESMA regra da /producao
+// ("vazia só quando há dúvida").
+
+describe("[FROTA] Fase 2 — a máquina escolhida na venda chega ao evento", () => {
+  const ctx = (products: SavedProduct[]) => {
+    let n = 0;
+    return {
+      goods: [],
+      colors: [] as StockFilament[],
+      supplies: [],
+      products,
+      machines: FROTA,
+      fixedCosts: DEFAULT_FIXED_COSTS,
+      at: 1000,
+      createdAt: 1000,
+      genId: () => `ev${(n += 1)}`,
+    };
+  };
+  const item = (over: Partial<ReconItem> = {}): ReconItem => ({
+    key: "k1",
+    productId: "peca",
+    productName: "Peça",
+    quantity: 2,
+    origem: "encomenda",
+    ...over,
+  });
+
+  it("com a máquina escolhida, a venda ATRIBUI — nada fica órfão", () => {
+    const plan = reconcileReciboWrite(
+      [item({ machineId: "x2d" })],
+      null,
+      ctx([PECA]),
+    );
+    const [r] = plan.items;
+    expect(r.unattributedUnits).toBe(0);
+    expect(r.machineUsage.map((u) => u.machineId)).toEqual(["x2d"]);
+    // E a depreciação passa a ser a REAL da X2D, não a média da frota.
+    // ⚠ `cogsBreakdown` é POR UNIDADE, e a peça leva 3h: 3 × a taxa da X2D.
+    expect(r.cogsBreakdown!.depreciation).toBeCloseTo(
+      3 * depreciationPerHourOf(X2D),
+      10,
+    );
+    // A prova de que não é a frota: a média de a1+x2d daria bem menos.
+    expect(r.cogsBreakdown!.depreciation).toBeGreaterThan(
+      3 * resolveFleet(FROTA, ["a1", "x2d"]).depreciationPerHour,
+    );
+  });
+
+  it("sem escolher, continua órfã — o comportamento antigo não sumiu", () => {
+    const plan = reconcileReciboWrite([item()], null, ctx([PECA]));
+    expect(plan.items[0].unattributedUnits).toBe(2);
+  });
+
+  it("a escolha NÃO sobrescreve etapa que já tinha máquina resolvida", () => {
+    // ⚠ Etapa com UMA elegível é fato, não dúvida. Carimbá-la com a escolha de
+    // nível de item trocaria um dado por um palpite.
+    const misto = {
+      ...PECA,
+      machineIds: ["a1", "x2d"], // ambígua: 3h
+      stages: [
+        {
+          id: "s1", name: "Base", machineIds: ["mini"], // resolvida: 1h
+          printHours: 1, laborMinutes: 0, filaments: [],
+        },
+      ],
+    } as unknown as SavedProduct;
+    const plan = reconcileReciboWrite(
+      [item({ machineId: "x2d" })],
+      null,
+      ctx([misto]),
+    );
+    const [r] = plan.items;
+    const ids = r.machineUsage.map((u) => u.machineId).sort();
+    expect(ids).toEqual(["mini", "x2d"]);
+    // A Mini ficou com a hora dela; a X2D, com as três da etapa ambígua.
+    // ⚠ `machineUsage` é POR UNIDADE ATRIBUÍDA — e a placa rende 1 peça, então
+    // por unidade é exatamente o que a etapa gasta.
+    const mini = r.machineUsage.find((u) => u.machineId === "mini")!;
+    const x2d = r.machineUsage.find((u) => u.machineId === "x2d")!;
+    expect(mini.hours).toBeCloseTo(1, 10);
+    expect(x2d.hours).toBeCloseTo(3, 10);
+    expect(r.unattributedUnits).toBe(0);
+  });
+
+  it("escolha que a etapa NÃO aceita é ignorada, e a etapa segue órfã", () => {
+    // Quem grava é quem garante: o modal já oferece só a interseção, mas a regra
+    // mora na reconciliação. Uma etapa que só cabe na Mini não vira "A1" porque
+    // o item foi marcado assim.
+    const soMini = {
+      ...PECA,
+      machineIds: ["mini", "x2d"],
+      stages: [],
+    } as unknown as SavedProduct;
+    const plan = reconcileReciboWrite(
+      [item({ machineId: "a1" })], // a1 não está no conjunto
+      null,
+      ctx([soMini]),
+    );
+    const [r] = plan.items;
+    expect(r.machineUsage).toEqual([]);
+    expect(r.unattributedUnits).toBe(2);
+  });
+});
+
+describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
+  it("oferece a INTERSEÇÃO das etapas ambíguas, não a união", () => {
+    // A pergunta é "em qual máquina esta encomenda rodou?" — uma resposta só.
+    // A união deixaria escolher uma impressora que metade das etapas recusa, e a
+    // reconciliação descartaria a escolha naquelas etapas, em silêncio.
+    const p = {
+      ...PECA,
+      machineIds: ["mini", "a1", "x2d"],
+      stages: [
+        {
+          id: "s1", machineIds: ["a1", "x2d"],
+          printHours: 1, laborMinutes: 0, filaments: [],
+        },
+      ],
+    } as unknown as SavedProduct;
+    const rows = wholeEventRows(p, FROTA, []);
+    expect(encomendaMachineOptions(rows, FROTA).map((m) => m.id)).toEqual([
+      "a1",
+      "x2d",
+    ]);
+  });
+
+  it("etapa JÁ resolvida fica fora da conta — ela não restringe o que falta", () => {
+    // Incluí-la reduziria as opções da parte em aberto à única máquina dela.
+    const p = {
+      ...PECA,
+      machineIds: ["mini", "a1", "x2d"], // ambígua
+      stages: [
+        {
+          id: "s1", machineIds: ["mini"], // resolvida
+          printHours: 1, laborMinutes: 0, filaments: [],
+        },
+      ],
+    } as unknown as SavedProduct;
+    const rows = wholeEventRows(p, FROTA, []);
+    expect(encomendaMachineOptions(rows, FROTA).map((m) => m.id)).toEqual([
+      "mini",
+      "a1",
+      "x2d",
+    ]);
+  });
+
+  it("sem interseção: não há resposta única, e o seletor não aparece", () => {
+    const p = {
+      ...PECA,
+      machineIds: ["mini", "a1"],
+      stages: [
+        {
+          id: "s1", machineIds: ["x2d"], printHours: 1,
+          laborMinutes: 0, filaments: [],
+        },
+        {
+          id: "s2", machineIds: ["mini", "x2d"], printHours: 1,
+          laborMinutes: 0, filaments: [],
+        },
+      ],
+    } as unknown as SavedProduct;
+    // s1 tem uma elegível só (resolvida). Sobram a principal (mini+a1) e a s2
+    // (mini+x2d) — a interseção é só a Mini.
+    const rows = wholeEventRows(p, FROTA, []);
+    expect(encomendaMachineOptions(rows, FROTA).map((m) => m.id)).toEqual(["mini"]);
+  });
+
+  it("produto SEM conjunto (anterior à fase) pode ser qualquer uma da frota", () => {
+    const antigo = { ...PECA, machineIds: [], stages: [] } as unknown as SavedProduct;
+    const rows = wholeEventRows(antigo, FROTA, []);
+    expect(encomendaMachineOptions(rows, FROTA)).toHaveLength(3);
+  });
+
+  it("nada ambíguo: nada a oferecer", () => {
+    const resolvido = {
+      ...PECA, machineIds: ["x2d"], stages: [],
+    } as unknown as SavedProduct;
+    const rows = wholeEventRows(resolvido, FROTA, []);
+    expect(encomendaMachineOptions(rows, FROTA)).toEqual([]);
   });
 });

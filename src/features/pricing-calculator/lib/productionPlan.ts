@@ -250,6 +250,41 @@ export function initialRowMachineId(
   return eligible.length === 1 ? eligible[0] : "";
 }
 
+/**
+ * [FROTA] Fase 2 — as máquinas que o modal de VENDA pode oferecer para um lote
+ * de linhas de encomenda.
+ *
+ * É a **INTERSEÇÃO** dos conjuntos elegíveis das linhas que nasceram ambíguas —
+ * não a união. A pergunta que o seletor faz é "em qual máquina esta encomenda
+ * rodou?", uma resposta só para o item inteiro; oferecer a união deixaria o dono
+ * escolher uma impressora que metade das etapas não aceita, e o
+ * `reconcileReciboWrite` descartaria a escolha em silêncio naquelas etapas.
+ *
+ * Linha que já tem máquina fica FORA da conta: ela tinha uma elegível só, não há
+ * escolha a fazer, e incluí-la na interseção reduziria as opções do que ainda
+ * está em aberto a essa única — o oposto do que se quer.
+ *
+ * Interseção vazia = as partes ambíguas não têm nenhuma impressora em comum
+ * (etapas que exigem máquinas diferentes). Não há uma resposta só; o modal diz
+ * isso e manda usar a `/producao`, que pergunta por etapa.
+ */
+export function encomendaMachineOptions(
+  rows: EventRow[],
+  machines: Machine[],
+): Machine[] {
+  const ambiguas = rows.filter((row) => !row.machineId);
+  if (ambiguas.length === 0) return [];
+  return machines.filter((machine) =>
+    ambiguas.every((row) => {
+      const declarado = (row.fleetMachineIds ?? []).filter((id) =>
+        machines.some((m) => m.id === id),
+      );
+      // Vazio = frota inteira (todo produto anterior à fase chega assim).
+      return declarado.length === 0 || declarado.includes(machine.id);
+    }),
+  );
+}
+
 // Linhas-evento de um produto INTEIRO: UMA LINHA POR ETAPA (principal + extras).
 //
 // ⚠ [FROTA] Fase 1 — antes isto AGRUPAVA por máquina, e o agrupamento mentia no

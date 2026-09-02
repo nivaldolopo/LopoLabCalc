@@ -33,10 +33,9 @@
 - ⚠ **Todo produto anterior à fase entra SEM conjunto** → precificado pela **frota inteira**, com
   badge de dado órfão (Diretriz 7 — sem migração; o dono recadastra). Os **pesos 30/40/30 precisam
   ser digitados** em Gerenciar Máquinas: doc antigo não tem o campo e vale 0 → média simples.
-- ⚠ **A ENCOMENDA não pergunta a máquina** (buraco conhecido, não regressão): produto elegível a 2+
-  vende sem creditar impressora nenhuma no ROI — o custo sai certo, a atribuição não. Contorno:
-  produzir em `/producao` e vender como peça pronta. Correção especificada no `BACKLOG.md`,
-  **aguardando decisão do dono**.
+- ⚠ **A VENDA por encomenda pergunta a máquina** (2026-09-02), mesma regra da `/producao`: some
+  quando há uma candidata só, trava o botão quando há 2+. As opções são a **interseção** das etapas
+  ambíguas — sem interseção não há resposta única, e a tela manda usar a `/producao`.
 - ⚠ **A frente do DONO:** cadastrar **cores e insumos**, **religar os acessórios** e passar os ids
   pro sistema externo dele — a spec sai **comigo no chat** depois do cadastro (detalhe no
   `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, sem trava.** ⚠ Acessório sem baixa *não é bug, é

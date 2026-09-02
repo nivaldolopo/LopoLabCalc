@@ -9,6 +9,60 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ [FROTA] A encomenda passou a perguntar a máquina (2026-09-02)
+
+> **Não era regressão da Fase 2** — o modal de venda NUNCA teve seletor de máquina. A Fase 1 tirou o
+> `machineId` de lá porque ele copiava a máquina *precificada*, que é ficção. A Fase 2 só tornou a
+> consequência visível: com `machineId` virando conjunto, quase todo produto passou a ser elegível a
+> 2+ impressoras, e aí **toda venda por encomenda deixava de creditar horas ao ROI**.
+>
+> O custo sempre saiu certo (taxa da frota, a mesma do preço); o que faltava era a ATRIBUIÇÃO. O
+> `unattributedUnits` mantinha o dado honesto em vez de rateá-lo para quem não imprimiu — mas
+> "honestamente ausente" não é o mesmo que "presente", e o payback do `/maquinas` ficava cego para
+> essa fatia.
+
+### O desenho
+
+- **`ReconItem.machineId`** — a escolha, por item. Só o caminho `encomenda` usa: a peça PRONTA lê
+  quem imprimiu das CAMADAS do acabado, testemunha melhor que qualquer seleção.
+- **Mesma regra da `/producao`** (a do dono, 2026-09-01): o seletor aparece só quando há **dúvida**.
+  Uma candidata → o `initialRowMachineId` já preencheu e o campo nem existe. Duas ou mais → nasce
+  vazio, com borda âmbar, e **trava o botão** com o motivo no rodapé (UX-32).
+- **As opções são a INTERSEÇÃO das etapas ambíguas, não a união.** A pergunta é "em qual máquina
+  esta encomenda rodou?" — uma resposta só para o item. A união deixaria escolher uma impressora que
+  metade das etapas recusa, e a reconciliação descartaria a escolha naquelas etapas, em silêncio.
+- **Etapa já resolvida fica FORA da interseção.** Ela tinha uma elegível só, não há escolha a fazer;
+  incluí-la reduziria as opções da parte em aberto àquela única — o oposto do que se quer.
+- **Interseção vazia** (etapas que exigem máquinas diferentes): não existe resposta única. A tela diz
+  isso e manda registrar em `/producao`, que pergunta por etapa. **Não trava a venda** — travar por
+  algo que o seletor não consegue resolver seria um beco sem saída.
+
+### Duas guardas na gravação, e as duas importam
+
+O `reconcileReciboWrite` só aplica a escolha a linha que **nasceu ambígua** e **cuja etapa a
+aceita**. Quem grava é quem garante: o modal já oferece só a interseção, mas a regra mora na
+reconciliação — um produto cuja etapa de acabamento só cabe na X2D não pode tê-la carimbada com "A1"
+porque o item foi marcado assim. Etapa que já tinha máquina não é tocada: trocaria um fato por um
+palpite de nível de item.
+
+### O que a verificação no navegador revelou (e não era o código)
+
+O seletor ofereceu **duas** máquinas onde eu esperava três. O código estava certo: o produto
+`ovo fidget` tem mesmo `machineIds: ["a1","x2d"]` gravado, **sem badge de órfão**.
+
+⚠ **É o rastro do bug de semeadura corrigido no commit `0f93993`.** Entre o deploy da Fase 2
+(`e8dafa5`) e a correção, qualquer produto ABERTO E SALVO recebia o conjunto da lista viva no
+momento — que era a dos `DEFAULT_MACHINES` (A1 + X2D) enquanto o snapshot do Firestore não chegava.
+A A1 Mini ficava de fora, e o produto passa a ser precificado por 2 das 3 para sempre, sem nada
+avisar (não é órfão: é um conjunto declarado, só que declarado por engano).
+
+**Alcance medido: 1 produto em 103** (`ovo fidget`); os outros 102 seguem sem conjunto. Conserto é
+abrir e marcar a Mini — não vale código, e o recadastro leva embora de qualquer jeito.
+
+**Verificação:** 904/904 (9 testes novos), `lint`/`typecheck`/`build` limpos. No navegador: seletor
+com as 3 máquinas num produto sem conjunto, botão travado com o motivo, destravando ao escolher; e
+o produto com conjunto declarado oferecendo exatamente as 2 dele.
+
 ## ✅ [FROTA] Fase 2 — a taxa de frota: o preço parou de depender de quem estava livre (2026-09-01)
 
 > **O problema, em uma linha:** a mesma peça saía por **R$33,06 (A1 Mini) · R$37,45 (A1) · R$49,01

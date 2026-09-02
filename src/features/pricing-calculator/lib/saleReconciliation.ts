@@ -69,6 +69,15 @@ export type ReconItem = {
   // entrada aqui cai em `NO_COLOR_KEY` — o balde do que foi produzido antes do
   // FEAT-11 —, que é exatamente onde o saldo antigo está.
   colors?: Record<string, string>;
+  // [FROTA] Fase 2 — a máquina que IMPRIMIU esta encomenda, escolhida no modal
+  // de venda. Só o caminho `encomenda` usa: a peça pronta lê quem imprimiu das
+  // CAMADAS do acabado, que é testemunha melhor que qualquer seleção.
+  //
+  // ⚠ Existe porque a encomenda cria os eventos SOZINHA, sem passar pela
+  // `/producao` — sem isto, todo produto elegível a 2+ máquinas vendia sem
+  // creditar impressora nenhuma ao ROI (o custo saía certo, a atribuição não).
+  // Ausente/vazia é um estado válido: as unidades ficam órfãs, como sempre.
+  machineId?: string;
 };
 
 export type ReconItemResult = {
@@ -313,6 +322,27 @@ function applyForward(
       rows = wholeEventRows(product, ctx.machines, colorsNow);
     }
 
+    // [FROTA] Fase 2 — a máquina escolhida no modal preenche as linhas que
+    // nasceram AMBÍGUAS (`initialRowMachineId` devolve "" quando a etapa é
+    // elegível a mais de uma). Duas guardas, e as duas importam:
+    //
+    // · Linha que JÁ tem máquina não é tocada — ela tinha uma elegível só, logo
+    //   não havia escolha a fazer, e sobrescrevê-la trocaria um fato por um
+    //   palpite de nível de item.
+    // · A escolha só vale onde a etapa a aceita. Um produto cuja etapa principal
+    //   cabe em tudo e cuja etapa de acabamento só cabe na X2D não pode ter a
+    //   segunda carimbada com "A1" só porque o item foi marcado assim. O modal
+    //   já oferece apenas a INTERSEÇÃO, mas a regra mora aqui: quem grava é quem
+    //   garante.
+    if (item.machineId) {
+      const escolhida = item.machineId;
+      rows = rows.map((row) =>
+        row.machineId || !rowAceita(row, escolhida, ctx.machines)
+          ? row
+          : { ...row, machineId: escolhida },
+      );
+    }
+
     // BUG-02: os builders devolvem 1 PLACA (crua) de N = `piecesCount` peças. A
     // encomenda vende `qty` PEÇAS, então imprime `qty/pieces` placas → filamento e
     // COGS por peça = placa÷N, batendo com o preço de venda por peça. (Encomenda
@@ -484,6 +514,25 @@ function orfas(summary: {
     summary.machineUsage.reduce((sum, u) => sum + Math.max(0, u.hours), 0) + orfa;
   if (total <= 0) return 0;
   return Math.min(1, orfa / total);
+}
+
+/**
+ * [FROTA] Fase 2 — a etapa desta linha aceita a máquina escolhida?
+ *
+ * Conjunto VAZIO significa "frota inteira" (é como chega todo produto anterior à
+ * fase), então qualquer máquina viva serve. Conjunto declarado só aceita quem
+ * está nele.
+ */
+function rowAceita(
+  row: { fleetMachineIds: string[] },
+  machineId: string,
+  machines: Machine[],
+): boolean {
+  const declarado = (row.fleetMachineIds ?? []).filter((id) =>
+    machines.some((m) => m.id === id),
+  );
+  if (declarado.length === 0) return machines.some((m) => m.id === machineId);
+  return declarado.includes(machineId);
 }
 
 export function reconcileReciboWrite(

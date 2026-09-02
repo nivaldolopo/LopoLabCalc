@@ -49,6 +49,12 @@ import {
   type OldReciboState,
   type ReconItem,
 } from "../lib/saleReconciliation";
+import { calculatePricing } from "../lib/calculatePricing";
+import {
+  encomendaMachineOptions,
+  subitemEventRows,
+  wholeEventRows,
+} from "../lib/productionPlan";
 import {
   chargedWithFee,
   type SaleModalContext,
@@ -67,6 +73,7 @@ import type {
   Machine,
   PaymentFeeSettings,
   PaymentMethod,
+  PricingResult,
   ProductionEvent,
   ReciboUpsert,
   SaleChannel,
@@ -135,6 +142,12 @@ type CestaItem = {
   // estado quando os acabados chegassem do Firestore (o mesmo bug assíncrono que
   // o `touchedOrigem` conserta para a origem).
   colors?: Record<string, string>;
+  // [FROTA] Fase 2 — a máquina que IMPRIMIU, escolhida à mão. Só o caminho
+  // `encomenda` usa, e só quando há mais de uma candidata (o mesmo critério da
+  // `/producao`: "vazia só quando há dúvida"). Guarda só a ESCOLHA — quando a
+  // etapa tem uma elegível só, quem preenche é o `initialRowMachineId`, lá no
+  // builder, e este campo nem aparece.
+  machineId?: string;
 };
 
 // FEAT-09: qual modo de desconto está ativo no recibo (XOR — nunca os dois).
@@ -654,6 +667,8 @@ export function SaleModal({
         origem: item.origem,
         // FEAT-11: a cor de cada parte (só o caminho `acabado` usa).
         colors: colorsOf(item),
+        // [FROTA] Fase 2: a máquina escolhida (só o caminho `encomenda` usa).
+        ...(item.machineId ? { machineId: item.machineId } : {}),
       })),
     // `colorsOf` deriva de goods/products — recomputa quando eles chegam.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -688,6 +703,52 @@ export function SaleModal({
   const reconByKey = useMemo(
     () => new Map(recon.items.map((r) => [r.key, r])),
     [recon],
+  );
+
+  // [FROTA] Fase 2 — as máquinas que cada item de ENCOMENDA pode oferecer.
+  //
+  // A encomenda cria os eventos de produção sozinha, sem passar pela /producao —
+  // e sem esta escolha todo produto elegível a 2+ impressoras vendia sem creditar
+  // horas a nenhuma no ROI (o custo saía certo; a atribuição, não).
+  //
+  // Reconstrói as linhas com o MESMO builder que a reconciliação usa: qualquer
+  // outra fonte seria uma segunda verdade sobre quais etapas ficaram ambíguas.
+  const machineOptionsByKey = useMemo(() => {
+    const out = new Map<string, Machine[]>();
+    const precoCache = new Map<string, PricingResult>();
+    for (const item of items) {
+      if (item.origem !== "encomenda") continue;
+      const product = products.find((p) => p.id === item.source.productId);
+      if (!product) continue;
+      // O subitem precisa do `SubitemPrice` (é ele que carrega as `stageKeys`
+      // resolvidas), então o preço é calculado sob demanda — só para os produtos
+      // que estão na cesta como encomenda, e uma vez por produto.
+      let rows;
+      if (item.source.subitemId) {
+        const priced =
+          precoCache.get(product.id) ??
+          calculatePricing(product, machines, fixedCosts, stock);
+        precoCache.set(product.id, priced);
+        const sub = priced.subitems?.find((x) => x.id === item.source.subitemId);
+        if (!sub) continue;
+        rows = subitemEventRows(product, sub, stock, machines);
+      } else {
+        rows = wholeEventRows(product, machines, stock);
+      }
+      out.set(item.key, encomendaMachineOptions(rows, machines));
+    }
+    return out;
+  }, [items, products, machines, stock, fixedCosts]);
+
+  // Itens travados: há mais de uma candidata e o dono não escolheu. Uma
+  // candidata só não trava — não há escolha a fazer, e o builder já preencheu.
+  // Interseção VAZIA também não trava: ali não existe resposta única (etapas que
+  // exigem máquinas diferentes), e a saída é a /producao, não este seletor.
+  const semMaquina = items.filter(
+    (item) =>
+      item.origem === "encomenda" &&
+      !item.machineId &&
+      (machineOptionsByKey.get(item.key)?.length ?? 0) > 1,
   );
   // Custo real por unidade deste item (fallback no snapshot se algo faltar).
   const unitCostOf = (item: CestaItem): number =>
@@ -961,7 +1022,7 @@ export function SaleModal({
             className="btn primary"
             type="button"
             onClick={confirm}
-            disabled={saving || items.length === 0}
+            disabled={saving || items.length === 0 || semMaquina.length > 0}
           >
             {saving
               ? isEdit
@@ -1431,6 +1492,59 @@ export function SaleModal({
                   })
                 : null}
 
+              {/* [FROTA] Fase 2 — QUEM IMPRIMIU. A encomenda cria os eventos de
+                  produção sozinha, sem passar pela /producao; sem esta escolha o
+                  ROI não recebe nada dessa venda. Mesma regra que o dono fixou
+                  para a /producao: aparece só quando há DÚVIDA (2+ candidatas).
+                  Com uma candidata só o builder já preencheu, e a peça PRONTA
+                  nem chega aqui — ela lê quem imprimiu das camadas do acabado,
+                  testemunha melhor que qualquer seleção. */}
+              {item.origem === "encomenda" &&
+              (machineOptionsByKey.get(item.key)?.length ?? 0) > 1 ? (
+                <div className="cesta-cor">
+                  <label
+                    className="cesta-cor-label"
+                    htmlFor={`${fieldId}-${item.key}-maquina`}
+                  >
+                    Máquina
+                  </label>
+                  <select
+                    id={`${fieldId}-${item.key}-maquina`}
+                    className={`field-input ${item.machineId ? "" : "field-pending"}`}
+                    value={item.machineId ?? ""}
+                    onChange={(event) =>
+                      updateItem(item.key, { machineId: event.target.value })
+                    }
+                    title="Em qual impressora esta encomenda foi produzida. É o que credita as horas e o lucro à máquina certa no ROI."
+                  >
+                    {item.machineId ? null : (
+                      <option value="">Escolha a máquina…</option>
+                    )}
+                    {(machineOptionsByKey.get(item.key) ?? []).map((machine) => (
+                      <option key={machine.id} value={machine.id}>
+                        {machine.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+
+              {/* Interseção VAZIA: as etapas ambíguas não têm impressora em
+                  comum, então não existe UMA resposta para o item. Dizer isso é
+                  melhor que oferecer uma escolha que seria descartada em parte
+                  das etapas — e a /producao pergunta por etapa. */}
+              {item.origem === "encomenda" &&
+              machineOptionsByKey.has(item.key) &&
+              machineOptionsByKey.get(item.key)!.length === 0 ? (
+                <div className="cesta-warn">
+                  As etapas deste produto não têm uma impressora em comum — não
+                  há uma máquina só para atribuir. A venda entra normalmente (o
+                  custo usa a média da frota), mas o ROI não credita ninguém.
+                  Para atribuir por etapa, registre em <strong>Produção</strong>{" "}
+                  e venda como peça pronta.
+                </div>
+              ) : null}
+
               {item.origem === "acabado" && r && r.finishedShortfall > 0 ? (
                 <div className="cesta-warn strong">
                   ⚠ {Math.round(r.finishedShortfall)} além do estoque de acabados
@@ -1650,6 +1764,19 @@ export function SaleModal({
         </div>
       </div>
 
+      {/* UX-32 — o botão desabilitado DIZ o que falta. Sem isto o dono clicaria
+          em "Registrar venda" e nada aconteceria: a caixa âmbar do item está
+          longe do rodapé, e num recibo de vários itens ele não saberia qual. */}
+      {semMaquina.length > 0 ? (
+        <div className="disabled-why">
+          escolha a máquina de{" "}
+          {semMaquina.length === 1
+            ? `“${semMaquina[0].productName || "um item"}”`
+            : `${semMaquina.length} itens`}{" "}
+          — a encomenda produz agora, e é isso que credita as horas à impressora
+          certa
+        </div>
+      ) : null}
       {error ? <div className="form-error">{error}</div> : null}
     </Modal>
   );
