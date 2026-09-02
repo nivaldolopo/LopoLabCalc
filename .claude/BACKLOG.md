@@ -39,11 +39,50 @@
 - **Unificar as horas do custo fixo com a frota.** Hoje `hoursDay`/`daysMonth`/`machines` (capacidade
   + rateio do fixo) e `Machine.weight` (proporção de uso) são grandezas diferentes que não se
   contradizem — foi o D6.1 que manteve assim, de propósito. Unificar é opcional, não dívida.
-- **Pesos derivados do histórico REAL de produção.** Os 30/40/30 são declaração do dono. Com venda
-  real no banco dá para derivá-los dos eventos — e a **proporção** continua sendo a forma
-  armazenada, então é compatível, sem migração. Volta depois do recadastro. Cruza com o [Dashboard].
+- **Pesos derivados do histórico REAL de produção — COM interruptor (dono, 2026-09-02).** Os
+  30/40/30 são declaração do dono. Com venda real no banco dá para derivá-los das horas dos eventos.
+  **A proporção continua sendo a forma armazenada**, então é compatível, sem migração. Volta depois
+  do recadastro. Cruza com o [Dashboard].
+  ⚠ **O dono pediu poder LIGAR/DESLIGAR a derivação** — então ela nasce com o modo, não ganha um
+  depois. O que a spec precisa resolver, decidido AGORA para não virar retrabalho:
+  - **Guardar os DOIS.** `weightMode: "manual" | "historico"` ao lado do `Machine.weight` digitado.
+    O peso manual **não se perde** ao ligar o histórico: desligar restaura o número do dono. Derivar
+    POR CIMA do campo digitado seria destrutivo e irreversível.
+  - **Global, não por máquina.** Meia frota no histórico e meia na mão dá uma proporção que não
+    significa nada (as fatias não se somam entre fontes diferentes).
+  - **Janela explícita na tela.** O ROI já usa 90 dias para o "ritmo" (TD-016); a derivação deve
+    dizer de quantos dias e de quantas impressões ela saiu — peso derivado de 3 eventos é ruído.
+  - **Piso de dado.** Sem histórico suficiente, NÃO cai em média simples calada: fica no manual e
+    avisa. Trocar o peso do dono por um palpite é o que o DEC-02 já recusou uma vez.
+  - **Ligar RECALCULA O CATÁLOGO INTEIRO.** Precisa de prévia (antes/depois de N produtos) antes de
+    confirmar — não pode ser um toggle que muda 103 preços em silêncio.
+  - ⚠ **O peso também é o custo real da encomenda sem máquina declarada** (`productionCostAtRate`),
+    não só o preço. Mudar a fonte do peso muda COGS de venda, não só número de vitrine.
 - **O custo fixo fica DESLIGADO como está.** Tirar não simplificaria: o trio
   `hoursDay`/`daysMonth`/`machines` é da capacidade e ficaria de qualquer jeito.
+
+## ▶ [FROTA] Buraco conhecido — a ENCOMENDA não pergunta a máquina
+
+> Levantado com o dono em 2026-09-02, olhando o código. **Não é regressão da Fase 2** — o modal de
+> venda nunca teve seletor (a Fase 1 tirou o `machineId` de lá porque ele copiava a máquina
+> PRECIFICADA, que era ficção). A Fase 2 só tornou a consequência visível.
+
+**O que acontece hoje:** vendendo "sob encomenda", a reconciliação cria os eventos de produção
+sozinha. Produto elegível a **1** máquina → o evento nasce nela e o ROI conta. Elegível a **2+** (o
+caso normal) → o evento nasce **sem máquina**: o custo sai certo (taxa da frota, a mesma do preço),
+mas as unidades viram `unattributedUnits` e **aquela venda não credita horas nem lucro a impressora
+nenhuma** no `/maquinas`.
+
+**Custo real:** se boa parte das vendas é por encomenda, o payback do `/maquinas` fica cego pra essa
+fatia. Não é dado errado — é dado ausente, e o `unattributedUnits` o mantém honesto em vez de
+rateá-lo para quem não imprimiu.
+
+- **Contorno que já funciona, sem código:** registrar em `/producao` primeiro (lá se escolhe a
+  máquina) e vender como **peça pronta**. A camada do acabado carrega quem imprimiu e a venda herda.
+- **Correção:** o MESMO seletor da `/producao` no item de encomenda do `SaleModal`, com a mesma
+  regra do dono (*"vazia só quando há dúvida"*) e a mesma trava no botão. Pequeno; encosta em
+  `SaleModal`/`SaleFlow`, que a Fase 2 deixou de fora de propósito.
+- ⏸ **Aguardando decisão do dono** (2026-09-02): fazer agora ou conviver com o contorno.
 
 ## ⚠ A frente do DONO (bloqueia a carga em massa)
 
