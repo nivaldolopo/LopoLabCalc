@@ -9,40 +9,37 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
-- **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`.
-- **Última mudança (2026-09-01): [FROTA] Fase 2 fechada — a TAXA DE FROTA.** A mesma peça saía por
-  **R$33,06 / 37,45 / 49,01** conforme a impressora livre; hoje `machineId` (produto e etapa) é
-  **conjunto** e o preço é a média ponderada da frota elegível. Saíram `MachineUsage` da
-  precificação, a coluna "Máquina" da tabela do `/catalogo` e o gargalo por máquina da capacidade;
-  `/maquinas` ganhou o **cartão de R$/h**. **895/895** — regra viva nos Pontos-chave.
-  ⚠ **A trava da Fase 1 não mudou de número:** conjunto UNITÁRIO reduz à máquina única, prova de que
-  a matemática nova contém a antiga. A trava da fase é o `frotaFase2.test.ts`.
-  ⚠ **Avaliadas e DESCARTADAS, não repropor:** `lifeHours` por máquina (**DEC-02**), `residualValue`,
-  peso em **horas/dia** (2ª fonte da verdade contra o custo fixo — D6.1) e chutar a de maior peso na
-  `/producao` (palpite que ninguém confere = ROI errado, calado).
-- **Contexto macro:** **✅ TIER 1** e **✅ [FROTA] (fases 1 e 2)** fechados. Custo real decomponível
-  ponta a ponta; o ROI lê pela máquina certa, e o PREÇO não depende mais de quem estava livre.
+- **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
+  login Google restrito (`AuthGate` + regras travadas), DNS na seção "Infra".
+- **Última mudança (2026-09-03): [AUD-17] fechada — a 10ª varredura, e a 1ª com passada no
+  NAVEGADOR.** Varreu os 12 commits do [FROTA] (45 fontes nunca vistas): **5 🔴 · 1 🟡 · 5 🟢**,
+  cada um com sonda E medição na tela. Varridos e **sãos**: a matemática do `fleet.ts`, a
+  persistência, e "PODE ≠ RODOU" (nenhum caminho põe id vazio no `machineUsage`).
+- **▶ PRÓXIMA TAREFA — os lotes da [AUD-17].** Fila resumida no [`BACKLOG.md`](.claude/BACKLOG.md);
+  a reprodução de cada achado no [`AUD-17-RELATORIO.md`](AUD-17-RELATORIO.md) (temporário, sai
+  quando o cluster fechar). **Lote 1 = E3+E4+E5** — texto de tela, uma linha cada, com a redação
+  certa já existindo no app. **Lote 2 = E1+E2** — a matemática: medido no cartão da A1 Mini,
+  recuperou **R$ 0,53 de R$ 1,60** de depreciação. Um commit por lote, cada um com a invariante que
+  falta no teste.
+- **Contexto macro:** **✅ TIER 1** e **✅ [FROTA] (fases 1 e 2)** fechados — custo decomponível ponta
+  a ponta, e o PREÇO não depende mais de quem estava livre. Falta o que a AUD-17 achou.
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
   destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta.
-- **▶ PRÓXIMA TAREFA — [AUD-17], a varredura da FROTA.** Briefing em
-  [`.claude/AUD-17-BRIEF.md`](.claude/AUD-17-BRIEF.md): alvo `git diff 92a1688..HEAD` (**45 fontes
-  que nenhuma das 9 varreduras viu**), baseline `lint`/`typecheck`/`build` ✅ e **904/904**. Roda em
-  **subagente frio, read-only**: laudo → reconferência com sonda → um commit por lote.
-- ⚠ **A `/producao` agora PERGUNTA a máquina** quando o produto é elegível a mais de uma (decisão do
-  dono, 2026-09-01: *"vazia só quando há dúvida"*). Uma elegível → já vem preenchida. Sem escolher,
-  o botão Registrar fica travado com o motivo na tela. Não é bug.
-- ⚠ **Todo produto anterior à fase entra SEM conjunto** → precificado pela **frota inteira**, com
-  badge de dado órfão (Diretriz 7 — sem migração; o dono recadastra). Os **pesos 30/40/30 precisam
-  ser digitados** em Gerenciar Máquinas: doc antigo não tem o campo e vale 0 → média simples.
-- ⚠ **A VENDA por encomenda pergunta a máquina** (2026-09-02), mesma regra da `/producao`: some
-  quando há uma candidata só, trava o botão quando há 2+. As opções são a **interseção** das etapas
-  ambíguas — sem interseção não há resposta única, e a tela manda usar a `/producao`.
+- ⚠ **NÃO REPROPOR (avaliadas e descartadas pelo dono):** `lifeHours` por máquina (**DEC-02**),
+  `residualValue`, peso em **horas/dia** (D6.1), chutar a de maior peso na `/producao`, e a
+  conversão **peso↔metragem**.
+- ⚠ **A frota real tem TRÊS máquinas** (A1 Combo 40% · X2D Combo 40% · A1 Mini 20%, medido em
+  2026-09-03) — o `DEFAULT_MACHINES` do código só tem duas, então não raciocine por ele. **Todo
+  produto anterior à fase entra SEM conjunto** → frota inteira + badge de órfão (Diretriz 7 — sem
+  migração; o dono recadastra).
+- ⚠ **`/producao` e VENDA por encomenda PERGUNTAM a máquina** quando há 2+ candidatas (dono,
+  2026-09-01: *"vazia só quando há dúvida"*); sem escolher, o botão trava com o motivo na tela — não
+  é bug. Na venda as opções são a **interseção** das etapas ambíguas. ⚠ **Com UMA candidata o
+  seletor some, e isso É o defeito [E2]** — não o desenho: a venda grava tudo órfão.
 - ⚠ **A frente do DONO:** cadastrar **cores e insumos**, **religar os acessórios** e passar os ids
   pro sistema externo dele — a spec sai **comigo no chat** depois do cadastro (detalhe no
   `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, sem trava.** ⚠ Acessório sem baixa *não é bug, é
   vínculo em branco* (`planSupplies`): ligar o `supplyId` no formulário liga a baixa, sem código novo.
-- **Infra pronta:** login Google restrito (`AuthGate` + regras travadas); DNS na seção "Infra".
-- **Decisão encerrada:** conversão peso↔metragem **descartada** pelo dono (não repropor).
 
 ## Resumo do projeto (contexto rápido)
 
@@ -112,17 +109,16 @@ src/lib/
 - **Coluna flexível de grade escreve `minmax(0, 1fr)`, nunca `1fr` puro**: o mínimo implícito é o
   min-content, e `<select>`/`<input type="date">` não encolhem — a coluna estoura em vez de ceder.
 - **Fileira que não cabe no celular VIRA CARTÃO, não rolagem** (UX-38/UX-40): abaixo dos ~300px
-  úteis a linha quebra em faixas (receita do `.fg-part`, hoje em 5 lugares). Rolar de lado esconde
-  justamente a coluna que se quer ler.
+  úteis a linha quebra em faixas (receita do `.fg-part`, em 5 lugares).
 - **Corte que não se anuncia vira OUTRO valor** (UX-21): faixa de nome e `<select>` têm reticências
   (`text-overflow: ellipsis`, global); faixa de número tem **piso `max(rótulo, conteúdo)` medido no
   DOM**. Coluna de número usa `.num` (direita); `tabular-nums` é global (UX-27), não redeclarar.
   ⚠ Largura que um `<select>` PEDE se mede com clone em `width: max-content`, nunca `measureText` —
   a seta nativa cobra por cima do texto.
-- **Composição de custo é UM desenho só** (UX-26): `CostStack` (em `CostBars.tsx`), consumido por 3
-  rotas. Barra nova não se desenha na mão; e a régua **nunca** é o maior item — é o total.
-- **Cabeçalho, introdução e MODAL são COMPONENTE** — `PageHeader`, `PageIntro`, `Modal`. Modal novo
-  não escreve `.modal-overlay` na mão: usa o `<Modal>` e ganha papel, Escape, trava de rolagem e ✕.
+- **Composição de custo é UM desenho só** (UX-26): `CostStack` (`CostBars.tsx`), em 3 rotas. Barra
+  nova não se desenha na mão; a régua **nunca** é o maior item — é o total.
+- **Cabeçalho, introdução e MODAL são COMPONENTE** — `PageHeader`, `PageIntro`, `Modal`: o `<Modal>`
+  já dá papel, Escape, trava de rolagem e ✕; não escreva `.modal-overlay` na mão.
 - **Título de seção é `<h2>`, não `<div>`** (UX-29) — o `base.css` zera heading, trocar a tag não
   move pixel. **Foco é `:focus-visible` + `--focus-ring`** (UX-31). **Alvo pequeno cresce por
   `padding`/`min-height` + margem negativa igual** (UX-28/UX-37): 44px no celular, 32 no desktop.
@@ -181,8 +177,7 @@ src/lib/
   (push na `main` → deploy automático).
 
 ### 2. Resumo para contexto
-- A seção **Resumo do projeto** acima existe para acelerar a obtenção de contexto. **Mantenha-a
-  atualizada** sempre que a arquitetura, a stack ou os arquivos-chave mudarem.
+- **Mantenha o "Resumo do projeto" atualizado** quando arquitetura, stack ou arquivos-chave mudarem.
 
 ### 3. Commit + deploy imediatos a cada alteração
 Concluída uma **alteração no código** que eu pedi, execute **imediatamente**, sem esperar novo pedido:
@@ -193,8 +188,8 @@ git commit -m "<mensagem descritiva>"
 git push
 ```
 
-> O deploy é da **integração Git nativa da Vercel** (push na `main` → produção, na nuvem deles).
-> **Não** rode `vercel --prod` no fluxo normal — geraria deploy duplicado. Acompanhe com `vercel ls`.
+> Deploy pela **integração Git nativa da Vercel** (push na `main` → produção). **Não** rode
+> `vercel --prod` no fluxo normal — deploy duplicado. Acompanhe com `vercel ls`.
 
 ### 4. Verificação visual: pode abrir o site — o login é um handshake comigo
 - **Não** abra o navegador pra "confirmar" toda alteração — gasta tempo/tokens à toa. Pro código são,

@@ -5,13 +5,53 @@
 > vivem em [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob
 > demanda. A foto do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-01: NÃO há item de código pendente.** As duas fases do [FROTA] fecharam hoje
-> (a 1 de manhã, a 2 à tarde) e saíram daqui — writeups no `HISTORICO.md`. As nove varreduras seguem
-> zeradas. O que resta **depende de algo de fora**: a logo, o cadastro do dono, uma 2ª conta Google,
-> ou ~1-2 meses de venda real. As duas frentes tocáveis hoje estão logo abaixo.
+> **Estado em 2026-09-03: HÁ item de código pendente — o cluster [AUD-17], logo abaixo.** As duas
+> fases do [FROTA] fecharam em 2026-09-01 e saíram daqui (writeups no `HISTORICO.md`); a 10ª
+> varredura, feita sobre elas, achou 5 defeitos e é a fila de agora. O resto **depende de algo de
+> fora**: a logo, o cadastro do dono, uma 2ª conta Google, ou ~1-2 meses de venda real.
 >
 > ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho.
+
+## ▶ [AUD-17] — 5 defeitos da FROTA, todos vistos na tela
+
+> Laudo completo, com sonda e medição de cada um: [`AUD-17-RELATORIO.md`](../AUD-17-RELATORIO.md)
+> (arquivo TEMPORÁRIO — some quando o cluster fechar; o writeup vai pro `HISTORICO.md`).
+> **Placar: 5 🔴 · 1 🟡 · 5 🟢.** Varridos e sãos: a matemática do `fleet.ts`, a persistência e a
+> semântica "PODE ≠ RODOU" (nenhum caminho põe id vazio no `machineUsage`).
+
+- **Lote 1 — o TEXTO (três correções de uma linha; a redação certa já existe no app).**
+  - **[E3]** `encomendaMachineOptions` devolve `[]` para "sem ambiguidade" E para "interseção
+    vazia"; o JSX só testa `length === 0`, então o produto **totalmente resolvido** recebe "não têm
+    impressora em comum / o ROI não credita ninguém". → devolver `null` num caso e testar o outro.
+    ⚠ Ainda não morde porque todo produto do catálogo é legado; **começa no recadastro**.
+  - **[E4]** `MachineCheckboxes`: com o conjunto só de id morto nada fica marcado, e a tela diz
+    "as máquinas MARCADAS estão com peso 0% → média SIMPLES". Medido: nada marcado, e o preço é a
+    frota **ponderada**. → `orphan` = "nenhum id marcado casa com a frota viva".
+  - **[E5]** o guarda `selected.size <= 1` conta ids SALVOS: com `[morto, a1]` deixa desmarcar a A1
+    e o conjunto vai a `[]` — preço de R$ 27,14 → R$ 31,00 num clique, e o Salvar passa a ser
+    recusado sem explicar. → contar as marcadas VIVAS.
+- **Lote 2 — a MATEMÁTICA.**
+  - **[E1]** `saleReconciliation.ts:390` escala o `machineUsage` da encomenda por `1/qty`, e o ROI
+    lê "por unidade ATRIBUÍDA" (`machineRoi.ts:162`) — a cobertura entra duas vezes. Medido no
+    cartão da A1 Mini: recuperou **R$ 0,53 de R$ 1,60**. → escalar por `1/(qty − órfãs)`, como o
+    caminho `acabado` já faz. **Falta a invariante com órfãs > 0** nos testes.
+  - **[E2]** `SaleModal.tsx:747/1503`: com a interseção de **exatamente uma** máquina o gate `> 1`
+    esconde o seletor e libera o botão — grava `machineUsage: []` e tudo órfão, quando havia
+    resposta única. → preencher automático com `options[0]`. **Fecha a porta principal do E1**, mas
+    não a de interseção vazia: os dois no mesmo lote.
+- **Lote 3 — [E6] 🟡** `productCsv.ts` (`idsJson`): id de máquina inexistente **dentro do JSON das
+  etapas** entra sem aviso (o CSV-05 pede o contrário). Medido: R$ 37,83 → R$ 34,70, `warnings: []`.
+  → `idsJson` recebe a frota e reporta na classe `maquina-descartada`.
+- **Ressalvas 🟢 (não são tarefa; estão no laudo com medição):** `useMemo` do preview da `/producao`
+  sem `dateStr` · evento gravado com id de máquina morta (`productionPlan.ts:763`) · a escolha de
+  máquina da venda **não é gravada** no doc (editar a venda zera) · `idsJson` não distingue
+  `machineIds: []` explícito de ausente · **[E7]** a corrida `machines × products` na `/producao`
+  (o núcleo puro erra, mas **não reproduziu em 3 cargas frias** — o doc único chega antes da coleção
+  de 104 produtos).
+- **Pergunta aberta pro dono:** na `/producao` o `<select>` "Máquina" oferece a frota INTEIRA, mesmo
+  num produto elegível a duas. Se é de propósito ("o que RODOU manda, não o que PODE"), vale dizer
+  isso no comentário; se não, é restrição faltando.
 
 ## ▶ Disponível HOJE — as duas frentes que não esperam ninguém
 
@@ -166,6 +206,10 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
 - **Excel/Sheets de verdade** — BOM, CRLF, latin-1 e notação científica foram **simulados**. O
   Sheets exigiria login e envio de arquivo.
 - **Exportação de CSV do `/vendas`** — o botão existe e nunca foi exercitado.
+- **[AUD-17] o que a 10ª varredura não cobriu:** os 8 arquivos de `styles/*.css` do diff da FROTA
+  (incluindo `machines.css`) · o **limite de 500 escritas** por transação do Firestore e a falha
+  parcial · a tela de **importação de CSV** (o E6 foi medido por sonda, não pelo diálogo) · a
+  concorrência de dois donos no doc `config/machines` (`persistMachines` grava sem `rev`).
 - **iOS Safari real, Firefox** e qualquer navegador fora do Chromium embutido · a exclusão de
   produto **offline ao vivo**. ✅ O **modal de máquinas no celular** saiu desta lista: medido a 375px
   na Fase 2 (4 fileiras no cartão, Excluir 44×44 dentro da caixa, sem rolagem lateral).
@@ -196,6 +240,10 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
   ⚠ **A mecânica que SOBREVIVE ao recadastro:** `saveProduct` usa `tx.update`, que faz **merge** —
   campo que o `buildProductPayload` deixe de gravar fica no documento pra sempre.
 - **[TD-021] e [CSV-30]** seguem ressalva por decisão do dono.
+- **O `CLAUDE.md` está em 284 linhas, contra o alvo de ~270** (Diretriz 8). O Status já foi
+  comprimido; o que sobra de gordura são as **7 regras de CSS/UI** dos Pontos-chave (~30 linhas).
+  Movê-las para o `HISTORICO.md` é a saída natural, mas é decisão deliberada — elas são guarda-corpo
+  de quem escreve CSS novo, e o `HISTORICO` só entra em contexto quando alguém o lê.
 
 ## Fechado
 
