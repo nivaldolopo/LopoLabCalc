@@ -435,3 +435,64 @@ de recadastrar. Mesma correção do E2 cobre.
 componente é `"use client"` mas ainda passa por SSR — o servidor leria `null` e a hidratação
 divergiria no preço). A correção do E7 é expor um `ready` do hook e **não semear** enquanto ele for
 falso, não trocar o valor inicial.
+
+---
+
+# Passada no navegador (2026-09-03) — a camada C deixou de ser hipótese
+
+Feita no Chrome do dono, **com a sessão Google que já estava aberta**: nenhuma credencial foi
+digitada por mim. App rodando local (`.claude/launch.json`, `localhost:3000`) contra o Firestore de
+produção. **Nada foi vendido**: o modal de venda foi aberto, medido e cancelado.
+
+## O fato que derruba metade das ressalvas de alcance
+
+**A frota tem TRÊS máquinas: A1 Combo (40%), X2D Combo (40%), A1 Mini (20%).** A reconferência
+tinha assumido duas (a memória do projeto dizia A1 + X2D). Com três, tudo que a reconferência
+classificou como "latente, arma na 3ª impressora" **já está armado**:
+
+- **E2 é alcançável hoje.** Basta um produto cujas etapas ambíguas cruzem conjuntos.
+- **E7 é alcançável hoje.** A Mini **não está** em `DEFAULT_MACHINES` (que tem só `a1` e `x2d`),
+  então a frota do primeiro render é de fato diferente da real.
+
+## E3 — medido na tela, e é pior do que o laudo dizia
+
+Produto `AUD17 E3 so x2d`, criado para o teste com **uma única máquina elegível** (X2D):
+
+> "As etapas deste produto não têm uma impressora em comum — não há uma máquina só para atribuir.
+> A venda entra normalmente (o custo usa a média da frota), mas **o ROI não credita ninguém**.
+> Para atribuir por etapa, registre em Produção e venda como peça pronta."
+
+Está errado nas duas afirmações: há uma impressora, e o ROI credita ela. Medido no DOM do diálogo:
+`avisosAmbar = 1`, `seletoresDeMaquina = 0`, botão `"Registrar venda (2 itens)"` **habilitado**.
+
+⚠ **Por que ainda não incomodou o dono:** nenhum dos 103 produtos do catálogo tem conjunto restrito
+— todos são legados (`machineIds` vazio → frota inteira → 3 opções → seletor aparece e o botão
+trava). O aviso falso **começa a aparecer no recadastro**, exatamente quando o dono passar a dizer
+em que máquina cada produto roda. É um defeito que espera pelo trabalho dele.
+
+## E2 — medido na mesma tela, e é silencioso
+
+Produto `AUD17 E2 intersecao 1`: principal `{A1, X2D}` + etapa "Acabamento" `{X2D, Mini}` →
+interseção `{X2D}`, uma só. No modal esse item não mostra **nem seletor nem aviso** — nada. E o
+botão fica habilitado. Salvar gravaria `machineUsage: []` e `unattributedUnits = qty` num item cuja
+resposta certa (X2D) era única e conhecida.
+
+## O que ficou provado de bom
+
+- A **taxa de frota reprecifica ao vivo**: o mesmo produto saiu de **R$ 31,00** (frota inteira, 3
+  máquinas) para **R$ 39,05** ao deixar só a X2D marcada. Fase 2 funcionando na tela.
+- A **trava do botão funciona** onde ela é acionada (produto legado, 3 candidatas): seletor
+  "Escolha a máquina…" aparece e "Registrar venda" fica cinza.
+
+## Limpeza
+
+Os dois produtos de teste foram **excluídos** ao fim (catálogo de volta a **103**). Nenhuma venda,
+nenhum evento de produção, nenhuma baixa de estoque.
+
+## O que a passada no navegador ainda NÃO cobriu
+
+- **E7 (a corrida)** — precisa de throttling e recarga repetida para medir frequência; não fiz.
+- **E4/E5 (conjunto órfão)** — exigiriam apagar uma impressora do doc compartilhado
+  `config/machines`, o que reprecifica o catálogo inteiro. Não toquei sem o dono pedir.
+- **E1 no cartão da máquina** — exigiria gravar uma venda de encomenda parcialmente órfã. Não
+  gravei; a sonda já mede a razão com o código real.
