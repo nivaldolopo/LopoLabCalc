@@ -24,9 +24,10 @@
   ponta a ponta; o ROI lê pela máquina certa, e o PREÇO não depende mais de quem estava livre.
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
   destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta.
-- **▶ PRÓXIMA TAREFA — não há item de código pendente.** Disponíveis: **FEAT-03 sem logo** (5
-  sementes do PDF) e **AUD-08** (regras do Firestore — exige 2ª conta Google, quem destrava é o
-  dono). O resto espera logo, cadastro ou ~1-2 meses de venda. **Escopo: `BACKLOG.md`.**
+- **▶ PRÓXIMA TAREFA — [AUD-17], a varredura da FROTA.** Briefing em
+  [`.claude/AUD-17-BRIEF.md`](.claude/AUD-17-BRIEF.md): alvo `git diff 92a1688..HEAD` (**45 fontes
+  que nenhuma das 9 varreduras viu**), baseline `lint`/`typecheck`/`build` ✅ e **904/904**. Roda em
+  **subagente frio, read-only**: laudo → reconferência com sonda → um commit por lote.
 - ⚠ **A `/producao` agora PERGUNTA a máquina** quando o produto é elegível a mais de uma (decisão do
   dono, 2026-09-01: *"vazia só quando há dúvida"*). Uma elegível → já vem preenchida. Sem escolher,
   o botão Registrar fica travado com o motivo na tela. Não é bug.
