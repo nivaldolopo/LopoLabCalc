@@ -571,3 +571,73 @@ sessão:
 3. produto **"AUD17 E7 a1 mini"**
 
 Enquanto ela existir, o cartão da A1 Mini mostra 19,98 h e R$ 1,69 — os números do teste.
+
+---
+
+# E4 e E5 medidos no app (2026-09-03)
+
+**Montagem sem tocar nas três impressoras reais:** criei uma quarta máquina, `AUD17 FANTASMA`, com
+**peso 0** — que por definição não entra na média ponderada, então **nenhum preço do catálogo mudou**
+(conferido: o produto padrão continuou em R$ 31,00 com ela na frota). Salvei dois produtos apontando
+para ela e **apaguei a máquina**. Os dois ficaram com id órfão, que é a condição do E4/E5, sem que a
+frota real fosse alterada em momento algum.
+
+## 🔴 [E4] confirmado — e a mensagem mente duas vezes
+
+Produto `AUD17 E4 so orfa` (conjunto = só o id morto), carregado no formulário:
+
+```
+caixas:  A1 Combo false · X2D Combo false · A1 Mini false      ← nada marcado
+aviso:   "⚠ As máquinas MARCADAS estão todas com peso 0%,
+          então a média está SIMPLES (todas pesam igual)."
+preço:   R$ 31,00
+```
+
+As duas afirmações são falsas: **não há máquina marcada**, e a média **não é simples** — R$ 31,00 é
+exatamente o preço da frota inteira **ponderada** 40/40/20 (o mesmo número que o produto padrão dá
+com as três marcadas; a média simples daria outro, porque o desgaste ponderado é R$ 1,08/h contra
+R$ 0,95/h da simples). E o aviso certo — "precificando pela frota inteira" — **não aparece**.
+
+⚠ **A frase certa já existe no app**, no badge do `PricingResultCard`, e apareceu na mesma tela:
+"⚠ Sem máquinas elegíveis válidas — precificando pela frota inteira (A1 Combo, X2D Combo, A1 Mini)".
+O defeito é só o galho errado escolhido em `MachineCheckboxes`. Isso **sobe o E4 de 🟡 para 🔴**: não
+é lacuna de prova, é afirmação falsa na tela que explica o preço, com a redação correta a três
+componentes de distância.
+
+## 🔴 [E5] confirmado — um clique que deveria ser no-op mexe no preço
+
+Produto `AUD17 E5 orfa mais a1` (conjunto = id morto + A1). Só a A1 aparece marcada. Cliquei para
+desmarcá-la — o guarda "desmarcar a última é no-op" deveria recusar:
+
+| | antes do clique | depois |
+|---|---|---|
+| marcadas | A1 (a única) | **nenhuma** |
+| preço | **R$ 27,14** | **R$ 31,00** (+13,5%) |
+| aviso | — | "⚠ Nenhuma máquina marcada — precificando pela frota inteira" |
+
+O guarda contou os ids **salvos** (2: morto + A1), deixou o clique passar, e a reconstrução filtrou
+o morto e devolveu `[]`. Em seguida o Salvar é **recusado**: "⚠️ Marque ao menos uma máquina onde o
+produto pode ser impresso" — sem nenhuma pista de que o clique esvaziou um conjunto que tinha um id
+fantasma. **Sobe de 🟡 para 🔴**: muda preço na tela e trava o salvamento, por um clique que a
+própria regra escrita diz que não faz nada.
+
+## O que também ficou provado — e é bom
+
+- **O estorno da venda é exato.** Apagada a venda `AUD17 TESTE E1`, o cartão da A1 Mini voltou
+  a **13,98 h · 4 impressões · R$ 1,16 · R$ 72,58** — idêntico, dígito por dígito, ao baseline de
+  antes do teste. A fundação (transação + reverse) está sólida.
+- **Peso 0 não contamina a frota:** somar uma máquina com peso 0 deixou todos os preços intactos,
+  como o `fleet.ts` promete.
+- **O fallback de conjunto órfão funciona no número:** os dois produtos foram precificados pela
+  frota inteira (TD-009), como desenhado. O defeito é de TEXTO, não de conta.
+
+## Limpeza final (conferida)
+
+`Catálogo (103)` · `3 MÁQUINAS` · **0** eventos AUD17 na `/producao` · A1 Mini em 13,98 h.
+Nada meu ficou no banco.
+
+## Placar depois de tudo
+
+**5 🔴 · 1 🟡 · 5 🟢** — E1, E2, E3 confirmados na tela; E4 e E5 promovidos a 🔴 por medição;
+E7 rebaixado a 🟢 (não reproduziu em 3 cargas frias); E6 segue 🟡 (medido só por sonda ponta a
+ponta, não pela tela de importação).
