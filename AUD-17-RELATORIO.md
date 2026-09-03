@@ -496,3 +496,78 @@ nenhum evento de produção, nenhuma baixa de estoque.
   `config/machines`, o que reprecifica o catálogo inteiro. Não toquei sem o dono pedir.
 - **E1 no cartão da máquina** — exigiria gravar uma venda de encomenda parcialmente órfã. Não
   gravei; a sonda já mede a razão com o código real.
+
+---
+
+# E1 medido no app real (2026-09-03) — o cartão da máquina
+
+Com autorização do dono para criar e apagar dado. Produto de teste `AUD17 E1 parcial`, desenhado
+para abrir a porta do E2 e produzir órfãs parciais:
+
+- etapa principal `{A1, X2D}` 3 h → **ambígua**
+- etapa "Acabamento" `{X2D, Mini}` 1 h → **ambígua** · interseção das duas = `{X2D}`, **uma só** →
+  o gate `> 1` esconde o seletor e libera o botão (E2 na prática)
+- etapa "Base" `{Mini}` 2 h → **resolvida na Mini**
+
+Venda de **3 unidades**, sob encomenda, sem escolha de máquina (a tela não a ofereceu). Os três
+eventos gravados, lidos na `/producao`:
+
+```
+AUD17 E1 parcial — Base         A1 Mini · 6 h · custo real R$ 2,49   ← atribuída
+AUD17 E1 parcial — etapa 1      —       · 9 h · custo real R$ 42,10  ← órfã
+AUD17 E1 parcial — Acabamento   —       · 3 h · custo real R$ 4,79   ← órfã
+```
+
+12 h órfãs de 18 h → cobertura **1/3**, como projetado.
+
+## O número errado, na tela do dono
+
+Cartão da **A1 Mini** em `/maquinas`, antes e depois da venda:
+
+| | antes | depois | delta |
+|---|---|---|---|
+| horas impressas | 13,98 h | 19,98 h | **+6,00 h** ✓ correto |
+| impressões | 4 | 5 | +1 ✓ (um evento de 6 h) |
+| **depreciação recuperada** | R$ 1,16 | R$ 1,69 | **+R$ 0,53** |
+| receita | R$ 72,58 | R$ 113,17 | +R$ 40,59 ✓ correto (1/3 de R$ 121,77) |
+
+A depreciação REAL das 6 h na Mini é `6 h × R$ 0,27/h` = **R$ 1,60** (taxa da própria tabela "Taxa
+de frota" da página). Recuperou **R$ 0,53 = exatamente 1/3** — a cobertura aplicada duas vezes.
+**Faltam R$ 1,07 (67%) na conta de quanto a impressora já se pagou.**
+
+E a receita entrou CERTA no mesmo cartão, o que confirma o diagnóstico: a fatia proporcional está
+boa; só o campo absoluto (`depreciation`) erra. Fim da cadeia: sonda → fonte → tela.
+
+## E2 também se confirmou aqui
+
+Esse mesmo produto é o caso do E2: a venda foi gravada **sem que a tela oferecesse a escolha** e sem
+aviso nenhum, com 2 das 3 unidades sem lastro — quando `{X2D}` era a única resposta possível para as
+etapas ambíguas.
+
+## E7 — NÃO reproduzido (3 tentativas)
+
+Deep link `/producao?produto=…` num produto elegível a `{A1, Mini}` (a Mini está fora do
+`DEFAULT_MACHINES`). Em **3 cargas** a linha nasceu **vazia** ("Escolha a máquina…"), que é o
+comportamento certo. Hipótese para a diferença: `config/machines` é **um documento**, e os produtos
+são uma coleção de 104 — o doc único chega primeiro quase sempre. **O núcleo puro erra** (medido em
+`e6.probe.ts`), mas a janela não se manifestou. Rebaixar E7 de 🟡 para 🟢 é defensável; a correção
+continua barata.
+
+## Observação nova, a decidir (não classifiquei)
+
+Na `/producao`, o `<select>` "Máquina" da linha oferece **as três** impressoras, mesmo num produto
+elegível a duas. Se isso é de propósito ("o que RODOU manda, não o que PODE"), é coerente com a
+regra da casa — mas então o conjunto elegível não restringe nada ali, e vale dizer isso no
+comentário. Não medi as consequências.
+
+## ⚠ Dado de teste que ficou no banco
+
+Interrompi a limpeza: ao limpar o IndexedDB para forçar a carga fria do E7, a **sessão do Firebase
+caiu** (é lá que ela mora) e o app voltou ao `AuthGate`. Ficaram para apagar, assim que houver
+sessão:
+
+1. venda **"AUD17 TESTE E1"** — 3 × R$ 40,59 (apagá-la reverte os 3 eventos de produção)
+2. produto **"AUD17 E1 parcial"**
+3. produto **"AUD17 E7 a1 mini"**
+
+Enquanto ela existir, o cartão da A1 Mini mostra 19,98 h e R$ 1,69 — os números do teste.
