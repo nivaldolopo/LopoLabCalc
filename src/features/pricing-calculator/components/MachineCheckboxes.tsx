@@ -1,7 +1,12 @@
 "use client";
 
 import type { Machine } from "../types";
-import { weightOf } from "../lib/fleet";
+import {
+  machineSelectionNote,
+  selectedLive,
+  toggleSelection,
+  weightOf,
+} from "../lib/fleet";
 
 type MachineCheckboxesProps = {
   machines: Machine[];
@@ -19,10 +24,11 @@ type MachineCheckboxesProps = {
  * checkbox é a única forma do controle não continuar prometendo a semântica
  * antiga.
  *
- * ⚠ Desmarcar a ÚLTIMA é no-op de propósito. Um produto sem máquina nenhuma não
- * tem preço definível, e o `validateProduct` o reprovaria só na hora de salvar —
- * longe do clique que causou o problema. O conjunto vazio continua existindo
- * como DADO (os produtos anteriores à fase), só não como algo que se produz aqui.
+ * ⚠ Desmarcar a ÚLTIMA VIVA é no-op de propósito. Um produto sem máquina nenhuma
+ * não tem preço definível, e o `validateProduct` o reprovaria só na hora de
+ * salvar — longe do clique que causou o problema. O conjunto vazio continua
+ * existindo como DADO (os produtos anteriores à fase), só não como algo que se
+ * produz aqui. A decisão mora no `toggleSelection`, pura e testada.
  */
 export function MachineCheckboxes({
   machines,
@@ -31,22 +37,25 @@ export function MachineCheckboxes({
   labelledBy,
 }: MachineCheckboxesProps) {
   const selected = new Set(selectedIds);
-  const orphan = selectedIds.length === 0;
+  // ⚠ AUD-17 [E4]: tudo aqui conta o marcado VIVO, nunca `selectedIds` — um
+  // conjunto só de ids apagados tem tamanho > 0 e nenhuma caixa marcada, e
+  // contar o fantasma trocava o aviso certo ("frota inteira") pelo aviso de
+  // outra conta ("peso 0% → média simples"). Qual aviso é decisão pura, do
+  // `machineSelectionNote`; aqui fica só a redação.
+  const marcadas = selectedLive(machines, selectedIds);
+  const aviso = machineSelectionNote(machines, selectedIds);
 
   // A soma dos pesos DO SUBCONJUNTO marcado — é ela que decide se a média é
   // ponderada ou simples, e é sobre ela que a fatia de cada uma se renormaliza.
   // A frota inteira não serve aqui: marcar duas de três muda a fatia das duas.
-  const pesoMarcado = machines
-    .filter((machine) => selected.has(machine.id))
-    .reduce((sum, machine) => sum + weightOf(machine), 0);
+  const pesoMarcado = marcadas.reduce(
+    (sum, machine) => sum + weightOf(machine),
+    0,
+  );
 
   function toggle(id: string, checked: boolean) {
-    if (!checked && selected.size <= 1) return;
-    const next = machines
-      .filter((machine) =>
-        machine.id === id ? checked : selected.has(machine.id),
-      )
-      .map((machine) => machine.id);
+    const next = toggleSelection(machines, selectedIds, id, checked);
+    if (next === null) return;
     onChange(next);
   }
 
@@ -89,13 +98,13 @@ export function MachineCheckboxes({
           );
         })}
       </div>
-      {orphan ? (
+      {aviso === "orfa" ? (
         <p className="machine-orphan-note">
           ⚠ Nenhuma máquina marcada — este produto está sendo precificado pela{" "}
           <strong>frota inteira</strong>. Marque onde ele realmente cabe.
         </p>
       ) : null}
-      {!orphan && pesoMarcado <= 0 ? (
+      {aviso === "peso-zero" ? (
         <p className="machine-orphan-note">
           ⚠ As máquinas marcadas estão todas com <strong>peso 0%</strong>, então
           a média está <strong>simples</strong> (todas pesam igual). Defina a

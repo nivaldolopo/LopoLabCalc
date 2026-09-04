@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_FIXED_COSTS, DEFAULT_PRODUCT_INPUT } from "../constants";
 import { calculatePricing } from "./calculatePricing";
-import { depreciationPerHourOf, resolveFleet } from "./fleet";
+import {
+  depreciationPerHourOf,
+  machineSelectionNote,
+  resolveFleet,
+  selectedLive,
+  toggleSelection,
+} from "./fleet";
 import {
   encomendaMachineOptions,
   initialRowMachineId,
@@ -560,7 +566,7 @@ describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
       ],
     } as unknown as SavedProduct;
     const rows = wholeEventRows(p, FROTA, []);
-    expect(encomendaMachineOptions(rows, FROTA).map((m) => m.id)).toEqual([
+    expect(encomendaMachineOptions(rows, FROTA)!.map((m) => m.id)).toEqual([
       "a1",
       "x2d",
     ]);
@@ -579,7 +585,7 @@ describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
       ],
     } as unknown as SavedProduct;
     const rows = wholeEventRows(p, FROTA, []);
-    expect(encomendaMachineOptions(rows, FROTA).map((m) => m.id)).toEqual([
+    expect(encomendaMachineOptions(rows, FROTA)!.map((m) => m.id)).toEqual([
       "mini",
       "a1",
       "x2d",
@@ -604,7 +610,7 @@ describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
     // s1 tem uma elegível só (resolvida). Sobram a principal (mini+a1) e a s2
     // (mini+x2d) — a interseção é só a Mini.
     const rows = wholeEventRows(p, FROTA, []);
-    expect(encomendaMachineOptions(rows, FROTA).map((m) => m.id)).toEqual(["mini"]);
+    expect(encomendaMachineOptions(rows, FROTA)!.map((m) => m.id)).toEqual(["mini"]);
   });
 
   it("produto SEM conjunto (anterior à fase) pode ser qualquer uma da frota", () => {
@@ -613,11 +619,122 @@ describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
     expect(encomendaMachineOptions(rows, FROTA)).toHaveLength(3);
   });
 
-  it("nada ambíguo: nada a oferecer", () => {
+  // AUD-17 [E3] — a INVARIANTE que faltava: "nada ambíguo" e "sem interseção"
+  // são estados OPOSTOS, e a função tem de devolver coisas distinguíveis. Com os
+  // dois em `[]`, o modal exibia no caso BOM o aviso do caso RUIM ("o ROI não
+  // credita ninguém") enquanto o documento gravava a atribuição certa.
+  it("nada ambíguo devolve null — não o [] de 'sem interseção'", () => {
     const resolvido = {
       ...PECA, machineIds: ["x2d"], stages: [],
     } as unknown as SavedProduct;
     const rows = wholeEventRows(resolvido, FROTA, []);
+    expect(rows.map((r) => r.machineId)).toEqual(["x2d"]); // tudo atribuído
+    expect(encomendaMachineOptions(rows, FROTA)).toBeNull();
+  });
+
+  it("sem interseção devolve [] — e o [] não é null", () => {
+    // Duas ambíguas sem nenhuma máquina em comum: a principal só na Mini+A1, uma
+    // extra só na X2D+... — aqui não existe UMA resposta para o item inteiro.
+    const p = {
+      ...PECA,
+      machineIds: ["mini", "a1"],
+      stages: [
+        {
+          id: "s1", machineIds: ["x2d", "a1"], printHours: 1,
+          laborMinutes: 0, filaments: [],
+        },
+        {
+          id: "s2", machineIds: ["x2d", "mini"], printHours: 1,
+          laborMinutes: 0, filaments: [],
+        },
+      ],
+    } as unknown as SavedProduct;
+    const rows = wholeEventRows(p, FROTA, []);
+    // As três linhas nasceram ambíguas (2 elegíveis cada), e a interseção
+    // {mini,a1} ∩ {x2d,a1} ∩ {x2d,mini} é vazia.
+    expect(rows.every((r) => !r.machineId)).toBe(true);
     expect(encomendaMachineOptions(rows, FROTA)).toEqual([]);
+    expect(encomendaMachineOptions(rows, FROTA)).not.toBeNull();
+  });
+});
+
+// ===========================================================================
+// AUD-17 [E4]/[E5] — o SELETOR conta o marcado VIVO, nunca o id salvo
+//
+// O doc `config/machines` é compartilhado e realtime: apagar uma impressora em
+// outro dispositivo deixa produtos com id FANTASMA no conjunto. `selectedIds`
+// então mente sobre duas coisas ao mesmo tempo — quantas caixas estão marcadas
+// (para escolher o aviso) e quantas sobram ao desmarcar (para o guarda do
+// no-op). Medido na tela em 2026-09-03: o aviso errado, e um clique que a regra
+// escrita chama de no-op movendo o preço de R$27,14 para R$31,00.
+// ===========================================================================
+
+describe("[FROTA] Fase 2 — o seletor diante de um id apagado", () => {
+  it("[E4] conjunto só com id órfão avisa 'frota inteira', não 'peso 0%'", () => {
+    // O dado salvo NÃO é vazio (`length === 1`) — a CONTA é. Contar o fantasma
+    // mandava a tela para o aviso da outra conta, com nada marcado.
+    expect(["fantasma"].length).toBe(1);
+    expect(selectedLive(FROTA, ["fantasma"])).toEqual([]);
+    expect(machineSelectionNote(FROTA, ["fantasma"])).toBe("orfa");
+    expect(machineSelectionNote(FROTA, ["fantasma", "outro"])).toBe("orfa");
+    expect(machineSelectionNote(FROTA, [])).toBe("orfa");
+  });
+
+  it("[E4] o aviso descreve a conta que o resolveFleet de fato faz", () => {
+    // "frota inteira" é literal: as três, PONDERADAS — não a média simples que
+    // o outro aviso anuncia. Foi a divergência medida na tela (R$ 31,00 é o
+    // ponderado; o simples daria outro número).
+    const f = resolveFleet(FROTA, ["fantasma"]);
+    expect(f.missing).toBe(true);
+    expect(f.machines).toEqual(FROTA);
+    expect(f.weighted).toBe(true);
+  });
+
+  it("[E4] 'peso-zero' é só quando HÁ marcada viva e o peso soma zero", () => {
+    const novaSemPeso: Machine = { ...MINI, id: "nova", name: "Nova", weight: 0 };
+    const frota = [...FROTA, novaSemPeso];
+    expect(machineSelectionNote(frota, ["nova"])).toBe("peso-zero");
+    expect(machineSelectionNote(frota, ["fantasma", "nova"])).toBe("peso-zero");
+    expect(machineSelectionNote(frota, ["nova", "a1"])).toBeNull();
+    expect(machineSelectionNote(FROTA, ["a1"])).toBeNull();
+  });
+
+  it("[E4] o controle: com um id vivo há marcada viva", () => {
+    expect(selectedLive(FROTA, ["a1"]).map((m) => m.id)).toEqual(["a1"]);
+    expect(selectedLive(FROTA, ["fantasma", "a1"]).map((m) => m.id)).toEqual(["a1"]);
+  });
+
+  it("[E5] desmarcar a última VIVA é no-op, mesmo com um fantasma ao lado", () => {
+    // O guarda contava o Set salvo (2), deixava o clique passar, e a
+    // reconstrução filtrava o fantasma — devolvendo [] e travando o Salvar.
+    expect(toggleSelection(FROTA, ["fantasma", "a1"], "a1", false)).toBeNull();
+    expect(toggleSelection(FROTA, ["a1"], "a1", false)).toBeNull();
+  });
+
+  it("[E5] com duas vivas, desmarcar uma passa — e o fantasma sai junto", () => {
+    expect(toggleSelection(FROTA, ["fantasma", "a1", "x2d"], "a1", false)).toEqual([
+      "x2d",
+    ]);
+  });
+
+  it("[E5] marcar nunca é no-op, e o resultado sai na ordem do cadastro", () => {
+    expect(toggleSelection(FROTA, ["fantasma"], "x2d", true)).toEqual(["x2d"]);
+    expect(toggleSelection(FROTA, ["x2d"], "mini", true)).toEqual(["mini", "x2d"]);
+  });
+
+  it("[E5] o conjunto que sai do seletor nunca esvazia — invariante do controle", () => {
+    // Qualquer clique de desmarcar, em qualquer conjunto com pelo menos uma
+    // viva, ou é recusado ou devolve uma lista não-vazia. É a promessa que o
+    // `validateProduct` cobra tarde demais, feita aqui no ato do clique.
+    const conjuntos = [
+      ["a1"], ["fantasma", "a1"], ["fantasma", "a1", "x2d"],
+      ["mini", "a1", "x2d"], ["fantasma", "outro", "mini"],
+    ];
+    for (const ids of conjuntos) {
+      for (const m of selectedLive(FROTA, ids)) {
+        const next = toggleSelection(FROTA, ids, m.id, false);
+        expect(next === null || next.length > 0).toBe(true);
+      }
+    }
   });
 });

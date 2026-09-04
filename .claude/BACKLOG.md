@@ -7,30 +7,24 @@
 >
 > **Estado em 2026-09-03: HÁ item de código pendente — o cluster [AUD-17], logo abaixo.** As duas
 > fases do [FROTA] fecharam em 2026-09-01 e saíram daqui (writeups no `HISTORICO.md`); a 10ª
-> varredura, feita sobre elas, achou 5 defeitos e é a fila de agora. O resto **depende de algo de
+> varredura, feita sobre elas, achou 5 defeitos — o lote 1 (o texto) fechou, faltam os lotes 2 e 3. O resto **depende de algo de
 > fora**: a logo, o cadastro do dono, uma 2ª conta Google, ou ~1-2 meses de venda real.
 >
 > ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho.
 
-## ▶ [AUD-17] — 5 defeitos da FROTA, todos vistos na tela
+## ▶ [AUD-17] — os defeitos da FROTA que sobraram (lote 1 fechado)
 
 > Laudo completo, com sonda e medição de cada um: [`AUD-17-RELATORIO.md`](../AUD-17-RELATORIO.md)
 > (arquivo TEMPORÁRIO — some quando o cluster fechar; o writeup vai pro `HISTORICO.md`).
-> **Placar: 5 🔴 · 1 🟡 · 5 🟢.** Varridos e sãos: a matemática do `fleet.ts`, a persistência e a
-> semântica "PODE ≠ RODOU" (nenhum caminho põe id vazio no `machineUsage`).
+> **Placar: 5 🔴 · 1 🟡 · 5 🟢** — **3 fechados** (lote 1). Varridos e sãos: a matemática do
+> `fleet.ts`, a persistência e a semântica "PODE ≠ RODOU" (nenhum caminho põe id vazio no
+> `machineUsage`).
 
-- **Lote 1 — o TEXTO (três correções de uma linha; a redação certa já existe no app).**
-  - **[E3]** `encomendaMachineOptions` devolve `[]` para "sem ambiguidade" E para "interseção
-    vazia"; o JSX só testa `length === 0`, então o produto **totalmente resolvido** recebe "não têm
-    impressora em comum / o ROI não credita ninguém". → devolver `null` num caso e testar o outro.
-    ⚠ Ainda não morde porque todo produto do catálogo é legado; **começa no recadastro**.
-  - **[E4]** `MachineCheckboxes`: com o conjunto só de id morto nada fica marcado, e a tela diz
-    "as máquinas MARCADAS estão com peso 0% → média SIMPLES". Medido: nada marcado, e o preço é a
-    frota **ponderada**. → `orphan` = "nenhum id marcado casa com a frota viva".
-  - **[E5]** o guarda `selected.size <= 1` conta ids SALVOS: com `[morto, a1]` deixa desmarcar a A1
-    e o conjunto vai a `[]` — preço de R$ 27,14 → R$ 31,00 num clique, e o Salvar passa a ser
-    recusado sem explicar. → contar as marcadas VIVAS.
+- **✅ Lote 1 — o TEXTO ([E3]+[E4]+[E5], fechado em 2026-09-03).** As três decisões viraram função
+  PURA (`encomendaMachineOptions` devolve `Machine[] | null`; `machineSelectionNote` e
+  `toggleSelection` no `fleet.ts`), com 8 invariantes novas — cada uma conferida falhando contra a
+  lógica antiga antes de passar com a nova.
 - **Lote 2 — a MATEMÁTICA.**
   - **[E1]** `saleReconciliation.ts:390` escala o `machineUsage` da encomenda por `1/qty`, e o ROI
     lê "por unidade ATRIBUÍDA" (`machineRoi.ts:162`) — a cobertura entra duas vezes. Medido no

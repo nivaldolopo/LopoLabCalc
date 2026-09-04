@@ -11,16 +11,18 @@
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
   login Google restrito (`AuthGate` + regras travadas), DNS na seção "Infra".
-- **Última mudança (2026-09-03): [AUD-17] fechada — a 10ª varredura, e a 1ª com passada no
-  NAVEGADOR.** Varreu os 12 commits do [FROTA] (45 fontes nunca vistas): **5 🔴 · 1 🟡 · 5 🟢**,
-  cada um com sonda E medição na tela. Varridos e **sãos**: a matemática do `fleet.ts`, a
-  persistência, e "PODE ≠ RODOU" (nenhum caminho põe id vazio no `machineUsage`).
-- **▶ PRÓXIMA TAREFA — os lotes da [AUD-17].** Fila resumida no [`BACKLOG.md`](.claude/BACKLOG.md);
-  a reprodução de cada achado no [`AUD-17-RELATORIO.md`](AUD-17-RELATORIO.md) (temporário, sai
-  quando o cluster fechar). **Lote 1 = E3+E4+E5** — texto de tela, uma linha cada, com a redação
-  certa já existindo no app. **Lote 2 = E1+E2** — a matemática: medido no cartão da A1 Mini,
-  recuperou **R$ 0,53 de R$ 1,60** de depreciação. Um commit por lote, cada um com a invariante que
-  falta no teste.
+- **Última mudança (2026-09-03): [AUD-17] lote 1 fechado — E3+E4+E5, o TEXTO DE TELA.** As três
+  frases erradas eram **decisão dentro do JSX**; viraram função PURA no `fleet.ts`
+  (`selectedLive`/`machineSelectionNote`/`toggleSelection`) e no `productionPlan.ts`
+  (`encomendaMachineOptions` → `Machine[] | null`: `null` = nada ambíguo, `[]` = sem interseção).
+  Nenhuma redação foi reescrita. **8 invariantes novas**, cada uma conferida FALHANDO contra a
+  lógica antiga antes de passar com a nova.
+- **▶ PRÓXIMA TAREFA — lote 2 da [AUD-17] = E1+E2**, a matemática: `saleReconciliation.ts:390`
+  escala por `1/qty` onde o ROI lê "por unidade ATRIBUÍDA" (medido no cartão da A1 Mini: recuperou
+  **R$ 0,53 de R$ 1,60**), e o gate `> 1` do `SaleModal` joga fora a interseção de UMA. Mesmo lote,
+  mesma porta. Depois o **lote 3 = E6** (aviso do CSV). Fila no
+  [`BACKLOG.md`](.claude/BACKLOG.md), reprodução no [`AUD-17-RELATORIO.md`](AUD-17-RELATORIO.md)
+  (temporário, sai quando o cluster fechar).
 - **Contexto macro:** **✅ TIER 1** e **✅ [FROTA] (fases 1 e 2)** fechados — custo decomponível ponta
   a ponta, e o PREÇO não depende mais de quem estava livre. Falta o que a AUD-17 achou.
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
@@ -73,7 +75,8 @@ src/features/pricing-calculator/
                   #   coleção: useSales/useSupplies/useStock/useProduction/useFinishedGoods/
                   #   useQuotes/useQuoteConfig/useFees
   lib/            # TODA a matemática, pura. calculatePricing · calculateCapacity ·
-                  #   fleet (taxa de frota: média ponderada por componente) ·
+                  #   fleet (taxa de frota: média ponderada por componente +
+                  #     as decisões do seletor, sobre o MARCADO VIVO) ·
                   #   validateProduct · productCsv · idTable (de-para nome→id, TSV) ·
                   #   fifo (ordem + overdraft D4) → stock (g) + supplies (unidades) ·
                   #   production (baixa por evento + custo congelado, em 3 escalas) ·
@@ -163,6 +166,12 @@ src/lib/
   ⚠ As máquinas são COMPARTILHADAS entre dispositivos (doc `config/machines`, realtime): editar
   watts/`lifeHours`/`weight` reprecifica TODOS os produtos, que guardam só os ids. `useMachines`
   semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
+  ⚠ **Logo, todo id salvo pode ser FANTASMA — conte sempre o marcado VIVO** (AUD-17 [E4]/[E5]):
+  `machineIds.length` não é "quantas caixas estão marcadas", e usá-lo trocava o aviso da frota
+  inteira pelo de outra conta e furava o no-op de "desmarcar a última". ⚠ **Qual aviso mostrar é
+  DECISÃO, não redação:** dentro do JSX nenhum teste a alcança, e dois estados opostos colapsados
+  no mesmo `[]` fazem o caso BOM exibir a frase do RUIM ([E3]). Decisão vai pro `lib/` (pura,
+  `null` ≠ `[]`); o componente fica só com o texto.
 - **Snapshot que CHEGA não é prova de servidor** (AUD-15 [E4]): offline o `onSnapshot` serve do
   cache pelo mesmo callback de sucesso. Assinatura de coleção pede `COM_METADATA` e repassa
   `snapshot.metadata`; quem decide o chip é o `cloudStatusOf` — nunca o `navigator.onLine`. ⚠ E

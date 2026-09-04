@@ -111,3 +111,67 @@ export function unionEligible(fleets: FleetRate[], machines: Machine[]): Machine
   }
   return machines.filter((machine) => ids.has(machine.id));
 }
+
+/**
+ * As máquinas MARCADAS que ainda existem na frota.
+ *
+ * ⚠ AUD-17 [E4]/[E5]: o conjunto salvo pode carregar id de máquina APAGADA — o
+ * doc `config/machines` é compartilhado e realtime, então o produto é carregado
+ * depois da exclusão feita em outro dispositivo. Contar `machineIds.length`
+ * conta FANTASMA, e as duas contas do seletor saem erradas: a tela dizia "peso
+ * 0% → média simples" onde nenhuma caixa estava marcada, e o guarda de
+ * "desmarcar a última é no-op" deixava passar o clique que esvaziava o conjunto.
+ */
+export function selectedLive(machines: Machine[], selectedIds: string[]): Machine[] {
+  const wanted = new Set(selectedIds);
+  return machines.filter((machine) => wanted.has(machine.id));
+}
+
+/**
+ * QUAL aviso o seletor deve mostrar — a decisão, separada da redação.
+ *
+ * · `"orfa"` → nenhuma caixa marcada (conjunto vazio, ou só com fantasma): o
+ *   preço é o da FROTA INTEIRA, ponderada, e é isso que a frase tem de dizer.
+ * · `"peso-zero"` → há marcadas, e todas com peso 0: a média é SIMPLES entre
+ *   elas. Outra conta, outro texto.
+ * · `null` → nada a avisar.
+ *
+ * ⚠ AUD-17 [E4]: os dois avisos descrevem CONTAS DIFERENTES, e o galho errado
+ * não é feiura — é a tela do preço afirmando a conta que não foi feita. Com um
+ * conjunto só de ids apagados, `selectedIds.length > 0` mandava para o
+ * "peso-zero" ("as máquinas MARCADAS estão todas com peso 0%") sem nenhuma
+ * máquina marcada, e escondia o "frota inteira" que o `resolveFleet` de fato
+ * aplicou. Por isso a decisão é do mesmo `selectedLive` que o `resolveFleet` usa.
+ */
+export function machineSelectionNote(
+  machines: Machine[],
+  selectedIds: string[],
+): "orfa" | "peso-zero" | null {
+  const marcadas = selectedLive(machines, selectedIds);
+  if (marcadas.length === 0) return "orfa";
+  const peso = marcadas.reduce((sum, machine) => sum + weightOf(machine), 0);
+  return peso <= 0 ? "peso-zero" : null;
+}
+
+/**
+ * O próximo conjunto elegível depois de marcar/desmarcar uma caixa — ou `null`
+ * quando o clique é NO-OP.
+ *
+ * Desmarcar a última VIVA não faz nada, de propósito: um produto sem máquina
+ * nenhuma não tem preço definível, e o `validateProduct` só o reprovaria na hora
+ * de salvar, longe do clique que causou o estado. O conjunto que sai daqui só
+ * tem id VIVO — um fantasma que estava salvo cai fora no primeiro clique, que é
+ * o único momento em que o dono está olhando para as caixas.
+ */
+export function toggleSelection(
+  machines: Machine[],
+  selectedIds: string[],
+  id: string,
+  checked: boolean,
+): string[] | null {
+  if (!checked && selectedLive(machines, selectedIds).length <= 1) return null;
+  const wanted = new Set(selectedIds);
+  return machines
+    .filter((machine) => (machine.id === id ? checked : wanted.has(machine.id)))
+    .map((machine) => machine.id);
+}

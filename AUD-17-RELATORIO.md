@@ -641,3 +641,41 @@ Nada meu ficou no banco.
 **5 🔴 · 1 🟡 · 5 🟢** — E1, E2, E3 confirmados na tela; E4 e E5 promovidos a 🔴 por medição;
 E7 rebaixado a 🟢 (não reproduziu em 3 cargas frias); E6 segue 🟡 (medido só por sonda ponta a
 ponta, não pela tela de importação).
+
+---
+
+# ✅ Lote 1 corrigido (2026-09-03) — [E3] + [E4] + [E5]
+
+Os três eram **texto de tela** com a redação certa já existindo no app. A correção não reescreveu
+frase nenhuma: tirou a decisão de **qual** frase mostrar de dentro do JSX e a pôs em função pura,
+onde ela pôde ser travada por teste.
+
+| | antes | depois |
+|---|---|---|
+| **[E3]** | `encomendaMachineOptions` → `Machine[]`, e `[]` significava as duas coisas | → `Machine[] \| null`. `null` = nada ambíguo (caso BOM) · `[]` = sem interseção. O JSX testa `?.length === 0` |
+| **[E4]** | `orphan = selectedIds.length === 0` (conta o fantasma) | `machineSelectionNote(machines, ids)` → `"orfa"` \| `"peso-zero"` \| `null`, decidido pelo mesmo `selectedLive` que o `resolveFleet` usa |
+| **[E5]** | `if (!checked && selected.size <= 1) return` (ids SALVOS) | `toggleSelection(...)` → `string[] \| null`; o `null` é o no-op, e ele conta as marcadas **VIVAS** |
+
+**Onde a lógica passou a morar:** `lib/fleet.ts` ganhou `selectedLive`, `machineSelectionNote` e
+`toggleSelection`; `MachineCheckboxes.tsx` ficou só com a redação e as caixas.
+
+**As invariantes (8 novas em `frotaFase2.test.ts`), conferidas do jeito que vale:** cada uma foi
+rodada contra a lógica ANTIGA antes de passar com a nova — 3 testes falharam na restauração de
+`selectedIds.length === 0`, `selected.size <= 1` e `return []`, e voltaram a passar depois. As que
+mais interessam:
+
+- `nada ambíguo devolve null — não o [] de 'sem interseção'` e o par dele, `sem interseção devolve
+  [] — e o [] não é null`: os dois estados opostos do [E3], agora indistinguíveis só se alguém
+  desfizer o tipo.
+- `o aviso descreve a conta que o resolveFleet de fato faz`: prende o texto do [E4] à conta —
+  `missing: true`, `machines` = a frota inteira, `weighted: true` (ponderada, não simples).
+- `o conjunto que sai do seletor nunca esvazia`: varre 5 conjuntos × cada marcada viva e exige que
+  todo clique de desmarcar ou seja recusado ou devolva lista não-vazia. É a promessa que o
+  `validateProduct` só cobrava na hora de salvar, feita agora no ato do clique.
+
+**Verificado:** `pnpm test` 913 passando (31 arquivos) · `pnpm typecheck` · `pnpm lint` ·
+`pnpm build`. **Não** houve nova passada no navegador: reproduzir [E4]/[E5] na tela exige apagar uma
+impressora do doc compartilhado `config/machines` (reprecifica o catálogo inteiro do dono), e [E3]
+exige criar um produto de conjunto restrito — os mesmos motivos pelos quais a varredura parou ali.
+
+**Restam:** lote 2 ([E1]+[E2], a matemática) e lote 3 ([E6], o aviso do CSV).

@@ -264,16 +264,24 @@ export function initialRowMachineId(
  * escolha a fazer, e incluí-la na interseção reduziria as opções do que ainda
  * está em aberto a essa única — o oposto do que se quer.
  *
- * Interseção vazia = as partes ambíguas não têm nenhuma impressora em comum
- * (etapas que exigem máquinas diferentes). Não há uma resposta só; o modal diz
- * isso e manda usar a `/producao`, que pergunta por etapa.
+ * Interseção vazia (`[]`) = as partes ambíguas não têm nenhuma impressora em
+ * comum (etapas que exigem máquinas diferentes). Não há uma resposta só; o modal
+ * diz isso e manda usar a `/producao`, que pergunta por etapa.
+ *
+ * ⚠ AUD-17 [E3]: `null` = NADA ambíguo, o caso BOM — toda etapa já tem a sua
+ * máquina, e o ROI credita cada uma. Devolver `[]` aqui também fazia o modal
+ * exibir, no melhor caso possível (e no mais comum depois do recadastro: uma
+ * etapa, uma elegível), o aviso do PIOR — "não têm uma impressora em comum … o
+ * ROI não credita ninguém" — mandando o dono refazer na `/producao` um trabalho
+ * que já estava certo. São dois estados opostos; o tipo agora os separa, e quem
+ * consome tem de escolher qual está testando.
  */
 export function encomendaMachineOptions(
   rows: EventRow[],
   machines: Machine[],
-): Machine[] {
+): Machine[] | null {
   const ambiguas = rows.filter((row) => !row.machineId);
-  if (ambiguas.length === 0) return [];
+  if (ambiguas.length === 0) return null;
   return machines.filter((machine) =>
     ambiguas.every((row) => {
       const declarado = (row.fleetMachineIds ?? []).filter((id) =>

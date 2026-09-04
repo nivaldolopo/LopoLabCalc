@@ -714,7 +714,7 @@ export function SaleModal({
   // Reconstrói as linhas com o MESMO builder que a reconciliação usa: qualquer
   // outra fonte seria uma segunda verdade sobre quais etapas ficaram ambíguas.
   const machineOptionsByKey = useMemo(() => {
-    const out = new Map<string, Machine[]>();
+    const out = new Map<string, Machine[] | null>();
     const precoCache = new Map<string, PricingResult>();
     for (const item of items) {
       if (item.origem !== "encomenda") continue;
@@ -1532,10 +1532,15 @@ export function SaleModal({
               {/* Interseção VAZIA: as etapas ambíguas não têm impressora em
                   comum, então não existe UMA resposta para o item. Dizer isso é
                   melhor que oferecer uma escolha que seria descartada em parte
-                  das etapas — e a /producao pergunta por etapa. */}
+                  das etapas — e a /producao pergunta por etapa.
+
+                  ⚠ AUD-17 [E3]: o teste é `?.length === 0`, e o `null` (nada
+                  ambíguo, o caso BOM) tem de cair fora dele. Antes o aviso era
+                  disparado por `length === 0`, que os dois estados satisfaziam:
+                  o produto TOTALMENTE resolvido lia que "o ROI não credita
+                  ninguém" enquanto o documento gravava a atribuição certa. */}
               {item.origem === "encomenda" &&
-              machineOptionsByKey.has(item.key) &&
-              machineOptionsByKey.get(item.key)!.length === 0 ? (
+              machineOptionsByKey.get(item.key)?.length === 0 ? (
                 <div className="cesta-warn">
                   As etapas deste produto não têm uma impressora em comum — não
                   há uma máquina só para atribuir. A venda entra normalmente (o
