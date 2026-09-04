@@ -679,3 +679,41 @@ impressora do doc compartilhado `config/machines` (reprecifica o catálogo intei
 exige criar um produto de conjunto restrito — os mesmos motivos pelos quais a varredura parou ali.
 
 **Restam:** lote 2 ([E1]+[E2], a matemática) e lote 3 ([E6], o aviso do CSV).
+
+## Passada no navegador do lote 1 (2026-09-03, autorizada pelo dono)
+
+Com "pode criar maquina e apagar". Chrome do dono, sessão já aberta, app local contra o Firestore de
+produção. **Nenhuma venda registrada.**
+
+⚠ **O que a reprodução ensinou de novo:** apagar a máquina **na mesma aba** NÃO reproduz E4/E5 —
+o `handleSaveMachines` (`PricingCalculator.tsx:357`) já podava o id morto do formulário. O fantasma
+só sobrevive quando a exclusão chega pelo **realtime de outro dispositivo**, exatamente como o laudo
+descrevia. Por isso a passada usou **duas abas**: a A segurando a seleção, a B apagando.
+
+**[E5] — o clique voltou a ser no-op.** Aba A com `[A1, ZZ TESTE]`; aba B apaga a ZZ TESTE. O badge
+`machine-missing` apareceu, provando o fantasma no estado (`eligible 1 ≠ wanted 2`):
+
+| | antes da correção (medido em 2026-09-03) | agora |
+|---|---|---|
+| marcadas depois do clique | **nenhuma** | **A1 Combo** (inalterada) |
+| preço | R$ 27,14 → **R$ 31,00** | R$ 27,14 → **R$ 27,14** |
+| Salvar | recusado sem explicar | segue válido |
+
+**[E4] — o aviso trocou de galho, e os dois textos passaram a concordar.** Conjunto só com o id
+morto: `⚠ Nenhuma máquina marcada — precificando pela frota inteira`, e o de "peso 0%" sumiu. O badge
+do `PricingResultCard` diz o mesmo: `frota inteira (A1 Combo, X2D Combo, A1 Mini)`, preço R$ 31,00 —
+o ponderado 40/40/20. **Controle**: com a ZZ TESTE viva e marcada sozinha (peso 0), o aviso de
+"peso 0% → média simples" aparece — ele não foi desligado, só deixou de ser o galho errado.
+
+**[E3] — os dois estados opostos se separaram na tela.** Medido no DOM do diálogo de venda:
+
+| produto | `avisosAmbar` | seletores | botão |
+|---|---|---|---|
+| `AUD17 L1 E3 so x2d` (nada ambíguo, o caso BOM) | **0** (era **1**, a frase falsa) | 0 | habilitado |
+| `AUD17 L1 E3 sem intersecao` (principal `{A1,Mini}` + etapas `{A1,X2D}` e `{X2D,Mini}`) | **1**, a frase correta | 0 | habilitado |
+
+**Limpeza conferida:** `3 MÁQUINAS`, frota inteira de volta a `R$ 1,08 · R$ 0,15 · 110,00 · R$ 1,23`
+(idêntica à foto do começo) · A1 Mini em `13,98 h · 4 impressões · R$ 1,16` (idêntica) · nenhum
+`AUD17` no catálogo, nas vendas ou na produção · nenhuma `ZZ TESTE` na frota. A máquina de teste foi
+criada com **peso 0%** nas duas voltas, então nenhum preço do catálogo se moveu enquanto ela existiu
+(R$ 31,00 antes, durante e depois).

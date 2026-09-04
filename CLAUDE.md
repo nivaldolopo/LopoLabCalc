@@ -16,7 +16,8 @@
   (`selectedLive`/`machineSelectionNote`/`toggleSelection`) e no `productionPlan.ts`
   (`encomendaMachineOptions` → `Machine[] | null`: `null` = nada ambíguo, `[]` = sem interseção).
   Nenhuma redação foi reescrita. **8 invariantes novas**, cada uma conferida FALHANDO contra a
-  lógica antiga antes de passar com a nova.
+  lógica antiga antes de passar com a nova, **e os três medidos na tela** (dono autorizou criar e
+  apagar máquina): E5 virou no-op de novo, E4 trocou de galho, E3 separou os dois estados.
 - **▶ PRÓXIMA TAREFA — lote 2 da [AUD-17] = E1+E2**, a matemática: `saleReconciliation.ts:390`
   escala por `1/qty` onde o ROI lê "por unidade ATRIBUÍDA" (medido no cartão da A1 Mini: recuperou
   **R$ 0,53 de R$ 1,60**), e o gate `> 1` do `SaleModal` joga fora a interseção de UMA. Mesmo lote,
@@ -168,7 +169,8 @@ src/lib/
   semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
   ⚠ **Logo, todo id salvo pode ser FANTASMA — conte sempre o marcado VIVO** (AUD-17 [E4]/[E5]):
   `machineIds.length` não é "quantas caixas estão marcadas", e usá-lo trocava o aviso da frota
-  inteira pelo de outra conta e furava o no-op de "desmarcar a última". ⚠ **Qual aviso mostrar é
+  inteira pelo de outra conta e furava o no-op de "desmarcar a última". O fantasma só chega pelo
+  REALTIME de outro dispositivo — na própria aba o `handleSaveMachines` já poda. ⚠ **Qual aviso é
   DECISÃO, não redação:** dentro do JSX nenhum teste a alcança, e dois estados opostos colapsados
   no mesmo `[]` fazem o caso BOM exibir a frase do RUIM ([E3]). Decisão vai pro `lib/` (pura,
   `null` ≠ `[]`); o componente fica só com o texto.
