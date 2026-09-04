@@ -824,3 +824,71 @@ catálogo, vendas ou produção. Os três cartões voltaram idênticos à foto d
 `113,30 h · 26 · R$ 130,00`; A1 `131,68 h · 34 · R$ 32,94`; Mini `13,98 h · 4 · R$ 1,16`;
 investimento R$ 21.298,00; lucro acumulado R$ 1.851,55). O filamento das duas vendas (1 g de Bege
 cada) voltou pelo estorno que a exclusão do recibo faz na mesma transação.
+
+---
+
+# Lote 3 — [E6] corrigido e medido na tela (2026-09-04)
+
+> Site local (`pnpm dev`) contra o Firestore de produção, com a autorização do dono para criar e
+> apagar dados. Três produtos importados e apagados depois; catálogo 104 → 107 → **104**.
+
+**A correção.** `idsJson` (`productCsv.ts`) passou a receber a **frota** e a descartar o id que não
+existe nela, reportando na classe **própria** `maquina-etapa-descartada` — não na
+`maquina-descartada` da coluna humana, porque o conselho é outro (lá se corrige um NOME na planilha;
+aqui um id que o dono apagou do cadastro, dentro de um JSON que ninguém edita à mão) e o desfecho
+também: a etapa que fica sem nenhum id **herda o conjunto do produto**, não a frota. Guarda para
+frota vazia — sem cadastro não há com quem conferir, e a etapa não pode perder o conjunto por falta
+de dado NOSSO.
+
+⚠ **Uma correção ao próprio laudo.** O dano no PREÇO é do descarte **TOTAL**, não do parcial: o
+`resolveFleet:57-65` já filtra a lista pelas máquinas VIVAS, então `["x2d","fantasma"]` custa x2d de
+qualquer jeito (o fantasma só acende o `missing`). Quem caía na frota inteira era a etapa que ficava
+**só** com o fantasma — o caso que o laudo mediu (R$ 37,83 → R$ 34,70) e o que os testes medem.
+
+## As 3 linhas do CSV, e por que são essas
+
+Todas as 10 h de impressão na etapa "Base"; a principal fica com 1 g e 0 h, para o conjunto do
+produto não entrar na conta por outro caminho.
+
+| linha | coluna `Maquinas` | `machineIds` da etapa | o que prova |
+|---|---|---|---|
+| **A fantasma** | `X2D Combo` | `["impressora_que_nao_existe"]` | o caso |
+| **B controle** | `X2D Combo` | *ausente* | o destino de quem herda o produto |
+| **C frota** | *vazia* | *ausente* | o que a A valia ANTES (frota inteira) |
+
+## Medido
+
+**No diálogo de importação**, no topo, com a linha nomeada:
+
+> ⚠️ 1 linha — Id de impressora dentro de "Etapas JSON" que não existe no cadastro — foi DESCARTADO.
+> A etapa que ficar sem nenhum id herda o conjunto do produto (coluna "Maquinas"), e é ele que passa
+> a definir a média do preço dessa etapa:
+> · Linha 2 ("ZZ AUD17 E6 A fantasma"): Etapas JSON — etapa 2 → machineIds = "impressora_que_nao_existe"
+
+**No catálogo**, depois de importar:
+
+| produto | preço/peça | custo/peça |
+|---|---|---|
+| A fantasma | **R$ 75,36** | R$ 30,27 |
+| B controle | **R$ 75,36** | R$ 30,27 |
+| C frota | R$ 48,51 | R$ 21,33 |
+
+**A = B**, e as duas ≠ C. Antes da correção a A valeria o número da C: **R$ 75,36 → R$ 48,51
+(−36%)**, calada. É a mesma razão do laudo (−8,3%), ampliada porque aqui *todas* as horas estão na
+etapa do fantasma.
+
+O cartão expandido da A fecha a conta por dentro: **"PODE RODAR EM: X2D Combo"** (sem badge de órfão,
+sem "frota inteira") e **Desgaste R$ 18,67**, que é `10 h × R$ 1,87/h` — a taxa da X2D publicada na
+tabela de frota da `/maquinas`. Pela frota inteira seriam `10 h × R$ 1,08/h = R$ 10,80`.
+
+## Invariantes
+
+**9 novas** em `productCsvIssues.test.ts` — **6 conferidas FALHANDO** contra o `idsJson` antigo
+(descarte, parcial, total, preço, contagem por linha, classe separada). As outras 3 são controles
+que passam nas duas lógicas de propósito: ids todos vivos, item que nem string é (fica na classe
+VELHA), e frota vazia. Suíte: **935/935 ✅** (eram 926).
+
+## Limpeza conferida
+
+Catálogo de volta a **104**, nenhum `ZZ AUD17 E6` em lugar nenhum. Nada além do catálogo foi tocado:
+não houve venda, produção nem baixa de estoque.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseProductsCsv, type CsvIssue } from "./productCsv";
+import { calculatePricing } from "./calculatePricing";
 import type {
   FixedCostSettings,
   Machine,
@@ -2160,5 +2161,153 @@ describe("AUD-16 [E4] — a FORMA do JSON: nem estoura, nem grava tipo errado", 
     expect(achar(r.issues, "json-tipo-errado")).toBeUndefined();
     expect(achar(r.issues, "json-item-invalido")).toBeUndefined();
     expect(r.products[0].stages?.[0].filaments?.[0].colorName).toBe("Laranja");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUD-17 [E6] — o id de impressora DENTRO do "Etapas JSON".
+//
+// A coluna humana "Maquinas" ganhou quatro classes de aviso (CSV-24/UX-48); o
+// conjunto das ETAPAS, que viaja por id dentro do JSON, não tinha nenhuma:
+// `idsJson` aceitava qualquer string não-vazia. O id fantasma entrava inteiro, o
+// `resolveFleet` o marcava `missing` e a etapa passava a ser precificada pela
+// FROTA INTEIRA — medido no laudo, R$ 37,83 → R$ 34,70, com `warnings: []`.
+// Caminho real e banal: exportar, apagar uma impressora, reimportar.
+//
+// Todas as invariantes abaixo foram conferidas FALHANDO contra o `idsJson`
+// antigo (o que só reportava o que não era string) antes de passarem com o novo.
+describe("AUD-17 [E6] — id de máquina inexistente dentro do Etapas JSON", () => {
+  // Etapa "Base" na X2D + a etapa principal na A1 (via coluna "Maquinas").
+  const etapa = (machineIds: unknown) =>
+    JSON.stringify([
+      { id: "st2", name: "Base", machineIds, printHours: 1, laborMinutes: 0 },
+    ]);
+
+  it("id que não existe na frota é DESCARTADO e o descarte se anuncia", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Etapas JSON": etapa(["impressora_que_nao_existe"]) }),
+      machines,
+      opcoes,
+    );
+    const issue = achar(r.issues, "maquina-etapa-descartada");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos[0]).toContain("impressora_que_nao_existe");
+    expect(r.products[0].stages?.[0].machineIds).not.toContain(
+      "impressora_que_nao_existe",
+    );
+  });
+
+  it("descarte PARCIAL: o id bom vale, o fantasma sai — e avisa", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Etapas JSON": etapa(["x2d", "fantasma"]) }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].stages?.[0].machineIds).toEqual(["x2d"]);
+    expect(achar(r.issues, "maquina-etapa-descartada")?.linhas).toBe(1);
+  });
+
+  it("descarte TOTAL herda o conjunto do PRODUTO, não a frota inteira", () => {
+    // A diferença que o laudo mediu: com o fantasma dentro, `resolveFleet`
+    // devolvia `missing` e a etapa custava a média das DUAS. Herdar o conjunto
+    // do produto ("A1 Combo") é o mesmo destino que uma lista ausente tem.
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Etapas JSON": etapa(["fantasma"]) }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].stages?.[0].machineIds).toEqual(["a1"]);
+    expect(achar(r.issues, "maquina-etapa-descartada")?.linhas).toBe(1);
+  });
+
+  it("o PREÇO volta a ser o da máquina certa, não o da frota", () => {
+    const preco = (machineIds: unknown) => {
+      const r = parseProductsCsv(
+        csv({ ...LINHA_BOA, "Etapas JSON": etapa(machineIds) }),
+        machines,
+        opcoes,
+      );
+      return calculatePricing(r.products[0], machines, fixedCosts, [cor])
+        .suggestedPrice;
+    };
+    // ⚠ Quem move o PREÇO é o descarte TOTAL, não o parcial: o `resolveFleet`
+    // já filtra a lista pelas máquinas VIVAS, então `["x2d","fantasma"]` custa
+    // x2d de qualquer jeito (o fantasma só acende o badge `missing`). É a etapa
+    // que ficava SÓ com o fantasma que caía na frota inteira — a medição do
+    // laudo, R$ 37,83 → R$ 34,70.
+    const doProduto = preco(["a1"]); // = o que a coluna "Maquinas" diz
+    const frotaInteira = preco(["a1", "x2d"]);
+    expect(doProduto).not.toBeCloseTo(frotaInteira, 2); // as contas SÃO outras
+    // Antes: a etapa era precificada pela frota inteira. Agora herda o produto.
+    expect(preco(["fantasma"])).toBeCloseTo(doProduto, 6);
+    expect(preco(["fantasma"])).not.toBeCloseTo(frotaInteira, 2);
+  });
+
+  it("duas etapas com fantasma contam UMA linha (CSV-21) e dois exemplos", () => {
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        "Etapas JSON": JSON.stringify([
+          { id: "st2", name: "Base", machineIds: ["fantasma_a"], printHours: 1 },
+          { id: "st3", name: "Topo", machineIds: ["fantasma_b"], printHours: 1 },
+        ]),
+      }),
+      machines,
+      opcoes,
+    );
+    const issue = achar(r.issues, "maquina-etapa-descartada");
+    expect(issue?.linhas).toBe(1);
+    expect(issue?.exemplos).toHaveLength(2);
+    expect(issue?.exemplos[1]).toContain("fantasma_b");
+  });
+
+  it("a classe é OUTRA que a da coluna humana — as duas convivem na mesma linha", () => {
+    // O conselho é diferente: lá o dono conserta um NOME na planilha, aqui um id
+    // que ele apagou do cadastro. Somar as duas numa classe só esconderia isso.
+    const r = parseProductsCsv(
+      csv({
+        ...LINHA_BOA,
+        Maquina: "A1 Combo|Prusa MK4",
+        "Etapas JSON": etapa(["fantasma"]),
+      }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "maquina-descartada")?.linhas).toBe(1);
+    expect(achar(r.issues, "maquina-etapa-descartada")?.linhas).toBe(1);
+  });
+
+  it("ids todos vivos: nenhum apontamento (o controle)", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Etapas JSON": etapa(["a1", "x2d"]) }),
+      machines,
+      opcoes,
+    );
+    expect(r.products[0].stages?.[0].machineIds).toEqual(["a1", "x2d"]);
+    expect(achar(r.issues, "maquina-etapa-descartada")).toBeUndefined();
+  });
+
+  it("item que nem string é continua na classe VELHA, não na nova", () => {
+    // Regressão do AUD-16 [E5]: `42` e `null` não são "máquina que não existe",
+    // são forma errada — e o conselho de cada um é outro.
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Etapas JSON": etapa([42, null]) }),
+      machines,
+      opcoes,
+    );
+    expect(achar(r.issues, "numero-nao-reconhecido")?.linhas).toBe(1);
+    expect(achar(r.issues, "maquina-etapa-descartada")).toBeUndefined();
+  });
+
+  it("sem frota cadastrada não há com quem conferir — e nada é descartado", () => {
+    // Guarda explícito: com `machines: []` todo id seria fantasma, e a etapa
+    // perderia o conjunto por falta de dado NOSSO, não da planilha.
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Etapas JSON": etapa(["x2d"]) }),
+      [],
+      opcoes,
+    );
+    expect(r.products[0].stages?.[0].machineIds).toEqual(["x2d"]);
+    expect(achar(r.issues, "maquina-etapa-descartada")).toBeUndefined();
   });
 });

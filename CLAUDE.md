@@ -11,19 +11,20 @@
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
   login Google restrito (`AuthGate` + regras travadas), DNS na seção "Infra".
-- **Última mudança (2026-09-04): [AUD-17] lote 2 fechado — E1+E2, a MATEMÁTICA da encomenda.**
-  [E2] a interseção de **UMA** máquina era jogada fora (venda toda órfã onde só havia uma resposta):
-  virou `unicaCandidata` no `saleReconciliation.ts` — **na reconciliação, não na tela**, então vale
-  no preview e na edição; a tela não mudou. [E1] o `machineUsage` da encomenda passou a escalar por
-  `1/(qty − órfãs)`. **13 invariantes novas**, cada uma conferida FALHANDO contra a lógica antiga
-  (reverter só o E1 derruba 3; só o E2, outras 3) **e os dois medidos na tela** (dono autorizou
-  alterar dados): o E2 gravou os eventos na X2D em vez de sem máquina, e o E1 devolveu ao ROI
-  **R$ 1,87 = 1 h × R$ 1,87/h** onde a escala velha devolveria R$ 0,37. ⚠ **Venda já gravada guarda
-  a escala velha** — `machineUsage` é congelado no doc, então a `/maquinas` só se move em venda
-  nova ou re-salva.
-- **▶ PRÓXIMA TAREFA — lote 3 da [AUD-17] = E6 🟡** (`productCsv.ts`, `idsJson`): id de máquina
-  inexistente **dentro do JSON das etapas** entra na importação sem um aviso, e o CSV-05 pede o
-  contrário (medido: R$ 37,83 → R$ 34,70, `warnings: []`). Fecha o cluster. Fila no
+- **Última mudança (2026-09-04): [AUD-17] lote 3 fechado — E6, a IMPORTAÇÃO de CSV.**
+  `idsJson` (`productCsv.ts`) aceitava qualquer string como id de máquina: id que não existe na
+  frota entrava inteiro no JSON das etapas, e a etapa passava a ser precificada pela **frota
+  inteira**, calada. Agora ele **recebe a frota**, descarta o fantasma e avisa em classe **própria**
+  (`maquina-etapa-descartada`) — não a `maquina-descartada` da coluna humana, porque o conselho e o
+  desfecho são outros: a etapa sem id herda o conjunto do **PRODUTO**, não a frota. **9 invariantes
+  novas, 6 conferidas FALHANDO** contra a lógica antiga, e **medido na tela** (dono autorizou criar
+  e apagar dados): o aviso no topo do diálogo nomeando a linha, e o produto a **R$ 75,36** onde o
+  fantasma o deixava em **R$ 48,51** (−36%). ⚠ Correção ao laudo: quem move o preço é o descarte
+  **TOTAL** — o `resolveFleet` já filtra pelas vivas, logo `["x2d","fantasma"]` sempre custou x2d.
+- **▶ PRÓXIMA TAREFA — [E8] 🟡, o que segura a [AUD-17]** (`SaleModal`): o aviso de interseção vazia
+  diz "o ROI **não credita ninguém**", e na encomenda PARCIAL ele credita (medido: a X2D levou 1 h e
+  R$ 1,87 na mesma venda que exibiu a frase). Verdadeiro para as etapas ambíguas, falso para o item.
+  Mesmo espírito do [E3] — o número já está certo, é a FRASE. Fila no
   [`BACKLOG.md`](.claude/BACKLOG.md), reprodução no [`AUD-17-RELATORIO.md`](AUD-17-RELATORIO.md)
   (temporário, sai quando o cluster fechar).
 - **Contexto macro:** **✅ TIER 1** e **✅ [FROTA] (fases 1 e 2)** fechados — custo decomponível ponta
@@ -145,6 +146,9 @@ src/lib/
   etapa **normalizada**, não crua. ⚠ **A importação de CSV AVISA, não engole** (CSV-05): coluna nova
   que possa falhar calada entra com a checagem dela no mesmo commit — e renomear coluna pede `alias`
   na passada EXATA, senão o nome que o app mesmo escrevia vira "lido por aproximação".
+  ⚠ **Id DENTRO de JSON também é referência a conferir** (AUD-17 [E6]): ser string não é existir —
+  `idsJson` recebe a frota, descarta o fantasma e avisa em classe PRÓPRIA (o conselho e o desfecho
+  não são os da coluna humana). Palpite de id não tem leitura possível: descarta, não converte.
   ⚠ **Campo OPCIONAL num tipo de escrita é omissão silenciosa esperando acontecer** (AUD-02): campo
   que o repositório grava é **obrigatório**; lista vazia é a forma de dizer "nada".
 - **Normalizar ANTES de validar é como o dado errado entra calado** (AUD-16 [E1]/[E2]): coluna nova
@@ -169,16 +173,13 @@ src/lib/
   ⚠ As máquinas são COMPARTILHADAS entre dispositivos (doc `config/machines`, realtime): editar
   watts/`lifeHours`/`weight` reprecifica TODOS os produtos, que guardam só os ids. `useMachines`
   semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
-  ⚠ **`machineUsage` escala por unidade ATRIBUÍDA, nunca pela vendida** (AUD-17 [E1]): o ROI
-  multiplica por `qty × cobertura`, e `1/qty` a cobra duas vezes. Só a `depreciation` denuncia —
-  horas/lucro/receita são RAZÃO, e escala comum se cancela. A invariante (`Σ dep × atribuídas` = a
-  real dos eventos com dono) só morde **com órfãs > 0**. ⚠ **Interseção de UMA é resposta, não
-  dúvida** ([E2]): quem deduz é a reconciliação (`unicaCandidata`), não o JSX; duas seguem órfãs.
-  ⚠ **Todo id salvo pode ser FANTASMA — conte o marcado VIVO** ([E4]/[E5]): `machineIds.length`
-  não é "caixas marcadas"; o fantasma chega pelo REALTIME de outro dispositivo (na própria aba o
-  `handleSaveMachines` poda). ⚠ **Qual aviso é DECISÃO, não redação** ([E3]): no JSX nenhum teste a
-  alcança, e dois estados opostos no mesmo `[]` fazem o caso BOM exibir a frase do RUIM — decisão
-  vai pro `lib/` (puro, `null` ≠ `[]`), o componente fica com o texto.
+  ⚠ **As 4 armadilhas que a AUD-17 mediu** (o porquê e a reprodução de cada uma no
+  [`AUD-17-RELATORIO.md`](AUD-17-RELATORIO.md)): **[E1]** `machineUsage` escala por unidade
+  ATRIBUÍDA, nunca pela vendida — o ROI já multiplica por `qty × cobertura`, e só a `depreciation`
+  denuncia (horas/lucro/receita são RAZÃO). **[E2]** interseção de UMA é resposta, não dúvida, e
+  quem deduz é a RECONCILIAÇÃO, não o JSX. **[E4]/[E5]** todo id salvo pode ser FANTASMA (vem pelo
+  realtime de outro dispositivo) — conte o marcado VIVO, nunca `machineIds.length`. **[E3]** qual
+  aviso mostrar é DECISÃO, vai pro `lib/` puro (`null` ≠ `[]`); no JSX nenhum teste a alcança.
 - **Snapshot que CHEGA não é prova de servidor** (AUD-15 [E4]): offline o `onSnapshot` serve do
   cache pelo mesmo callback de sucesso. Assinatura de coleção pede `COM_METADATA` e repassa
   `snapshot.metadata`; quem decide o chip é o `cloudStatusOf` — nunca o `navigator.onLine`. ⚠ E

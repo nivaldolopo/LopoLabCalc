@@ -203,13 +203,16 @@ function parseNumber(value: string | undefined): number {
 // ilegível: são sobre a FORMA do JSON. `tipo` = campo de texto que veio como
 // número/lista/objeto; `item` = elemento da lista que nem objeto é; `zerado` =
 // o acessório que existe e não custa nada.
+// AUD-17 [E6] — `maquina` não é sobre forma nem sobre número: o valor é uma
+// string perfeita que não corresponde a impressora nenhuma da frota.
 type NumIssueKind =
   | "ilegivel"
   | "milhar"
   | "magnitude"
   | "tipo"
   | "item"
-  | "zerado";
+  | "zerado"
+  | "maquina";
 type NumReporter = (campo: string, bruto: string, kind?: NumIssueKind) => void;
 
 function numFromJson(
@@ -683,21 +686,42 @@ function parseFilaments(
 // DESCARTA e o descarte se anuncia (AUD-16 [E5]): `String(item)` fabricaria um
 // id que não existe, e a etapa seria precificada pela frota inteira sem que nada
 // dissesse. Lista ausente ou totalmente descartada herda o `fallback`.
+//
+// AUD-17 [E6] — a checagem que faltava: ser STRING não é ser uma impressora.
+// A coluna humana "Maquinas" ganhou quatro classes de aviso, e o conjunto das
+// ETAPAS — que viaja por ID dentro do JSON, onde ninguém confere nada — não
+// tinha nenhuma. Um id que não existe na frota entrava inteiro, o `resolveFleet`
+// devolvia `missing` e a etapa passava a ser precificada pela FROTA INTEIRA:
+// medido, R$ 37,83 → R$ 34,70 (−8,3%) com `warnings: []`. Caminho real e banal:
+// exportar, apagar uma impressora, reimportar. Agora o id fantasma é DESCARTADO
+// (nunca "convertido" em outra: palpite de id não tem leitura possível, ao
+// contrário do nome, que ao menos contém o id) e o descarte se anuncia — CSV-05,
+// a mesma disciplina do `machineNamesToIds`.
 function idsJson(
   raw: unknown,
   campo: string,
   report: NumReporter | undefined,
   fallback: string[],
+  frota: Machine[],
 ): string[] {
   if (raw === undefined || raw === null) return [...fallback];
   if (!Array.isArray(raw)) {
     report?.(campo, String(raw), "ilegivel");
     return [...fallback];
   }
+  const vivos = new Set(frota.map((machine) => machine.id));
   const ids: string[] = [];
   for (const item of raw) {
     if (typeof item === "string" && item.trim() !== "") {
-      if (!ids.includes(item.trim())) ids.push(item.trim());
+      const id = item.trim();
+      // Frota vazia não é frota com quem conferir — sem cadastro nenhum, todo
+      // id seria "fantasma" e a etapa perderia o conjunto por falta de dado
+      // nosso, não da planilha. (Não acontece no app: o `useMachines` semeia.)
+      if (frota.length > 0 && !vivos.has(id)) {
+        report?.(campo, id, "maquina");
+        continue;
+      }
+      if (!ids.includes(id)) ids.push(id);
     } else {
       report?.(campo, JSON.stringify(item) ?? String(item), "ilegivel");
     }
@@ -708,6 +732,7 @@ function idsJson(
 function parseStages(
   value: string | undefined,
   fallbackMachineIds: string[],
+  frota: Machine[],
   report?: NumReporter,
 ): PrintStage[] {
   return parseJsonArray(value).flatMap((stage, index) => {
@@ -725,7 +750,13 @@ function parseStages(
       // [FROTA] Fase 2 — conjunto. Lista de ids (não de nomes: dentro do JSON o
       // que o export escreve é id). Ausente/ilegível herda o conjunto do
       // PRODUTO, que é o que a etapa fazia antes com o escalar.
-      machineIds: idsJson(item.machineIds, campo("machineIds"), report, fallbackMachineIds),
+      machineIds: idsJson(
+        item.machineIds,
+        campo("machineIds"),
+        report,
+        fallbackMachineIds,
+        frota,
+      ),
       printHours: numFromJson(item.printHours, campo("printHours"), report),
       laborMinutes: numFromJson(item.laborMinutes, campo("laborMinutes"), report),
       // `energyTariff`/`laborRate` da etapa são IGNORADOS de propósito: valem os
@@ -1599,6 +1630,22 @@ export function parseProductsCsv(
         );
         return;
       }
+      if (kind === "maquina") {
+        // AUD-17 [E6]. Classe PRÓPRIA, e não a `maquina-descartada` da coluna
+        // humana: o conselho é outro. Lá o dono corrige um NOME na planilha;
+        // aqui o que sobrou no arquivo é um id de impressora que ele apagou do
+        // cadastro, dentro de um JSON que ninguém edita à mão — e o que a etapa
+        // faz sem ele (herdar o conjunto do produto) também é outro desfecho.
+        addIssue(
+          "maquina-etapa-descartada",
+          "Id de impressora dentro de “Etapas JSON” que não existe no " +
+            "cadastro — foi DESCARTADO. A etapa que ficar sem nenhum id herda " +
+            "o conjunto do produto (coluna “Maquinas”), e é ele que passa a " +
+            "definir a média do preço dessa etapa",
+          `${ondeEstou}: ${campo} = "${bruto}"`,
+        );
+        return;
+      }
       if (kind === "zerado") {
         addIssue(
           "acessorio-zerado",
@@ -1665,7 +1712,12 @@ export function parseProductsCsv(
     const piecesUsavel = piecesLido >= 1;
     const piecesCount = piecesUsavel ? piecesLido : 1;
 
-    const stages = parseStages(columns[indexStages], machineIds, reportNumero);
+    const stages = parseStages(
+      columns[indexStages],
+      machineIds,
+      machines,
+      reportNumero,
+    );
     const accessories = parseAccessories(
       columns[indexAccessories],
       reportNumero,
