@@ -717,3 +717,55 @@ o ponderado 40/40/20. **Controle**: com a ZZ TESTE viva e marcada sozinha (peso 
 `AUD17` no catálogo, nas vendas ou na produção · nenhuma `ZZ TESTE` na frota. A máquina de teste foi
 criada com **peso 0%** nas duas voltas, então nenhum preço do catálogo se moveu enquanto ela existiu
 (R$ 31,00 antes, durante e depois).
+
+
+---
+
+# ✅ Lote 2 corrigido (2026-09-04) — [E1] + [E2]
+
+Os dois moram na **mesma porta** (a encomenda que a venda planeja sozinha) e por isso fecharam
+juntos: o [E2] deixava a venda ficar órfã quando não precisava, e o [E1] errava a conta de quem
+ficou órfã de verdade. Fechar só o [E2] esconderia o [E1] no caminho mais comum sem corrigi-lo.
+
+| | antes | depois |
+|---|---|---|
+| **[E2]** interseção de UMA | ninguém preenche: `machineUsage: []`, `unattributedUnits = qty`, eventos com `machineId: ""` | `unicaCandidata` carimba a única possível, na RECONCILIAÇÃO |
+| **[E1]** escala do `machineUsage` | `1 / qty` (por unidade VENDIDA) | `1 / (qty − órfãs)` (por unidade ATRIBUÍDA), como o caminho `acabado` |
+
+**[E2] — resolver na tela ou na reconciliação.** O laudo sugeria preencher `item.machineId` no
+modal. A correção foi um degrau abaixo, no `saleReconciliation.ts`: *quem grava é quem garante*, e a
+mesma dedução passa a valer para o preview, para a **edição** do recibo e para qualquer chamador que
+não seja este modal. O gate `> 1` do `SaleModal` fica como está — com uma candidata não há o que
+perguntar, e a regra do dono ("vazia só quando há dúvida") continua de pé. O que mudou na tela: nada.
+O que mudou nos comentários: os dois que afirmavam "com uma candidata só o builder já preencheu",
+que era a premissa falsa do defeito.
+
+⚠ **O limite da dedução é explícito**: DUAS candidatas continuam órfãs. Chutar a de maior peso é o
+palpite que a Fase 2 recusa — o peso diz com que frequência a frota roda, não quem rodou esta peça.
+
+**[E1] — a razão de a Fase 1 não ter pego.** `frotaFase1.test.ts:536` já checava
+`Σ machineUsage.depreciation === cogsBreakdown.depreciation`, mas só com `unattributedUnits === 0`,
+onde `1/qty` e `1/atribuídas` são o **mesmo número**. A invariante nova é a mesma identidade com
+órfãs > 0, e ela reproduz na bancada o número que a tela mostrou:
+
+```
+Σ depreciação × atribuídas  = 0.9332666666666667   (esperado 3.7330666666666668)  ← razão 0.25
+```
+
+— os mesmos dois números da sonda `e1.probe.ts` e a mesma razão de 1/4 do cartão da A1 Mini
+(R$ 0,53 de R$ 1,60).
+
+**13 invariantes novas** em `frotaFase2.test.ts`, todas conferidas **falhando contra a lógica
+antiga** antes de passar com a nova: revertendo só o [E1], caem 3 (as identidades da depreciação);
+revertendo só o [E2], caem 3 (atribuição, eventos e custo real). As demais são guardas de regressão
+e passam nos dois mundos — de propósito: são elas que provam que lucro, receita e o caso sem órfãs
+**não** se mexeram.
+
+**Verificado:** `pnpm test` **926 passando** (31 arquivos) · `pnpm typecheck` · `pnpm lint` ·
+`pnpm build`. **Sem passada no navegador, e o motivo é o dado:** `machineUsage` é **congelado no
+documento da venda**. As vendas já gravadas — inclusive a que mediu os R$ 0,53 no cartão da A1 Mini
+— seguem com a escala antiga até serem **reeditadas e salvas**; a `/maquinas` só se move em venda
+nova ou re-salva. Não há o que olhar na tela sem escrever no banco do dono (Diretriz 7: nada a
+migrar, o recadastro resolve).
+
+**Resta:** lote 3 ([E6], o aviso do CSV).

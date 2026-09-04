@@ -14,10 +14,12 @@ import {
   planEventRows,
   wholeEventRows,
 } from "./productionPlan";
+import { computeMachineRoi } from "./machineRoi";
 import { reconcileReciboWrite, type ReconItem } from "./saleReconciliation";
 import type {
   Machine,
   ProductInput,
+  Sale,
   SavedProduct,
   StockFilament,
 } from "../types";
@@ -592,7 +594,7 @@ describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
     ]);
   });
 
-  it("sem interseção: não há resposta única, e o seletor não aparece", () => {
+  it("interseção de UMA: há resposta única, e ela não precisa de seletor", () => {
     const p = {
       ...PECA,
       machineIds: ["mini", "a1"],
@@ -608,7 +610,9 @@ describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
       ],
     } as unknown as SavedProduct;
     // s1 tem uma elegível só (resolvida). Sobram a principal (mini+a1) e a s2
-    // (mini+x2d) — a interseção é só a Mini.
+    // (mini+x2d) — a interseção é só a Mini. ⚠ AUD-17 [E2]: o título antigo dizia
+    // "sem interseção", e não é — há UMA, que o modal escondia e a reconciliação
+    // agora carimba sozinha (o "sem interseção" de verdade é o `[]`, logo abaixo).
     const rows = wholeEventRows(p, FROTA, []);
     expect(encomendaMachineOptions(rows, FROTA)!.map((m) => m.id)).toEqual(["mini"]);
   });
@@ -736,5 +740,266 @@ describe("[FROTA] Fase 2 — o seletor diante de um id apagado", () => {
         expect(next === null || next.length > 0).toBe(true);
       }
     }
+  });
+});
+
+
+// ===========================================================================
+// AUD-17 [E1]/[E2] — a MATEMÁTICA da encomenda parcialmente órfã
+//
+// Os dois defeitos moram na mesma porta e por isso fecham no mesmo lote: o [E2]
+// deixa a venda ficar órfã quando não precisava, e o [E1] erra a conta de quem
+// ficou órfã de verdade. Fechar só o [E2] esconderia o [E1] no caminho mais
+// comum, sem corrigi-lo.
+// ===========================================================================
+
+const CTX_FROTA = (products: SavedProduct[]) => {
+  let n = 0;
+  return {
+    goods: [],
+    colors: [] as StockFilament[],
+    supplies: [],
+    products,
+    machines: FROTA,
+    fixedCosts: DEFAULT_FIXED_COSTS,
+    at: 1000,
+    createdAt: 1000,
+    genId: () => `ev${(n += 1)}`,
+  };
+};
+
+const ITEM_ENCOMENDA = (over: Partial<ReconItem> = {}): ReconItem => ({
+  key: "k1",
+  productId: "peca",
+  productName: "Peça",
+  quantity: 2,
+  origem: "encomenda",
+  ...over,
+});
+
+// Duas etapas AMBÍGUAS (2 elegíveis cada) cuja interseção é uma máquina só.
+// `initialRowMachineId` olha o conjunto DA LINHA, então as duas nascem vazias —
+// é exatamente o caso que o gate `> 1` do modal escondia.
+const INTERSECAO_UNICA = {
+  ...produto({ machineIds: ["a1", "x2d"] }),
+  id: "peca",
+  name: "Peça",
+  piecesCount: 1,
+  stages: [
+    {
+      id: "s1", name: "Acabamento", machineIds: ["mini", "x2d"],
+      printHours: 1, laborMinutes: 0, filaments: [],
+    },
+  ],
+} as unknown as SavedProduct;
+
+// Uma etapa ambígua (3 h) e uma resolvida na X2D (1 h): 3/4 das horas sem dono.
+const PARCIAL = {
+  ...produto({ machineIds: ["a1", "x2d"] }),
+  id: "peca",
+  name: "Peça",
+  piecesCount: 1,
+  stages: [
+    {
+      id: "s1", name: "Base", machineIds: ["x2d"],
+      printHours: 1, laborMinutes: 0, filaments: [],
+    },
+  ],
+} as unknown as SavedProduct;
+
+// A depreciação REAL que os eventos daquela máquina congelaram — a testemunha
+// contra a qual o ROI é conferido.
+const depReal = (
+  plan: ReturnType<typeof reconcileReciboWrite>,
+  machineId: string,
+) =>
+  plan.productionCreates
+    .filter((c) => c.payload.machineId === machineId)
+    .reduce((sum, c) => sum + (c.payload.frozenBreakdown?.depreciation ?? 0), 0);
+
+// O que o ROI recupera desta venda, pela função REAL. A venda abaixo é o mínimo
+// que o `computeMachineRoi` lê: a repartição, a cobertura e o dinheiro.
+const roiDe = (
+  plan: ReturnType<typeof reconcileReciboWrite>,
+  machineId: string,
+  over: Partial<Sale> = {},
+) => {
+  const r = plan.items[0];
+  const venda = {
+    id: "s1", quantity: 2, machineUsage: r.machineUsage,
+    unattributedUnits: r.unattributedUnits, totalRevenue: 100, profit: 40,
+    saleDate: 0, ...over,
+  } as unknown as Sale;
+  return computeMachineRoi(FROTA, [venda], []).find(
+    (m) => m.machine.id === machineId,
+  )!;
+};
+
+describe("[FROTA] Fase 2 — AUD-17 [E2]: interseção de UMA é resposta, não dúvida", () => {
+  it("a premissa: as duas linhas nascem vazias e a interseção tem UMA", () => {
+    const rows = wholeEventRows(INTERSECAO_UNICA, FROTA, []);
+    expect(rows.map((r) => r.machineId)).toEqual(["", ""]);
+    expect(encomendaMachineOptions(rows, FROTA)!.map((m) => m.id)).toEqual([
+      "x2d",
+    ]);
+  });
+
+  it("sem ninguém escolher, a venda atribui à única possível", () => {
+    // Antes: `machineUsage: []`, `unattributedUnits: 2` e dois eventos com
+    // `machineId: ""` — dado perdido onde só havia uma resposta.
+    const plan = reconcileReciboWrite(
+      [ITEM_ENCOMENDA()],
+      null,
+      CTX_FROTA([INTERSECAO_UNICA]),
+    );
+    const [r] = plan.items;
+    expect(r.machineUsage.map((u) => u.machineId)).toEqual(["x2d"]);
+    expect(r.unattributedUnits).toBe(0);
+  });
+
+  it("os EVENTOS gravados também levam a máquina — o ROI conta as horas", () => {
+    // `printedCount`/`printedHours` casam por id: evento com `machineId: ""` é
+    // hora que some da vida útil da impressora.
+    const plan = reconcileReciboWrite(
+      [ITEM_ENCOMENDA()],
+      null,
+      CTX_FROTA([INTERSECAO_UNICA]),
+    );
+    expect(plan.productionCreates.map((c) => c.payload.machineId)).toEqual([
+      "x2d",
+      "x2d",
+    ]);
+  });
+
+  it("e o custo passa a ser o REAL da X2D, não mais a média da frota", () => {
+    const plan = reconcileReciboWrite(
+      [ITEM_ENCOMENDA()],
+      null,
+      CTX_FROTA([INTERSECAO_UNICA]),
+    );
+    // 3 h da principal + 1 h da etapa, por unidade (a placa rende 1 peça).
+    expect(plan.items[0].cogsBreakdown!.depreciation).toBeCloseTo(
+      4 * depreciationPerHourOf(X2D),
+      10,
+    );
+  });
+
+  it("DUAS candidatas continuam órfãs — não se chuta a de maior peso", () => {
+    // O limite da dedução: aqui não existe UMA resposta, e o peso diz com que
+    // frequência a frota roda, não quem rodou esta peça.
+    const plan = reconcileReciboWrite(
+      [ITEM_ENCOMENDA()],
+      null,
+      CTX_FROTA([PECA]),
+    );
+    expect(plan.items[0].machineUsage).toEqual([]);
+    expect(plan.items[0].unattributedUnits).toBe(2);
+  });
+
+  it("interseção VAZIA continua órfã — não há máquina que sirva às duas", () => {
+    const semComum = {
+      ...produto({ machineIds: ["mini", "a1"] }),
+      id: "peca", name: "Peça", piecesCount: 1,
+      stages: [
+        {
+          id: "s1", name: "Base", machineIds: ["x2d", "a1"],
+          printHours: 1, laborMinutes: 0, filaments: [],
+        },
+        {
+          id: "s2", name: "Topo", machineIds: ["x2d", "mini"],
+          printHours: 1, laborMinutes: 0, filaments: [],
+        },
+      ],
+    } as unknown as SavedProduct;
+    const rows = wholeEventRows(semComum, FROTA, []);
+    expect(encomendaMachineOptions(rows, FROTA)).toEqual([]);
+    const plan = reconcileReciboWrite(
+      [ITEM_ENCOMENDA()],
+      null,
+      CTX_FROTA([semComum]),
+    );
+    expect(plan.items[0].machineUsage).toEqual([]);
+    expect(plan.items[0].unattributedUnits).toBe(2);
+  });
+});
+
+describe("[FROTA] Fase 2 — AUD-17 [E1]: a escala é por unidade ATRIBUÍDA", () => {
+  const planParcial = () =>
+    reconcileReciboWrite([ITEM_ENCOMENDA()], null, CTX_FROTA([PARCIAL]));
+
+  it("a premissa: 3 das 4 horas ficam sem dono, e 1,5 das 2 unidades", () => {
+    const [r] = planParcial().items;
+    expect(r.machineUsage.map((u) => u.machineId)).toEqual(["x2d"]);
+    expect(r.unattributedUnits).toBeCloseTo(1.5, 10);
+  });
+
+  it("Σ depreciação × atribuídas = a depreciação REAL dos eventos com dono", () => {
+    // A invariante que faltava. `frotaFase1.test.ts` já a checa, mas SÓ com
+    // `unattributedUnits === 0` — o caso em que `1/qty` e `1/atribuídas` são o
+    // mesmo número, e por isso o defeito passou por baixo dela.
+    const plan = planParcial();
+    const [r] = plan.items;
+    const atribuidas = 2 - r.unattributedUnits;
+    const soma = r.machineUsage.reduce(
+      (s, u) => s + u.depreciation * atribuidas,
+      0,
+    );
+    expect(soma).toBeCloseTo(depReal(plan, "x2d"), 10);
+  });
+
+  it("o ROI recupera a depreciação INTEIRA — era 1/4 dela", () => {
+    // Ponta a ponta, com o `computeMachineRoi` real: a cobertura (1/4) entrava
+    // duas vezes, uma na escala e outra na extrapolação.
+    const plan = planParcial();
+    const real = depReal(plan, "x2d");
+    expect(real).toBeGreaterThan(0);
+    expect(roiDe(plan, "x2d").depreciationRecovered).toBeCloseTo(real, 10);
+  });
+
+  it("a máquina sem lastro não recupera nada", () => {
+    const plan = planParcial();
+    expect(roiDe(plan, "a1").depreciationRecovered).toBe(0);
+  });
+
+  it("lucro e receita NÃO mudam — a fatia é razão, e a escala se cancela", () => {
+    // Só a depreciação é campo absoluto do `MachineUsage`; o resto é
+    // proporção × cobertura. Trocar o divisor não podia mexer aqui, e não mexe.
+    const roi = roiDe(planParcial(), "x2d");
+    expect(roi.profit).toBeCloseTo(40 * 0.25, 10);
+    expect(roi.revenue).toBeCloseTo(100 * 0.25, 10);
+  });
+
+  it("sem órfãs, o divisor continua sendo `qty` — nada regrediu", () => {
+    const soX2d = { ...PECA, machineIds: ["x2d"] } as SavedProduct;
+    const plan = reconcileReciboWrite(
+      [ITEM_ENCOMENDA()],
+      null,
+      CTX_FROTA([soX2d]),
+    );
+    const [r] = plan.items;
+    expect(r.unattributedUnits).toBe(0);
+    // Com cobertura 1 as duas escalas coincidem, e a identidade da Fase 1 vale
+    // como sempre valeu: Σ depreciação = a do custo congelado POR UNIDADE.
+    const soma = r.machineUsage.reduce((s, u) => s + u.depreciation, 0);
+    expect(soma).toBeCloseTo(r.cogsBreakdown!.depreciation, 10);
+    expect(roiDe(plan, "x2d").depreciationRecovered).toBeCloseTo(
+      depReal(plan, "x2d"),
+      10,
+    );
+  });
+
+  it("qty 1 parcialmente órfã: a conta não depende da quantidade", () => {
+    // `1/qty` acerta por acidente quando qty = 1 e nada é órfão. Aqui é órfã, e
+    // o acidente não salva: o divisor tem de ser 1/4, não 1.
+    const plan = reconcileReciboWrite(
+      [ITEM_ENCOMENDA({ quantity: 1 })],
+      null,
+      CTX_FROTA([PARCIAL]),
+    );
+    const [r] = plan.items;
+    expect(r.unattributedUnits).toBeCloseTo(0.75, 10);
+    expect(
+      roiDe(plan, "x2d", { quantity: 1 }).depreciationRecovered,
+    ).toBeCloseTo(depReal(plan, "x2d"), 10);
   });
 });

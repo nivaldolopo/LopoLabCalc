@@ -17,6 +17,7 @@ import {
 } from "./production";
 import {
   buildProductionPayloads,
+  encomendaMachineOptions,
   planEventRows,
   scaleRow,
   subitemEventRows,
@@ -334,8 +335,13 @@ function applyForward(
     //   segunda carimbada com "A1" só porque o item foi marcado assim. O modal
     //   já oferece apenas a INTERSEÇÃO, mas a regra mora aqui: quem grava é quem
     //   garante.
-    if (item.machineId) {
-      const escolhida = item.machineId;
+    //
+    // ⚠ AUD-17 [E2]: a escolha pode faltar e AINDA ASSIM haver uma resposta
+    // única — quando a interseção das linhas ambíguas tem exatamente UMA
+    // máquina. `unicaCandidata` a usa, e não é palpite: é a única impressora que
+    // TODAS as etapas em aberto aceitam.
+    const escolhida = item.machineId || unicaCandidata(rows, ctx.machines);
+    if (escolhida) {
       rows = rows.map((row) =>
         row.machineId || !rowAceita(row, escolhida, ctx.machines)
           ? row
@@ -378,18 +384,33 @@ function applyForward(
     });
     productionCreates.push(...payloads);
 
+    // [FROTA] Fase 1/2 — a escala do `machineUsage` é POR UNIDADE ATRIBUÍDA, a
+    // mesma do caminho `acabado` (linha ~290) e a que o ROI cobra: o
+    // `machineRoi.ts` multiplica `share.depreciation` por `qty × cobertura`.
+    //
+    // ⚠ AUD-17 [E1]: aqui era `1 / qty` — por unidade VENDIDA. Com órfãs > 0 a
+    // cobertura entrava DUAS vezes e a depreciação recuperada saía multiplicada
+    // por ela a mais. Medido no cartão da A1 Mini: R$ 0,53 recuperados de R$ 1,60
+    // reais. Lucro e receita não notavam — a fatia deles é uma RAZÃO entre as
+    // máquinas, e uma escala comum se cancela; `depreciation` é o único campo
+    // ABSOLUTO do `MachineUsage`, e por isso o único que errava. Com
+    // `unattributedUnits === 0` os dois divisores são o mesmo número, que é
+    // exatamente por que os testes da Fase 1 não pegaram.
+    const fracaoOrfa = orfas(planned.summary);
+    const atribuidas = qty * (1 - fracaoOrfa);
+
     return {
       ...base,
       // [FROTA] Fase 1 — na encomenda a testemunha são os EVENTOS que acabaram
       // de ser planejados: cada um é uma etapa numa máquina, com a depreciação
       // REAL do custo congelado. As linhas já foram escaladas para `qty` peças,
-      // então a repartição cobre exatamente essas unidades — e nenhuma delas
-      // fica sem lastro.
-      ...(qty > 0 && planned.summary.machineUsage.length > 0
+      // então a repartição cobre o lote inteiro — menos as horas que ficaram sem
+      // máquina, que saem pelo `unattributedUnits` logo abaixo.
+      ...(qty > 0 && atribuidas > 0 && planned.summary.machineUsage.length > 0
         ? {
             machineUsage: scaleMachineUsage(
               planned.summary.machineUsage,
-              1 / qty,
+              1 / atribuidas,
             ),
             // ⚠ [FROTA] Fase 2 — antes era `unattributedUnits: 0` fixo, porque
             // toda etapa tinha uma máquina. Agora ela pode não ter: o produto é
@@ -401,7 +422,7 @@ function applyForward(
             // as máquinas conhecidas e rataria para elas o lucro das horas
             // órfãs: exatamente o defeito que o `unattributedUnits` existe para
             // impedir, só que entrando pela porta nova.
-            unattributedUnits: qty * orfas(planned.summary),
+            unattributedUnits: qty * fracaoOrfa,
           }
         : // Encomenda que não produziu nada (subitem cujo preço não resolveu, ou
           // qty 0), ou nenhuma etapa com máquina declarada: sem máquina não há
@@ -523,6 +544,30 @@ function orfas(summary: {
  * fase), então qualquer máquina viva serve. Conjunto declarado só aceita quem
  * está nele.
  */
+/**
+ * [FROTA] Fase 2 — AUD-17 [E2]: a máquina que a INTERSEÇÃO decide sozinha.
+ *
+ * O seletor da venda só aparece com DÚVIDA (2+ candidatas), pela regra do dono
+ * ("vazia só quando há dúvida"). O comentário do modal assumia que, com uma
+ * candidata só, "o builder já preencheu" — e não preenche: o
+ * `initialRowMachineId` olha o conjunto DA LINHA, então duas etapas de duas
+ * elegíveis cada nascem as duas vazias mesmo quando a única impressora em comum
+ * é evidente. A venda gravava `machineUsage: []`, `unattributedUnits = qty` e
+ * dois eventos com `machineId: ""` — dado perdido onde existia UMA resposta.
+ *
+ * Resolver aqui, e não na tela, é de propósito: quem grava é quem garante, e a
+ * mesma dedução vale para o preview, para a edição do recibo e para qualquer
+ * chamador futuro que não passe por este modal.
+ *
+ * ⚠ Duas candidatas continuam ÓRFÃS. Escolher a de maior peso seria o palpite
+ * que a Fase 2 recusa (DEC): o peso diz com que frequência a frota roda, não
+ * quem rodou ESTA peça.
+ */
+function unicaCandidata(rows: EventRow[], machines: Machine[]): string {
+  const options = encomendaMachineOptions(rows, machines);
+  return options && options.length === 1 ? options[0].id : "";
+}
+
 function rowAceita(
   row: { fleetMachineIds: string[] },
   machineId: string,

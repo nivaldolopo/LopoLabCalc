@@ -741,7 +741,10 @@ export function SaleModal({
   }, [items, products, machines, stock, fixedCosts]);
 
   // Itens travados: há mais de uma candidata e o dono não escolheu. Uma
-  // candidata só não trava — não há escolha a fazer, e o builder já preencheu.
+  // candidata só não trava — não há escolha a fazer, e a reconciliação carimba
+  // essa única sozinha (`unicaCandidata`, AUD-17 [E2]; antes este comentário
+  // dizia "o builder já preencheu", que é falso: o `initialRowMachineId` olha o
+  // conjunto DA LINHA, não a interseção do item, e a venda saía toda órfã).
   // Interseção VAZIA também não trava: ali não existe resposta única (etapas que
   // exigem máquinas diferentes), e a saída é a /producao, não este seletor.
   const semMaquina = items.filter(
@@ -1496,8 +1499,9 @@ export function SaleModal({
                   produção sozinha, sem passar pela /producao; sem esta escolha o
                   ROI não recebe nada dessa venda. Mesma regra que o dono fixou
                   para a /producao: aparece só quando há DÚVIDA (2+ candidatas).
-                  Com uma candidata só o builder já preencheu, e a peça PRONTA
-                  nem chega aqui — ela lê quem imprimiu das camadas do acabado,
+                  Com uma candidata só não há o que perguntar — a reconciliação
+                  carimba a única possível (AUD-17 [E2]) — e a peça PRONTA nem
+                  chega aqui: ela lê quem imprimiu das camadas do acabado,
                   testemunha melhor que qualquer seleção. */}
               {item.origem === "encomenda" &&
               (machineOptionsByKey.get(item.key)?.length ?? 0) > 1 ? (

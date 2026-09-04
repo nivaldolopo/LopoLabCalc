@@ -5,19 +5,20 @@
 > vivem em [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob
 > demanda. A foto do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-03: HÁ item de código pendente — o cluster [AUD-17], logo abaixo.** As duas
+> **Estado em 2026-09-04: HÁ item de código pendente — o cluster [AUD-17], logo abaixo.** As duas
 > fases do [FROTA] fecharam em 2026-09-01 e saíram daqui (writeups no `HISTORICO.md`); a 10ª
-> varredura, feita sobre elas, achou 5 defeitos — o lote 1 (o texto) fechou, faltam os lotes 2 e 3. O resto **depende de algo de
-> fora**: a logo, o cadastro do dono, uma 2ª conta Google, ou ~1-2 meses de venda real.
+> varredura, feita sobre elas, achou 6 defeitos — os lotes 1 (o texto) e 2 (a matemática) fecharam,
+> falta o lote 3. O resto **depende de algo de fora**: a logo, o cadastro do dono, uma 2ª conta
+> Google, ou ~1-2 meses de venda real.
 >
 > ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho.
 
-## ▶ [AUD-17] — os defeitos da FROTA que sobraram (lote 1 fechado)
+## ▶ [AUD-17] — os defeitos da FROTA que sobraram (lotes 1 e 2 fechados)
 
 > Laudo completo, com sonda e medição de cada um: [`AUD-17-RELATORIO.md`](../AUD-17-RELATORIO.md)
 > (arquivo TEMPORÁRIO — some quando o cluster fechar; o writeup vai pro `HISTORICO.md`).
-> **Placar: 5 🔴 · 1 🟡 · 5 🟢** — **3 fechados** (lote 1). Varridos e sãos: a matemática do
+> **Placar: 5 🔴 · 1 🟡 · 5 🟢** — **5 fechados** (lotes 1 e 2). Varridos e sãos: a matemática do
 > `fleet.ts`, a persistência e a semântica "PODE ≠ RODOU" (nenhum caminho põe id vazio no
 > `machineUsage`).
 
@@ -25,21 +26,18 @@
   PURA (`encomendaMachineOptions` devolve `Machine[] | null`; `machineSelectionNote` e
   `toggleSelection` no `fleet.ts`), com 8 invariantes novas — cada uma conferida falhando contra a
   lógica antiga antes de passar com a nova.
-- **Lote 2 — a MATEMÁTICA.**
-  - **[E1]** `saleReconciliation.ts:390` escala o `machineUsage` da encomenda por `1/qty`, e o ROI
-    lê "por unidade ATRIBUÍDA" (`machineRoi.ts:162`) — a cobertura entra duas vezes. Medido no
-    cartão da A1 Mini: recuperou **R$ 0,53 de R$ 1,60**. → escalar por `1/(qty − órfãs)`, como o
-    caminho `acabado` já faz. **Falta a invariante com órfãs > 0** nos testes.
-  - **[E2]** `SaleModal.tsx:747/1503`: com a interseção de **exatamente uma** máquina o gate `> 1`
-    esconde o seletor e libera o botão — grava `machineUsage: []` e tudo órfão, quando havia
-    resposta única. → preencher automático com `options[0]`. **Fecha a porta principal do E1**, mas
-    não a de interseção vazia: os dois no mesmo lote.
+- **✅ Lote 2 — a MATEMÁTICA ([E1]+[E2], fechado em 2026-09-04).** O [E2] virou `unicaCandidata` na
+  RECONCILIAÇÃO, não na tela (quem grava é quem garante — vale também para o preview e a edição);
+  o [E1] passou a escalar por `1/(qty − órfãs)`. 13 invariantes novas, cada uma conferida falhando
+  contra a lógica antiga. ⚠ **Venda já gravada guarda a escala velha** — o `machineUsage` é
+  congelado no documento, e a `/maquinas` só se move em venda nova ou re-salva (Diretriz 7).
 - **Lote 3 — [E6] 🟡** `productCsv.ts` (`idsJson`): id de máquina inexistente **dentro do JSON das
   etapas** entra sem aviso (o CSV-05 pede o contrário). Medido: R$ 37,83 → R$ 34,70, `warnings: []`.
   → `idsJson` recebe a frota e reporta na classe `maquina-descartada`.
 - **Ressalvas 🟢 (não são tarefa; estão no laudo com medição):** `useMemo` do preview da `/producao`
   sem `dateStr` · evento gravado com id de máquina morta (`productionPlan.ts:763`) · a escolha de
-  máquina da venda **não é gravada** no doc (editar a venda zera) · `idsJson` não distingue
+  máquina da venda **não é gravada** no doc (editar a venda zera a escolha de 2+ candidatas; a de
+  interseção única o lote 2 passou a re-deduzir) · `idsJson` não distingue
   `machineIds: []` explícito de ausente · **[E7]** a corrida `machines × products` na `/producao`
   (o núcleo puro erra, mas **não reproduziu em 3 cargas frias** — o doc único chega antes da coleção
   de 104 produtos).

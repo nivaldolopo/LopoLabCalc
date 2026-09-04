@@ -11,17 +11,16 @@
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
   login Google restrito (`AuthGate` + regras travadas), DNS na seção "Infra".
-- **Última mudança (2026-09-03): [AUD-17] lote 1 fechado — E3+E4+E5, o TEXTO DE TELA.** As três
-  frases erradas eram **decisão dentro do JSX**; viraram função PURA no `fleet.ts`
-  (`selectedLive`/`machineSelectionNote`/`toggleSelection`) e no `productionPlan.ts`
-  (`encomendaMachineOptions` → `Machine[] | null`: `null` = nada ambíguo, `[]` = sem interseção).
-  Nenhuma redação foi reescrita. **8 invariantes novas**, cada uma conferida FALHANDO contra a
-  lógica antiga antes de passar com a nova, **e os três medidos na tela** (dono autorizou criar e
-  apagar máquina): E5 virou no-op de novo, E4 trocou de galho, E3 separou os dois estados.
-- **▶ PRÓXIMA TAREFA — lote 2 da [AUD-17] = E1+E2**, a matemática: `saleReconciliation.ts:390`
-  escala por `1/qty` onde o ROI lê "por unidade ATRIBUÍDA" (medido no cartão da A1 Mini: recuperou
-  **R$ 0,53 de R$ 1,60**), e o gate `> 1` do `SaleModal` joga fora a interseção de UMA. Mesmo lote,
-  mesma porta. Depois o **lote 3 = E6** (aviso do CSV). Fila no
+- **Última mudança (2026-09-04): [AUD-17] lote 2 fechado — E1+E2, a MATEMÁTICA da encomenda.**
+  [E2] a interseção de **UMA** máquina era jogada fora (venda toda órfã onde só havia uma resposta):
+  virou `unicaCandidata` no `saleReconciliation.ts` — **na reconciliação, não na tela**, então vale
+  no preview e na edição; a tela não mudou. [E1] o `machineUsage` da encomenda passou a escalar por
+  `1/(qty − órfãs)`. **13 invariantes novas**, cada uma conferida FALHANDO contra a lógica antiga
+  (reverter só o E1 derruba 3; só o E2, outras 3). ⚠ **Venda já gravada guarda a escala velha** —
+  `machineUsage` é congelado no doc, então a `/maquinas` só se move em venda nova ou re-salva.
+- **▶ PRÓXIMA TAREFA — lote 3 da [AUD-17] = E6 🟡** (`productCsv.ts`, `idsJson`): id de máquina
+  inexistente **dentro do JSON das etapas** entra na importação sem um aviso, e o CSV-05 pede o
+  contrário (medido: R$ 37,83 → R$ 34,70, `warnings: []`). Fecha o cluster. Fila no
   [`BACKLOG.md`](.claude/BACKLOG.md), reprodução no [`AUD-17-RELATORIO.md`](AUD-17-RELATORIO.md)
   (temporário, sai quando o cluster fechar).
 - **Contexto macro:** **✅ TIER 1** e **✅ [FROTA] (fases 1 e 2)** fechados — custo decomponível ponta
@@ -37,8 +36,8 @@
   migração; o dono recadastra).
 - ⚠ **`/producao` e VENDA por encomenda PERGUNTAM a máquina** quando há 2+ candidatas (dono,
   2026-09-01: *"vazia só quando há dúvida"*); sem escolher, o botão trava com o motivo na tela — não
-  é bug. Na venda as opções são a **interseção** das etapas ambíguas. ⚠ **Com UMA candidata o
-  seletor some, e isso É o defeito [E2]** — não o desenho: a venda grava tudo órfão.
+  é bug. Na venda as opções são a **interseção** das etapas ambíguas; com UMA o seletor some e a
+  reconciliação deduz sozinha (não é bug desde o lote 2 da AUD-17).
 - ⚠ **A frente do DONO:** cadastrar **cores e insumos**, **religar os acessórios** e passar os ids
   pro sistema externo dele — a spec sai **comigo no chat** depois do cadastro (detalhe no
   `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, sem trava.** ⚠ Acessório sem baixa *não é bug, é
@@ -167,13 +166,16 @@ src/lib/
   ⚠ As máquinas são COMPARTILHADAS entre dispositivos (doc `config/machines`, realtime): editar
   watts/`lifeHours`/`weight` reprecifica TODOS os produtos, que guardam só os ids. `useMachines`
   semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
-  ⚠ **Logo, todo id salvo pode ser FANTASMA — conte sempre o marcado VIVO** (AUD-17 [E4]/[E5]):
-  `machineIds.length` não é "quantas caixas estão marcadas", e usá-lo trocava o aviso da frota
-  inteira pelo de outra conta e furava o no-op de "desmarcar a última". O fantasma só chega pelo
-  REALTIME de outro dispositivo — na própria aba o `handleSaveMachines` já poda. ⚠ **Qual aviso é
-  DECISÃO, não redação:** dentro do JSX nenhum teste a alcança, e dois estados opostos colapsados
-  no mesmo `[]` fazem o caso BOM exibir a frase do RUIM ([E3]). Decisão vai pro `lib/` (pura,
-  `null` ≠ `[]`); o componente fica só com o texto.
+  ⚠ **`machineUsage` escala por unidade ATRIBUÍDA, nunca pela vendida** (AUD-17 [E1]): o ROI
+  multiplica por `qty × cobertura`, e `1/qty` a cobra duas vezes. Só a `depreciation` denuncia —
+  horas/lucro/receita são RAZÃO, e escala comum se cancela. A invariante (`Σ dep × atribuídas` = a
+  real dos eventos com dono) só morde **com órfãs > 0**. ⚠ **Interseção de UMA é resposta, não
+  dúvida** ([E2]): quem deduz é a reconciliação (`unicaCandidata`), não o JSX; duas seguem órfãs.
+  ⚠ **Todo id salvo pode ser FANTASMA — conte o marcado VIVO** ([E4]/[E5]): `machineIds.length`
+  não é "caixas marcadas"; o fantasma chega pelo REALTIME de outro dispositivo (na própria aba o
+  `handleSaveMachines` poda). ⚠ **Qual aviso é DECISÃO, não redação** ([E3]): no JSX nenhum teste a
+  alcança, e dois estados opostos no mesmo `[]` fazem o caso BOM exibir a frase do RUIM — decisão
+  vai pro `lib/` (puro, `null` ≠ `[]`), o componente fica com o texto.
 - **Snapshot que CHEGA não é prova de servidor** (AUD-15 [E4]): offline o `onSnapshot` serve do
   cache pelo mesmo callback de sucesso. Assinatura de coleção pede `COM_METADATA` e repassa
   `snapshot.metadata`; quem decide o chip é o `cloudStatusOf` — nunca o `navigator.onLine`. ⚠ E
