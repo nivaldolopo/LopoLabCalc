@@ -16,8 +16,11 @@
   virou `unicaCandidata` no `saleReconciliation.ts` — **na reconciliação, não na tela**, então vale
   no preview e na edição; a tela não mudou. [E1] o `machineUsage` da encomenda passou a escalar por
   `1/(qty − órfãs)`. **13 invariantes novas**, cada uma conferida FALHANDO contra a lógica antiga
-  (reverter só o E1 derruba 3; só o E2, outras 3). ⚠ **Venda já gravada guarda a escala velha** —
-  `machineUsage` é congelado no doc, então a `/maquinas` só se move em venda nova ou re-salva.
+  (reverter só o E1 derruba 3; só o E2, outras 3) **e os dois medidos na tela** (dono autorizou
+  alterar dados): o E2 gravou os eventos na X2D em vez de sem máquina, e o E1 devolveu ao ROI
+  **R$ 1,87 = 1 h × R$ 1,87/h** onde a escala velha devolveria R$ 0,37. ⚠ **Venda já gravada guarda
+  a escala velha** — `machineUsage` é congelado no doc, então a `/maquinas` só se move em venda
+  nova ou re-salva.
 - **▶ PRÓXIMA TAREFA — lote 3 da [AUD-17] = E6 🟡** (`productCsv.ts`, `idsJson`): id de máquina
   inexistente **dentro do JSON das etapas** entra na importação sem um aviso, e o CSV-05 pede o
   contrário (medido: R$ 37,83 → R$ 34,70, `warnings: []`). Fecha o cluster. Fila no

@@ -31,6 +31,11 @@
   o [E1] passou a escalar por `1/(qty − órfãs)`. 13 invariantes novas, cada uma conferida falhando
   contra a lógica antiga. ⚠ **Venda já gravada guarda a escala velha** — o `machineUsage` é
   congelado no documento, e a `/maquinas` só se move em venda nova ou re-salva (Diretriz 7).
+- **[E8] 🟡 (novo, visto na TELA em 2026-09-04)** — o aviso de interseção vazia do `SaleModal` diz
+  "o ROI **não credita ninguém**", e na encomenda PARCIAL ele credita: medido, a X2D levou 1 h e
+  R$ 1,87 na mesma venda que exibiu a frase. Verdadeiro para as etapas ambíguas, falso para o item.
+  Mesmo espírito do [E3] — texto afirmando mais que o dado. → a frase precisa distinguir "nenhuma
+  etapa tem dono" de "as ambíguas não têm"; o número já está certo.
 - **Lote 3 — [E6] 🟡** `productCsv.ts` (`idsJson`): id de máquina inexistente **dentro do JSON das
   etapas** entra sem aviso (o CSV-05 pede o contrário). Medido: R$ 37,83 → R$ 34,70, `warnings: []`.
   → `idsJson` recebe a frota e reporta na classe `maquina-descartada`.

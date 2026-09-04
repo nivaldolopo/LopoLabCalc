@@ -762,10 +762,65 @@ e passam nos dois mundos — de propósito: são elas que provam que lucro, rece
 **não** se mexeram.
 
 **Verificado:** `pnpm test` **926 passando** (31 arquivos) · `pnpm typecheck` · `pnpm lint` ·
-`pnpm build`. **Sem passada no navegador, e o motivo é o dado:** `machineUsage` é **congelado no
-documento da venda**. As vendas já gravadas — inclusive a que mediu os R$ 0,53 no cartão da A1 Mini
-— seguem com a escala antiga até serem **reeditadas e salvas**; a `/maquinas` só se move em venda
-nova ou re-salva. Não há o que olhar na tela sem escrever no banco do dono (Diretriz 7: nada a
-migrar, o recadastro resolve).
+`pnpm build` — **e medido na tela** (abaixo). ⚠ `machineUsage` é **congelado no documento da
+venda**: as vendas já gravadas seguem com a escala antiga até serem reeditadas e salvas. A
+`/maquinas` só se move em venda **nova ou re-salva** (Diretriz 7: nada a migrar).
 
 **Resta:** lote 3 ([E6], o aviso do CSV).
+
+## Passada no navegador do lote 2 (2026-09-04, autorizada pelo dono)
+
+Com "pode fazer com permissão para alterar dados". Chrome do dono, sessão aberta, **site de
+produção** (deploy `fcbf045` no ar). Duas vendas registradas e depois apagadas; a limpeza está
+conferida no fim.
+
+**Linha de base (foto do início):** X2D `113,30 h · 26 impressões · R$ 130,00` · A1
+`131,68 h · 34 · R$ 32,94` · Mini `13,98 h · 4 · R$ 1,16` · investimento R$ 21.298,00 · lucro
+acumulado R$ 1.851,55. A taxa de desgaste da X2D, publicada na mesma página: **R$ 1,87/h**.
+
+### [E2] — produto de interseção ÚNICA
+
+`AUD17 L2 E2 intersecao unica`: principal `{A1, X2D}` 2 h + etapa "Acabamento" `{X2D, Mini}` 1 h.
+As duas nascem ambíguas; a interseção é só a X2D. Vendido 1, sob encomenda.
+
+No diálogo: **0 seletores de máquina, 0 avisos, botão habilitado** — a tela não mudou, como
+projetado. O que mudou foi o que ela gravou:
+
+| | antes da correção | medido agora |
+|---|---|---|
+| eventos na `/producao` | `machineId: ""` (sem máquina) | **X2D Combo · 2 h** e **X2D Combo · 1 h** |
+| X2D: horas / impressões | inalteradas | 113,30 → **116,30 h** · 26 → **28** |
+| X2D: depreciação recuperada | R$ 130,00 (nada) | **R$ 135,60** (+R$ 5,60 = 3 h × R$ 1,8665) |
+
+### [E1] — encomenda PARCIALMENTE órfã
+
+`AUD17 L2 E1 sem intersecao`: principal `{A1, Mini}` 2 h + `Topo {A1, X2D}` 1 h +
+`Lado {X2D, Mini}` 1 h + `Base {X2D}` 1 h. As três primeiras são ambíguas e **não têm impressora em
+comum**; a Base é a única resolvida. 4 das 5 horas ficam órfãs → cobertura de **1/5**.
+
+No diálogo: 0 seletores e **1 aviso — o correto** (é o caso de interseção vazia; o [E3] mandando a
+frase para o galho certo). Botão habilitado, venda registrada. No cartão da X2D:
+
+| | esperado com a escala ANTIGA (`1/qty`) | medido agora (`1/atribuídas`) |
+|---|---|---|
+| depreciação recuperada | R$ 135,60 → R$ 135,97 (**+R$ 0,37**) | R$ 135,60 → **R$ 137,47** (**+R$ 1,87**) |
+
+**+R$ 1,87 é exatamente 1 h × R$ 1,87/h**, a taxa que a tabela de frota exibe três parágrafos acima
+no mesmo cartão — a hora que a X2D de fato imprimiu, inteira. Os R$ 0,37 são essa hora dividida
+pela cobertura de 1/5 que já tinha sido aplicada uma vez: **a razão de 1/5 aqui é a mesma razão de
+1/4 medida no cartão da A1 Mini** que abriu o [E1].
+
+### 🟡 Ressalva NOVA, vista na tela (não estava no laudo)
+
+O aviso de interseção vazia afirma "**o ROI não credita ninguém**" — e nesta venda ele creditou: a
+X2D levou 1 h e R$ 1,87. A frase é verdadeira para as etapas AMBÍGUAS e falsa para o item quando há
+uma etapa resolvida junto (o caso `PARCIAL`, que é justamente o do [E1]). Mesmo espírito do [E3]:
+texto de tela afirmando mais do que o dado. Está no `BACKLOG.md`.
+
+### Limpeza conferida
+
+Vendas 53 → **51** · produções 66 → **64** · catálogo de volta a **104** · nenhum `AUD17` em
+catálogo, vendas ou produção. Os três cartões voltaram idênticos à foto do início (X2D
+`113,30 h · 26 · R$ 130,00`; A1 `131,68 h · 34 · R$ 32,94`; Mini `13,98 h · 4 · R$ 1,16`;
+investimento R$ 21.298,00; lucro acumulado R$ 1.851,55). O filamento das duas vendas (1 g de Bege
+cada) voltou pelo estorno que a exclusão do recibo faz na mesma transação.
