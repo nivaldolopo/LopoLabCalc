@@ -282,11 +282,14 @@ git push
   SSL. Detalhe (valores, motivo da migração): [`HISTORICO.md`](.claude/HISTORICO.md).
 
 ### Ambiente Windows (evita retrabalho de PATH)
-- **Node:** `C:\Program Files\nodejs` (v24). **pnpm** e **vercel** instalados globalmente — num
-  PowerShell recém-aberto os três já devem estar no PATH. Se algum não for reconhecido:
+- **Node:** `C:\Program Files\nodejs` (v24). **pnpm** e **vercel** instalados globalmente em
+  `C:\Users\Lopo\AppData\Local\pnpm` (**máquina nova**, 2026-09-06) — num PowerShell recém-aberto os
+  três já devem estar no PATH. Se algum não for reconhecido:
   ```powershell
-  $env:Path = 'C:\Program Files\nodejs;C:\Users\nival\AppData\Roaming\npm;' + $env:Path
+  $env:Path = 'C:\Program Files\nodejs;C:\Users\Lopo\AppData\Local\pnpm;' + $env:Path
   ```
+- ⚠ **A CLI da Vercel está DESLOGADA aqui** — afeta só `vercel ls`/`whoami` (`vercel login` resolve).
+  O deploy não depende dela: push na `main` → produção pela integração Git.
 
 ## Comandos úteis
 ```powershell
