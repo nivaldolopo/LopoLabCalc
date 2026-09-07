@@ -204,13 +204,20 @@ git push
 > Deploy pela **integração Git nativa da Vercel** (push na `main` → produção). **Não** rode
 > `vercel --prod` no fluxo normal — deploy duplicado. Acompanhe com `vercel ls`.
 
-### 4. Verificação visual: pode abrir o site — o login é um handshake comigo
+### 4. Verificação visual: use o CHROME (plugin), não o navegador embutido
 - **Não** abra o navegador pra "confirmar" toda alteração — gasta tempo/tokens à toa. Pro código são,
   prefira o barato: `pnpm lint`, `pnpm test`, `pnpm typecheck` (e `pnpm build` quando fizer sentido).
 - **Mas quando a verificação visual for de fato útil, ABRA você mesmo** — não espere eu validar.
   Típicos: layout/responsivo, medir no DOM, lógica interativa que lint/build não cobre, ou a meu
-  pedido. Use o **navegador embutido** (`preview_start` + `read_page`/`computer`/`javascript_tool`);
-  pra rodar local, `.claude/launch.json` (nunca `pnpm dev` no Bash).
+  pedido.
+- **Onde abrir:** o **Chrome real**, via *Claude in Chrome* (`mcp__claude-in-chrome__*`:
+  `tabs_context_mcp` → `tabs_create_mcp`/`navigate` + `read_page`/`computer`/`javascript_tool`).
+  A sessão Google já está logada lá, então o AuthGate não reaparece a cada verificação — foi por
+  isso que o embutido saiu (dono, 2026-09-07). Abra **aba nova** pra cada conversa e feche ao fim.
+- **Navegador embutido (`preview_start`/pane) só em dois casos:** o Chrome não estar conectado
+  (`list_connected_browsers` vazio) ou eu pedir. Pra **subir o servidor local** continua sendo
+  `preview_start` com o `.claude/launch.json` (nunca `pnpm dev` no Bash) — subiu o servidor,
+  a inspeção vai pro Chrome em `http://localhost:3000`.
 - **Login Google (AuthGate):** eu **nunca** te passo senha e você **nunca** digita credencial. Sessão
   logada → siga direto. Caiu na tela de login → **pausa e me avisa** ("logue aí que eu continuo").
 - Terminada a verificação, **me mostre a prova** (screenshot/medição/console), não só o "funcionou".
