@@ -9,6 +9,95 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ AUD-17 — a 10ª varredura, feita sobre a FROTA (2026-09-03 → 2026-09-07)
+
+> As duas fases do [FROTA] nasceram DEPOIS da AUD-16, então nenhuma varredura as tinha visto. Esta
+> viu: **6 defeitos** (5 🔴 + 1 🟡) e 5 ressalvas 🟢, fechados em **4 lotes**. Todos foram medidos no
+> app real, com o dono autorizando criar e apagar dado. O laudo longo (`AUD-17-RELATORIO.md`, com as
+> sondas e a reconferência) foi apagado ao fechar o cluster — o que sobrevive é este writeup.
+
+**O tema dos 6.** A Fase 2 trocou "a máquina escolhida" por "o conjunto onde PODE rodar", e a
+tela ficou com frases e contas herdadas do mundo anterior. Metade dos defeitos era **texto afirmando
+mais do que o dado** ([E3], [E4], [E8]); a outra metade era **conta feita no lugar errado** ([E1],
+[E2], [E6]). Nenhum errava o preço do produto são — erravam o ROI, o aviso e o CSV.
+
+### Lote 1 (2026-09-03) — o TEXTO: [E3] + [E4] + [E5]
+
+- **[E3]** `encomendaMachineOptions` devolvia `[]` tanto para "nada ambíguo" (o caso BOM) quanto para
+  "sem interseção" (o pior). O produto TOTALMENTE resolvido lia "o ROI não credita ninguém" enquanto
+  o documento gravava a atribuição certa. → o tipo passou a separar os dois: **`null` ≠ `[]`**.
+- **[E4]** conjunto só com id de máquina APAGADA: a tela dizia "peso 0% → média simples" onde
+  nenhuma caixa estava marcada, escondendo o "frota inteira" que o `resolveFleet` de fato aplicava.
+- **[E5]** o guarda "desmarcar a última é no-op" contava `machineIds.length` — com um fantasma ao
+  lado, o clique esvaziava o conjunto e **mexia no preço**.
+- **A lição das três:** id salvo pode ser fantasma (o doc `config/machines` é compartilhado e
+  realtime), então **conte o marcado VIVO** (`selectedLive`); e **qual aviso mostrar é DECISÃO** —
+  vai para o `lib/` puro (`machineSelectionNote`, `toggleSelection`), porque no JSX nenhum teste a
+  alcança. 8 invariantes novas, cada uma conferida falhando antes.
+
+### Lote 2 (2026-09-04) — a MATEMÁTICA: [E1] + [E2]
+
+Os dois moram na mesma porta (a encomenda que a venda planeja sozinha), e fechar só o [E2]
+esconderia o [E1] no caminho mais comum.
+
+| | antes | depois |
+|---|---|---|
+| **[E2]** interseção de UMA | ninguém preenchia: `machineUsage: []`, eventos com `machineId: ""` | `unicaCandidata` carimba na **RECONCILIAÇÃO** |
+| **[E1]** escala do `machineUsage` | `1/qty` (por unidade VENDIDA) | `1/(qty − órfãs)` (por unidade ATRIBUÍDA) |
+
+- **[E2] resolvido um degrau abaixo da tela**: *quem grava é quem garante* — vale também para o
+  preview, para a edição do recibo e para qualquer chamador que não seja o modal. **Duas** candidatas
+  continuam órfãs: chutar a de maior peso é o palpite que a Fase 2 recusa.
+- **[E1] medido no cartão da A1 Mini**: R$ 0,53 recuperados de R$ 1,60 reais — a cobertura entrava
+  DUAS vezes. Só `depreciation` denunciava: horas, lucro e receita são RAZÃO, e uma escala comum se
+  cancela. A Fase 1 já checava a identidade, mas só com `unattributedUnits === 0`, onde os dois
+  divisores são o mesmo número — por isso passou por baixo dela.
+- **Medido na tela:** a venda de interseção única passou a gravar **X2D · 2 h + X2D · 1 h** (antes
+  `machineId: ""`), e a parcialmente órfã creditou **+R$ 1,87** onde a escala velha daria +R$ 0,37.
+  ⚠ Venda já gravada guarda a escala velha — o `machineUsage` é congelado no documento.
+
+### Lote 3 (2026-09-04) — o CSV: [E6]
+
+`idsJson` (`productCsv.ts`) aceitava **qualquer string** como id de máquina dentro do "Etapas JSON":
+a etapa que ficasse só com o fantasma perdia o conjunto e passava a ser precificada pela **frota
+inteira**, calada. Agora ele **recebe a frota**, descarta o id que não existe e avisa em classe
+**própria** (`maquina-etapa-descartada`) — não a `maquina-descartada` da coluna humana, porque o
+conselho e o desfecho são outros: a etapa sem id herda o conjunto do **PRODUTO**, não a frota.
+Medido na importação real: **R$ 75,36** (correto) contra **R$ 48,51** que o fantasma produzia (−36%).
+⚠ Quem move o preço é o descarte **TOTAL** — o `resolveFleet` já filtra pelas vivas, então
+`["x2d","fantasma"]` sempre custou x2d. **Ser string não é existir**: id dentro de JSON também é
+referência a conferir, e palpite de id não tem leitura possível — descarta, não converte.
+
+### [E8] (2026-09-07) — a frase que dizia "ninguém" onde uma máquina era creditada
+
+Achado **na tela do lote 2**, não na varredura: o aviso de interseção vazia afirmava, nos dois casos,
+o pior deles. Na encomenda **PARCIAL** (há etapa com uma elegível só) o ROI credita — e creditava
+enquanto a frase negava. `encomendaAssignmentNote` (`productionPlan.ts`) passou a devolver
+`"total" | "parcial" | null` com as contagens que a redação usa; o JSX só escolhe a frase
+(`AvisoSemIntersecao`, no `SaleModal`). As contagens vão junto de propósito: uma etapa resolvida que
+imprime **0 h** credita uma impressão e nenhum desgaste, então dizer só "credita" trocaria um exagero
+por outro. 10 invariantes novas, **4 conferidas falhando** contra a frase única; a que amarra é
+**`tipo === "total"` ⇔ `machineUsage` vazio** — a tela e o documento passam a dizer a mesma coisa.
+
+**Medido no app** (produto `{A1,Mini}` 2 h + `Topo {A1,X2D}` 1 h + `Lado {X2D,Mini}` 1 h +
+`Base {X2D}` 1 h — as três primeiras sem impressora em comum):
+
+- **parcial:** "…as etapas que já têm impressora própria são creditadas a ela — **1 de 4 etapas,
+  1,00 h de 5,00 h**; o resto fica sem dono." A venda registrada moveu a X2D de
+  **113,30 h · 26 impressões · R$ 130,00** para **114,30 h · 27 · R$ 131,87** (+1 h, +R$ 1,87 =
+  1 h × a taxa de desgaste publicada), com **A1 e Mini inalteradas** — as ambíguas ficaram órfãs,
+  exatamente como a frase diz.
+- **total** (a mesma peça sem a etapa `Base`): "…e **nenhuma delas tem impressora própria** — não há
+  máquina a atribuir … o ROI não credita ninguém", que é a frase antiga, agora no galho certo.
+- **Limpeza conferida:** venda excluída, produto excluído, `/maquinas` de volta aos três cartões da
+  foto inicial e ao lucro acumulado de R$ 1.851,55; nenhum `ZZ AUD17` em catálogo, vendas ou produção.
+
+### O que a AUD-17 varreu e achou SÃO
+
+A matemática do `fleet.ts` (média ponderada por componente, renormalizada no subconjunto), a
+persistência dos ids, e a semântica **"PODE rodar" ≠ "RODOU"** — nenhum caminho põe id vazio no
+`machineUsage`, que é o que impediria o `horas ÷ total` de ratear às conhecidas o lucro das órfãs.
+
 ## ✅ [FROTA] A encomenda passou a perguntar a máquina (2026-09-02)
 
 > **Não era regressão da Fase 2** — o modal de venda NUNCA teve seletor de máquina. A Fase 1 tirou o

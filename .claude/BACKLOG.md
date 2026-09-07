@@ -1,58 +1,17 @@
 # LopoLabCalc — Backlog (a fazer)
 
 > **Só o que está ABERTO, mais a ordem.** Curto de propósito — é o que se lê pra escolher a próxima
-> tarefa. O *porquê*, os writeups e os **nove clusters de varredura já fechados** (AUD-07…AUD-16)
+> tarefa. O *porquê*, os writeups e os **dez clusters de varredura já fechados** (AUD-07…AUD-17)
 > vivem em [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob
 > demanda. A foto do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-07: os 6 defeitos do [AUD-17] estão CORRIGIDOS** — falta só a passada no
-> navegador do [E8], e o cluster sai daqui. As duas fases do [FROTA] fecharam em 2026-09-01 e saíram
-> daqui (writeups no `HISTORICO.md`); a 10ª varredura, feita sobre elas, achou os 6. O que sobra no
-> backlog **depende de algo de fora**: a logo, o cadastro do dono, uma 2ª conta Google, ou ~1-2 meses
-> de venda real — menos as duas frentes de "Disponível HOJE".
+> **Estado em 2026-09-07: NÃO há dívida de código pendente.** O cluster [AUD-17] fechou — os 6
+> defeitos corrigidos e medidos na tela, writeup no `HISTORICO.md` (as duas fases do [FROTA] fecharam
+> antes, em 2026-09-01). O que sobra aqui são as **duas frentes disponíveis HOJE** e o que **depende
+> de algo de fora**: a logo, o cadastro do dono, uma 2ª conta Google, ou ~1-2 meses de venda real.
 >
 > ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho.
-
-## ▶ [AUD-17] — o que sobrou da FROTA (os 6 corrigidos; falta medir o [E8] na tela)
-
-> Laudo completo, com sonda e medição de cada um: [`AUD-17-RELATORIO.md`](../AUD-17-RELATORIO.md)
-> (arquivo TEMPORÁRIO — some quando o cluster fechar; o writeup vai pro `HISTORICO.md`).
-> **Placar: 5 🔴 · 1 🟡 · 5 🟢** — **os 6 fechados** (lotes 1, 2, 3 e o [E8]). Varridos e sãos: a matemática do
-> `fleet.ts`, a persistência e a semântica "PODE ≠ RODOU" (nenhum caminho põe id vazio no
-> `machineUsage`).
-
-- **✅ Lote 1 — o TEXTO ([E3]+[E4]+[E5], fechado em 2026-09-03).** As três decisões viraram função
-  PURA (`encomendaMachineOptions` devolve `Machine[] | null`; `machineSelectionNote` e
-  `toggleSelection` no `fleet.ts`), com 8 invariantes novas — cada uma conferida falhando contra a
-  lógica antiga antes de passar com a nova.
-- **✅ Lote 2 — a MATEMÁTICA ([E1]+[E2], fechado em 2026-09-04).** O [E2] virou `unicaCandidata` na
-  RECONCILIAÇÃO, não na tela (quem grava é quem garante — vale também para o preview e a edição);
-  o [E1] passou a escalar por `1/(qty − órfãs)`. 13 invariantes novas, cada uma conferida falhando
-  contra a lógica antiga. ⚠ **Venda já gravada guarda a escala velha** — o `machineUsage` é
-  congelado no documento, e a `/maquinas` só se move em venda nova ou re-salva (Diretriz 7).
-- **✅ [E8] — o TEXTO da interseção vazia (código fechado em 2026-09-07).** A decisão saiu do JSX:
-  `encomendaAssignmentNote` (`productionPlan.ts`) devolve `"total" | "parcial" | null` e o JSX só
-  escolhe a redação — o `"parcial"` (há etapa resolvida) para de afirmar que "o ROI não credita
-  ninguém". 10 invariantes novas, 4 conferidas falhando contra a frase única; a que amarra é
-  `tipo === "total"` ⇔ `machineUsage` vazio. **Falta só a passada no navegador** — depende de o
-  dono autorizar criar/apagar dado, como nos lotes anteriores.
-- **✅ Lote 3 — o CSV ([E6], fechado em 2026-09-04).** `idsJson` recebe a frota e descarta o id que
-  não existe nela, na classe **própria** `maquina-etapa-descartada` (não a `maquina-descartada` da
-  coluna humana: o conselho e o desfecho são outros — a etapa sem id herda o conjunto do PRODUTO).
-  9 invariantes novas, 6 conferidas falhando. Medido na tela: R$ 75,36 → **R$ 48,51 seria o antes**.
-  ⚠ Correção ao laudo: quem move o preço é o descarte TOTAL — o `resolveFleet` já filtra pelas vivas,
-  então o parcial (`["x2d","fantasma"]`) sempre custou x2d.
-- **Ressalvas 🟢 (não são tarefa; estão no laudo com medição):** `useMemo` do preview da `/producao`
-  sem `dateStr` · evento gravado com id de máquina morta (`productionPlan.ts:763`) · a escolha de
-  máquina da venda **não é gravada** no doc (editar a venda zera a escolha de 2+ candidatas; a de
-  interseção única o lote 2 passou a re-deduzir) · `idsJson` não distingue
-  `machineIds: []` explícito de ausente · **[E7]** a corrida `machines × products` na `/producao`
-  (o núcleo puro erra, mas **não reproduziu em 3 cargas frias** — o doc único chega antes da coleção
-  de 104 produtos).
-- **Pergunta aberta pro dono:** na `/producao` o `<select>` "Máquina" oferece a frota INTEIRA, mesmo
-  num produto elegível a duas. Se é de propósito ("o que RODOU manda, não o que PODE"), vale dizer
-  isso no comentário; se não, é restrição faltando.
 
 ## ▶ Disponível HOJE — as duas frentes que não esperam ninguém
 
@@ -217,6 +176,15 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
 
 ## Ressalvas vivas (não são itens; viram item se o dono mandar)
 
+- **As 5 🟢 que a [AUD-17] deixou** (medidas, nenhuma é tarefa): `useMemo` do preview da `/producao`
+  sem `dateStr` · evento gravado com id de máquina morta (`productionPlan.ts`) · a escolha de máquina
+  da venda **não é gravada** no doc (editar a venda zera a escolha de 2+ candidatas; a de interseção
+  única a reconciliação re-deduz) · `idsJson` não distingue `machineIds: []` explícito de ausente ·
+  **[E7]** a corrida `machines × products` na `/producao` — o núcleo puro erra, mas **não reproduziu
+  em 3 cargas frias** (o doc único chega antes da coleção de 104 produtos).
+- **Pergunta aberta pro dono (AUD-17):** na `/producao` o `<select>` "Máquina" oferece a frota
+  INTEIRA, mesmo num produto elegível a duas. Se é de propósito ("o que RODOU manda, não o que
+  PODE"), vale dizer isso no comentário; se não, é restrição faltando.
 - **[R1] `readFinishedColors` conta a perda TOTAL e cala a PARCIAL** — `finishedGoods.ts`,
   `malformed = raw.length > 0 && entries.length === 0`. Um item torto no MEIO de uma lista boa some
   sem dizer nada. Medido: `1 torto + 3 bons` → 3 entradas, `malformed: false`. Alcançar isso exige
@@ -241,7 +209,7 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
   ⚠ **A mecânica que SOBREVIVE ao recadastro:** `saveProduct` usa `tx.update`, que faz **merge** —
   campo que o `buildProductPayload` deixe de gravar fica no documento pra sempre.
 - **[TD-021] e [CSV-30]** seguem ressalva por decisão do dono.
-- **O `CLAUDE.md` está em 284 linhas, contra o alvo de ~270** (Diretriz 8). O Status já foi
+- **O `CLAUDE.md` está em 300 linhas, contra o alvo de ~270** (Diretriz 8). O Status já foi
   comprimido; o que sobra de gordura são as **7 regras de CSS/UI** dos Pontos-chave (~30 linhas).
   Movê-las para o `HISTORICO.md` é a saída natural, mas é decisão deliberada — elas são guarda-corpo
   de quem escreve CSS novo, e o `HISTORICO` só entra em contexto quando alguém o lê.

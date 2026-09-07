@@ -10,22 +10,21 @@
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
-  login Google restrito (`AuthGate` + regras travadas), DNS na seção "Infra".
-- **Última mudança (2026-09-07): [AUD-17] [E8] fechado — a frase que afirmava mais que o dado.**
-  O aviso de interseção vazia do `SaleModal` dizia "o ROI **não credita ninguém**" também na
-  encomenda **PARCIAL**, onde a etapa resolvida credita (medido no lote 2: a X2D levou 1 h e
-  R$ 1,87 na venda que exibiu a frase). A decisão saiu do JSX e virou função pura —
-  `encomendaAssignmentNote` (`productionPlan.ts`) devolve `"total" | "parcial" | null` com as
-  contagens que a frase usa; o JSX só escolhe a redação. **10 invariantes novas, 4 conferidas
-  FALHANDO** contra a frase única, e a que amarra é `tipo === "total"` ⇔ `machineUsage` vazio: a
-  tela e o documento passam a dizer a mesma coisa. Suíte **945**.
-- **▶ PRÓXIMA TAREFA — nenhuma pendente de código.** Com o [E8], a **[AUD-17] zerou** (6 defeitos,
-  3 lotes + este). As duas frentes disponíveis HOJE estão no
+- **Última mudança (2026-09-07): [AUD-17] fechada — o [E8] era a frase que afirmava mais que o dado.**
+  O aviso de interseção vazia do `SaleModal` dizia "o ROI **não credita ninguém**" também na encomenda
+  **PARCIAL**, onde a etapa resolvida credita. A decisão saiu do JSX e virou função pura
+  (`encomendaAssignmentNote`, `productionPlan.ts`): `"total" | "parcial" | null` + as contagens que a
+  frase usa. **10 invariantes novas, 4 conferidas FALHANDO**; a que amarra é `tipo === "total"` ⇔
+  `machineUsage` vazio. **Medido na tela** (dono autorizou): a venda que exibiu "1 de 4 etapas,
+  1,00 h de 5,00 h" moveu a X2D de `113,30 h · 26 · R$ 130,00` para **`114,30 h · 27 · R$ 131,87`**,
+  com A1 e Mini inalteradas. Suíte **945**. Writeup no [`HISTORICO.md`](.claude/HISTORICO.md).
+- **▶ PRÓXIMA TAREFA — nenhuma dívida de código.** As duas frentes livres estão no
   [`BACKLOG.md`](.claude/BACKLOG.md): **[FEAT-03] sem a logo** (5 sementes do PDF que não tocam em
-  marca) e **[AUD-08]**, as regras do Firestore — esta precisa de uma 2ª conta Google, e quem
+  marca) e **[AUD-08]**, provar as regras do Firestore — esta precisa de uma 2ª conta Google, e quem
   destrava é o dono.
-- **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)** e **✅ [AUD-17]** fechados — custo
-  decomponível ponta a ponta, o PREÇO não depende mais de quem estava livre, e os 6 defeitos que a
+- **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)** e **✅ [AUD-17]** — custo decomponível
+  ponta a ponta, o PREÇO não depende mais de quem estava livre, e os 6 defeitos que a 10ª varredura
+  achou em cima disso estão corrigidos e medidos na tela.
   10ª varredura achou em cima disso estão corrigidos.
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
   destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta.
@@ -171,13 +170,12 @@ src/lib/
   ⚠ As máquinas são COMPARTILHADAS entre dispositivos (doc `config/machines`, realtime): editar
   watts/`lifeHours`/`weight` reprecifica TODOS os produtos, que guardam só os ids. `useMachines`
   semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
-  ⚠ **As 4 armadilhas que a AUD-17 mediu** (o porquê e a reprodução de cada uma no
-  [`AUD-17-RELATORIO.md`](AUD-17-RELATORIO.md)): **[E1]** `machineUsage` escala por unidade
-  ATRIBUÍDA, nunca pela vendida — o ROI já multiplica por `qty × cobertura`, e só a `depreciation`
-  denuncia (horas/lucro/receita são RAZÃO). **[E2]** interseção de UMA é resposta, não dúvida, e
-  quem deduz é a RECONCILIAÇÃO, não o JSX. **[E4]/[E5]** todo id salvo pode ser FANTASMA (vem pelo
-  realtime de outro dispositivo) — conte o marcado VIVO, nunca `machineIds.length`. **[E3]** qual
-  aviso mostrar é DECISÃO, vai pro `lib/` puro (`null` ≠ `[]`); no JSX nenhum teste a alcança.
+  ⚠ **As 5 armadilhas que a AUD-17 mediu** (reprodução no `HISTORICO.md`): **[E1]** `machineUsage`
+  escala por unidade ATRIBUÍDA, nunca vendida — só a `depreciation` denuncia (o resto é RAZÃO) ·
+  **[E2]** interseção de UMA é resposta, e quem deduz é a RECONCILIAÇÃO · **[E4]/[E5]** id salvo pode
+  ser FANTASMA (realtime de outro dispositivo): conte o marcado VIVO, nunca `machineIds.length` ·
+  **[E3]/[E8]** qual aviso mostrar é DECISÃO, vai pro `lib/` puro (`null` ≠ `[]`; "ninguém creditado"
+  ≠ "só as ambíguas") — no JSX nenhum teste a alcança.
 - **Snapshot que CHEGA não é prova de servidor** (AUD-15 [E4]): offline o `onSnapshot` serve do
   cache pelo mesmo callback de sucesso. Assinatura de coleção pede `COM_METADATA` e repassa
   `snapshot.metadata`; quem decide o chip é o `cloudStatusOf` — nunca o `navigator.onLine`. ⚠ E
