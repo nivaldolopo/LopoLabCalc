@@ -11,24 +11,22 @@
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
   login Google restrito (`AuthGate` + regras travadas), DNS na seção "Infra".
-- **Última mudança (2026-09-04): [AUD-17] lote 3 fechado — E6, a IMPORTAÇÃO de CSV.**
-  `idsJson` (`productCsv.ts`) aceitava qualquer string como id de máquina: id que não existe na
-  frota entrava inteiro no JSON das etapas, e a etapa passava a ser precificada pela **frota
-  inteira**, calada. Agora ele **recebe a frota**, descarta o fantasma e avisa em classe **própria**
-  (`maquina-etapa-descartada`) — não a `maquina-descartada` da coluna humana, porque o conselho e o
-  desfecho são outros: a etapa sem id herda o conjunto do **PRODUTO**, não a frota. **9 invariantes
-  novas, 6 conferidas FALHANDO** contra a lógica antiga, e **medido na tela** (dono autorizou criar
-  e apagar dados): o aviso no topo do diálogo nomeando a linha, e o produto a **R$ 75,36** onde o
-  fantasma o deixava em **R$ 48,51** (−36%). ⚠ Correção ao laudo: quem move o preço é o descarte
-  **TOTAL** — o `resolveFleet` já filtra pelas vivas, logo `["x2d","fantasma"]` sempre custou x2d.
-- **▶ PRÓXIMA TAREFA — [E8] 🟡, o que segura a [AUD-17]** (`SaleModal`): o aviso de interseção vazia
-  diz "o ROI **não credita ninguém**", e na encomenda PARCIAL ele credita (medido: a X2D levou 1 h e
-  R$ 1,87 na mesma venda que exibiu a frase). Verdadeiro para as etapas ambíguas, falso para o item.
-  Mesmo espírito do [E3] — o número já está certo, é a FRASE. Fila no
-  [`BACKLOG.md`](.claude/BACKLOG.md), reprodução no [`AUD-17-RELATORIO.md`](AUD-17-RELATORIO.md)
-  (temporário, sai quando o cluster fechar).
-- **Contexto macro:** **✅ TIER 1** e **✅ [FROTA] (fases 1 e 2)** fechados — custo decomponível ponta
-  a ponta, e o PREÇO não depende mais de quem estava livre. Falta o que a AUD-17 achou.
+- **Última mudança (2026-09-07): [AUD-17] [E8] fechado — a frase que afirmava mais que o dado.**
+  O aviso de interseção vazia do `SaleModal` dizia "o ROI **não credita ninguém**" também na
+  encomenda **PARCIAL**, onde a etapa resolvida credita (medido no lote 2: a X2D levou 1 h e
+  R$ 1,87 na venda que exibiu a frase). A decisão saiu do JSX e virou função pura —
+  `encomendaAssignmentNote` (`productionPlan.ts`) devolve `"total" | "parcial" | null` com as
+  contagens que a frase usa; o JSX só escolhe a redação. **10 invariantes novas, 4 conferidas
+  FALHANDO** contra a frase única, e a que amarra é `tipo === "total"` ⇔ `machineUsage` vazio: a
+  tela e o documento passam a dizer a mesma coisa. Suíte **945**.
+- **▶ PRÓXIMA TAREFA — nenhuma pendente de código.** Com o [E8], a **[AUD-17] zerou** (6 defeitos,
+  3 lotes + este). As duas frentes disponíveis HOJE estão no
+  [`BACKLOG.md`](.claude/BACKLOG.md): **[FEAT-03] sem a logo** (5 sementes do PDF que não tocam em
+  marca) e **[AUD-08]**, as regras do Firestore — esta precisa de uma 2ª conta Google, e quem
+  destrava é o dono.
+- **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)** e **✅ [AUD-17]** fechados — custo
+  decomponível ponta a ponta, o PREÇO não depende mais de quem estava livre, e os 6 defeitos que a
+  10ª varredura achou em cima disso estão corrigidos.
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
   destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta.
 - ⚠ **NÃO REPROPOR (avaliadas e descartadas pelo dono):** `lifeHours` por máquina (**DEC-02**),

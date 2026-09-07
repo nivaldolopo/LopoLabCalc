@@ -51,7 +51,9 @@ import {
 } from "../lib/saleReconciliation";
 import { calculatePricing } from "../lib/calculatePricing";
 import {
+  encomendaAssignmentNote,
   encomendaMachineOptions,
+  type EncomendaAssignmentNote,
   subitemEventRows,
   wholeEventRows,
 } from "../lib/productionPlan";
@@ -192,6 +194,49 @@ function formatDecimalPct(value: number): string {
   return (Number(value) || 0).toLocaleString("pt-BR", {
     maximumFractionDigits: 2,
   });
+}
+
+// Horas com duas casas, como o cartão da /maquinas publica ("113,30 h").
+function formatHoras(value: number): string {
+  return (Number(value) || 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+// A REDAÇÃO do aviso de interseção vazia — a DECISÃO é do
+// `encomendaAssignmentNote` (AUD-17 [E8]); aqui só se escolhe a frase.
+//
+// ⚠ Os dois casos existem porque afirmam coisas diferentes sobre o ROI: no
+// `total` ninguém é creditado, no `parcial` as etapas resolvidas são. Uma frase
+// só para os dois é o defeito que o [E8] mediu — a X2D levava 1 h e R$ 1,87 na
+// mesma venda que exibia "o ROI não credita ninguém".
+function AvisoSemIntersecao({ note }: { note: EncomendaAssignmentNote }) {
+  if (!note) return null;
+  if (note.tipo === "total") {
+    return (
+      <div className="cesta-warn">
+        As etapas deste produto não têm uma impressora em comum, e nenhuma delas
+        tem impressora própria — não há máquina a atribuir. A venda entra
+        normalmente (o custo usa a média da frota), mas o ROI não credita
+        ninguém. Para atribuir por etapa, registre em <strong>Produção</strong> e
+        venda como peça pronta.
+      </div>
+    );
+  }
+  const etapas = note.etapasComMaquina + note.etapasAmbiguas;
+  const horas = note.horasComMaquina + note.horasAmbiguas;
+  return (
+    <div className="cesta-warn">
+      As etapas <strong>ambíguas</strong> deste produto não têm uma impressora em
+      comum — não há uma máquina só para atribuir a elas. A venda entra
+      normalmente (essas etapas custam a média da frota). No ROI, as etapas que
+      já têm impressora própria são creditadas a ela — {note.etapasComMaquina} de{" "}
+      {etapas} etapas, {formatHoras(note.horasComMaquina)} h de{" "}
+      {formatHoras(horas)} h; o resto fica sem dono. Para atribuir também as
+      ambíguas, registre em <strong>Produção</strong> e venda como peça pronta.
+    </div>
+  );
 }
 
 // FEAT-09: campo de desconto (número + alternância R$/%). O `mode` decide o passo
@@ -713,8 +758,13 @@ export function SaleModal({
   //
   // Reconstrói as linhas com o MESMO builder que a reconciliação usa: qualquer
   // outra fonte seria uma segunda verdade sobre quais etapas ficaram ambíguas.
-  const machineOptionsByKey = useMemo(() => {
+  //
+  // O mesmo par de linhas responde a DUAS perguntas distintas — o que o seletor
+  // oferece (`options`) e qual aviso a tela deve dar (`notes`, AUD-17 [E8]) —,
+  // então as duas decisões saem daqui juntas, cada uma na sua função pura.
+  const { machineOptionsByKey, machineNoteByKey } = useMemo(() => {
     const out = new Map<string, Machine[] | null>();
+    const notes = new Map<string, EncomendaAssignmentNote>();
     const precoCache = new Map<string, PricingResult>();
     for (const item of items) {
       if (item.origem !== "encomenda") continue;
@@ -736,8 +786,9 @@ export function SaleModal({
         rows = wholeEventRows(product, machines, stock);
       }
       out.set(item.key, encomendaMachineOptions(rows, machines));
+      notes.set(item.key, encomendaAssignmentNote(rows, machines));
     }
-    return out;
+    return { machineOptionsByKey: out, machineNoteByKey: notes };
   }, [items, products, machines, stock, fixedCosts]);
 
   // Itens travados: há mais de uma candidata e o dono não escolheu. Uma
@@ -1538,20 +1589,12 @@ export function SaleModal({
                   melhor que oferecer uma escolha que seria descartada em parte
                   das etapas — e a /producao pergunta por etapa.
 
-                  ⚠ AUD-17 [E3]: o teste é `?.length === 0`, e o `null` (nada
-                  ambíguo, o caso BOM) tem de cair fora dele. Antes o aviso era
-                  disparado por `length === 0`, que os dois estados satisfaziam:
-                  o produto TOTALMENTE resolvido lia que "o ROI não credita
-                  ninguém" enquanto o documento gravava a atribuição certa. */}
-              {item.origem === "encomenda" &&
-              machineOptionsByKey.get(item.key)?.length === 0 ? (
-                <div className="cesta-warn">
-                  As etapas deste produto não têm uma impressora em comum — não
-                  há uma máquina só para atribuir. A venda entra normalmente (o
-                  custo usa a média da frota), mas o ROI não credita ninguém.
-                  Para atribuir por etapa, registre em <strong>Produção</strong>{" "}
-                  e venda como peça pronta.
-                </div>
+                  ⚠ AUD-17 [E3] + [E8]: QUAL aviso mostrar (e se há aviso) é
+                  decisão, e mora no `encomendaAssignmentNote` — no JSX nenhum
+                  teste a alcançava. O `null` de "nada ambíguo" (o caso BOM) e a
+                  interseção de 1+ caem fora dele lá; aqui sobrou a redação. */}
+              {item.origem === "encomenda" ? (
+                <AvisoSemIntersecao note={machineNoteByKey.get(item.key) ?? null} />
               ) : null}
 
               {item.origem === "acabado" && r && r.finishedShortfall > 0 ? (

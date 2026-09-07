@@ -9,6 +9,7 @@ import {
   toggleSelection,
 } from "./fleet";
 import {
+  encomendaAssignmentNote,
   encomendaMachineOptions,
   initialRowMachineId,
   planEventRows,
@@ -1001,5 +1002,124 @@ describe("[FROTA] Fase 2 — AUD-17 [E1]: a escala é por unidade ATRIBUÍDA", (
     expect(
       roiDe(plan, "x2d", { quantity: 1 }).depreciationRecovered,
     ).toBeCloseTo(depReal(plan, "x2d"), 10);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AUD-17 [E8] — o aviso de interseção vazia afirmava, nos DOIS casos, o pior
+// deles. Medido na tela em 2026-09-04 (venda `AUD17 L2 E1 sem intersecao`): o
+// diálogo dizia "o ROI não credita ninguém" e a X2D levou 1 h e R$ 1,87 pela
+// etapa "Base", a única com uma elegível só. Verdadeiro para as etapas
+// ambíguas, falso para o item. Mesmo espírito do [E3]: texto de tela afirmando
+// mais do que o dado — e a decisão sobe para o `lib/`, onde teste a alcança.
+// ---------------------------------------------------------------------------
+
+// Três etapas ambíguas SEM impressora em comum + uma resolvida na X2D: é o
+// produto que a passada no navegador registrou, e o caso que o [E8] descreve.
+// 1 das 5 horas tem dono.
+const PARCIAL_SEM_COMUM = {
+  ...produto({ machineIds: ["a1", "mini"], printHours: 2 }),
+  id: "peca",
+  name: "Peça",
+  piecesCount: 1,
+  stages: [
+    {
+      id: "s1", name: "Topo", machineIds: ["a1", "x2d"],
+      printHours: 1, laborMinutes: 0, filaments: [],
+    },
+    {
+      id: "s2", name: "Lado", machineIds: ["x2d", "mini"],
+      printHours: 1, laborMinutes: 0, filaments: [],
+    },
+    {
+      id: "s3", name: "Base", machineIds: ["x2d"],
+      printHours: 1, laborMinutes: 0, filaments: [],
+    },
+  ],
+} as unknown as SavedProduct;
+
+// O mesmo, SEM a etapa resolvida: aqui ninguém tem dono de verdade.
+const TOTAL_SEM_COMUM = {
+  ...PARCIAL_SEM_COMUM,
+  stages: (PARCIAL_SEM_COMUM.stages ?? []).filter((s) => s.id !== "s3"),
+} as unknown as SavedProduct;
+
+const notaDe = (p: SavedProduct) =>
+  encomendaAssignmentNote(wholeEventRows(p, FROTA, []), FROTA);
+
+describe("[FROTA] Fase 2 — AUD-17 [E8]: 'o ROI não credita ninguém' só quando é verdade", () => {
+  it("a premissa: interseção vazia, e ainda assim UMA etapa com dono", () => {
+    const rows = wholeEventRows(PARCIAL_SEM_COMUM, FROTA, []);
+    expect(encomendaMachineOptions(rows, FROTA)).toEqual([]);
+    expect(rows.map((r) => r.machineId)).toEqual(["", "", "", "x2d"]);
+  });
+
+  it("com etapa resolvida o aviso é PARCIAL — não o 'ninguém' do total", () => {
+    expect(notaDe(PARCIAL_SEM_COMUM)?.tipo).toBe("parcial");
+  });
+
+  it("sem nenhuma resolvida o aviso é TOTAL — a frase antiga, no lugar dela", () => {
+    expect(notaDe(TOTAL_SEM_COMUM)?.tipo).toBe("total");
+  });
+
+  it("o `tipo` concorda com o que a venda GRAVA — é isso que o [E8] quebrava", () => {
+    // A invariante de verdade: a frase e o documento têm de dizer a mesma coisa.
+    // "Ninguém creditado" ⇔ `machineUsage` vazio. No parcial a X2D leva a hora
+    // da Base, exatamente como o cartão dela mostrou (1 h · R$ 1,87).
+    for (const p of [PARCIAL_SEM_COMUM, TOTAL_SEM_COMUM]) {
+      const plan = reconcileReciboWrite([ITEM_ENCOMENDA()], null, CTX_FROTA([p]));
+      const [r] = plan.items;
+      expect(notaDe(p)!.tipo === "total").toBe(r.machineUsage.length === 0);
+    }
+  });
+
+  it("no parcial, a máquina creditada é a da etapa resolvida — e sobra órfã", () => {
+    const plan = reconcileReciboWrite(
+      [ITEM_ENCOMENDA()],
+      null,
+      CTX_FROTA([PARCIAL_SEM_COMUM]),
+    );
+    const [r] = plan.items;
+    expect(r.machineUsage.map((u) => u.machineId)).toEqual(["x2d"]);
+    expect(depReal(plan, "x2d")).toBeGreaterThan(0);
+    // 4 das 5 horas seguem sem dono: o "parcial" não é "resolvido".
+    expect(r.unattributedUnits).toBeCloseTo(2 * (4 / 5), 10);
+  });
+
+  it("as contagens são as das LINHAS, não estimativa — a frase se apoia nelas", () => {
+    const nota = notaDe(PARCIAL_SEM_COMUM)!;
+    expect(nota.etapasComMaquina).toBe(1);
+    expect(nota.etapasAmbiguas).toBe(3);
+    expect(nota.horasComMaquina).toBeCloseTo(1, 10);
+    expect(nota.horasAmbiguas).toBeCloseTo(4, 10);
+  });
+
+  it("etapa resolvida que imprime 0 h ainda é 'parcial' — mas com 0 h na frase", () => {
+    // Ela cria um evento na máquina (uma impressão no cartão) e nenhum desgaste.
+    // Por isso a frase mostra as horas: dizer só "credita" afirmaria demais.
+    const zeroH = {
+      ...PARCIAL_SEM_COMUM,
+      stages: (PARCIAL_SEM_COMUM.stages ?? []).map((s) =>
+        s.id === "s3" ? { ...s, printHours: 0 } : s,
+      ),
+    } as unknown as SavedProduct;
+    const nota = notaDe(zeroH)!;
+    expect(nota.tipo).toBe("parcial");
+    expect(nota.horasComMaquina).toBe(0);
+  });
+
+  it("nada ambíguo não avisa NADA — a guarda do [E3] continua de pé", () => {
+    const resolvido = { ...PECA, machineIds: ["x2d"], stages: [] } as SavedProduct;
+    expect(notaDe(resolvido)).toBeNull();
+  });
+
+  it("interseção de UMA não avisa — a reconciliação carimba sozinha ([E2])", () => {
+    expect(notaDe(INTERSECAO_UNICA)).toBeNull();
+  });
+
+  it("2+ candidatas não avisam — ali quem fala é o seletor, não um aviso", () => {
+    expect(encomendaMachineOptions(wholeEventRows(PARCIAL, FROTA, []), FROTA))
+      .toHaveLength(2);
+    expect(notaDe(PARCIAL)).toBeNull();
   });
 });

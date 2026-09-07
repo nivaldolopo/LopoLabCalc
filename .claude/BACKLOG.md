@@ -5,20 +5,20 @@
 > vivem em [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob
 > demanda. A foto do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-04: HÁ item de código pendente — o cluster [AUD-17], logo abaixo.** As duas
-> fases do [FROTA] fecharam em 2026-09-01 e saíram daqui (writeups no `HISTORICO.md`); a 10ª
-> varredura, feita sobre elas, achou 6 defeitos — os três lotes fecharam, e o que segura o cluster é
-> o **[E8]**, que só a TELA do lote 2 mostrou. O resto **depende de algo de fora**: a logo, o
-> cadastro do dono, uma 2ª conta Google, ou ~1-2 meses de venda real.
+> **Estado em 2026-09-07: os 6 defeitos do [AUD-17] estão CORRIGIDOS** — falta só a passada no
+> navegador do [E8], e o cluster sai daqui. As duas fases do [FROTA] fecharam em 2026-09-01 e saíram
+> daqui (writeups no `HISTORICO.md`); a 10ª varredura, feita sobre elas, achou os 6. O que sobra no
+> backlog **depende de algo de fora**: a logo, o cadastro do dono, uma 2ª conta Google, ou ~1-2 meses
+> de venda real — menos as duas frentes de "Disponível HOJE".
 >
 > ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho.
 
-## ▶ [AUD-17] — o que sobrou da FROTA (os 3 lotes fecharam; falta o [E8])
+## ▶ [AUD-17] — o que sobrou da FROTA (os 6 corrigidos; falta medir o [E8] na tela)
 
 > Laudo completo, com sonda e medição de cada um: [`AUD-17-RELATORIO.md`](../AUD-17-RELATORIO.md)
 > (arquivo TEMPORÁRIO — some quando o cluster fechar; o writeup vai pro `HISTORICO.md`).
-> **Placar: 5 🔴 · 1 🟡 · 5 🟢** — **6 fechados** (lotes 1, 2 e 3). Varridos e sãos: a matemática do
+> **Placar: 5 🔴 · 1 🟡 · 5 🟢** — **os 6 fechados** (lotes 1, 2, 3 e o [E8]). Varridos e sãos: a matemática do
 > `fleet.ts`, a persistência e a semântica "PODE ≠ RODOU" (nenhum caminho põe id vazio no
 > `machineUsage`).
 
@@ -31,11 +31,12 @@
   o [E1] passou a escalar por `1/(qty − órfãs)`. 13 invariantes novas, cada uma conferida falhando
   contra a lógica antiga. ⚠ **Venda já gravada guarda a escala velha** — o `machineUsage` é
   congelado no documento, e a `/maquinas` só se move em venda nova ou re-salva (Diretriz 7).
-- **▶ [E8] 🟡 — O QUE FALTA (visto na TELA em 2026-09-04)** — o aviso de interseção vazia do `SaleModal` diz
-  "o ROI **não credita ninguém**", e na encomenda PARCIAL ele credita: medido, a X2D levou 1 h e
-  R$ 1,87 na mesma venda que exibiu a frase. Verdadeiro para as etapas ambíguas, falso para o item.
-  Mesmo espírito do [E3] — texto afirmando mais que o dado. → a frase precisa distinguir "nenhuma
-  etapa tem dono" de "as ambíguas não têm"; o número já está certo.
+- **✅ [E8] — o TEXTO da interseção vazia (código fechado em 2026-09-07).** A decisão saiu do JSX:
+  `encomendaAssignmentNote` (`productionPlan.ts`) devolve `"total" | "parcial" | null` e o JSX só
+  escolhe a redação — o `"parcial"` (há etapa resolvida) para de afirmar que "o ROI não credita
+  ninguém". 10 invariantes novas, 4 conferidas falhando contra a frase única; a que amarra é
+  `tipo === "total"` ⇔ `machineUsage` vazio. **Falta só a passada no navegador** — depende de o
+  dono autorizar criar/apagar dado, como nos lotes anteriores.
 - **✅ Lote 3 — o CSV ([E6], fechado em 2026-09-04).** `idsJson` recebe a frota e descarta o id que
   não existe nela, na classe **própria** `maquina-etapa-descartada` (não a `maquina-descartada` da
   coluna humana: o conselho e o desfecho são outros — a etapa sem id herda o conjunto do PRODUTO).

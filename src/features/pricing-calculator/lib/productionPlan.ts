@@ -293,6 +293,59 @@ export function encomendaMachineOptions(
   );
 }
 
+/**
+ * [FROTA] Fase 2 — QUAL aviso de atribuição a venda por encomenda deve mostrar,
+ * separado da REDAÇÃO (irmão do `machineSelectionNote`, AUD-17 [E3]).
+ *
+ * · `null` → nada a avisar: ou nada é ambíguo (o caso BOM), ou a interseção tem
+ *   alguém — com UMA a reconciliação carimba sozinha (`unicaCandidata`), com
+ *   duas ou mais quem fala é o seletor, não um aviso.
+ * · `"total"` → interseção vazia e NENHUMA etapa com impressora própria: nada
+ *   nesta venda tem dono, e aí sim "o ROI não credita ninguém".
+ * · `"parcial"` → interseção vazia, mas há etapa resolvida: as horas dela SÃO
+ *   creditadas, e só as ambíguas ficam órfãs.
+ *
+ * ⚠ AUD-17 [E8]: os dois casos exibiam a mesma frase, a do `total`. Medido na
+ * venda do lote 2 (`AUD17 L2 E1 sem intersecao`): a tela dizia "o ROI não
+ * credita ninguém" enquanto a X2D levava 1 h e R$ 1,87 pela etapa "Base", a
+ * única com uma elegível só. Mesmo defeito do [E3] — texto afirmando mais do que
+ * o dado —, e por isso a decisão mora aqui, onde teste a alcança, e não no JSX.
+ *
+ * As contagens saem junto porque a frase precisa delas para não trocar um
+ * exagero por outro: "as resolvidas creditam", sem dizer QUANTAS e quantas
+ * horas, afirmaria crédito de horas onde a etapa resolvida imprime 0 h (ela
+ * ainda conta uma impressão no cartão da máquina, mas nenhum desgaste).
+ */
+export type EncomendaAssignmentNote = {
+  tipo: "total" | "parcial";
+  etapasComMaquina: number;
+  etapasAmbiguas: number;
+  horasComMaquina: number;
+  horasAmbiguas: number;
+} | null;
+
+export function encomendaAssignmentNote(
+  rows: EventRow[],
+  machines: Machine[],
+): EncomendaAssignmentNote {
+  const options = encomendaMachineOptions(rows, machines);
+  // `null` = nada ambíguo; `> 0` = há resposta (única ou a escolher).
+  if (options === null || options.length > 0) return null;
+  const comMaquina = rows.filter((row) => row.machineId);
+  const ambiguas = rows.filter((row) => !row.machineId);
+  // Mesma soma defensiva do `orfas` da reconciliação: hora negativa não abate a
+  // hora de outra etapa.
+  const horas = (list: EventRow[]) =>
+    list.reduce((sum, row) => sum + Math.max(0, num(row.printHours)), 0);
+  return {
+    tipo: comMaquina.length > 0 ? "parcial" : "total",
+    etapasComMaquina: comMaquina.length,
+    etapasAmbiguas: ambiguas.length,
+    horasComMaquina: horas(comMaquina),
+    horasAmbiguas: horas(ambiguas),
+  };
+}
+
 // Linhas-evento de um produto INTEIRO: UMA LINHA POR ETAPA (principal + extras).
 //
 // ⚠ [FROTA] Fase 1 — antes isto AGRUPAVA por máquina, e o agrupamento mentia no
