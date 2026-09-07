@@ -25,7 +25,6 @@
 - **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)** e **✅ [AUD-17]** — custo decomponível
   ponta a ponta, o PREÇO não depende mais de quem estava livre, e os 6 defeitos que a 10ª varredura
   achou em cima disso estão corrigidos e medidos na tela.
-  10ª varredura achou em cima disso estão corrigidos.
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
   destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta.
 - ⚠ **NÃO REPROPOR (avaliadas e descartadas pelo dono):** `lifeHours` por máquina (**DEC-02**),
