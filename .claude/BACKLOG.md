@@ -22,10 +22,11 @@
   detalhar etapas e subitens (usa FEAT-01). Só a foto do item, o QR do WhatsApp e o branding real
   esperam o designer. **Onde:** `generateQuotePdf.ts` + `QuotePage`/`config/orcamento`.
 
-> **[AUD-08] saiu daqui em 2026-09-08** — as regras estão provadas nas duas pontas (produção sem
-> token: 403 em 18/18 sondas; texto do `firestore.rules`: 119 testes no emulador, 12 identidades,
-> mutação conferida). **A 2ª conta Google nunca foi necessária** — o emulador forja identidade.
-> Writeup no `HISTORICO.md`. Sobra só o item de 5 minutos do dono, logo abaixo.
+> **[AUD-08] FECHADA em 2026-09-08, sem resíduo** — as regras estão provadas nas **três** pontas:
+> produção sem token (403 em 18/18 sondas), o texto do `firestore.rules` (119 testes no emulador, 12
+> identidades, mutação conferida) e o **ruleset publicado** (diff mecânico contra o Console: 17
+> linhas, idênticas). **A 2ª conta Google nunca foi necessária** — o emulador forja identidade.
+> Writeup no `HISTORICO.md`.
 
 ## ▶ Aberto pela [FROTA] Fase 2 — pequeno, e nenhum bloqueia nada
 
@@ -66,14 +67,6 @@
 
 ## ⚠ A frente do DONO (bloqueia a carga em massa)
 
-- **[AUD-08, o resto] — conferir que o ruleset PUBLICADO é o `firestore.rules` do repo.** ~5 min.
-  O deploy das regras **nunca foi automático** e o cabeçalho do arquivo diz "cópia fiel conferida em
-  13/07/2026", mas o commit `4be2c4b` mexeu na lista depois. A conta Google ativa no Chrome
-  (**Nivaldo**) não enxerga projeto Firebase nenhum — o `lopo-lab` é de **outra conta do dono**.
-  **Duas saídas:** trocar a conta no Console (`console.firebase.google.com/project/lopo-lab/firestore/databases/lopo-lab-calculadora/rules`)
-  e comparar as 20 linhas, **ou** rodar `firebase deploy --only firestore:rules`, que torna publicado
-  ≡ arquivo por construção. ⚠ A 2ª saída **sobrescreve** o que estiver no Console — só vale porque o
-  arquivo agora está provado.
 
 Cadastrar as **cores e os insumos definitivos**, **religar os acessórios** (`planSupplies`) e passar
 os ids ao **sistema externo dele**, que gera a planilha. A **spec/planilha-modelo sai comigo no
@@ -169,11 +162,12 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
 > importação, CSS da FROTA, rede caída na venda, timeout de 12s e a corrida de duas abas; as duas que
 > viraram defeito estão no `HISTORICO.md`. Sobra o que segue bloqueado por algo de fora.
 
-- ~~Regras de segurança do Firestore~~ — **✅ PROVADAS (AUD-08, 2026-09-08)**, nas duas pontas:
-  `node scripts/provaRegrasNaProducao.mjs` (produção, sem token) e `pnpm test:rules` (o texto do
-  arquivo, no emulador). Segue sem medida só o **diff contra o ruleset publicado** — item do dono,
-  acima. E as regras **não validam forma de documento**: os 3 e-mails têm CRUD total, então conta
-  comprometida = perda total, sem camada de contenção (tradeoff aceito, não defeito).
+- ~~Regras de segurança do Firestore~~ — **✅ PROVADAS (AUD-08, 2026-09-08)**, nas três pontas:
+  `node scripts/provaRegrasNaProducao.mjs` (produção, sem token), `pnpm test:rules` (o texto do
+  arquivo, no emulador) e o diff contra o **ruleset publicado** no Console. ⚠ O que **continua
+  valendo como risco** não é lacuna de prova: as regras **não validam forma de documento** — os 3
+  e-mails têm CRUD total em tudo, então conta comprometida = perda total, sem camada de contenção
+  (tradeoff aceito para uma ferramenta de 3 contas, não defeito).
 - **Escala acima de 500 produtos** — o corte do `createProductsBatch`, onde o lote pode entrar pela
   metade, segue sem prova (exigiria ~1.040 escritas). **A carga em massa real exercita isso de
   graça** — por isso o [AUD-08] fica fora de qualquer lote: varrer antes é ensaiar o que vai

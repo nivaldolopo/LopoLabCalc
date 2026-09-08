@@ -71,12 +71,20 @@ dizendo qual dos dois lados libera o que o outro barra.
 pasta) + `firebase-tools` global via pnpm. O `pnpm test:rules` **não precisa de login** — o emulador
 roda offline com projeto fake. O `JAVA_HOME` não é permanente: a linha está no `CLAUDE.md`.
 
-**O que fica aberto (e só o dono destrava):** conferir que o **ruleset publicado** é este arquivo. O
-deploy das regras nunca foi automático, e o cabeçalho do `firestore.rules` diz "cópia fiel conferida
-em 13/07/2026" — depois disso o commit `4be2c4b` mexeu na lista. Tentei ler pelo Console no Chrome:
-a conta ativa lá (**Nivaldo**) não enxerga projeto Firebase nenhum, então o `lopo-lab` é de outra
-conta do dono. Basta trocar a conta no Console e comparar as 20 linhas — ou rodar
-`firebase deploy --only firestore:rules`, que torna publicado ≡ arquivo por construção.
+**A terceira ponta, fechada no mesmo dia: o ruleset PUBLICADO é este arquivo.** Diff mecânico (não
+de olho): as **17 linhas significativas batem**, comparadas sem comentário e sem indentação — o DOM
+do Console não entrega a indentação, então normalizar as duas pontas é a comparação honesta. A
+versão no ar é a de **2026-08-10 19:55** e o commit `4be2c4b` (que somou o joao) é de **19:43 do
+mesmo dia**: o deploy saiu 12 minutos depois. O Console guarda 5 versões — as outras são de 12/07 e
+três de 27/06 —, então ninguém editou pelo painel desde então. O cabeçalho do `firestore.rules`
+carregava "conferido em 13/07/2026"; agora carrega esta medição.
+
+⚠ **O caminho até o Console custou 4 idas e vindas, e a lição é de ferramenta:** o `lopo-lab` não é
+da conta que o dono usa no Chrome do dia a dia (`nivaldo.lopo`), e sim da `lopolab3d`. Ela vive em
+**outro perfil do Chrome**, que só virou alcançável quando o dono conectou a extensão *naquela*
+janela — `list_connected_browsers` passou a mostrar duas instâncias e a Diretriz 4 vale para a que
+tem o projeto. Deep-link para a página de regras **redireciona para a visão geral**: o caminho que
+funciona é Firestore → aba **Security**.
 
 ## ✅ AUD-18 — a campanha de PROVAS, e os 2 defeitos que ela achou (2026-09-07 → 08)
 

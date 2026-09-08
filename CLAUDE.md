@@ -14,12 +14,14 @@
   (desde a AUD-09) estava presa numa receita errada: *"exige 2ª conta Google"* — uma conta prova UMA
   identidade; faltava o **motor de regras**, que roda local e forja identidade. Duas pontas:
   `node scripts/provaRegrasNaProducao.mjs` (produção sem token — **403 em 18/18**, e o `(default)`
-  nem existe) e `pnpm test:rules` (**119 testes**, 12 identidades; a mutação derruba **73**).
-  **Nenhum defeito.** Writeup no [`HISTORICO.md`](.claude/HISTORICO.md).
+  nem existe), `pnpm test:rules` (**119 testes**, 12 identidades; a mutação derruba **73**) e o
+  **diff contra o ruleset publicado** (17 linhas, idênticas). **Nenhum defeito, nenhum resíduo.**
+  Writeup no [`HISTORICO.md`](.claude/HISTORICO.md).
 - **▶ PRÓXIMA TAREFA — nenhuma dívida de código.** A frente livre é **[FEAT-03] sem a logo** (5
-  sementes do PDF que não tocam em marca), no [`BACKLOG.md`](.claude/BACKLOG.md). ⚠ Sobrou **1 item
-  de 5 min do dono**: conferir que o ruleset **publicado** é este `firestore.rules` — o Console pede
-  a conta Google dona do `lopo-lab` (a ativa no Chrome não a enxerga).
+  sementes do PDF que não tocam em marca), no [`BACKLOG.md`](.claude/BACKLOG.md).
+- ⚠ **O projeto Firebase é da conta `lopolab3d`, NÃO da `nivaldo.lopo`** — ela vive em **outro
+  perfil do Chrome**, e a extensão precisa estar conectada *nele* (`list_connected_browsers` mostra
+  as duas). Deep-link pra página de regras redireciona: o caminho é Firestore → aba **Security**.
 - **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)**, **✅ [AUD-17]**, **✅ [AUD-18]** e
   **✅ [AUD-08]** — custo decomponível ponta a ponta, o PREÇO não depende mais de quem estava livre,
   e o que a 10ª varredura e as duas campanhas de prova acharam está corrigido e medido.
