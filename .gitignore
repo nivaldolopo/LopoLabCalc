@@ -43,3 +43,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# firebase (emulador local — AUD-08)
+firestore-debug.log
+firebase-debug.log

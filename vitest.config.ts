@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
 
 // Resolve o alias "@/..." (definido no tsconfig) também no Vitest. Sem isto, um
@@ -12,6 +12,10 @@ export default defineConfig({
   // a ser deterministico.
   test: {
     maxWorkers: 4,
+    // AUD-08: os testes de REGRA precisam do emulador do Firestore no ar. Sem
+    // ele nao seriam falha, seriam ausencia de medicao — entao saem daqui e
+    // vivem no vitest.emulator.config.ts, por tras do `pnpm test:rules`.
+    exclude: [...configDefaults.exclude, "**/*.emulator.test.ts"],
   },
   resolve: {
     alias: {

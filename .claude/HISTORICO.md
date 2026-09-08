@@ -9,6 +9,75 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ AUD-08 — as regras do Firestore, provadas (2026-09-08)
+
+> A lacuna que aparecia em **toda** lista de "não cobriu" desde a AUD-09. Ficou 8 varreduras em
+> aberto porque a receita registrada era *"exige uma 2ª conta Google"* — e a conta nunca chegou.
+> **A receita estava errada.** Uma 2ª conta prova UMA identidade; o que faltava era o
+> **motor de regras**, e ele roda local, com identidade forjada.
+
+**As duas pontas, porque nenhuma sozinha basta:**
+
+| | o que prova | o que NÃO prova |
+|---|---|---|
+| `node scripts/provaRegrasNaProducao.mjs` | o que o servidor **de verdade** responde a quem chega sem credencial | nada sobre quem está logado |
+| `pnpm test:rules` (emulador) | o **texto** do `firestore.rules`, em 12 identidades | que o ruleset **publicado** seja este texto |
+
+**Produção, sem token — 36 sondas, 0 passaram.** As 18 do banco `lopo-lab-calculadora` deram
+**403 PERMISSION_DENIED**: `list` nas 9 coleções, `get config/machines`, `runQuery`, criar em
+coleção-sonda e dentro de `products`, `PATCH` em 4 coleções, `DELETE`. As outras 18 provam que **o
+banco `(default)` não existe** (404) — não há segundo banco esquecido com regra de teste aberta.
+Fora do Firestore: o bucket do Storage **nunca foi provisionado** (404 nos dois nomes) e o login por
+e-mail/senha está **desligado** (`PASSWORD_LOGIN_DISABLED`), então ninguém de fora emite token
+próprio. Os `authorizedDomains` do Auth são 7 e todos legítimos.
+
+⚠ **A primeira sonda mentiu duas vezes, e as duas lições são velhas conhecidas:**
+- **Ids `__aud08_inexistente__` casam com o padrão reservado `__.*__`** do Firestore → todo write
+  voltou `invalid-argument`. A escrita **nunca chegou à regra**: eu teria escrito "barrado" sobre
+  uma sonda que não saiu do cliente.
+- **Ler pelo SDK devolveu snapshot VAZIO, não erro**, para um banco que nem existe — servido do
+  **cache**. É o **[E4] da AUD-15** outra vez (*"snapshot que CHEGA não é prova de servidor"*), agora
+  dentro da própria auditoria. Por isso o script definitivo é **REST**: sem cache, status HTTP cru.
+
+**Emulador — 119 testes, 12 identidades.** `src/lib/firebase/firestoreRules.emulator.test.ts` lê o
+`firestore.rules` **do repo** (não uma cópia) e roda 9 operações contra cada identidade: sem token ·
+logado sem e-mail · e-mail autorizado **não verificado** · autorizado **sem a claim**
+`email_verified` · **verificado e fora da lista** (*a "2ª conta Google"*) · autorizado em **CAIXA
+ALTA** · com **alias `+`** · com **sufixo colado** (`…@gmail.com.evil.com`) · com **prefixo colado** ·
+e os 3 autorizados de verdade. Uma das 9 operações é numa **subcoleção funda**, que prova o
+`{document=**}` da `rules_version 2` alcançar qualquer profundidade.
+
+⚠ **A suíte tem DENTES, e isso é medido, não afirmado.** Um bloco roda as mesmas asserções contra um
+ruleset **frouxo** (`if request.auth != null`), onde o estranho **tem** que entrar: se a fiação do
+emulador quebrar e tudo passar a falhar, esse bloco cai junto e a suíte para de dizer "barrado" por
+acidente. E a mutação foi rodada de fato — trocando o `firestore.rules` pelo frouxo, **73 dos 119
+falharam**, e a conta fecha exatamente: 72 (8 estranhos × 9 operações) + a checagem de sincronia da
+lista. Os **9 "nega" do visitante sem token continuaram passando** — o frouxo ainda exige login —,
+junto dos 27 "permite" dos autorizados e dos 10 dentes.
+
+**O que as regras NÃO fazem, e é de propósito:** não validam forma de documento. Os 3 e-mails têm
+CRUD total em tudo — toda invariante de dado é do cliente. Para uma ferramenta de 3 contas o
+tradeoff é esse; o custo é que **conta comprometida = perda total**, sem camada de contenção.
+
+**Ressalva nova:** a regra compara e-mail com `in`, que é **sensível a caixa**; o `useAuth` compara
+depois de `toLowerCase()`. Um e-mail em caixa mista seria **autorizado pela tela e negado pelo
+banco** — a casca renderiza e toda leitura falha. Não é explorável (o Google entrega o e-mail
+canônico em minúsculas), mas é divergência medida: os 9 testes da identidade "CAIXA ALTA" a fixam.
+Um teste separado ainda cruza `ALLOWED_EMAILS` ⇄ lista da regra nos **dois sentidos**, e falha
+dizendo qual dos dois lados libera o que o outro barra.
+
+**Ferramentas (máquina do dono, 2026-09-08):** o emulador é um `.jar`, exige Java. Instalado
+**JRE 21 Temurin portátil** em `C:\Users\Lopo\jre-portatil\` (zip, sem admin, reversível apagando a
+pasta) + `firebase-tools` global via pnpm. O `pnpm test:rules` **não precisa de login** — o emulador
+roda offline com projeto fake. O `JAVA_HOME` não é permanente: a linha está no `CLAUDE.md`.
+
+**O que fica aberto (e só o dono destrava):** conferir que o **ruleset publicado** é este arquivo. O
+deploy das regras nunca foi automático, e o cabeçalho do `firestore.rules` diz "cópia fiel conferida
+em 13/07/2026" — depois disso o commit `4be2c4b` mexeu na lista. Tentei ler pelo Console no Chrome:
+a conta ativa lá (**Nivaldo**) não enxerga projeto Firebase nenhum, então o `lopo-lab` é de outra
+conta do dono. Basta trocar a conta no Console e comparar as 20 linhas — ou rodar
+`firebase deploy --only firestore:rules`, que torna publicado ≡ arquivo por construção.
+
 ## ✅ AUD-18 — a campanha de PROVAS, e os 2 defeitos que ela achou (2026-09-07 → 08)
 
 > Não foi varredura de código: foi fechar as **lacunas de prova** que a AUD-17 e as anteriores

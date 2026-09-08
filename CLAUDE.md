@@ -10,21 +10,19 @@
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
-- **Última mudança (2026-09-08): [AUD-18] — a campanha de PROVAS fechou 6 lacunas e achou 2 defeitos.**
-  Mediu o que estava só *registrado como não medido*. **🔴 [A1]** o doc compartilhado
-  `config/machines` não tinha trava — salvar com o modal aberto **apagava, calado**, a edição de
-  outro dispositivo; ganhou `rev` + `proximaRevDeMaquinas` (pura) + `MaquinasDesatualizadasError`.
-  **🟡 [A2]** o `SaleModal` colava ". Nada foi salvo — tente de novo." em todo erro, fazendo o timeout
-  dizer o oposto de si mesmo — virou `mensagemDeFalhaNaGravacao`, marcada por **classe**
-  (`ErroAutoExplicativo`). **17 invariantes novas, 11 conferidas FALHANDO.** Suíte **962**. Writeup e
-  as 6 medições no [`HISTORICO.md`](.claude/HISTORICO.md).
-- **▶ PRÓXIMA TAREFA — nenhuma dívida de código.** As duas frentes livres estão no
-  [`BACKLOG.md`](.claude/BACKLOG.md): **[FEAT-03] sem a logo** (5 sementes do PDF que não tocam em
-  marca) e **[AUD-08]**, provar as regras do Firestore — esta precisa de uma 2ª conta Google, e quem
-  destrava é o dono.
-- **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)**, **✅ [AUD-17]** e **✅ [AUD-18]** —
-  custo decomponível ponta a ponta, o PREÇO não depende mais de quem estava livre, e o que a 10ª
-  varredura e a campanha de provas acharam em cima disso está corrigido e medido na tela.
+- **Última mudança (2026-09-08): [AUD-08] — as regras do Firestore, PROVADAS.** A lacuna mais velha
+  (desde a AUD-09) estava presa numa receita errada: *"exige 2ª conta Google"* — uma conta prova UMA
+  identidade; faltava o **motor de regras**, que roda local e forja identidade. Duas pontas:
+  `node scripts/provaRegrasNaProducao.mjs` (produção sem token — **403 em 18/18**, e o `(default)`
+  nem existe) e `pnpm test:rules` (**119 testes**, 12 identidades; a mutação derruba **73**).
+  **Nenhum defeito.** Writeup no [`HISTORICO.md`](.claude/HISTORICO.md).
+- **▶ PRÓXIMA TAREFA — nenhuma dívida de código.** A frente livre é **[FEAT-03] sem a logo** (5
+  sementes do PDF que não tocam em marca), no [`BACKLOG.md`](.claude/BACKLOG.md). ⚠ Sobrou **1 item
+  de 5 min do dono**: conferir que o ruleset **publicado** é este `firestore.rules` — o Console pede
+  a conta Google dona do `lopo-lab` (a ativa no Chrome não a enxerga).
+- **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)**, **✅ [AUD-17]**, **✅ [AUD-18]** e
+  **✅ [AUD-08]** — custo decomponível ponta a ponta, o PREÇO não depende mais de quem estava livre,
+  e o que a 10ª varredura e as duas campanhas de prova acharam está corrigido e medido.
 - ⚠ **Esta máquina NÃO tem Excel, LibreOffice nem Firefox** — o round-trip de planilha real segue sem
   prova (o Sheets exige o diálogo nativo do Windows, que eu não opero).
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
@@ -294,7 +292,14 @@ git push
   ```powershell
   $env:Path = 'C:\Program Files\nodejs;C:\Users\Lopo\AppData\Local\pnpm;' + $env:Path
   ```
+- **Java (só pro `pnpm test:rules`):** o emulador do Firestore é um `.jar`; **JRE 21 portátil** em
+  `C:\Users\Lopo\jre-portatil\` (AUD-08), fora do PATH — antes de rodar:
+  ```powershell
+  $env:JAVA_HOME = 'C:\Users\Lopo\jre-portatil\jdk-21.0.12.1+1-jre'; $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
+  ```
 - ⚠ **A CLI da Vercel está DESLOGADA aqui** — afeta só `vercel ls`/`whoami` (`vercel login` resolve).
+  O **`firebase-tools`** (global, pnpm) também está deslogado — o emulador não liga, só o deploy de
+  regras ligaria.
   O deploy não depende dela: push na `main` → produção pela integração Git.
 
 ## Comandos úteis
@@ -305,6 +310,9 @@ pnpm build          # build de produção local
 pnpm lint           # eslint
 pnpm typecheck      # tsc --noEmit — o build NÃO typa arquivo de teste (AUD-15 [E5])
 pnpm test           # vitest (testes da matemática pura, ex.: paymentFees)
+pnpm test:rules     # AUD-08: as REGRAS no emulador (pede o JAVA_HOME acima, não pede login); fora
+                    #   do `pnpm test` de propósito — sufixo .emulator.test.ts
+node scripts/provaRegrasNaProducao.mjs   # as mesmas regras contra a PRODUÇÃO, sem token
 vercel ls           # listar deploys
 vercel --prod       # deploy manual via CLI (uso pontual; o normal é push na main)
 ```

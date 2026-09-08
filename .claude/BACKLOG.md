@@ -5,25 +5,27 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob demanda. A foto
 > do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-08: NÃO há dívida de código pendente.** A [AUD-18] fechou seis lacunas de
-> prova e os 2 defeitos que elas revelaram (writeup no `HISTORICO.md`); a [AUD-17] fechara os 6 dela
-> antes, e as duas fases do [FROTA] em 2026-09-01. O que sobra aqui são as **duas frentes disponíveis
-> HOJE** e o que **depende de algo de fora**: a logo, o cadastro do dono, uma 2ª conta Google,
-> o LibreOffice, ou ~1-2 meses de venda real.
+> **Estado em 2026-09-08: NÃO há dívida de código pendente.** A [AUD-08] provou as regras do
+> Firestore — a lacuna mais velha da lista, aberta desde a AUD-09; a [AUD-18] fechou seis lacunas de
+> prova e os 2 defeitos que elas revelaram (writeups no `HISTORICO.md`); a [AUD-17] fechara os 6 dela
+> antes, e as duas fases do [FROTA] em 2026-09-01. O que sobra aqui é **uma frente disponível HOJE**
+> e o que **depende de algo de fora**: a logo, o cadastro do dono, o LibreOffice, ou ~1-2 meses de
+> venda real.
 >
 > ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho.
 
-## ▶ Disponível HOJE — as duas frentes que não esperam ninguém
+## ▶ Disponível HOJE — a frente que não espera ninguém
 
 - **[FEAT-03] sem a logo.** O guarda-chuva do PDF tem cinco sementes que **não tocam em marca**:
   prazo de entrega, formas de pagamento/condições, termos e observações, desconto/acréscimo,
   detalhar etapas e subitens (usa FEAT-01). Só a foto do item, o QR do WhatsApp e o branding real
   esperam o designer. **Onde:** `generateQuotePdf.ts` + `QuotePage`/`config/orcamento`.
-- **[AUD-08 · regras do Firestore] — sem prova há 8 varreduras.** É a única lacuna que aparece em
-  TODA lista de "não cobriu" desde a AUD-09, e a AUD-18 não a alcançou. **Exige uma 2ª conta Google**
-  para tentar ler/escrever como estranho — quem destrava é o dono. As regras estão travadas e o
-  `AuthGate` no ar; o que falta é *provar*, não *escrever*.
+
+> **[AUD-08] saiu daqui em 2026-09-08** — as regras estão provadas nas duas pontas (produção sem
+> token: 403 em 18/18 sondas; texto do `firestore.rules`: 119 testes no emulador, 12 identidades,
+> mutação conferida). **A 2ª conta Google nunca foi necessária** — o emulador forja identidade.
+> Writeup no `HISTORICO.md`. Sobra só o item de 5 minutos do dono, logo abaixo.
 
 ## ▶ Aberto pela [FROTA] Fase 2 — pequeno, e nenhum bloqueia nada
 
@@ -63,6 +65,15 @@
   `hoursDay`/`daysMonth`/`machines` é da capacidade e ficaria de qualquer jeito.
 
 ## ⚠ A frente do DONO (bloqueia a carga em massa)
+
+- **[AUD-08, o resto] — conferir que o ruleset PUBLICADO é o `firestore.rules` do repo.** ~5 min.
+  O deploy das regras **nunca foi automático** e o cabeçalho do arquivo diz "cópia fiel conferida em
+  13/07/2026", mas o commit `4be2c4b` mexeu na lista depois. A conta Google ativa no Chrome
+  (**Nivaldo**) não enxerga projeto Firebase nenhum — o `lopo-lab` é de **outra conta do dono**.
+  **Duas saídas:** trocar a conta no Console (`console.firebase.google.com/project/lopo-lab/firestore/databases/lopo-lab-calculadora/rules`)
+  e comparar as 20 linhas, **ou** rodar `firebase deploy --only firestore:rules`, que torna publicado
+  ≡ arquivo por construção. ⚠ A 2ª saída **sobrescreve** o que estiver no Console — só vale porque o
+  arquivo agora está provado.
 
 Cadastrar as **cores e os insumos definitivos**, **religar os acessórios** (`planSupplies`) e passar
 os ids ao **sistema externo dele**, que gera a planilha. A **spec/planilha-modelo sai comigo no
@@ -158,7 +169,11 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
 > importação, CSS da FROTA, rede caída na venda, timeout de 12s e a corrida de duas abas; as duas que
 > viraram defeito estão no `HISTORICO.md`. Sobra o que segue bloqueado por algo de fora.
 
-- **Regras de segurança do Firestore** — 8 varreduras sem prova. Exige 2ª conta Google (ver acima).
+- ~~Regras de segurança do Firestore~~ — **✅ PROVADAS (AUD-08, 2026-09-08)**, nas duas pontas:
+  `node scripts/provaRegrasNaProducao.mjs` (produção, sem token) e `pnpm test:rules` (o texto do
+  arquivo, no emulador). Segue sem medida só o **diff contra o ruleset publicado** — item do dono,
+  acima. E as regras **não validam forma de documento**: os 3 e-mails têm CRUD total, então conta
+  comprometida = perda total, sem camada de contenção (tradeoff aceito, não defeito).
 - **Escala acima de 500 produtos** — o corte do `createProductsBatch`, onde o lote pode entrar pela
   metade, segue sem prova (exigiria ~1.040 escritas). **A carga em massa real exercita isso de
   graça** — por isso o [AUD-08] fica fora de qualquer lote: varrer antes é ensaiar o que vai
@@ -187,6 +202,10 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
 - **Pergunta aberta pro dono (AUD-17):** na `/producao` o `<select>` "Máquina" oferece a frota
   INTEIRA, mesmo num produto elegível a duas. Se é de propósito ("o que RODOU manda, não o que
   PODE"), vale dizer isso no comentário; se não, é restrição faltando.
+- **A regra do Firestore é sensível a CAIXA, o `useAuth` não** (AUD-08) — a regra usa `in`, o app
+  compara depois de `toLowerCase()`. E-mail em caixa mista seria **autorizado pela tela e negado
+  pelo banco**. Não é explorável (o Google entrega o e-mail canônico em minúsculas) e os 9 testes da
+  identidade "CAIXA ALTA" fixam o comportamento.
 - **[R1] `readFinishedColors` conta a perda TOTAL e cala a PARCIAL** — `finishedGoods.ts`,
   `malformed = raw.length > 0 && entries.length === 0`. Um item torto no MEIO de uma lista boa some
   sem dizer nada. Medido: `1 torto + 3 bons` → 3 entradas, `malformed: false`. Alcançar isso exige
