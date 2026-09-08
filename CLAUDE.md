@@ -10,21 +10,23 @@
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
-- **Última mudança (2026-09-07): [AUD-17] fechada — o [E8] era a frase que afirmava mais que o dado.**
-  O aviso de interseção vazia do `SaleModal` dizia "o ROI **não credita ninguém**" também na encomenda
-  **PARCIAL**, onde a etapa resolvida credita. A decisão saiu do JSX e virou função pura
-  (`encomendaAssignmentNote`, `productionPlan.ts`): `"total" | "parcial" | null` + as contagens que a
-  frase usa. **10 invariantes novas, 4 conferidas FALHANDO**; a que amarra é `tipo === "total"` ⇔
-  `machineUsage` vazio. **Medido na tela** (dono autorizou): a venda que exibiu "1 de 4 etapas,
-  1,00 h de 5,00 h" moveu a X2D de `113,30 h · 26 · R$ 130,00` para **`114,30 h · 27 · R$ 131,87`**,
-  com A1 e Mini inalteradas. Suíte **945**. Writeup no [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Última mudança (2026-09-08): [AUD-18] — a campanha de PROVAS fechou 6 lacunas e achou 2 defeitos.**
+  Mediu o que estava só *registrado como não medido*. **🔴 [A1]** o doc compartilhado
+  `config/machines` não tinha trava — salvar com o modal aberto **apagava, calado**, a edição de
+  outro dispositivo; ganhou `rev` + `proximaRevDeMaquinas` (pura) + `MaquinasDesatualizadasError`.
+  **🟡 [A2]** o `SaleModal` colava ". Nada foi salvo — tente de novo." em todo erro, fazendo o timeout
+  dizer o oposto de si mesmo — virou `mensagemDeFalhaNaGravacao`, marcada por **classe**
+  (`ErroAutoExplicativo`). **17 invariantes novas, 11 conferidas FALHANDO.** Suíte **962**. Writeup e
+  as 6 medições no [`HISTORICO.md`](.claude/HISTORICO.md).
 - **▶ PRÓXIMA TAREFA — nenhuma dívida de código.** As duas frentes livres estão no
   [`BACKLOG.md`](.claude/BACKLOG.md): **[FEAT-03] sem a logo** (5 sementes do PDF que não tocam em
   marca) e **[AUD-08]**, provar as regras do Firestore — esta precisa de uma 2ª conta Google, e quem
   destrava é o dono.
-- **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)** e **✅ [AUD-17]** — custo decomponível
-  ponta a ponta, o PREÇO não depende mais de quem estava livre, e os 6 defeitos que a 10ª varredura
-  achou em cima disso estão corrigidos e medidos na tela.
+- **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)**, **✅ [AUD-17]** e **✅ [AUD-18]** —
+  custo decomponível ponta a ponta, o PREÇO não depende mais de quem estava livre, e o que a 10ª
+  varredura e a campanha de provas acharam em cima disso está corrigido e medido na tela.
+- ⚠ **Esta máquina NÃO tem Excel, LibreOffice nem Firefox** — o round-trip de planilha real segue sem
+  prova (o Sheets exige o diálogo nativo do Windows, que eu não opero).
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
   destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta.
 - ⚠ **NÃO REPROPOR (avaliadas e descartadas pelo dono):** `lifeHours` por máquina (**DEC-02**),
@@ -168,7 +170,9 @@ src/lib/
   mesma taxa do preço) e conta como órfão. Excluir produção apaga o **lote** (`submissionId`).
   ⚠ As máquinas são COMPARTILHADAS entre dispositivos (doc `config/machines`, realtime): editar
   watts/`lifeHours`/`weight` reprecifica TODOS os produtos, que guardam só os ids. `useMachines`
-  semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro.
+  semeia de `DEFAULT_MACHINES` na 1ª vez e cai pra fallback local em caso de erro. Gravar exige a
+  `rev` (AUD-18) — e **a versão é capturada JUNTO do rascunho** (`useState(rev)` no modal), nunca
+  lida na hora do save: o snapshot da outra aba a adianta e a trava passa batido.
   ⚠ **As 5 armadilhas que a AUD-17 mediu** (reprodução no `HISTORICO.md`): **[E1]** `machineUsage`
   escala por unidade ATRIBUÍDA, nunca vendida — só a `depreciation` denuncia (o resto é RAZÃO) ·
   **[E2]** interseção de UMA é resposta, e quem deduz é a RECONCILIAÇÃO · **[E4]/[E5]** id salvo pode

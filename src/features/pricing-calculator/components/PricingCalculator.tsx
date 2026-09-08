@@ -40,7 +40,7 @@ import {
 
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
-  const { machines, saveMachines } = useMachines();
+  const { machines, rev: machinesRev, saveMachines } = useMachines();
   const {
     fixedCostRate,
     saveFixedCostRate,
@@ -345,9 +345,12 @@ export function PricingCalculator() {
     if (handledLoad) window.history.replaceState(null, "", "/");
   }, [handledLoad]);
 
-  async function handleSaveMachines(nextMachines: typeof machines) {
+  async function handleSaveMachines(
+    nextMachines: typeof machines,
+    revEsperado: number,
+  ) {
     // TD-020: repassa a falha ao modal, que a mostra em vez de fechar.
-    const falha = await saveMachines(nextMachines);
+    const falha = await saveMachines(nextMachines, revEsperado);
     if (falha) return falha;
     // [FROTA] Fase 2 — máquina REMOVIDA some do conjunto do produto e de cada
     // etapa; o que sobra continua valendo. Antes isto trocava o escalar pelo
@@ -514,6 +517,7 @@ export function PricingCalculator() {
         <MachineManagerModal
           open={machineModalOpen}
           machines={machines}
+          rev={machinesRev}
           onClose={() => setMachineModalOpen(false)}
           onSave={handleSaveMachines}
         />

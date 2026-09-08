@@ -9,6 +9,111 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ AUD-18 — a campanha de PROVAS, e os 2 defeitos que ela achou (2026-09-07 → 08)
+
+> Não foi varredura de código: foi fechar as **lacunas de prova** que a AUD-17 e as anteriores
+> deixaram registradas — o que estava "sem medição", não o que estava "sem revisão". O dono pediu a
+> lista inteira menos o limite de 500 escritas. Saíram **6 lacunas fechadas**, **2 defeitos** e
+> **2 lacunas que continuam bloqueadas por ferramenta que não existe na máquina**.
+
+### O que passou a ter medida
+
+- **Os CSS da FROTA são 7, não 8** — o backlog contava `machines.css` duas vezes (ele aparece em dois
+  commits). Revisados os 7: nenhuma classe morta, nenhuma órfã, e a ordem do DOM confere com o
+  `nth-child(6)` do celular. ⚠ `.machine-edit-row` **não** é compartilhado com os acessórios — o
+  `AccessoriesSection` só o cita em comentário. O `.machine-modal` mede **680px** com o campo Nome em
+  **183px** (o comentário estimava ~186). O anel de foco do `:has()` casa e usa `--focus-ring`.
+  ⚠ **Armadilha de medição, a mesma que o `CLAUDE.md` já documenta:** ler `outline-*` logo após o Tab
+  sintético devolve valores de transição (`0px`/`2.667px`). Conferido contra um elemento de controle
+  criado na hora: o anel está certo.
+- **Export CSV do `/vendas`** — nunca exercitado, agora sim: 52 linhas × 22 colunas, **zero** linhas
+  com contagem diferente, UTF-8 com BOM, CRLF e `;` (o par correto da vírgula decimal pt-BR);
+  observação com vírgula sobrevive por estar entre aspas.
+- **A tela de importação de CSV** — o `[E6]` da AUD-17 fora medido por sonda; agora pelo diálogo. As
+  três classes de aviso saem SEPARADAS e com conselhos diferentes. E o desfecho é numérico:
+  `fantasma TOTAL` e `fantasma PARCIAL` empatam em **R$ 124,90** (o id fantasma é descartado e a etapa
+  herda o conjunto do PRODUTO), enquanto a linha de coluna humana inválida cai para **R$ 114,90**
+  (frota inteira). Com o `[E6]` vivo, o TOTAL teria caído junto — os R$ 10,00 são a prova.
+- **Rede REALMENTE caída no meio da venda** — cortado o transporte do Firestore com
+  `navigator.onLine` deixado em `true` (o caso de portal cativo, que as guardas não pegam). O
+  `withWriteTimeout` devolveu a tela em **12,0 s** exatos e as 51 vendas continuaram 51.
+  ⚠ **Por que nada ficou pendurado:** `getFirestore` sem `persistentLocalCache` = cache em MEMÓRIA, e
+  a venda é `runTransaction` — transação não entra na fila offline. Vale para o SaleModal; não vale
+  para as escritas simples, que a AUD-14 mediu entrando atrasadas.
+- **A corrida das duas abas** deu DUAS respostas, e as duas importam. Em ritmo humano as duas vendas
+  entram **corretas** (Bege 243 → 163 g): o realtime atualiza o plano antes do commit, e o guarda nem
+  precisa disparar. Congelando o canal de escuta de uma aba, o `lerEConferirRevs` **recusa em 1 s**
+  nomeando a cor, e o saldo fica em 123 g — a 4ª baixa não passou. Tudo estornado depois: **243 g e
+  51 vendas**, exatos — o que também prova o estorno.
+
+### 🔴 [A1] `config/machines` não tinha trava de concorrência
+
+Era o único doc COMPARTILHADO com a forma clássica do TD-022 — lista inteira recalculada no cliente e
+gravada por cima — **sem** o contador `rev` que `vendas`, `producao` e `estoque` usam. E o modal
+segura um rascunho de propósito (atualizar o que o dono digita seria pior), então a janela de perda é
+todo o tempo em que ele fica aberto. Peso: editar máquina reprecifica o catálogo inteiro.
+
+**Reproduzido:** com o fundo da tela já mostrando `A1 Mini ZZB` (gravado pela outra aba) e o rascunho
+do modal ainda dizendo `A1 Mini`, salvar **apagou a alteração do outro lado**, sem aviso em lado
+nenhum.
+
+**Corrigido** com `rev` no doc + `proximaRevDeMaquinas` (pura) + `MaquinasDesatualizadasError` de
+frase própria — o conselho aqui é REABRIR o diálogo, não "refazer sobre o saldo atual". Doc sem `rev`
+vale 0, então não há migração.
+
+⚠ **A primeira tentativa de correção PASSOU pela trava, e o motivo é a lição:** a `rev` estava numa
+`ref` atualizada a cada snapshot, então quando a outra aba gravava, o número da aba parada avançava
+junto e a conferência casava contra a versão de quem acabara de sobrescrever. **A versão tem de ser
+capturada JUNTO do rascunho** — por isso vive num `useState(rev)` dentro do `MachineManagerModal`, com
+o mesmo tempo de vida do `draft`. É a mesma disciplina do estoque, onde o `esperado` viaja DENTRO do
+plano (`{...color}`) em vez de ser relido na hora de gravar. **Só o navegador pegou isso: os testes
+de unidade passavam nas duas versões.**
+
+⚠ **E a recusa REVERTE o estado local** (`servidorRef`): a regra do TD-020 — "erro já online deixa o
+valor digitado na tela" — não vale aqui, porque ficar com o rascunho reprecificaria o catálogo a
+partir de uma frota que o servidor não tem. Nada se perde: o rascunho é do modal, que segue aberto.
+
+**Medido depois da correção:** o modal fica aberto com o motivo, o rascunho do dono é preservado
+(`ZZA`/`ZZA2` intactos) e o `A1 Mini ZZB` da outra aba **sobrevive**.
+
+### 🟡 [A2] A frase de erro da venda se contradizia
+
+`SaleModal` colava `. Nada foi salvo — tente de novo.` em **todo** erro. No timeout a tela mostrava
+*"…**NÃO repita a ação**: ela pode entrar sozinha quando a rede voltar. Recarregue a página e confira
+antes de tentar de novo.**. Nada foi salvo — tente de novo.**"* — as duas metades mandando o oposto,
+com ponto duplicado no meio.
+
+⚠ **A invariante que proíbe isso JÁ EXISTIA** (`errors.test.ts`: *"não repete a promessa do
+guardOnline de que nada foi salvo"*) — só que morava no lib, e o JSX passava por cima dela. É o `[E8]`
+da AUD-17 outra vez: **no JSX nenhum teste alcança a frase**. Por isso a decisão virou
+`mensagemDeFalhaNaGravacao` (`lib/errors.ts`), e a marca é a **CLASSE** (`ErroAutoExplicativo`, com
+`OfflineError`/`EscritaExpiradaError`/`EstoqueDesatualizadoError`/`MaquinasDesatualizadasError`
+herdando dela), não o texto — farejar a mensagem faria a frase certa depender de ninguém reescrever a
+string.
+
+**17 invariantes novas; 11 conferidas FALHANDO** contra o código antigo (7 da frase, 4 da trava). A
+que amarra a frase: nenhuma mensagem contém "NÃO repita" e "tente de novo" ao mesmo tempo.
+
+### Menores registrados (não viraram tarefa)
+
+- **`toISOString()` no nome do CSV de vendas é UTC** — baixado às 23h37 de 07/09, o arquivo saiu
+  `vendas-lopolab-2026-09-08.csv`. Depois das 21h (BRT) o nome erra o dia.
+- **`void exportCsv()`** engole a rejeição do `fetchAllSales`: falhando, nada aparece na tela.
+- **A coluna "Maquina" do CSV de vendas é rótulo de exibição** (`"X2D Combo +1"`) — não dá para
+  reconstruir quais máquinas foram.
+- **`downloadCsv` revoga o object URL logo após o `click()`** — no Chrome baixou os dois arquivos sem
+  falha (o `.tmp` observado era transitório), mas o padrão é frágil fora do Chromium.
+
+### O que a AUD-18 NÃO conseguiu provar, e por quê
+
+- **Excel/Sheets de verdade — continua sem prova.** Excel, LibreOffice e WPS **não estão instalados**
+  nesta máquina (conferido). O dono autorizou usar o Google Sheets no Chrome dele, mas o
+  `Arquivo → Importar` do Sheets abre o **Google Picker num iframe de outra origem**, cujo upload
+  aciona o **diálogo nativo do Windows** — que a ferramenta de navegador não pode operar, por regra.
+  Não há `input[type=file]` alcançável no documento nem nos iframes acessíveis. **Bloqueio técnico,
+  não de permissão.** Saída mais barata: instalar o LibreOffice e fazer o round-trip local.
+- **Firefox e iOS Safari** — Firefox não está instalado; iOS exige aparelho.
+
 ## ✅ AUD-17 — a 10ª varredura, feita sobre a FROTA (2026-09-03 → 2026-09-07)
 
 > As duas fases do [FROTA] nasceram DEPOIS da AUD-16, então nenhuma varredura as tinha visto. Esta

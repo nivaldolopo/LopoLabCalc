@@ -1,4 +1,5 @@
 import type { Transaction, DocumentReference } from "firebase/firestore";
+import { ErroAutoExplicativo } from "@/lib/errors";
 
 // TD-022 — a trava de concorrência do estoque, num lugar só.
 //
@@ -21,7 +22,9 @@ import type { Transaction, DocumentReference } from "firebase/firestore";
 // exatamente assim que o UX-42 nasceu, com duas implementações que PRECISAVAM
 // concordar.
 
-export class EstoqueDesatualizadoError extends Error {
+// AUD-18 — herda de `ErroAutoExplicativo`: a frase abaixo já diz que nada foi
+// gravado E o que refazer, então a tela não deve pendurar "tente de novo" nela.
+export class EstoqueDesatualizadoError extends ErroAutoExplicativo {
   constructor(public readonly onde: string) {
     super(
       `${onde} mudou enquanto esta tela estava aberta (outra aba, outro ` +

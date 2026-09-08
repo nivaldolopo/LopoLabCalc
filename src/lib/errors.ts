@@ -18,9 +18,30 @@ export function isOffline(): boolean {
   return typeof navigator !== "undefined" && !navigator.onLine;
 }
 
+// AUD-18 — erro que JÁ diz o próprio desfecho E o conselho que vem com ele.
+//
+// A tela que grava precisa de duas frases diferentes: "não sei o que houve,
+// tente de novo" e "sei exatamente o que houve, e o conselho é ESTE". Colar a
+// primeira no fim da segunda era o que o `SaleModal` fazia — e no timeout as
+// duas se contradiziam na MESMA linha ("NÃO repita a ação" seguido de "tente de
+// novo"). O `writeTimeoutMessage` já tinha invariante proibindo essa promessa;
+// ela morava no lib e o JSX passava por cima dela, que é o [E8] da AUD-17 outra
+// vez: no JSX nenhum teste alcança a frase.
+//
+// A marca é a CLASSE, não o texto: farejar a mensagem faria a frase certa
+// depender de ninguém reescrever a string.
+export class ErroAutoExplicativo extends Error {}
+
+export class OfflineError extends ErroAutoExplicativo {
+  constructor() {
+    super(OFFLINE_MESSAGE);
+    this.name = "OfflineError";
+  }
+}
+
 export function guardOnline() {
   if (isOffline()) {
-    throw new Error(OFFLINE_MESSAGE);
+    throw new OfflineError();
   }
 }
 
@@ -57,6 +78,13 @@ export function writeTimeoutMessage(seconds: number): string {
   );
 }
 
+export class EscritaExpiradaError extends ErroAutoExplicativo {
+  constructor(seconds: number) {
+    super(writeTimeoutMessage(seconds));
+    this.name = "EscritaExpiradaError";
+  }
+}
+
 export function withWriteTimeout<T>(
   promise: Promise<T>,
   seconds: number = WRITE_TIMEOUT_SECONDS,
@@ -64,7 +92,7 @@ export function withWriteTimeout<T>(
   let timer: ReturnType<typeof setTimeout> | undefined;
   const alarme = new Promise<never>((_, reject) => {
     timer = setTimeout(
-      () => reject(new Error(writeTimeoutMessage(seconds))),
+      () => reject(new EscritaExpiradaError(seconds)),
       seconds * 1000,
     );
   });
@@ -73,4 +101,25 @@ export function withWriteTimeout<T>(
   // `unhandledRejection`. O `finally` limpa o timer para o processo não ficar
   // acordado 12s depois de cada gravação bem-sucedida.
   return Promise.race([promise, alarme]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * AUD-18 — a frase que a tela mostra quando uma gravação falha.
+ *
+ * O sufixo genérico ("Nada foi salvo — tente de novo") só entra quando o erro
+ * NÃO diz o próprio desfecho. Os que dizem já vêm fechados e com conselho
+ * próprio — e no caso do timeout o conselho é o OPOSTO do genérico, então colar
+ * os dois deixava a tela se contradizendo numa linha só (medido na AUD-18:
+ * "…NÃO repita a ação… Recarregue a página e confira antes de tentar de novo.
+ * . Nada foi salvo — tente de novo.").
+ *
+ * `acao` entra na frase como veio ("registrar venda", "salvar venda").
+ */
+export function mensagemDeFalhaNaGravacao(err: unknown, acao: string): string {
+  const base = `Erro ao ${acao}: ${errorMessage(err)}`;
+  if (err instanceof ErroAutoExplicativo) return base;
+  // Ponto só onde falta: a mensagem genérica do `errorMessage` já termina em
+  // ".", e o ".." era metade do defeito que se via na tela.
+  const fechado = base.endsWith(".") ? base : `${base}.`;
+  return `${fechado} Nada foi salvo — tente de novo.`;
 }

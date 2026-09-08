@@ -2,7 +2,12 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Boxes, Plus, Trash2 } from "lucide-react";
-import { guardOnline, isOffline, OFFLINE_MESSAGE } from "@/lib/errors";
+import {
+  guardOnline,
+  isOffline,
+  mensagemDeFalhaNaGravacao,
+  OFFLINE_MESSAGE,
+} from "@/lib/errors";
 import { formatCurrency } from "@/lib/formatting/currency";
 import {
   toDateInput,
@@ -1051,8 +1056,10 @@ export function SaleModal({
       await onConfirm(reciboWrite);
       onClose();
     } catch (err) {
+      // AUD-18: a frase é DECISÃO e mora no lib. Colar "Nada foi salvo — tente
+      // de novo" em todo erro fazia o timeout dizer o oposto de si mesmo.
       setError(
-        `Erro ao ${isEdit ? "salvar" : "registrar"} venda: ${(err as Error).message}. Nada foi salvo — tente de novo.`,
+        mensagemDeFalhaNaGravacao(err, `${isEdit ? "salvar" : "registrar"} venda`),
       );
       setSaving(false);
     }

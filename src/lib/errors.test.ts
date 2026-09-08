@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  EscritaExpiradaError,
+  mensagemDeFalhaNaGravacao,
   OFFLINE_MESSAGE,
+  OfflineError,
   WRITE_TIMEOUT_SECONDS,
   withWriteTimeout,
   writeTimeoutMessage,
 } from "./errors";
+import { EstoqueDesatualizadoError } from "./firebase/revGuard";
 
 // AUD-14 [D2]. O defeito medido não foi "a escrita falhou": foi a escrita que
 // NUNCA responde. Com Wi-Fi conectado sem internet o `navigator.onLine` fica em
@@ -116,5 +120,88 @@ describe("writeTimeoutMessage", () => {
     expect(writeTimeoutMessage(WRITE_TIMEOUT_SECONDS)).not.toContain(
       "nada foi salvo",
     );
+  });
+});
+
+// AUD-18 — a frase que a TELA mostra. As invariantes acima moravam no lib e o
+// `SaleModal` passava por cima delas: ele colava ". Nada foi salvo — tente de
+// novo." em todo erro, inclusive no do timeout, que manda o OPOSTO. Medido na
+// tela: "…NÃO repita a ação… confira antes de tentar de novo.. Nada foi salvo —
+// tente de novo." — as duas metades se contradizendo numa linha só, com ponto
+// duplicado no meio. É o [E8] da AUD-17 de novo: no JSX nenhum teste alcança.
+describe("mensagemDeFalhaNaGravacao", () => {
+  it("erro sem desfecho próprio ganha o conselho genérico", () => {
+    const frase = mensagemDeFalhaNaGravacao(
+      new Error("permission-denied."),
+      "registrar venda",
+    );
+    expect(frase).toBe(
+      "Erro ao registrar venda: permission-denied. Nada foi salvo — tente de novo.",
+    );
+  });
+
+  it("erro que não termina em ponto não vira frase grudada", () => {
+    const frase = mensagemDeFalhaNaGravacao(
+      new Error("deu ruim"),
+      "salvar venda",
+    );
+    expect(frase).toContain("deu ruim. Nada foi salvo");
+  });
+
+  it("valor que não é Error cai na frase honesta, sem [object Object]", () => {
+    expect(mensagemDeFalhaNaGravacao({ x: 1 }, "registrar venda")).toBe(
+      "Erro ao registrar venda: Não foi possível salvar. Nada foi salvo — tente de novo.",
+    );
+  });
+
+  it("TIMEOUT: não ganha o sufixo que contradiz o próprio conselho", () => {
+    const frase = mensagemDeFalhaNaGravacao(
+      new EscritaExpiradaError(WRITE_TIMEOUT_SECONDS),
+      "registrar venda",
+    );
+    expect(frase).toContain("NÃO repita");
+    expect(frase).not.toContain("tente de novo.");
+    expect(frase).not.toContain("Nada foi salvo");
+  });
+
+  it("TIMEOUT: sem o ponto duplicado que a tela mostrava", () => {
+    const frase = mensagemDeFalhaNaGravacao(
+      new EscritaExpiradaError(WRITE_TIMEOUT_SECONDS),
+      "registrar venda",
+    );
+    expect(frase).not.toContain("..");
+  });
+
+  it("OFFLINE: a frase do guardOnline já se fecha sozinha", () => {
+    const frase = mensagemDeFalhaNaGravacao(new OfflineError(), "salvar venda");
+    expect(frase).toContain("nada foi salvo ainda");
+    expect(frase).not.toContain("Nada foi salvo — tente de novo");
+  });
+
+  it("ESTOQUE desatualizado: mantém só o conselho de refazer sobre o saldo", () => {
+    const frase = mensagemDeFalhaNaGravacao(
+      new EstoqueDesatualizadoError('A cor "Bege"'),
+      "registrar venda",
+    );
+    expect(frase).toContain("refaça o registro sobre o saldo atual");
+    expect(frase).not.toContain("Nada foi salvo — tente de novo");
+    expect(frase).not.toContain("..");
+  });
+
+  // A que amarra: seja qual for o erro, a tela nunca manda as DUAS coisas.
+  it("nenhuma frase manda NÃO repetir e repetir ao mesmo tempo", () => {
+    const erros: unknown[] = [
+      new Error("qualquer coisa"),
+      new OfflineError(),
+      new EscritaExpiradaError(WRITE_TIMEOUT_SECONDS),
+      new EstoqueDesatualizadoError('A cor "Bege"'),
+      "nem Error é",
+    ];
+    for (const err of erros) {
+      const frase = mensagemDeFalhaNaGravacao(err, "registrar venda");
+      const proibe = frase.includes("NÃO repita");
+      const manda = frase.includes("tente de novo");
+      expect(proibe && manda).toBe(false);
+    }
   });
 });

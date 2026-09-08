@@ -1,14 +1,15 @@
 # LopoLabCalc — Backlog (a fazer)
 
 > **Só o que está ABERTO, mais a ordem.** Curto de propósito — é o que se lê pra escolher a próxima
-> tarefa. O *porquê*, os writeups e os **dez clusters de varredura já fechados** (AUD-07…AUD-17)
-> vivem em [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob
-> demanda. A foto do AGORA fica no `CLAUDE.md`.
+> tarefa. O *porquê*, os writeups e os **onze clusters já fechados** (AUD-07…AUD-18) vivem em
+> [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob demanda. A foto
+> do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-07: NÃO há dívida de código pendente.** O cluster [AUD-17] fechou — os 6
-> defeitos corrigidos e medidos na tela, writeup no `HISTORICO.md` (as duas fases do [FROTA] fecharam
-> antes, em 2026-09-01). O que sobra aqui são as **duas frentes disponíveis HOJE** e o que **depende
-> de algo de fora**: a logo, o cadastro do dono, uma 2ª conta Google, ou ~1-2 meses de venda real.
+> **Estado em 2026-09-08: NÃO há dívida de código pendente.** A [AUD-18] fechou seis lacunas de
+> prova e os 2 defeitos que elas revelaram (writeup no `HISTORICO.md`); a [AUD-17] fechara os 6 dela
+> antes, e as duas fases do [FROTA] em 2026-09-01. O que sobra aqui são as **duas frentes disponíveis
+> HOJE** e o que **depende de algo de fora**: a logo, o cadastro do dono, uma 2ª conta Google,
+> o LibreOffice, ou ~1-2 meses de venda real.
 >
 > ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho.
@@ -19,10 +20,10 @@
   prazo de entrega, formas de pagamento/condições, termos e observações, desconto/acréscimo,
   detalhar etapas e subitens (usa FEAT-01). Só a foto do item, o QR do WhatsApp e o branding real
   esperam o designer. **Onde:** `generateQuotePdf.ts` + `QuotePage`/`config/orcamento`.
-- **[AUD-08 · regras do Firestore] — sem prova há 7 varreduras.** É a única lacuna que aparece em
-  TODA lista de "não cobriu" desde a AUD-09. **Exige uma 2ª conta Google** para tentar ler/escrever
-  como estranho — quem destrava é o dono. As regras estão travadas e o `AuthGate` no ar; o que falta
-  é *provar*, não *escrever*.
+- **[AUD-08 · regras do Firestore] — sem prova há 8 varreduras.** É a única lacuna que aparece em
+  TODA lista de "não cobriu" desde a AUD-09, e a AUD-18 não a alcançou. **Exige uma 2ª conta Google**
+  para tentar ler/escrever como estranho — quem destrava é o dono. As regras estão travadas e o
+  `AuthGate` no ar; o que falta é *provar*, não *escrever*.
 
 ## ▶ Aberto pela [FROTA] Fase 2 — pequeno, e nenhum bloqueia nada
 
@@ -150,29 +151,30 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
   Detalhe da decisão: `HISTORICO.md`.
 
 
-## Lacunas de PROVA — o que nenhuma das 9 varreduras cobriu
+## Lacunas de PROVA — o que continua sem medição
 
 > Não são defeitos: é o que continua **sem medição**. Vale reler antes de afirmar que algo "está
-> são". Consolidado das listas "O que a AUD-XX NÃO cobriu".
+> são". A **[AUD-18] (2026-09-08) fechou seis** desta lista — export CSV do `/vendas`, tela de
+> importação, CSS da FROTA, rede caída na venda, timeout de 12s e a corrida de duas abas; as duas que
+> viraram defeito estão no `HISTORICO.md`. Sobra o que segue bloqueado por algo de fora.
 
-- **Regras de segurança do Firestore** — 7 varreduras sem prova. Exige 2ª conta Google (ver acima).
+- **Regras de segurança do Firestore** — 8 varreduras sem prova. Exige 2ª conta Google (ver acima).
 - **Escala acima de 500 produtos** — o corte do `createProductsBatch`, onde o lote pode entrar pela
   metade, segue sem prova (exigiria ~1.040 escritas). **A carga em massa real exercita isso de
   graça** — por isso o [AUD-08] fica fora de qualquer lote: varrer antes é ensaiar o que vai
-  acontecer sozinho depois.
-- **Rede realmente caída** no meio da transação de venda (fila do Firestore, promise pendente,
-  reconexão). O `navigator.onLine` forçado já foi exercitado; a rede de verdade, não.
-- **Duas abas com o timeout de 12s no meio** — o guarda `rev` foi lido e medido; a corrida, não.
-- **Excel/Sheets de verdade** — BOM, CRLF, latin-1 e notação científica foram **simulados**. O
-  Sheets exigiria login e envio de arquivo.
-- **Exportação de CSV do `/vendas`** — o botão existe e nunca foi exercitado.
-- **[AUD-17] o que a 10ª varredura não cobriu:** os 8 arquivos de `styles/*.css` do diff da FROTA
-  (incluindo `machines.css`) · o **limite de 500 escritas** por transação do Firestore e a falha
-  parcial · a tela de **importação de CSV** (o E6 foi medido por sonda, não pelo diálogo) · a
-  concorrência de dois donos no doc `config/machines` (`persistMachines` grava sem `rev`).
-- **iOS Safari real, Firefox** e qualquer navegador fora do Chromium embutido · a exclusão de
-  produto **offline ao vivo**. ✅ O **modal de máquinas no celular** saiu desta lista: medido a 375px
-  na Fase 2 (4 fileiras no cartão, Excluir 44×44 dentro da caixa, sem rolagem lateral).
+  acontecer sozinho depois. ⚠ O dono tirou este item do escopo da AUD-18 de propósito ("não vou usar
+  isso por agora").
+- **Excel/Sheets de verdade** — BOM, CRLF, latin-1 e notação científica seguem **simulados**.
+  ⚠ **A AUD-18 tentou e esbarrou em bloqueio TÉCNICO, não de permissão** (o dono autorizou): Excel,
+  LibreOffice e WPS **não estão instalados** na máquina, e o `Arquivo → Importar` do Google Sheets
+  abre o Picker num iframe de outra origem cujo upload aciona o **diálogo nativo do Windows**, que a
+  ferramenta de navegador não pode operar. **Saída mais barata: instalar o LibreOffice** e fazer o
+  round-trip local.
+- **iOS Safari real e Firefox** — o Firefox **não está instalado** na máquina (conferido na AUD-18);
+  iOS exige aparelho. Some junto a exclusão de produto **offline ao vivo**.
+- **A falha PARCIAL de uma transação** que estoure o limite de 500 escritas do Firestore.
+- **A concorrência de dois donos no `config/machines` está PROVADA e CORRIGIDA** (AUD-18 [A1]) — o
+  que continua sem medida é a corrida em *rede real lenta*, não a lógica da trava.
 
 ## Ressalvas vivas (não são itens; viram item se o dono mandar)
 

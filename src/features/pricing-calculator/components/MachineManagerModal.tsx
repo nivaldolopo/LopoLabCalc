@@ -9,19 +9,28 @@ import { NumberInput } from "./NumberInput";
 type MachineManagerModalProps = {
   open: boolean;
   machines: Machine[];
+  // AUD-18 — a versão do doc de onde `machines` veio.
+  rev: number;
   onClose: () => void;
   // TD-020: devolve a mensagem de erro da gravação, ou `null` se deu certo —
   // é o que permite ao modal NÃO fechar em cima de um save que não aconteceu.
-  onSave: (machines: Machine[]) => Promise<string | null>;
+  onSave: (machines: Machine[], revEsperado: number) => Promise<string | null>;
 };
 
 export function MachineManagerModal({
   open,
   machines,
+  rev,
   onClose,
   onSave,
 }: MachineManagerModalProps) {
   const [draft, setDraft] = useState<Machine[]>(machines);
+  // AUD-18 — a versão é capturada AQUI, no mesmo `useState` do rascunho e com o
+  // mesmo tempo de vida: as duas coisas descrevem o mesmo instante. Ler a `rev`
+  // corrente na hora do save deixava a trava passar — quando a outra aba grava,
+  // o snapshot atualiza o número enquanto este rascunho continua velho, e a
+  // conferência então casava contra a versão de quem acabara de sobrescrever.
+  const [revDoRascunho] = useState(rev);
   // Aviso de validação inline, no lugar do window.alert (TD-004).
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -94,7 +103,7 @@ export function MachineManagerModal({
 
     setError(null);
     setSaving(true);
-    const falha = await onSave(draft);
+    const falha = await onSave(draft, revDoRascunho);
     setSaving(false);
     // TD-020: offline (ou erro de escrita) o modal fechava como se tivesse
     // salvo. Agora ele fica aberto com o motivo — e o rascunho não se perde.

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  MaquinasDesatualizadasError,
   persistMachines,
   subscribeMachines,
 } from "@/lib/firebase/machinesRepository";
@@ -53,23 +54,36 @@ export function useMachines() {
     cloneMachines(DEFAULT_MACHINES),
   );
   const seededRef = useRef(false);
+  // AUD-18 — a versão do doc `config/machines` contra a qual `machines` foi
+  // lido. Vai para o ESTADO, e não para uma `ref`, porque quem grava precisa
+  // capturá-la junto com o rascunho: lê-la no instante do save é o que a
+  // primeira tentativa de correção fez, e aí o snapshot da outra aba já tinha
+  // atualizado o número — a conferência passava contra a versão de quem
+  // acabara de sobrescrever. É a mesma disciplina do estoque, onde o `esperado`
+  // viaja DENTRO do plano (`{...color}`), não é relido na hora de gravar.
+  const [rev, setRev] = useState(0);
+  // A última lista que o SERVIDOR entregou — o lugar para onde voltar quando a
+  // gravação é recusada por versão (ver `saveMachines`).
+  const servidorRef = useRef<Machine[] | null>(null);
 
   useEffect(() => {
     const unsubscribe = subscribeMachines(
-      (nextMachines) => {
+      (nextMachines, revDoServidor) => {
+        setRev(revDoServidor);
         if (nextMachines === null) {
           // Documento ainda não existe → semeia (migrando do localStorage, se houver).
           if (!seededRef.current) {
             seededRef.current = true;
             const seed = readLocalMachines() ?? cloneMachines(DEFAULT_MACHINES);
             setMachines(seed);
-            void persistMachines(seed);
+            void persistMachines(seed, 0);
           }
           return;
         }
         const resolved = nextMachines.length
           ? nextMachines
           : cloneMachines(DEFAULT_MACHINES);
+        servidorRef.current = resolved;
         setMachines(resolved);
         writeLocalMachines(resolved);
       },
@@ -99,6 +113,7 @@ export function useMachines() {
    */
   async function saveMachines(
     nextMachines: Machine[],
+    revEsperado: number,
   ): Promise<string | null> {
     try {
       guardOnline();
@@ -108,15 +123,26 @@ export function useMachines() {
     const normalized = nextMachines.length
       ? cloneMachines(nextMachines)
       : cloneMachines(DEFAULT_MACHINES);
+    const doServidor = servidorRef.current;
     setMachines(normalized);
     writeLocalMachines(normalized);
     try {
-      await persistMachines(normalized);
+      await persistMachines(normalized, revEsperado);
       return null;
     } catch (err) {
+      // AUD-18 — a RECUSA por versão é a exceção à regra do parágrafo acima. Um
+      // erro genérico deixa o valor digitado na tela porque desfazê-lo
+      // surpreende; aqui não: o servidor tem OUTRA lista, e ficar com o
+      // rascunho reprecificaria o catálogo inteiro a partir de uma frota que
+      // não existe do lado de lá. E não se perde nada — o rascunho é do modal,
+      // que segue aberto com o motivo (TD-020).
+      if (err instanceof MaquinasDesatualizadasError && doServidor) {
+        setMachines(doServidor);
+        writeLocalMachines(doServidor);
+      }
       return errorMessage(err);
     }
   }
 
-  return { machines, saveMachines };
+  return { machines, rev, saveMachines };
 }
