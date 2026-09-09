@@ -10,27 +10,27 @@
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
-- **Última mudança (2026-09-08): [AUD-08] — as regras do Firestore, PROVADAS.** A lacuna mais velha
-  (desde a AUD-09) estava presa numa receita errada: *"exige 2ª conta Google"* — uma conta prova UMA
-  identidade; faltava o **motor de regras**, que roda local e forja identidade. Duas pontas:
-  `node scripts/provaRegrasNaProducao.mjs` (produção sem token — **403 em 18/18**, e o `(default)`
-  nem existe), `pnpm test:rules` (**119 testes**, 12 identidades; a mutação derruba **73**) e o
-  **diff contra o ruleset publicado** (17 linhas, idênticas). **Nenhum defeito, nenhum resíduo.**
-  Writeup no [`HISTORICO.md`](.claude/HISTORICO.md).
-- **▶ PRÓXIMA TAREFA — [TD-033], e depois o [FEAT-12]** (dono, 2026-09-08): hoje **qualquer**
-  alavanca global reprecifica o catálogo inteiro, em todos os aparelhos, sem prévia nem rastro. O
-  **[TD-033]** liga o preço VIVO do insumo (o filamento já é; o acessório ficou congelado — metade
-  não escrita da 7c) e vai **sozinho e primeiro**, senão a 1ª prévia da trava nasce poluída. O
-  **[FEAT-12]** traz a prévia+confirmação, o aviso pós-fato, o registro `alteracoes` e a página nova
-  **`/configuracoes`** (⚙ discreto, fora das abas). Spec completa no
+- **Última mudança (2026-09-08): [TD-033] — o preço do INSUMO ficou VIVO, como o do filamento.**
+  O acessório carregava o preço copiado no dia em que foi ligado; insumo que mudava de preço não
+  chegava ao produto (metade não escrita da 7c). `resolveAccessoryPrices` é a gêmea da
+  `resolveFilamentPrices`; **arquivado segue vivo** e o campo virou **só-leitura** quando há cotação
+  (as 2 decisões do dono). O fanout de 11 pontos achou 5 lugares com o preço velho (`QuotePage`,
+  `StockPage`, `CatalogDetails`, CSV e o `historico` do `planSupplies`). **Medido no ar**: lote novo
+  em outra aba → custo R$ 15,27 → 17,77 **sem tocar no produto**. 974 testes; writeup no
+  [`HISTORICO.md`](.claude/HISTORICO.md).
+- **▶ PRÓXIMA TAREFA — [FEAT-12]** (dono, 2026-09-08): hoje **qualquer** alavanca global reprecifica
+  o catálogo inteiro, em todos os aparelhos, sem prévia nem rastro. Ele traz a prévia+confirmação, o
+  aviso pós-fato, o registro `alteracoes` e a página nova **`/configuracoes`** (⚙ discreto, fora das
+  abas). O [TD-033], que tinha de vir antes dele, já fechou. Spec completa no
   [`BACKLOG.md`](.claude/BACKLOG.md) — **não** depende de nenhum chat. A [FEAT-03] sem a logo segue
-  livre, atrás dos dois.
+  livre, atrás dele.
 - ⚠ **O projeto Firebase é da conta `lopolab3d`, NÃO da `nivaldo.lopo`** — ela vive em **outro
   perfil do Chrome**, e a extensão precisa estar conectada *nele* (`list_connected_browsers` mostra
   as duas). Deep-link pra página de regras redireciona: o caminho é Firestore → aba **Security**.
-- **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)**, **✅ [AUD-17]**, **✅ [AUD-18]** e
-  **✅ [AUD-08]** — custo decomponível ponta a ponta, o PREÇO não depende mais de quem estava livre,
-  e o que a 10ª varredura e as duas campanhas de prova acharam está corrigido e medido.
+- **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)**, **✅ [AUD-17]**, **✅ [AUD-18]**,
+  **✅ [AUD-08]** e **✅ [TD-033]** — custo decomponível ponta a ponta, o PREÇO não depende mais de
+  quem estava livre nem de preço congelado de insumo, e o que a 10ª varredura e as duas campanhas de
+  prova acharam está corrigido e medido.
 - ⚠ **Esta máquina NÃO tem Excel, LibreOffice nem Firefox** — o round-trip de planilha real segue sem
   prova (o Sheets exige o diálogo nativo do Windows, que eu não opero).
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
@@ -139,6 +139,10 @@ src/lib/
   ⚠ As armadilhas medidas dessas 7 regras (tingimento a 10%, `transition` na leitura de cor, guarda
   de `grid-template-columns` em media query, `> tbody` ao desmontar tabela, especificidade do
   `@media`) estão no [`HISTORICO.md`](.claude/HISTORICO.md), em "Regras de CSS/UI".
+- **Preço ligado ao Estoque lê o CADASTRO no cálculo, nunca o salvo** (7c + TD-033): cor
+  (`resolveFilamentPrices`) e insumo (`resolveAccessoryPrices`) resolvem pelo id; o gravado é
+  **fallback** e só volta a valer quando o id sumiu (aí acende `filamentMissing`/`supplyMissing`).
+  ⚠ A lista vai **INTEIRA**, com arquivados — filtrar antes faz arquivado passar por removido.
 - **Função que REMONTA objeto salvo copia TODO campo — ou come dado calado** (FORM-01/RT-01): o par
   `buildLoadedProduct` ⇄ `buildProductPayload` (puros e exportados, `usePricingForm.ts` /
   `lib/productPayload.ts`), o `toSavedProduct` e o `parseProductsCsv`; o que falta vira `null` no

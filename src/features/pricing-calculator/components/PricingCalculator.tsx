@@ -117,14 +117,6 @@ export function PricingCalculator() {
     form.updateProduct(patch);
   }
 
-  const activeSupplies = useMemo(
-    () =>
-      supplies
-        .filter((supply) => !supply.archived)
-        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
-    [supplies],
-  );
-
   const totalPrintHours = useMemo(
     () =>
       form.product.printHours +
@@ -141,8 +133,8 @@ export function PricingCalculator() {
   );
 
   const pricingResult = useMemo(
-    () => calculatePricing(form.product, machines, fixedCosts, stock),
-    [fixedCosts, form.product, machines, stock],
+    () => calculatePricing(form.product, machines, fixedCosts, stock, supplies),
+    [fixedCosts, form.product, machines, stock, supplies],
   );
 
   const capacityResult = useMemo(
@@ -459,7 +451,7 @@ export function PricingCalculator() {
             product={form.product}
             machines={machines}
             stock={stock}
-            supplies={activeSupplies}
+            supplies={supplies}
             onChange={handleProductChange}
             onManageMachines={() => setMachineModalOpen(true)}
             onAddStage={() => form.addStage(undefined, allMachineIds)}

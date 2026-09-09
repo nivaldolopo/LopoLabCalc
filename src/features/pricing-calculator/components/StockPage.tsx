@@ -66,6 +66,7 @@ import { useProduction } from "../hooks/useProduction";
 import { useProducts } from "../hooks/useProducts";
 import { useSales } from "../hooks/useSales";
 import { useStock } from "../hooks/useStock";
+import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
 import type {
   FilamentRoll,
@@ -137,6 +138,10 @@ export function StockPage() {
     updateFilament,
     deleteFilament,
   } = useStock();
+  // TD-033: a precificação da aba Produtos também lê o preço vivo do insumo. A
+  // `SuppliesTab` assina o `useSupplies` por conta dela (ela precisa das
+  // mutações); aqui é leitura, e o SDK multiplexa a mesma query.
+  const { supplies } = useSupplies();
   // Só para o guarda do excluir: quem ainda aponta para a cor. Passa a ter
   // conteúdo a partir da 7c (produto) e da 8 (venda).
   const { products } = useProducts();
@@ -251,10 +256,13 @@ export function StockPage() {
   const pricingByProduct = useMemo(() => {
     const map = new Map<string, PricingResult>();
     for (const product of products) {
-      map.set(product.id, calculatePricing(product, machines, fixedCosts, filaments));
+      map.set(
+        product.id,
+        calculatePricing(product, machines, fixedCosts, filaments, supplies),
+      );
     }
     return map;
-  }, [products, machines, fixedCosts, filaments]);
+  }, [products, machines, fixedCosts, filaments, supplies]);
 
   // Só produtos com algum saldo (≠ 0) aparecem; ordena por nome congelado.
   const stockedGoods = useMemo(

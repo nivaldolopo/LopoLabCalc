@@ -164,7 +164,9 @@ function newState(ctx: ReconContext): ReconState {
 }
 
 // Resolve os subitens (preço/rateio vivo) por produto, cacheado. O preço de
-// catálogo (rolo mais novo) não muda com a baixa, então parte de `ctx.colors`.
+// catálogo (rolo mais novo) não muda com a baixa, então parte de `ctx.colors` —
+// e, pela mesma razão, dos `ctx.supplies` de ENTRADA (TD-033): o lote mais novo
+// do insumo é a cotação, não o que a baixa deste recibo deixou no saldo.
 function makeSubitemsResolver(ctx: ReconContext): (id: string) => SubitemPrice[] {
   const productsById = new Map(ctx.products.map((p) => [p.id, p]));
   const cache = new Map<string, SubitemPrice[]>();
@@ -173,8 +175,13 @@ function makeSubitemsResolver(ctx: ReconContext): (id: string) => SubitemPrice[]
     if (cached) return cached;
     const product = productsById.get(productId);
     const subs = product
-      ? calculatePricing(product, ctx.machines, ctx.fixedCosts, ctx.colors)
-          .subitems ?? []
+      ? calculatePricing(
+          product,
+          ctx.machines,
+          ctx.fixedCosts,
+          ctx.colors,
+          ctx.supplies,
+        ).subitems ?? []
       : [];
     cache.set(productId, subs);
     return subs;

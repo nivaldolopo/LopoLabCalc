@@ -9,6 +9,8 @@ import type {
   FixedCostSettings,
   ProductInput,
   StockFilament,
+  Supply,
+  SupplyLot,
 } from "../types";
 
 function makeProduct(overrides: Partial<ProductInput> = {}): ProductInput {
@@ -43,6 +45,33 @@ function makeColor(
     })),
     adjustments: [],
     createdAt: 0,
+  };
+}
+
+// TD-033 — insumo do Estoque para os testes de preço vivo do acessório. Gêmeo
+// do `makeColor` acima; lotes na ordem informada (o mais NOVO por data manda).
+function makeSupply(
+  id: string,
+  lots: Array<Partial<SupplyLot>>,
+  over: Partial<Supply> = {},
+): Supply {
+  return {
+    id,
+    name: "Ímã 6×2mm",
+    unit: "un",
+    minQty: 0,
+    archived: false,
+    lots: lots.map((lot, index) => ({
+      id: `${id}_l${index}`,
+      purchaseDate: index,
+      initialQty: 100,
+      remainingQty: 100,
+      unitPrice: 1,
+      ...lot,
+    })),
+    adjustments: [],
+    createdAt: 0,
+    ...over,
   };
 }
 
@@ -649,6 +678,146 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
       [],
     );
     expect(r.filamentMissing).toBe(true);
+  });
+});
+
+describe("calculatePricing — preço vivo do INSUMO (TD-033)", () => {
+  const produtoCom = (over: Partial<ProductInput["accessories"][number]>) =>
+    makeProduct({
+      accessories: [
+        { id: "acc1", desc: "Ímã", qty: 2, unitPrice: 1, supplyId: "ima", ...over },
+      ],
+    });
+
+  it("insumo ligado usa o preço do lote MAIS NOVO, não o salvo", () => {
+    const supplies = [
+      makeSupply("ima", [
+        { purchaseDate: 1, unitPrice: 0.5 },
+        { purchaseDate: 2, unitPrice: 0.8 }, // mais novo → custo de repor
+      ]),
+    ];
+    const r = calculatePricing(
+      produtoCom({}),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      [],
+      supplies,
+    );
+    expect(r.accessoriesCost).toBeCloseTo(1.6, 6); // 2 × 0,80, não 2 × 1,00
+    expect(r.supplyMissing).toBe(false);
+  });
+
+  it("o preço acompanha o insumo: lote novo mais caro sobe o produto", () => {
+    const antes = calculatePricing(
+      produtoCom({}),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      [],
+      [makeSupply("ima", [{ purchaseDate: 1, unitPrice: 0.5 }])],
+    );
+    const depois = calculatePricing(
+      produtoCom({}),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      [],
+      [
+        makeSupply("ima", [
+          { purchaseDate: 1, unitPrice: 0.5 },
+          { purchaseDate: 2, unitPrice: 3 },
+        ]),
+      ],
+    );
+    // O MESMO documento de produto, só o cadastro andou: +2,50/un × 2 un = +5.
+    expect(depois.accessoriesCost - antes.accessoriesCost).toBeCloseTo(5, 6);
+    expect(depois.suggestedPrice).toBeGreaterThan(antes.suggestedPrice);
+  });
+
+  it("insumo REMOVIDO do Estoque marca supplyMissing e usa o preço salvo", () => {
+    const r = calculatePricing(
+      produtoCom({ unitPrice: 1.5 }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      [],
+      [], // cadastro vazio → o insumo "ima" não existe
+    );
+    expect(r.accessoriesCost).toBeCloseTo(3, 6); // 2 × 1,50 (fallback)
+    expect(r.supplyMissing).toBe(true);
+  });
+
+  it("insumo SEM LOTE cai no preço salvo, SEM marcar missing", () => {
+    const r = calculatePricing(
+      produtoCom({ unitPrice: 1.5 }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      [],
+      [makeSupply("ima", [])],
+    );
+    expect(r.accessoriesCost).toBeCloseTo(3, 6);
+    expect(r.supplyMissing).toBe(false); // ele existe, só não tem cotação
+  });
+
+  it("insumo ARQUIVADO continua VIVO (não é removido)", () => {
+    const r = calculatePricing(
+      produtoCom({ unitPrice: 9 }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      [],
+      [makeSupply("ima", [{ unitPrice: 0.4 }], { archived: true })],
+    );
+    expect(r.accessoriesCost).toBeCloseTo(0.8, 6); // 2 × 0,40 do cadastro
+    expect(r.supplyMissing).toBe(false);
+  });
+
+  it("acessório AVULSO (supplyId null) fica intocado", () => {
+    const r = calculatePricing(
+      makeProduct({
+        accessories: [
+          { id: "acc1", desc: "Argola", qty: 2, unitPrice: 1.5, supplyId: null },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      [],
+      [makeSupply("ima", [{ unitPrice: 999 }])],
+    );
+    expect(r.accessoriesCost).toBeCloseTo(3, 6);
+    expect(r.supplyMissing).toBe(false);
+  });
+
+  it("sem a lista de insumos, cai no salvo e SINALIZA (como o filamento)", () => {
+    // Chamada legada/teste puro: lista vazia é indistinguível de "o insumo não
+    // existe mais", e o resultado é o mesmo do filamento com estoque vazio —
+    // fallback no preço salvo e a flag ligada. Simetria deliberada: quem quiser
+    // o preço vivo passa a lista, e as 9 superfícies do app passam.
+    const r = calculatePricing(produtoCom({ unitPrice: 2 }), DEFAULT_MACHINES, NO_FIXED);
+    expect(r.accessoriesCost).toBeCloseTo(4, 6);
+    expect(r.supplyMissing).toBe(true);
+  });
+
+  it("o rateio por SUBITEM usa o preço vivo (partes somam o inteiro)", () => {
+    const produto = makeProduct({
+      sellBySubitems: true,
+      subitems: [
+        { id: "s1", name: "A", stageKeys: ["main"] },
+        { id: "s2", name: "B", stageKeys: ["main"] },
+      ],
+      accessories: [
+        { id: "acc1", desc: "Ímã", qty: 2, unitPrice: 1, supplyId: "ima" },
+      ],
+    });
+    const r = calculatePricing(
+      produto,
+      DEFAULT_MACHINES,
+      NO_FIXED,
+      [],
+      [makeSupply("ima", [{ unitPrice: 3 }])],
+    );
+    // 2 × 3,00 = 6,00 vivo (o salvo diria 2,00), rateado em pesos iguais.
+    expect(r.accessoriesCost).toBeCloseTo(6, 6);
+    expect(r.subitems![0].costBreakdown.accessories).toBeCloseTo(3, 6);
+    expect(r.subitems![1].costBreakdown.accessories).toBeCloseTo(3, 6);
+    const soma = r.subitems!.reduce((sum, sub) => sum + sub.price, 0);
+    expect(soma).toBeCloseTo(r.suggestedPrice, 6);
   });
 });
 

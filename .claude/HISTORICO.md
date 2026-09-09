@@ -9,6 +9,60 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ TD-033 — o preço do INSUMO ficou vivo, como o do filamento (2026-09-08)
+
+> Uma assimetria que ninguém decidiu: a 7c deu preço vivo ao FILAMENTO e parou ali. O acessório
+> continuava com o preço **copiado no dia em que foi ligado** ao insumo. Insumo que mudou de preço
+> não chegava ao produto. *(Dono: "deveria sim ser igual filamento, afinal o preço de um insumo pode
+> mudar.")* Foi **antes** do [FEAT-12] de propósito — senão a 1ª prévia da trava misturaria "o ímã
+> subiu desde que você cadastrou" com "esta edição de máquina fez isto", e a trava estrearia mentindo.
+
+**A forma.** `resolveAccessoryPrices` (`calculatePricing.ts`) é a gêmea exata da
+`resolveFilamentPrices`, com a MESMA ordem de fallback: ligado e com cotação → preço do cadastro ·
+insumo **removido** → `unitPrice` salvo + `supplyMissing` (badge, molde do TD-009) · insumo **sem
+lote** (cotação 0) → salvo, **sem** badge (ele existe, só não tem preço) · **avulso** → intocado. O
+`unitPrice` continua sendo gravado no produto: virou **fallback**, como o `FilamentUsage.pricePerKg`.
+
+**Duas decisões que o backlog não tinha fechado** (dono aprovou as duas antes de começar):
+1. **Arquivado ≠ removido.** O backlog dizia "apagado/arquivado → fallback + missing", mas o gêmeo do
+   filamento trata cor arquivada como VIVA — ela continua no cadastro e a última cotação continua
+   sendo a dela. Ficou simétrico: arquivado segue vivo, e o `<select>` o mostra como
+   "(arquivado)", exatamente como a cor.
+2. **Campo de preço só-leitura** quando o acessório está ligado e há cotação — o `showLivePrice` do
+   `FilamentColorsSection`, com a mesma borda tracejada. Manter editável seria manter um número que
+   o cálculo ignora. Junto saiu o aviso *"o insumo está a R$ x agora · Atualizar preço"*: com preço
+   vivo não há o que atualizar à mão, e ele passaria a mentir.
+
+**O que o fanout revelou** (11 pontos, o formato que o parâmetro `stock` já percorrera):
+- **`QuotePage` e `StockPage` não assinavam os insumos** — ganharam `useSupplies`. Sem isso a mesma
+  opção sairia por um valor no catálogo e outro no orçamento (é o TD-017 outra vez, do lado insumo).
+- **O `CatalogDetails` pintava o preço SALVO** na faixa "🧩 Acessórios" enquanto a etiqueta já usava
+  o vivo. Passou a resolver pela mesma função — mostrar o congelado ali seria pintar um valor que
+  não é o do preço.
+- **O CSV**: `exportProductsCsv` recebe os insumos, e a `CsvParseOptions.supplies` **deixou de ser
+  só referência** (era `{id: string}[]`, virou `Supply[]`) — sem ela o CSV-03 acusaria divergência
+  falsa em todo produto com acessório ligado. O JSON continua gravando o `unitPrice` cru: o
+  round-trip preserva o fallback.
+- **`planSupplies` (produção)**: no modo `historico` o custo saía do congelado da linha. Congelar ali
+  um preço que o produto não usa mais faria o COGS do histórico divergir da etiqueta — passou a ler
+  o cadastro, com o congelado como fallback de avulso/órfão/insumo sem lote (o lote de acerto do D4
+  segue nascendo com o congelado, que é a única referência quando não há cotação).
+- **`PricingCalculator` filtrava os insumos ativos ANTES de passar** (`activeSupplies`). Com preço
+  vivo isso faria arquivado passar por removido — a filtragem desceu para dentro do
+  `AccessoriesSection`, como no `FilamentColorsSection`.
+
+**Medido no ar** (Chrome, dados de produção, insumo de teste criado e apagado no fim): insumo sem
+lote → campo editável, sem badge · lote novo a R$ 4,00 registrado em OUTRA aba → o campo virou
+`R$ 4,00` só-leitura e o custo foi de R$ 15,27 a R$ 17,77 **sem tocar no produto** · arquivar → segue
+`R$ 4,00`, `(arquivado)` no seletor · **excluir** → volta ao salvo (R$ 1,50), aviso "Insumo removido
+do Estoque" no card e o custo de volta a R$ 15,27. No catálogo, os produtos ligados à Argola já
+mostram os R$ 0,43 do lote mais novo (estavam gravados a R$ 0,50).
+
+**Cobertura:** 8 testes novos no `calculatePricing.test.ts` (inclusive "o preço acompanha o insumo" e
+o rateio por subitem, onde as partes têm de somar o inteiro), 3 no `production.test.ts` e 2 no
+round-trip do CSV. ⚠ **Lista de insumos vazia = tudo `missing`** — indistinguível de "o insumo não
+existe mais", igual ao filamento com estoque vazio; por isso as 9 superfícies passam a lista.
+
 ## ✅ AUD-08 — as regras do Firestore, provadas (2026-09-08)
 
 > A lacuna que aparecia em **toda** lista de "não cobriu" desde a AUD-09. Ficou 8 varreduras em

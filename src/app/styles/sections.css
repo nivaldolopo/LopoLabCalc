@@ -115,8 +115,23 @@
 }
 
 .acc-field > .num-field,
-.acc-field > input {
+.acc-field > input,
+.acc-field > .acc-live-price {
   width: 100%;
+}
+
+/* TD-033 — o acessório ligado a um insumo mostra o preço do CADASTRO, só de
+   leitura: não há o que digitar, o cálculo lê o lote mais novo. Mesma métrica do
+   campo que ele substitui (`.field-input`, forms.css) para a fileira não pular,
+   e a borda tracejada do `.filament-total-value`, que já diz "isto é derivado". */
+.acc-live-price {
+  padding: var(--space-8) var(--space-10);
+  font-size: var(--text-lg);
+  font-family: var(--font-jetbrains-mono), monospace;
+  color: var(--muted);
+  border: 1.5px dashed var(--field-border);
+  border-radius: var(--radius-md);
+  background: var(--field-bg);
 }
 
 .acc-label {

@@ -64,7 +64,7 @@ export function SaleFlow({
         .flatMap((product) => {
           const result =
             pricingByProduct?.get(product.id) ??
-            calculatePricing(product, machines, fixedCosts, stock);
+            calculatePricing(product, machines, fixedCosts, stock, supplies);
           const baseName = product.name || product.mainStageName || "";
           // O produto inteiro sempre é vendável; subitens (FEAT-01) entram como
           // itens vendáveis à parte, cada um congelando só o seu custo/consumo.
@@ -88,7 +88,7 @@ export function SaleFlow({
         .sort((a, b) =>
           a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),
-    [products, pricingByProduct, machines, fixedCosts, stock],
+    [products, pricingByProduct, machines, fixedCosts, stock, supplies],
   );
 
   return (

@@ -6,6 +6,7 @@ import type {
   ProductPayload,
   SavedProduct,
   StockFilament,
+  Supply,
 } from "../types";
 
 const machines: Machine[] = [
@@ -16,6 +17,25 @@ const fixedCosts: FixedCostSettings = {
   enabled: true, rent: 900, other: 250, machines: 2, hoursDay: 10, daysMonth: 26,
 };
 const stock: StockFilament[] = [];
+// TD-033: os dois insumos que os acessórios da cobaia apontam. O preço do lote
+// mais novo é o que passa a precificar — o `unitPrice` gravado vira fallback.
+const supplies: Supply[] = [
+  {
+    id: "sup_argola", name: "Argola metalica", unit: "un", minQty: 0,
+    archived: false, adjustments: [], createdAt: 0,
+    lots: [
+      { id: "l1", purchaseDate: 1, initialQty: 100, remainingQty: 100, unitPrice: 0.43 },
+      { id: "l2", purchaseDate: 2, initialQty: 100, remainingQty: 100, unitPrice: 0.77 },
+    ],
+  },
+  {
+    id: "sup_cordao", name: "Cordao do topo", unit: "m", minQty: 0,
+    archived: false, adjustments: [], createdAt: 0,
+    lots: [
+      { id: "l1", purchaseDate: 1, initialQty: 50, remainingQty: 50, unitPrice: 1.4 },
+    ],
+  },
+];
 
 // COBAIA: exercita TODO campo ao mesmo tempo.
 const cobaia: SavedProduct = {
@@ -314,6 +334,23 @@ describe("CSV-03 — o que a importação IGNORA, ela conta", () => {
     expect(r.recalc?.exemplos[0]).toContain("Cobaia");
     // E o produto entra com o preço RECALCULADO, não com o editado.
     expect(r.products).toHaveLength(1);
+  });
+
+  // TD-033 — o preço do acessório passou a sair do CADASTRO, então a lista de
+  // insumos entrou no recálculo. Estes dois travam as duas pontas.
+  it("TD-033: export e import com os MESMOS insumos não acusam divergência", () => {
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock, supplies);
+    const r = parseProductsCsv(csv, machines, { fixedCosts, stock, supplies });
+    expect(r.recalc).toBeUndefined();
+  });
+
+  it("TD-033: exportado COM insumos e reimportado SEM eles, o aviso acende", () => {
+    // É o mesmo aviso de "a config mudou desde o export" — e é ele que impede a
+    // divergência de passar calada. Sem a lista, o recálculo cai no preço salvo
+    // (0,43 e 0,90) enquanto o arquivo traz o do cadastro (0,77 e 1,40).
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock, supplies);
+    const r = parseProductsCsv(csv, machines, { fixedCosts, stock });
+    expect(r.recalc?.divergentes).toBe(1);
   });
 
   it("sem as opções (taxa de fixo/estoque) a checagem não roda", () => {

@@ -493,11 +493,46 @@ describe("planSupplies", () => {
     expect(plan.supplyUpdates[0].lots[1].remainingQty).toBe(48);
   });
 
-  it("modo historico não toca lote (custo pelo preço congelado)", () => {
+  // TD-033: era "custo pelo preço congelado" (4 × 0,50 = 2,00, o
+  // `catalogUnitPrice` da linha). Agora o custo do histórico segue o CADASTRO —
+  // 4 × 0,80, o lote mais novo —, a mesma fonte que precifica o produto.
+  it("modo historico não toca lote (custo pelo CADASTRO do insumo)", () => {
     const plan = planSupplies([supplyUse({ qty: 4 })], [ima()], "e1", "historico");
-    expect(plan.cost).toBe(2);
+    expect(plan.cost).toBeCloseTo(3.2);
     expect(plan.moves).toEqual([]);
     expect(plan.supplyUpdates).toEqual([]);
+  });
+
+  it("modo historico: sem insumo no cadastro, o congelado da linha vale", () => {
+    const avulso = planSupplies(
+      [supplyUse({ qty: 3, supplyId: null, catalogUnitPrice: 2 })],
+      [ima()],
+      "e1",
+      "historico",
+    );
+    expect(avulso.cost).toBe(6);
+    const orfao = planSupplies(
+      [supplyUse({ qty: 2, supplyId: "sumiu", catalogUnitPrice: 1.5 })],
+      [ima()],
+      "e1",
+      "historico",
+    );
+    expect(orfao.cost).toBe(3);
+  });
+
+  it("insumo SEM LOTE: o lote de acerto nasce com o preço congelado da linha", () => {
+    // Sem cotação no cadastro (`catalogUnitPrice` = 0), o congelado é a única
+    // referência que existe — é ele que entra no lote de acerto do D4.
+    const vazio = makeSupply({ id: "ima", lots: [] });
+    const plan = planSupplies(
+      [supplyUse({ qty: 2, catalogUnitPrice: 1.25 })],
+      [vazio],
+      "e1",
+      "real",
+    );
+    expect(plan.debtLots[0].unitPrice).toBe(1.25);
+    expect(plan.cost).toBeCloseTo(2.5);
+    expect(plan.shortfall).toBe(2);
   });
 
   it("D4: passar do saldo reporta shortfall e deixa negativo", () => {

@@ -327,6 +327,11 @@ export type PricingResult = {
   // UI avisa com badge, no mesmo molde do `machineMissing`. Opcional: ausente em
   // snapshots antigos e quando não há nada ligado ao Estoque.
   filamentMissing?: boolean;
+  // TD-033: true quando algum acessório aponta para um INSUMO removido do
+  // Estoque e o custo caiu no `unitPrice` salvo. Gêmeo do `filamentMissing` —
+  // mesmo molde de badge. Insumo ARQUIVADO não acende: ele continua no cadastro
+  // e o preço dele continua vivo.
+  supplyMissing?: boolean;
   // FEAT-01: preço por subitem (rateio aditivo). Presente só quando o produto tem
   // `sellBySubitems` ligado com subitens válidos; nesse caso `suggestedPrice`/
   // `exactPrice` acima passam a ser a SOMA dos subitens (o inteiro = Σ partes).

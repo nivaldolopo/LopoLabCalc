@@ -11,6 +11,7 @@ import type {
   StockFilament,
   Subitem,
   SubitemPrice,
+  Supply,
 } from "../types";
 import { DEFAULT_FAILURE_RATE } from "../constants";
 import { roundPrice, type RoundingMode } from "./roundPrice";
@@ -20,6 +21,7 @@ import {
   normalizeFilaments,
 } from "./filaments";
 import { catalogPricePerKg } from "./stock";
+import { catalogUnitPrice } from "./supplies";
 import { resolveFleet, unionEligible } from "./fleet";
 import { num } from "@/lib/number";
 import type { FilamentUsage } from "../types";
@@ -61,6 +63,37 @@ function resolveFilamentPrices(
     return { ...f, pricePerKg: live > 0 ? live : num(f.pricePerKg) };
   });
   return { filaments: resolved, missing };
+}
+
+// TD-033 — preço VIVO do INSUMO, a metade que faltava da 7c. Gêmea exata da
+// `resolveFilamentPrices` acima: o acessório ligado a um insumo (`supplyId`)
+// tira o preço do CADASTRO na hora do cálculo (D3, lado catálogo: lote mais
+// novo = custo de repor), não do valor copiado quando o insumo foi escolhido.
+// Insumo mais caro TEM de deixar o produto mais caro — era assimetria, não
+// decisão (dono, 2026-09-08).
+//
+// Fallback, na mesma ordem do filamento: insumo REMOVIDO do estoque cai no
+// `unitPrice` salvo e marca `missing` (badge, molde do TD-009); insumo sem lote
+// (preço 0) também cai no salvo, mas SEM badge — ele existe, só não tem cotação,
+// exatamente como a cor sem rolo. Insumo ARQUIVADO segue vivo: ele continua no
+// cadastro e a última cotação continua sendo a dele (mesma regra da cor
+// arquivada). Acessório avulso (`supplyId` null) não é tocado.
+export function resolveAccessoryPrices(
+  accessories: Accessory[],
+  suppliesById: Map<string, Supply>,
+): { accessories: Accessory[]; missing: boolean } {
+  let missing = false;
+  const resolved = accessories.map((accessory) => {
+    if (!accessory.supplyId) return accessory; // avulso: mantém o preço digitado
+    const supply = suppliesById.get(accessory.supplyId);
+    if (!supply) {
+      missing = true;
+      return accessory; // insumo removido: fallback no preço salvo
+    }
+    const live = catalogUnitPrice(supply);
+    return live > 0 ? { ...accessory, unitPrice: live } : accessory;
+  });
+  return { accessories: resolved, missing };
 }
 
 export function normalizeStages(product: ProductInput): PrintStage[] {
@@ -160,11 +193,18 @@ export function calculatePricing(
   machines: Machine[],
   fixedCosts: FixedCostSettings,
   stock: StockFilament[] = [],
+  supplies: Supply[] = [],
 ): PricingResult {
   const pieces = Math.max(1, num(product.piecesCount) || 1);
   // 7c: índice cor→doc para resolver o preço vivo (D3). Vazio = nada ligado ao
   // Estoque (chamadas legadas/testes), e todo filamento cai no preço salvo.
   const stockById = new Map(stock.map((color) => [color.id, color]));
+  // TD-033: o mesmo índice, do lado do insumo. Vazio = todo acessório cai no
+  // preço salvo — e é por isso que a lista tem de vir INTEIRA (com os
+  // arquivados): filtrar aqui faria arquivado passar por removido.
+  const suppliesById = new Map(supplies.map((supply) => [supply.id, supply]));
+  const { accessories: resolvedAccessories, missing: supplyMissing } =
+    resolveAccessoryPrices(product.accessories ?? [], suppliesById);
   const mainStage = calculateStageCost(
     {
       machineIds: product.machineIds,
@@ -259,7 +299,7 @@ export function calculatePricing(
       stagesLabor) /
     pieces;
 
-  const accessoriesCost = (product.accessories ?? []).reduce(
+  const accessoriesCost = resolvedAccessories.reduce(
     (sum, accessory) =>
       sum +
       num(accessory.qty) * num(accessory.unitPrice),
@@ -331,7 +371,10 @@ export function calculatePricing(
     const priced = computeSubitems(
       product.subitems,
       stageDetails,
-      product.accessories ?? [],
+      // TD-033: os RESOLVIDOS, não os crus — o rateio por subitem tem de ver o
+      // mesmo preço que o `accessoriesCost` viu, senão as partes não somam o
+      // inteiro (FEAT-01).
+      resolvedAccessories,
       {
         pieces,
         productMarkup: product.markup,
@@ -385,6 +428,7 @@ export function calculatePricing(
     filaments: mergeFilaments(allFilaments),
     machineMissing: anyMachineMissing,
     filamentMissing: anyFilamentMissing,
+    supplyMissing,
     subitems,
   };
 }

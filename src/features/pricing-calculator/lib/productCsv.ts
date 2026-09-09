@@ -17,6 +17,7 @@ import type {
   SavedProduct,
   StockFilament,
   Subitem,
+  Supply,
 } from "../types";
 import { calculatePricing, MAIN_STAGE_KEY } from "./calculatePricing";
 import { validateProduct } from "./validateProduct";
@@ -1074,9 +1075,16 @@ export function exportProductsCsv(
   machines: Machine[],
   fixedCosts: FixedCostSettings,
   stock: StockFilament[] = [],
+  supplies: Supply[] = [],
 ): string {
   const rows = products.map((product) => {
-    const result = calculatePricing(product, machines, fixedCosts, stock);
+    const result = calculatePricing(
+      product,
+      machines,
+      fixedCosts,
+      stock,
+      supplies,
+    );
     const includeFixed = Boolean(product.includeFixed);
     // FEAT-02: cores da etapa principal (mono = 1). Os escalares "Peso (g)" e
     // "Filamento (R$/kg)" viram resumo humano; o round-trip exato vai no JSON.
@@ -1237,16 +1245,18 @@ export type CsvImportResult = {
   issues?: CsvIssue[];
 };
 
-// Recalcular exige a taxa de custo fixo e as cores do Estoque — sem elas o
-// número não é comparável, e a checagem simplesmente não roda (é o caso dos
-// testes de parsing puro, que não têm negócio configurado).
+// Recalcular exige a taxa de custo fixo, as cores e os INSUMOS do Estoque — sem
+// eles o número não é comparável, e a checagem simplesmente não roda (é o caso
+// dos testes de parsing puro, que não têm negócio configurado).
 export type CsvParseOptions = {
   fixedCosts: FixedCostSettings;
   stock?: StockFilament[];
-  // CSV-05: só para CONFERIR referências da planilha — o insumo ligado ao
-  // acessório (7e) e o nome já usado no catálogo. Nenhum dos dois entra em
-  // cálculo; ausentes, as checagens correspondentes simplesmente não rodam.
-  supplies?: { id: string }[];
+  // CSV-05: confere referências da planilha (o insumo ligado ao acessório, 7e) e
+  // o nome já usado no catálogo. ⚠ TD-033: a lista de insumos deixou de ser só
+  // referência — ela ENTRA no recálculo, porque o preço do acessório passou a
+  // ser o do cadastro. Sem ela o CSV-03 acusaria divergência falsa em todo
+  // produto com acessório ligado. `existingNames` continua fora de cálculo.
+  supplies?: Supply[];
   existingNames?: string[];
 };
 
@@ -2269,6 +2279,7 @@ export function parseProductsCsv(
           machines,
           options.fixedCosts,
           options.stock ?? [],
+          options.supplies ?? [],
         );
         const divergePreco =
           arquivoPreco !== null &&

@@ -782,7 +782,7 @@ export function SaleModal({
       if (item.source.subitemId) {
         const priced =
           precoCache.get(product.id) ??
-          calculatePricing(product, machines, fixedCosts, stock);
+          calculatePricing(product, machines, fixedCosts, stock, supplies);
         precoCache.set(product.id, priced);
         const sub = priced.subitems?.find((x) => x.id === item.source.subitemId);
         if (!sub) continue;
@@ -794,7 +794,7 @@ export function SaleModal({
       notes.set(item.key, encomendaAssignmentNote(rows, machines));
     }
     return { machineOptionsByKey: out, machineNoteByKey: notes };
-  }, [items, products, machines, stock, fixedCosts]);
+  }, [items, products, machines, stock, fixedCosts, supplies]);
 
   // Itens travados: há mais de uma candidata e o dono não escolheu. Uma
   // candidata só não trava — não há escolha a fazer, e a reconciliação carimba

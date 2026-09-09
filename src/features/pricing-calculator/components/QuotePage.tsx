@@ -19,6 +19,7 @@ import { useProducts } from "../hooks/useProducts";
 import { useQuoteConfig } from "../hooks/useQuoteConfig";
 import { useQuotes } from "../hooks/useQuotes";
 import { useStock } from "../hooks/useStock";
+import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
 import { reserveQuoteNumber } from "@/lib/firebase/quotesRepository";
 import type { QuoteBusiness, QuoteRecord, QuoteRecordPayload } from "../types";
@@ -59,6 +60,9 @@ export function QuotePage() {
   const { machines } = useMachines();
   // TD-017: o orcamento precifica com o preco VIVO do rolo, igual ao catalogo.
   const { filaments: stock } = useStock();
+  // TD-033: o preço do acessório é VIVO, como o do rolo — sem os insumos aqui a
+  // mesma opção sairia por um valor no catálogo e outro no orçamento.
+  const { supplies } = useSupplies();
   const { fixedCostRate } = useBusinessSettings();
   const { business: cfgBusiness, loaded, saveBusiness } = useQuoteConfig();
 
@@ -122,7 +126,13 @@ export function QuotePage() {
     () =>
       products
         .flatMap((product) => {
-          const result = calculatePricing(product, machines, fixedCosts, stock);
+          const result = calculatePricing(
+            product,
+            machines,
+            fixedCosts,
+            stock,
+            supplies,
+          );
           const baseName = product.name || product.mainStageName || "Produto";
           // FEAT-08: os ids acompanham a opção pro seed do catálogo achar a linha
           // certa. O dropdown continua escolhendo por índice.
@@ -141,7 +151,7 @@ export function QuotePage() {
           return [whole, ...subs];
         })
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
-    [products, machines, fixedCosts, stock],
+    [products, machines, fixedCosts, stock, supplies],
   );
 
   const total = useMemo(

@@ -5,9 +5,10 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob demanda. A foto
 > do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-08 (fim do dia): uma dívida e uma feature ACORDADAS** — o **[TD-033]** e o
-> **[FEAT-12]**, nascidos da conversa sobre *reprecificação automática* e escritos aqui sem depender
-> dela. Antes deles a lista não tinha dívida de código: a [AUD-08] provou as regras do Firestore — a
+> **Estado em 2026-09-08 (fim do dia): o [TD-033] FECHOU; sobra o [FEAT-12]** — os dois nasceram da
+> conversa sobre *reprecificação automática*; o TD-033 (preço vivo do insumo) foi primeiro e sozinho,
+> como a spec dele exigia, e o writeup está no `HISTORICO.md`. Fora o FEAT-12 a lista não tem dívida
+> de código: a [AUD-08] provou as regras do Firestore — a
 > lacuna mais velha, aberta desde a AUD-09; a [AUD-18] fechou seis lacunas de prova e os 2 defeitos
 > que elas revelaram (writeups no `HISTORICO.md`); a [AUD-17] fechara os 6 dela antes, e as duas
 > fases do [FROTA] em 2026-09-01. O resto **depende de algo de fora**: a logo, o cadastro do dono, o
@@ -18,37 +19,13 @@
 
 ## ▶ Disponível HOJE — a frente que não espera ninguém
 
-> **Ordem:** o **[TD-033]** vai primeiro e sozinho, o **[FEAT-12]** em seguida (o porquê da
-> ordem está no [TD-033]). A **[FEAT-03] sem a logo** continua livre, atrás dos dois.
-
-- **▶ [TD-033] Insumo com preço VIVO, como o filamento — vai PRIMEIRO e sozinho.**
-  **O que é:** uma assimetria que ninguém decidiu. A 7c deu preço vivo ao FILAMENTO
-  (`resolveFilamentPrices`, `calculatePricing.ts:48`, via `catalogPricePerKg`), e o ACESSÓRIO ficou
-  congelado: o `AccessoriesSection.tsx:49` grava `catalogUnitPrice(supply)` dentro do produto no
-  momento de escolher o insumo, e o `calculatePricing` soma `qty × unitPrice` do que está salvo sem
-  nunca reler o cadastro. Insumo que mudou de preço não chega ao preço do produto. *(Dono,
-  2026-09-08: "deveria sim ser igual filamento, afinal o preço de um insumo pode mudar.")*
-  **O gêmeo já existe:** `catalogUnitPrice(supply)` (`lib/supplies.ts:52`), idêntico em papel ao
-  `catalogPricePerKg`. **O que fazer:** `calculatePricing` passa a receber `supplies`; acessório com
-  `supplyId` resolve pelo cadastro; insumo apagado/arquivado cai no `unitPrice` salvo e marca
-  `missing` — mesmo molde de badge (TD-009) que a cor removida já usa. O `unitPrice` continua sendo
-  gravado no produto: vira **fallback**, exatamente como o `FilamentUsage.pricePerKg`.
-  **O custo é o fanout**, no mesmo formato que o parâmetro `stock` já percorreu: `CatalogPage:91` ·
-  `PricingCalculator:144` · `ProductCatalog:159` · `ProductionPage:151` · `QuotePage:125` ·
-  `SaleFlow:67` · `SaleModal:785` · `SalesPage:232` · `StockPage:254` · `productCsv.ts` (2 pontos) ·
-  `saleReconciliation.ts:176` (entra no `ctx`).
-  ⚠ **Por que ANTES do [FEAT-12], e não junto:** ligar o preço vivo reprecifica de uma vez todo
-  produto cujo insumo andou desde o cadastro. Se as duas coisas entrarem no mesmo lote, a **primeira
-  prévia** da trava mistura *"o ímã subiu desde que você cadastrou"* com *"esta edição de máquina fez
-  isto"* — a trava estrearia mentindo. **Sem prévia e sem migração** (Diretriz 7; o dono confirmou em
-  2026-09-08 que reprecificar o catálogo atual de uma vez não é problema — o dado de hoje é teste).
-  **Aceite:** teste puro de que acessório ligado segue o cadastro, insumo apagado cai no salvo com
-  `missing`, e o acessório **avulso** (`supplyId` null) continua intocado.
+> **Ordem:** o **[FEAT-12]** primeiro (o [TD-033], que tinha de vir antes dele, fechou em
+> 2026-09-08). A **[FEAT-03] sem a logo** continua livre, atrás dele.
 
 - **▶ [FEAT-12] Controle de mudança GLOBAL de preço + página de Configurações.**
   **O problema, medido:** o preço não é dado, é **função**. Não existe campo de preço no produto
   (`ProductPayload` não tem nenhum) — toda tela chama `calculatePricing(product, machines,
-  fixedCosts, stock)` no render. Logo, mexer numa alavanca global reprecifica o catálogo inteiro,
+  fixedCosts, stock, supplies)` no render. Logo, mexer numa alavanca global reprecifica o catálogo inteiro,
   **em todos os aparelhos** (os docs `config/*` são realtime e compartilhados), **sem aviso, sem
   antes/depois e sem desfazer** — o `rev` da AUD-18 conta versão, não guarda a anterior. `lifeHours`
   7500 → 750 multiplica a depreciação por 10 em todo produto da máquina, calado.
@@ -63,7 +40,7 @@
   - **pergunta antes** → máquinas (watts, preço/vida, manutenção, peso) · **excluir máquina** (o id
     salvo vira órfão e o produto cai na frota inteira, `resolveFleet`) · custo fixo (`config/negocio`).
   - **conta depois** → rolo novo de uma cor / cor arquivada (`resolveFilamentPrices`) · lote novo de
-    um insumo / insumo arquivado (existe a partir do [TD-033]).
+    um insumo (`resolveAccessoryPrices`, viva desde o [TD-033]).
   **Fora de escopo, decidido:** `config/taxas` — é doc compartilhado (não é por venda, ao contrário
   do que parece na tela), mas move só a **dica de margem líquida**, não a etiqueta. E mover os
   painéis de config existentes de casa (ver peça 4).
@@ -309,7 +286,7 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
   ⚠ **A mecânica que SOBREVIVE ao recadastro:** `saveProduct` usa `tx.update`, que faz **merge** —
   campo que o `buildProductPayload` deixe de gravar fica no documento pra sempre.
 - **[TD-021] e [CSV-30]** seguem ressalva por decisão do dono.
-- **O `CLAUDE.md` está em 300 linhas, contra o alvo de ~270** (Diretriz 8). O Status já foi
+- **O `CLAUDE.md` está em 330 linhas, contra o alvo de ~270** (Diretriz 8). O Status já foi
   comprimido; o que sobra de gordura são as **7 regras de CSS/UI** dos Pontos-chave (~30 linhas).
   Movê-las para o `HISTORICO.md` é a saída natural, mas é decisão deliberada — elas são guarda-corpo
   de quem escreve CSS novo, e o `HISTORICO` só entra em contexto quando alguém o lê.

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import { catalogUnitPrice } from "../lib/supplies";
@@ -13,7 +13,9 @@ type AccessoriesSectionProps = {
   // Quando há subitens, cada acessório ganha um seletor para ser atribuído a um
   // subitem (senão fica no nível do produto, rateado).
   subitems: Subitem[];
-  // 7e: insumos ATIVOS do estoque. Ligar o acessório a um deles é o que faz a
+  // 7e: insumos do estoque, a lista INTEIRA — as ativas viram opção e a
+  // arquivada só aparece quando é a que está ligada (espelho do
+  // `FilamentColorsSection`). Ligar o acessório a um insumo é o que faz a
   // produção dar baixa por unidade; sem ligação, o acessório é avulso (só custo).
   supplies: Supply[];
   onAddAccessory: () => void;
@@ -32,10 +34,16 @@ export function AccessoriesSection({
   onUpdateAccessory,
 }: AccessoriesSectionProps) {
   const [open, setOpen] = useState(false);
+  // TD-033: as opções do seletor são as ATIVAS, em ordem — a arquivada só
+  // aparece quando é a que já está ligada (bloco abaixo), como a cor arquivada.
+  const activeSupplies = supplies
+    .filter((supply) => !supply.archived)
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
   // Escolher o insumo COPIA nome e preço para o acessório (denormalização
-  // deliberada, igual ao `pricePerKg` do filamento): o produto continua se
-  // precificando sozinho, sem depender do estoque estar carregado.
+  // deliberada, igual ao `pricePerKg` do filamento). ⚠ TD-033: o preço copiado é
+  // FALLBACK, não a fonte — quem precifica lê o cadastro na hora do cálculo. Ele
+  // só volta a valer se o insumo for removido do Estoque.
   function linkSupply(accessory: Accessory, supplyId: string) {
     if (supplyId === AVULSO) {
       onUpdateAccessory(accessory.id ?? "", { supplyId: null });
@@ -93,11 +101,11 @@ export function AccessoriesSection({
           // valendo pelo preço congelado, mas o dono precisa saber que a baixa
           // não vai acontecer.
           const orphan = Boolean(accessory.supplyId) && !supply;
-          const refill = supply ? catalogUnitPrice(supply) : 0;
-          const stale =
-            supply !== undefined &&
-            refill > 0 &&
-            Math.abs(refill - (accessory.unitPrice || 0)) > 0.001;
+          const livePrice = supply ? catalogUnitPrice(supply) : 0;
+          // TD-033, espelho do `showLivePrice` do filamento: só-leitura quando há
+          // preço vivo (insumo com lote). Insumo sem lote ou removido cai no
+          // preço salvo, que permanece editável (fallback D3).
+          const showLivePrice = Boolean(supply) && livePrice > 0;
 
           return (
           <div className="accessory-block" key={accessory.id}>
@@ -140,15 +148,24 @@ export function AccessoriesSection({
                 <span className="acc-label" aria-hidden="true">
                   R$/un
                 </span>
-                <NumberInput
-                  aria-label="Preço unitário (R$)"
-                  min={0}
-                  step="0.01"
-                  value={accessory.unitPrice}
-                  onChange={(unitPrice) =>
-                    onUpdateAccessory(accessory.id ?? "", { unitPrice })
-                  }
-                />
+                {showLivePrice ? (
+                  <div
+                    className="acc-live-price"
+                    title="Preço do lote mais novo (Estoque) — atualiza sozinho"
+                  >
+                    {formatCurrency(livePrice)}
+                  </div>
+                ) : (
+                  <NumberInput
+                    aria-label="Preço unitário (R$)"
+                    min={0}
+                    step="0.01"
+                    value={accessory.unitPrice}
+                    onChange={(unitPrice) =>
+                      onUpdateAccessory(accessory.id ?? "", { unitPrice })
+                    }
+                  />
+                )}
               </span>
               <button
                 className="icon-button danger"
@@ -169,11 +186,14 @@ export function AccessoriesSection({
                 onChange={(event) => linkSupply(accessory, event.target.value)}
               >
                 <option value={AVULSO}>Avulso (sem baixa no estoque)</option>
-                {supplies.map((item) => (
+                {activeSupplies.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
                   </option>
                 ))}
+                {supply && supply.archived ? (
+                  <option value={supply.id}>{supply.name} (arquivado)</option>
+                ) : null}
                 {orphan ? (
                   <option value={accessory.supplyId ?? ""}>
                     (insumo removido do estoque)
@@ -182,25 +202,16 @@ export function AccessoriesSection({
               </select>
             </label>
 
-            {stale && supply ? (
-              <div className="accessory-hint">
-                O insumo está a {formatCurrency(refill)}/{supply.unit} agora.
-                <button
-                  className="link-button"
-                  type="button"
-                  onClick={() =>
-                    onUpdateAccessory(accessory.id ?? "", { unitPrice: refill })
-                  }
-                >
-                  <RefreshCw size={13} /> Atualizar preço
-                </button>
-              </div>
-            ) : null}
+            {/* TD-033: aqui ficava o aviso "o insumo está a R$ x agora ·
+                Atualizar preço". Ele existia porque o preço era congelado na
+                escolha; com o preço VIVO ele mentiria — o custo já está no valor
+                do cadastro, e não há nada para atualizar à mão. */}
 
             {orphan ? (
               <div className="accessory-hint warn">
-                O insumo ligado não está mais no estoque — o custo segue valendo,
-                mas a produção não vai dar baixa. Escolha outro ou deixe avulso.
+                O insumo ligado não está mais no estoque — o custo caiu no
+                último preço salvo e a produção não vai dar baixa. Escolha outro
+                ou deixe avulso.
               </div>
             ) : null}
 

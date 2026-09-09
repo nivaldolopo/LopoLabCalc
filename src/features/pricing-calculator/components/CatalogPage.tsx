@@ -88,10 +88,13 @@ export function CatalogPage() {
   const pricingByProduct = useMemo(() => {
     const map = new Map<string, PricingResult>();
     productsApi.products.forEach((product) => {
-      map.set(product.id, calculatePricing(product, machines, fixedCosts, stock));
+      map.set(
+        product.id,
+        calculatePricing(product, machines, fixedCosts, stock, supplies),
+      );
     });
     return map;
-  }, [productsApi.products, machines, fixedCosts, stock]);
+  }, [productsApi.products, machines, fixedCosts, stock, supplies]);
 
   // "Editar" virou cross-page: manda pra calculadora com o produto na query.
   // A `PricingCalculator` carrega o produto no form e limpa a URL.

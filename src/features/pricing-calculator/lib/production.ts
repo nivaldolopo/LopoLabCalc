@@ -7,6 +7,7 @@ import {
 } from "./stock";
 import {
   applySupplyConsumption,
+  catalogUnitPrice,
   reverseSupplyConsumption,
   simulateSupplyConsumption,
   withDebtLot,
@@ -204,7 +205,10 @@ export const EMPTY_SUPPLY_PLAN: SupplyPlan = {
 /**
  * Planeja a baixa de INSUMOS de UM evento (7e). PURA, gêmea de `planProduction`.
  *
- * Modo `historico`: não toca lote — o custo sai do `catalogUnitPrice` congelado.
+ * Modo `historico`: não toca lote — o custo sai do CADASTRO do insumo (TD-033,
+ * lote mais novo), com o `catalogUnitPrice` congelado na linha como fallback de
+ * avulso/órfão/insumo sem lote. Congelar aqui um preço que o preço do produto
+ * não usa mais faria o COGS do histórico divergir da etiqueta.
  * Modo `real`: insumo ligado (`supplyId`) e existente é consumido via FIFO;
  * acessório AVULSO (sem `supplyId`) ou insumo removido do estoque cai no
  * fallback do preço congelado, SEM move — exatamente o caminho que a cor avulsa
@@ -219,17 +223,27 @@ export function planSupplies(
 ): SupplyPlan {
   if (usages.length === 0) return EMPTY_SUPPLY_PLAN;
 
+  const byId = new Map(supplies.map((supply) => [supply.id, supply]));
+  // TD-033: o preço de UMA unidade da linha — o do cadastro quando o insumo
+  // existe e tem cotação, o congelado da linha no resto (avulso, insumo removido
+  // do Estoque, insumo sem lote nenhum). Mesma ordem de fallback da
+  // `resolveAccessoryPrices`, que precifica o produto.
+  const unitPriceOf = (usage: SupplyUsage): number => {
+    const supply = usage.supplyId ? byId.get(usage.supplyId) : undefined;
+    const live = supply ? catalogUnitPrice(supply) : 0;
+    return live > 0 ? live : num(usage.catalogUnitPrice);
+  };
+
   if (mode === "historico") {
     return {
       ...EMPTY_SUPPLY_PLAN,
       cost: usages.reduce(
-        (sum, usage) => sum + num(usage.qty) * num(usage.catalogUnitPrice),
+        (sum, usage) => sum + num(usage.qty) * unitPriceOf(usage),
         0,
       ),
     };
   }
 
-  const byId = new Map(supplies.map((supply) => [supply.id, supply]));
   const updates = new Map<string, Supply>();
   const moves: StockMove[] = [];
   let cost = 0;
@@ -246,8 +260,9 @@ export function planSupplies(
       : undefined;
 
     if (!encontrado) {
-      // Avulso ou insumo órfão (removido do Estoque): custo sim, baixa não.
-      cost += qty * num(usage.catalogUnitPrice);
+      // Avulso ou insumo órfão (removido do Estoque): custo sim, baixa não. Sem
+      // insumo no cadastro, o `unitPriceOf` já devolve o congelado da linha.
+      cost += qty * unitPriceOf(usage);
       continue;
     }
 

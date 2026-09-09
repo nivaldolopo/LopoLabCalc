@@ -148,10 +148,13 @@ export function ProductionPage() {
   const pricingByProduct = useMemo(() => {
     const map = new Map<string, ReturnType<typeof calculatePricing>>();
     for (const product of products) {
-      map.set(product.id, calculatePricing(product, machines, fixedCosts, stock));
+      map.set(
+        product.id,
+        calculatePricing(product, machines, fixedCosts, stock, supplies),
+      );
     }
     return map;
-  }, [products, machines, fixedCosts, stock]);
+  }, [products, machines, fixedCosts, stock, supplies]);
 
   // Opções do seletor: produto inteiro + cada subitem vendável + "Avulso".
   const options = useMemo(() => {

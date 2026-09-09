@@ -160,6 +160,13 @@ export function PricingResultCard({
         </div>
       ) : null}
 
+      {result.supplyMissing ? (
+        <div className="form-error machine-missing">
+          ⚠ Insumo removido do Estoque — usando o preço salvo como fallback.
+          Religue o acessório a um insumo (o custo pode estar errado).
+        </div>
+      ) : null}
+
       <div className="rounding-control">
         <label htmlFor="rounding-mode">Arredondar preço</label>
         <select

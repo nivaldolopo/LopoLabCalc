@@ -27,7 +27,10 @@ import type {
 } from "../types";
 import { errorMessage, guardOnline } from "@/lib/errors";
 import { matchesQuery } from "@/lib/text";
-import { calculatePricing } from "../lib/calculatePricing";
+import {
+  calculatePricing,
+  resolveAccessoryPrices,
+} from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { filamentsTotalG, normalizeFilaments } from "../lib/filaments";
 import { marginTierClass, marginTierTitle } from "../lib/marginTier";
@@ -156,8 +159,8 @@ export function ProductCatalog({
   const resultFor = useCallback(
     (product: SavedProduct) =>
       pricingByProduct.get(product.id) ??
-      calculatePricing(product, machines, fixedCosts, stock),
-    [pricingByProduct, machines, fixedCosts, stock],
+      calculatePricing(product, machines, fixedCosts, stock, supplies),
+    [pricingByProduct, machines, fixedCosts, stock, supplies],
   );
 
   const sortedProducts = useMemo(() => {
@@ -228,7 +231,7 @@ export function ProductCatalog({
   }
 
   function exportCsv() {
-    const csv = exportProductsCsv(products, machines, fixedCosts, stock);
+    const csv = exportProductsCsv(products, machines, fixedCosts, stock, supplies);
     downloadCsv("catalogo-precos-3d.csv", csv);
   }
 
@@ -562,6 +565,7 @@ export function ProductCatalog({
                         <CatalogDetails
                           product={product}
                           result={result}
+                          supplies={supplies}
                           fixedCosts={fixedCosts}
                           capacitySettings={capacitySettings}
                           fees={fees}
@@ -586,6 +590,7 @@ export function ProductCatalog({
 function CatalogDetails({
   product,
   result,
+  supplies,
   fixedCosts,
   capacitySettings,
   fees,
@@ -595,6 +600,10 @@ function CatalogDetails({
 }: {
   product: SavedProduct;
   result: ReturnType<typeof calculatePricing>;
+  // TD-033: o detalhe mostra o preço que o cálculo USOU (o do cadastro), não o
+  // congelado no documento — mostrar o salvo aqui seria pintar um valor que não
+  // é o da etiqueta.
+  supplies: Supply[];
   fixedCosts: FixedCostSettings;
   capacitySettings: CapacitySettings;
   fees: PaymentFeeSettings;
@@ -607,7 +616,10 @@ function CatalogDetails({
   onQuote: (product: SavedProduct, subitemId?: string) => void;
 }) {
   const stages = product.stages ?? [];
-  const accessories = product.accessories ?? [];
+  const { accessories, missing: supplyMissing } = resolveAccessoryPrices(
+    product.accessories ?? [],
+    new Map(supplies.map((supply) => [supply.id, supply])),
+  );
   const links = [
     ["📦 Modelo original ↗", product.linkModel],
     ["🏷️ Concorrente ↗", product.linkCompetitor],
@@ -899,7 +911,18 @@ function CatalogDetails({
 
       {accessories.length > 0 ? (
         <div className="details-span">
-          <div className="db-label">🧩 Acessórios</div>
+          <div className="db-label">
+            🧩 Acessórios
+            {supplyMissing ? (
+              <span
+                className="machine-missing-badge"
+                title="Insumo removido do Estoque — usando o preço salvo. Religue o acessório a um insumo (o custo pode estar errado)."
+              >
+                {" "}
+                ⚠ insumo removido
+              </span>
+            ) : null}
+          </div>
           <div className="details-tags">
             {accessories.map((accessory, index) => (
               <span key={`${accessory.desc}-${index}`}>
