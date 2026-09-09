@@ -17,8 +17,14 @@
   nem existe), `pnpm test:rules` (**119 testes**, 12 identidades; a mutação derruba **73**) e o
   **diff contra o ruleset publicado** (17 linhas, idênticas). **Nenhum defeito, nenhum resíduo.**
   Writeup no [`HISTORICO.md`](.claude/HISTORICO.md).
-- **▶ PRÓXIMA TAREFA — nenhuma dívida de código.** A frente livre é **[FEAT-03] sem a logo** (5
-  sementes do PDF que não tocam em marca), no [`BACKLOG.md`](.claude/BACKLOG.md).
+- **▶ PRÓXIMA TAREFA — [TD-033], e depois o [FEAT-12]** (dono, 2026-09-08): hoje **qualquer**
+  alavanca global reprecifica o catálogo inteiro, em todos os aparelhos, sem prévia nem rastro. O
+  **[TD-033]** liga o preço VIVO do insumo (o filamento já é; o acessório ficou congelado — metade
+  não escrita da 7c) e vai **sozinho e primeiro**, senão a 1ª prévia da trava nasce poluída. O
+  **[FEAT-12]** traz a prévia+confirmação, o aviso pós-fato, o registro `alteracoes` e a página nova
+  **`/configuracoes`** (⚙ discreto, fora das abas). Spec completa no
+  [`BACKLOG.md`](.claude/BACKLOG.md) — **não** depende de nenhum chat. A [FEAT-03] sem a logo segue
+  livre, atrás dos dois.
 - ⚠ **O projeto Firebase é da conta `lopolab3d`, NÃO da `nivaldo.lopo`** — ela vive em **outro
   perfil do Chrome**, e a extensão precisa estar conectada *nele* (`list_connected_browsers` mostra
   as duas). Deep-link pra página de regras redireciona: o caminho é Firestore → aba **Security**.

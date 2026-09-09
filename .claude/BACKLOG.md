@@ -5,17 +5,102 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob demanda. A foto
 > do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-08: NÃO há dívida de código pendente.** A [AUD-08] provou as regras do
-> Firestore — a lacuna mais velha da lista, aberta desde a AUD-09; a [AUD-18] fechou seis lacunas de
-> prova e os 2 defeitos que elas revelaram (writeups no `HISTORICO.md`); a [AUD-17] fechara os 6 dela
-> antes, e as duas fases do [FROTA] em 2026-09-01. O que sobra aqui é **uma frente disponível HOJE**
-> e o que **depende de algo de fora**: a logo, o cadastro do dono, o LibreOffice, ou ~1-2 meses de
-> venda real.
+> **Estado em 2026-09-08 (fim do dia): uma dívida e uma feature ACORDADAS** — o **[TD-033]** e o
+> **[FEAT-12]**, nascidos da conversa sobre *reprecificação automática* e escritos aqui sem depender
+> dela. Antes deles a lista não tinha dívida de código: a [AUD-08] provou as regras do Firestore — a
+> lacuna mais velha, aberta desde a AUD-09; a [AUD-18] fechou seis lacunas de prova e os 2 defeitos
+> que elas revelaram (writeups no `HISTORICO.md`); a [AUD-17] fechara os 6 dela antes, e as duas
+> fases do [FROTA] em 2026-09-01. O resto **depende de algo de fora**: a logo, o cadastro do dono, o
+> LibreOffice, ou ~1-2 meses de venda real.
 >
 > ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho.
 
 ## ▶ Disponível HOJE — a frente que não espera ninguém
+
+> **Ordem:** o **[TD-033]** vai primeiro e sozinho, o **[FEAT-12]** em seguida (o porquê da
+> ordem está no [TD-033]). A **[FEAT-03] sem a logo** continua livre, atrás dos dois.
+
+- **▶ [TD-033] Insumo com preço VIVO, como o filamento — vai PRIMEIRO e sozinho.**
+  **O que é:** uma assimetria que ninguém decidiu. A 7c deu preço vivo ao FILAMENTO
+  (`resolveFilamentPrices`, `calculatePricing.ts:48`, via `catalogPricePerKg`), e o ACESSÓRIO ficou
+  congelado: o `AccessoriesSection.tsx:49` grava `catalogUnitPrice(supply)` dentro do produto no
+  momento de escolher o insumo, e o `calculatePricing` soma `qty × unitPrice` do que está salvo sem
+  nunca reler o cadastro. Insumo que mudou de preço não chega ao preço do produto. *(Dono,
+  2026-09-08: "deveria sim ser igual filamento, afinal o preço de um insumo pode mudar.")*
+  **O gêmeo já existe:** `catalogUnitPrice(supply)` (`lib/supplies.ts:52`), idêntico em papel ao
+  `catalogPricePerKg`. **O que fazer:** `calculatePricing` passa a receber `supplies`; acessório com
+  `supplyId` resolve pelo cadastro; insumo apagado/arquivado cai no `unitPrice` salvo e marca
+  `missing` — mesmo molde de badge (TD-009) que a cor removida já usa. O `unitPrice` continua sendo
+  gravado no produto: vira **fallback**, exatamente como o `FilamentUsage.pricePerKg`.
+  **O custo é o fanout**, no mesmo formato que o parâmetro `stock` já percorreu: `CatalogPage:91` ·
+  `PricingCalculator:144` · `ProductCatalog:159` · `ProductionPage:151` · `QuotePage:125` ·
+  `SaleFlow:67` · `SaleModal:785` · `SalesPage:232` · `StockPage:254` · `productCsv.ts` (2 pontos) ·
+  `saleReconciliation.ts:176` (entra no `ctx`).
+  ⚠ **Por que ANTES do [FEAT-12], e não junto:** ligar o preço vivo reprecifica de uma vez todo
+  produto cujo insumo andou desde o cadastro. Se as duas coisas entrarem no mesmo lote, a **primeira
+  prévia** da trava mistura *"o ímã subiu desde que você cadastrou"* com *"esta edição de máquina fez
+  isto"* — a trava estrearia mentindo. **Sem prévia e sem migração** (Diretriz 7; o dono confirmou em
+  2026-09-08 que reprecificar o catálogo atual de uma vez não é problema — o dado de hoje é teste).
+  **Aceite:** teste puro de que acessório ligado segue o cadastro, insumo apagado cai no salvo com
+  `missing`, e o acessório **avulso** (`supplyId` null) continua intocado.
+
+- **▶ [FEAT-12] Controle de mudança GLOBAL de preço + página de Configurações.**
+  **O problema, medido:** o preço não é dado, é **função**. Não existe campo de preço no produto
+  (`ProductPayload` não tem nenhum) — toda tela chama `calculatePricing(product, machines,
+  fixedCosts, stock)` no render. Logo, mexer numa alavanca global reprecifica o catálogo inteiro,
+  **em todos os aparelhos** (os docs `config/*` são realtime e compartilhados), **sem aviso, sem
+  antes/depois e sem desfazer** — o `rev` da AUD-18 conta versão, não guarda a anterior. `lifeHours`
+  7500 → 750 multiplica a depreciação por 10 em todo produto da máquina, calado.
+  ⚠ **O que NÃO é o problema** (dono, 2026-09-08): que o preço acompanhe o insumo. **Filamento mais
+  caro DEVE deixar o produto mais caro** — falta controle e rastro, não trava.
+  **Já é imune, e continua fora:** venda (`frozenCost` + preço congelado), evento de produção e
+  orçamento emitido (`QuoteItemSnapshot.unitPrice`). O dano nunca foi retroativo — é a vitrine e o
+  que for emitido depois.
+  **As 5 alavancas, e o tratamento de cada uma** *(o critério é a tela em que o dono está: se ele
+  está olhando para a alavanca, pergunta antes; se ela se moveu como efeito colateral de outra
+  tarefa, conta depois)*:
+  - **pergunta antes** → máquinas (watts, preço/vida, manutenção, peso) · **excluir máquina** (o id
+    salvo vira órfão e o produto cai na frota inteira, `resolveFleet`) · custo fixo (`config/negocio`).
+  - **conta depois** → rolo novo de uma cor / cor arquivada (`resolveFilamentPrices`) · lote novo de
+    um insumo / insumo arquivado (existe a partir do [TD-033]).
+  **Fora de escopo, decidido:** `config/taxas` — é doc compartilhado (não é por venda, ao contrário
+  do que parece na tela), mas move só a **dica de margem líquida**, não a etiqueta. E mover os
+  painéis de config existentes de casa (ver peça 4).
+  **As peças:**
+  1. **`lib/repriceImpact.ts`, pura** — `computeRepriceImpact(products, antes, depois)`, onde
+     *antes/depois* é o pacote de alavancas. Devolve por produto preço antes/depois/Δ R$/Δ% e os
+     agregados: afetados, subiram, desceram, média, os maiores movimentos e **quem CRUZA a faixa do
+     `marginTier`** (dono: "preço mais quem cruza"). A régua usada é a **margem precificada bruta,
+     pré-taxa** — a mesma que o catálogo pinta —, e é por isso que a prévia não depende de
+     `config/taxas`. Uma função, três superfícies; molde do `fleet.ts`.
+  2. **Passo de confirmação — componente AUTÔNOMO**, não colado no `MachineManagerModal`: os painéis
+     de config vão mudar de casa (peça 4) e acoplar custaria reescrita. Cancelar não grava (é o
+     rascunho de hoje). ⚠ **A prévia calcula contra a MESMA lista que a `revDoRascunho` descreve**
+     (AUD-18): usar o `machines` vivo mostraria um "antes" que é o de quem acabou de sobrescrever;
+     `rev` recusada → prévia descartada com o motivo, e a trava atual segue idêntica.
+  3. **Aviso pós-fato**, nas portas do estoque: **UM aviso que ACUMULA** ("3 alterações
+     reprecificaram 21 produtos · ver quais") — cadastrar 4 rolos seguidos não pode virar 4 caixas.
+     **Fica até dispensar** (dono), dispensa persistida por entrada do registro (localStorage), e
+     vive no **aparelho que fez a mudança** — os outros ficam com o registro, que é permanente e não
+     interrompe ninguém. "Ver quais" abre a entrada em `/configuracoes`. Sem leitura nova: a
+     `StockPage` já precifica o catálogo inteiro (`StockPage.tsx:254`).
+  4. **Página nova `/configuracoes`** — **⚙ discreto, separado das abas de conteúdo** da `NavBar`
+     (dono, 2026-09-08): não é destino diário e seria a 8ª aba numa linha de 7. Nasce só com o
+     registro, mas é a **casa futura da coleção `config/`**, hoje espalhada — `config/machines`
+     (modal da calculadora), `config/negocio` (painel da calculadora), `config/taxas` (modal da
+     venda), `config/orcamento` (página Orçamento). **Mover não é deste item**; registrar o destino é
+     o que justifica a peça 2 nascer desacoplada.
+  5. **O registro** — coleção `alteracoes`, um doc por mudança: `at`, quem (e-mail do AuthGate),
+     alavanca, antes, depois, e `impacto` (afetados, subiram, desceram, médiaPct, **até 10** maiores
+     com id/nome/antes/depois, e quem cruzou a faixa). Guarda **resumo, nunca o catálogo**. É o que
+     responde *"por que este produto está 18% mais caro que semana passada?"* — hoje sem resposta por
+     porta nenhuma. ⚠ Coleção nova entra no `firestore.rules` **e** no `pnpm test:rules` (AUD-08).
+  6. **Desfazer derivado do registro** — o `antes` da alavanca está lá, então não é preciso guardar
+     `prevItems` no doc. E o desfazer **passa pela mesma prévia**: desfazer também é mudança global.
+  **Aceite:** a lib pura coberta por teste (inclusive "nada mudou" = lista vazia, e produto órfão de
+  máquina); a prévia contra `rev` velha recusa sem gravar; o aviso acumulado dispensado não
+  ressuscita ao recarregar.
 
 - **[FEAT-03] sem a logo.** O guarda-chuva do PDF tem cinco sementes que **não tocam em marca**:
   prazo de entrega, formas de pagamento/condições, termos e observações, desconto/acréscimo,
