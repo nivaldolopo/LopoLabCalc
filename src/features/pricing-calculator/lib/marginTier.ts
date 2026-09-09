@@ -35,12 +35,19 @@ export function marginTier(pct: number): MarginTier | null {
   return "ok";
 }
 
+// Classe CSS a partir da FAIXA já decidida. Existe por causa do [FEAT-12]: o
+// registro de `alteracoes` guarda a faixa ("bad"/"ok"/"good"), não o percentual
+// que a produziu, e reconstruir um percentual plausível só para reentrar na
+// régua seria inventar dado.
+export function tierClass(tier: MarginTier | null): string {
+  return tier ? `margin-${tier}` : "";
+}
+
 // Classe CSS da faixa (declarada no `base.css`, junto dos tokens de cor).
 // String vazia quando não há faixa — o elemento fica sem classe e herda a cor
 // de sempre.
 export function marginTierClass(pct: number): string {
-  const tier = marginTier(pct);
-  return tier ? `margin-${tier}` : "";
+  return tierClass(marginTier(pct));
 }
 
 const TIER_WORD: Record<MarginTier, string> = {

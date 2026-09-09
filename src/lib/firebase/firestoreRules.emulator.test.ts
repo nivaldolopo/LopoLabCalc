@@ -50,6 +50,13 @@ function operacoes(db: Firestore): [string, () => Promise<unknown>][] {
     ["create products/novo", () => setDoc(doc(db, "products", "novo"), { name: "x" })],
     ["update products/p1", () => updateDoc(doc(db, "products", "p1"), { name: "y" })],
     ["delete products/p1", () => deleteDoc(doc(db, "products", "p1"))],
+    // [FEAT-12] — a colecao `alteracoes` (registro de mudanca global de preco).
+    // Ela ja cai no `{document=**}` e a sonda "colecao inedita" abaixo prova o
+    // curinga; esta existe NOMEADA para a proxima varredura nao ter de deduzir a
+    // cobertura de uma colecao que o app de fato escreve.
+    ["get alteracoes/a1", () => getDoc(doc(db, "alteracoes", "a1"))],
+    ["list alteracoes", () => getDocs(query(collection(db, "alteracoes"), limit(1)))],
+    ["create alteracoes/nova", () => setDoc(doc(db, "alteracoes", "nova"), { lever: "maquinas" })],
     ["create em colecao inedita", () => setDoc(doc(db, "colecao_inedita", "x"), { a: 1 })],
   ];
 }
@@ -73,6 +80,7 @@ async function semear(env: RulesTestEnvironment) {
     await setDoc(doc(db, "products", "p1"), { name: "produto sem dono" });
     await setDoc(doc(db, "config", "machines"), { rev: 1 });
     await setDoc(doc(db, "vendas", "v1"), { total: 10 });
+    await setDoc(doc(db, "alteracoes", "a1"), { lever: "maquinas", at: 1 });
     await setDoc(doc(db, "products", "p1", "sub", "s1"), { a: 1 });
   });
 }

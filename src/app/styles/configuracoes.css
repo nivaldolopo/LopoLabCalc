@@ -1,0 +1,386 @@
+/* ---------------------------------------------------------------------------
+   [FEAT-12] — controle de mudança GLOBAL de preço.
+
+   Três superfícies, um desenho: a PRÉVIA (`.reprice-modal`, antes de aplicar),
+   o AVISO pós-fato (`.reprice-notice`, nas portas do estoque) e o REGISTRO
+   (`.change-list`, na `/configuracoes`). O bloco `.rp-*` é o impacto e aparece
+   nos três — por isso ele não tem margem própria de página nenhuma.
+
+   ⚠ Só TOKEN aqui (UX-17a/b, TD-014): espaço, raio, tipografia e cor vivem no
+   `:root` do `base.css`. Cru só para o que não é escala.
+--------------------------------------------------------------------------- */
+
+/* A caixa da prévia é mais larga que a padrão de 560px: a fileira de movimento
+   carrega nome + antes + depois + variação, e nos 560 o nome ficava com ~90px.
+   Abaixo de 640 a fileira já vira cartão e a largura deixa de importar. */
+.reprice-modal {
+  max-width: 720px;
+}
+
+/* --- o que mudou, campo a campo ------------------------------------------ */
+
+.rp-details {
+  margin: 0 0 var(--space-16);
+  padding-left: var(--space-20);
+  display: grid;
+  gap: var(--space-4);
+  font-size: var(--text-lg);
+}
+
+.rp-sub {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: var(--space-20) 0 var(--space-8);
+}
+
+.rp-sub:first-child {
+  margin-top: 0;
+}
+
+.rp-sub-note {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.rp-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-lg);
+  line-height: 1.5;
+}
+
+/* Excluir máquina não é "mais um campo": o id salvo em cada produto vira órfão.
+   Aviso de consequência, não de erro — por isso `--warn`, não `--danger`. */
+.rp-warning {
+  display: flex;
+  gap: var(--space-8);
+  align-items: flex-start;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-10) var(--space-12);
+  color: var(--warn);
+  font-size: var(--text-lg);
+  line-height: 1.45;
+  margin-bottom: var(--space-8);
+}
+
+.rp-warning svg {
+  flex: none;
+  margin-top: var(--space-2);
+}
+
+/* --- os agregados -------------------------------------------------------- */
+
+.rp-stats {
+  display: grid;
+  /* ⚠ `minmax(0, 1fr)`, nunca `1fr` puro: o mínimo implícito é o min-content e
+     a coluna estouraria em vez de ceder. */
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+.rp-stat {
+  background: var(--details-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-8) var(--space-10);
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.rp-stat-label {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.rp-stat-value {
+  font-size: var(--display-sm);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.rp-stat-of {
+  font-size: var(--text-md);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* Subiu/desceu é significado, não decoração: preço maior é o custo do dono
+   subindo para o cliente, preço menor é margem devolvida. */
+.rp-impact .up {
+  color: var(--danger);
+}
+
+.rp-impact .down {
+  color: var(--success);
+}
+
+/* --- os maiores movimentos ----------------------------------------------- */
+
+.rp-top,
+.rp-crossings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.rp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: baseline;
+  gap: var(--space-6) var(--space-12);
+  padding: var(--space-6) var(--space-8);
+  border-radius: var(--radius-sm);
+  background: var(--details-bg);
+  font-size: var(--text-lg);
+}
+
+.rp-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-part {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+
+/* No desktop o rótulo da faixa é redundante (a ordem antes/depois/variação já
+   se lê); ele existe para o modo cartão do celular, onde as faixas empilham. */
+.rp-part-label {
+  display: none;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* --- quem cruzou a faixa de margem --------------------------------------- */
+
+.rp-crossing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-8);
+  border-radius: var(--radius-sm);
+  background: var(--details-bg);
+  font-size: var(--text-lg);
+}
+
+.rp-crossing-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-tier {
+  flex: none;
+  font-weight: 600;
+  font-size: var(--text-md);
+}
+
+/* --- a barra de aplicar do custo fixo ------------------------------------ */
+
+.fc-apply {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+  padding: var(--space-10) var(--space-12);
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  border-radius: var(--radius-md);
+}
+
+.fc-apply-text {
+  flex: 1 1 260px;
+  min-width: 0;
+  font-size: var(--text-lg);
+  line-height: 1.4;
+}
+
+/* --- o aviso pós-fato ---------------------------------------------------- */
+
+.reprice-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+  padding: var(--space-10) var(--space-12);
+  margin-bottom: var(--space-16);
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  border-radius: var(--radius-lg);
+  color: var(--ink);
+}
+
+.reprice-notice > svg {
+  flex: none;
+  color: var(--accent-text);
+}
+
+.reprice-notice-text {
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: var(--text-lg);
+  line-height: 1.45;
+}
+
+.reprice-notice-text span {
+  color: var(--muted);
+}
+
+.reprice-notice-link {
+  flex: none;
+}
+
+/* --- o registro, na /configuracoes --------------------------------------- */
+
+.settings-card {
+  margin-top: var(--space-16);
+}
+
+.settings-card > h2 {
+  font-size: var(--display-sm);
+  margin: 0 0 var(--space-12);
+}
+
+.change-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-8);
+}
+
+.change-entry {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* UX-28/UX-37 — alvo cresce por padding e min-height, não por margem solta.
+   A faixa inteira é o botão de abrir: 44px no celular, 32 no desktop. */
+.change-head {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 44px;
+  padding: var(--space-8) var(--space-12);
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.change-head:hover {
+  background: var(--details-bg);
+}
+
+.change-lever {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
+.change-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-lg);
+}
+
+.change-affected,
+.change-when {
+  font-size: var(--text-md);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.change-body {
+  padding: 0 var(--space-12) var(--space-14);
+  border-top: 1px solid var(--border-soft);
+  display: grid;
+  gap: var(--space-8);
+}
+
+.change-by {
+  margin: var(--space-10) 0 0;
+  font-size: var(--text-md);
+  color: var(--muted);
+}
+
+.change-undo {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.change-no-undo {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* ---------------------------------------------------------------------------
+   Celular — a fileira que não cabe VIRA CARTÃO (UX-38/UX-40), não rolagem.
+   Mesma receita do `.fg-part`: abaixo dos ~300px úteis as quatro colunas do
+   movimento não têm como caber, e forçar `overflow-x` esconderia a variação —
+   justo o número pelo qual a linha existe.
+--------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .rp-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rp-part-label {
+    display: inline;
+  }
+
+  .rp-name {
+    font-weight: 600;
+  }
+
+  .change-head {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    row-gap: var(--space-4);
+  }
+
+  /* O resumo ganha a faixa inteira embaixo: espremido entre a alavanca e a
+     contagem ele caía abaixo dos 60px e as reticências comiam quase tudo. */
+  .change-summary {
+    grid-column: 1 / -1;
+    white-space: normal;
+    overflow: visible;
+  }
+
+  .change-when {
+    text-align: right;
+  }
+}

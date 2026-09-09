@@ -9,6 +9,104 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ FEAT-12 — a reprecificação global ganhou prévia, rastro e desfazer (2026-09-09)
+
+> **O preço não é dado, é FUNÇÃO.** Não existe campo de preço no produto — toda tela chama
+> `calculatePricing` no render. Logo qualquer alavanca global reprecificava o catálogo inteiro, **em
+> todos os aparelhos** (os docs `config/*` são realtime), **sem aviso, sem antes/depois e sem
+> desfazer**. Medido no ar antes do item: excluir a A1 Mini move **94 dos 105 produtos**, +7,0% de
+> média, o maior salto +R$24,00 — e nada na tela dizia uma palavra.
+>
+> ⚠ **O que NÃO era o problema** (dono, 2026-09-08): que o preço acompanhe o insumo. Filamento mais
+> caro **deve** deixar o produto mais caro. Faltava controle e rastro, não trava — por isso nenhuma
+> alavanca foi bloqueada.
+
+**O critério, e é ele que organiza tudo:** *a tela em que o dono está*. Se ele está olhando para a
+alavanca, **pergunta antes**; se ela se moveu como efeito colateral de outra tarefa, **conta depois**.
+Máquinas (inclusive excluir uma) e custo fixo perguntam; rolo novo de cor e lote novo de insumo
+contam. `config/taxas` ficou fora por decisão: ele move a dica de margem líquida, não a etiqueta.
+
+**As seis peças.**
+1. **`lib/repriceImpact.ts`, pura** — `computeRepriceImpact(products, antes, depois)`, onde cada lado
+   é o pacote de alavancas que o `calculatePricing` consome. Devolve por produto antes/depois/Δ R$/Δ%
+   e os agregados, mais **quem cruza a faixa** do `marginTier` (a régua é a margem precificada
+   **bruta, pré-taxa** — a mesma que o catálogo pinta, e é por isso que a prévia não depende do
+   `config/taxas`). Uma função, três superfícies; molde do `fleet.ts`.
+2. **`RepriceGate`, AUTÔNOMO** — não colado no `MachineManagerModal`, porque os painéis de config vão
+   mudar de casa e acoplar custaria reescrita. Recebe uma `RepriceProposal` pura e busca sozinho
+   produtos/estoque/insumos (iguais dos dois lados). Cancelar não grava.
+3. **`RepriceNotice`** — UM aviso que ACUMULA, nas portas do estoque. Fica até dispensar, dispensa
+   persistida por entrada, e vive só no aparelho que fez a mudança.
+4. **`/configuracoes`** — ⚙ discreto no `PageHeader`, ao lado de tema e sair, **fora das abas** (seria
+   a 8ª numa linha de 7). Nasce só com o registro, mas é a casa futura da coleção `config/`.
+5. **Coleção `alteracoes`** — um doc por mudança: `at`, `by`, alavanca, `summary`, `details`,
+   `before`, `after`, `impacto` (**até 10** maiores + cruzamentos) e `undoOf`. Guarda **resumo, nunca
+   o catálogo**.
+6. **Desfazer derivado do registro** — o `before` da alavanca já está lá, então não é preciso guardar
+   `prevItems`. E ele **passa pela mesma prévia**: desfazer também é mudança global.
+
+**As decisões que custaram algo.**
+
+- **O `FixedCostsPanel` GRAVAVA A CADA TECLA.** `config/negocio` é compartilhado e alimenta o custo
+  fixo/hora do catálogo inteiro — passar de "1500" para "300" atravessava "150" e "15" e gravava os
+  três, cada um reprecificando 26 produtos em todos os aparelhos. Agora os campos editam um
+  **rascunho local** e aplicar é um ato. O rascunho é recriado por `key` quando o valor vivo muda:
+  `setState` em efeito é erro de lint aqui, e um rascunho contra o valor velho já não descreve o
+  "antes" de ninguém.
+- **O "antes" da prévia é o da `revDoRascunho`, nunca o vivo** (AUD-18). O `MachineManagerModal`
+  congela `base` no MESMO `useState` do rascunho e da `rev` — os três descrevem o mesmo instante. Com
+  a outra aba tendo gravado no meio, o `machines` vivo já é o de quem sobrescreveu, e a prévia
+  afirmaria um movimento que nunca existiu. `rev` recusada → a prévia é descartada com o motivo.
+- **Ordem: ALAVANCA primeiro, rastro depois, e a falha do rastro NÃO derruba a mudança.** Um registro
+  sem a mudança correspondente descreveria um preço que nunca existiu; uma mudança sem registro é o
+  que o app já fazia até ontem. Dizer "não salvou" depois de a alavanca ter mudado convidaria a
+  repetir a alteração.
+- **A exclusão de máquina ganhou faixa PRÓPRIA na prévia.** É a única linha que muda o *significado*
+  do conjunto salvo em cada produto, e não só um número: o id vira órfão e o `resolveFleet` cai na
+  frota inteira. "X2D · removida" esconderia isso.
+- **O que se desfaz e o que não.** Só as duas alavancas de "pergunta antes" — elas guardam o
+  documento de config INTEIRO no `before`. Desfazer um lote novo seria **apagar o lote**, que é dado
+  de estoque. E o desfazer parte do estado **ATUAL**, não do `after` gravado: entre a mudança e o
+  desfazer pode ter havido outra.
+- **Ordenar por R$, não por %.** 20% de R$2 abriria a lista que R$50 num produto caro deveria abrir.
+- **`avgPct` ignora quem tinha "antes" 0** (`deltaPct: null`) — um Infinity contaminaria a média
+  inteira e o cartão mostraria "∞%". O caso real existe: insumo sem lote cota 0, o acessório cai no
+  preço salvo (também 0), e o primeiro lote lhe dá preço.
+
+**🔴 O defeito que a prova no ar achou — e que nenhum teste unitário acharia.** O aviso acumulado
+dizia **"Uma alteração reprecificou 63 produtos"** depois de eu ter aplicado DUAS (uma delas o
+desfazer). Causa: a `/configuracoes` monta o `useChangeLog` **duas vezes** — a página lista o
+registro, o `RepriceGate` dentro dela grava. Com os ids do aparelho em `useState`, cada instância
+tinha a **própria cópia** e gravava a lista INTEIRA a partir dela: o último a escrever apagava o id
+que o outro acabara de somar. Medido: 2 alterações aplicadas, **1 id** no localStorage. A saída foi
+um **armazém module-level com `useSyncExternalStore`** — todas as instâncias leem o mesmo valor e são
+notificadas juntas, e o `getServerSnapshot` dá o conjunto vazio no servidor (sem efeito, sem
+`setState` em efeito). É a versão em localStorage da mesma lição do TD-022: **duas cópias do mesmo
+estado que PRECISAM concordar acabam discordando.**
+
+**Medido no ar (Chrome real, catálogo real de 105 produtos).**
+- Mini 60 W → 90 W: **63 afetados**, todos subindo, +0,1%, maior movimento +R$1,00 (0,2%).
+- **Excluir a A1 Mini: 94 de 105, +7,0%, maior +R$24,00 (4,6%)**, um de +13,4%, e 1 produto cruzando
+  a faixa (*Clicker The Sheep · Rosto cor da orelha*: **baixa → ok**). Cancelado — nada gravado.
+- Aluguel R$1.500 → R$1.800: **26 de 105** (só quem tem `includeFixed`), +2,9%. Cancelado, e o campo
+  voltou a 1500 no recarregar — prova de que a gravação por tecla morreu.
+- Ciclo completo aplicar → desfazer: o desfazer mostrou o espelho exato (63 desceram, −0,1%,
+  −R$1,00), deixou o **próprio rastro** no registro, e a `/maquinas` confirmou a frota de volta em
+  60 W / 20%.
+- Aviso acumulado: *"2 alterações somaram 126 mudanças de preço no catálogo"*, dispensado → **não
+  ressuscita ao recarregar** (o aceite da spec).
+- Celular medido em iframe de 375px (o resize do Chrome real não pega a media query): `.rp-row` cai
+  de 4 colunas para **1**, o rótulo de cada faixa acende, o resumo da entrada ganha a faixa inteira,
+  e **nada estoura a largura** — cartão, não rolagem (UX-38/UX-40).
+
+**Números.** 1.014 testes (40 novos: `repriceImpact.test.ts` 18 + `changeLog.test.ts` 22) e **158** no
+emulador de regras (eram 119 — a coleção `alteracoes` ganhou sonda NOMEADA, além do curinga que a
+"coleção inédita" já provava).
+
+**Resíduo declarado.** Duas entradas de teste ficaram no `alteracoes` de produção (a mudança de watts
+e o desfazer dela). São registro honesto de mudanças que de fato aconteceram, e o registro é
+append-only de propósito — não há caminho de exclusão, e não deve haver.
+
 ## ✅ TD-033 — o preço do INSUMO ficou vivo, como o do filamento (2026-09-08)
 
 > Uma assimetria que ninguém decidiu: a 7c deu preço vivo ao FILAMENTO e parou ali. O acessório

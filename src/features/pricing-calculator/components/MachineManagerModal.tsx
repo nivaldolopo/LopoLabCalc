@@ -2,9 +2,12 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { machinesProposal, type RepriceProposal } from "../lib/changeLog";
+import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import type { Machine } from "../types";
 import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
+import { RepriceGate } from "./RepriceGate";
 
 type MachineManagerModalProps = {
   open: boolean;
@@ -25,6 +28,16 @@ export function MachineManagerModal({
   onSave,
 }: MachineManagerModalProps) {
   const [draft, setDraft] = useState<Machine[]>(machines);
+  // [FEAT-12] — o "ANTES" da prévia. Congelado no MESMO `useState` do rascunho e
+  // da `rev`, porque os três descrevem o mesmo instante (AUD-18): usar o
+  // `machines` vivo mostraria um "antes" que é o de quem acabou de sobrescrever
+  // deste diálogo, e a prévia afirmaria um movimento que nunca existiu.
+  const [base] = useState<Machine[]>(machines);
+  // O custo fixo não se move aqui — ele entra na conta dos DOIS lados, porque o
+  // preço de um produto com `includeFixed` depende dele.
+  const { fixedCostRate } = useBusinessSettings();
+  // A proposta na mesa. `null` = ainda editando.
+  const [proposta, setProposta] = useState<RepriceProposal | null>(null);
   // AUD-18 — a versão é capturada AQUI, no mesmo `useState` do rascunho e com o
   // mesmo tempo de vida: as duas coisas descrevem o mesmo instante. Ler a `rev`
   // corrente na hora do save deixava a trava passar — quando a outra aba grava,
@@ -102,16 +115,30 @@ export function MachineManagerModal({
     }
 
     setError(null);
+
+    // [FEAT-12] — daqui em diante nada grava sem prévia. A frota é a alavanca
+    // mais cara do app: watts, vida útil, manutenção e peso entram no preço de
+    // TODO produto que marca a máquina, e excluir uma faz o id salvo virar órfão.
+    const proposal = machinesProposal(base, draft, fixedCostRate);
+    if (proposal.details.length === 0) {
+      // Nada mudou de verdade (ou uma máquina foi adicionada e removida no mesmo
+      // rascunho). Gravar mesmo assim só queimaria uma `rev` e um documento de
+      // registro descrevendo mudança nenhuma.
+      onClose();
+      return;
+    }
+    setProposta(proposal);
+  }
+
+  // O `onCommit` do passo de confirmação: grava a alavanca e devolve a mensagem
+  // de erro, ou `null`. A recusa por `rev` (AUD-18) chega por aqui, e é o
+  // `RepriceGate` que descarta a prévia com o motivo — ela foi calculada contra
+  // uma lista que o servidor não tem mais.
+  async function commit(): Promise<string | null> {
     setSaving(true);
     const falha = await onSave(draft, revDoRascunho);
     setSaving(false);
-    // TD-020: offline (ou erro de escrita) o modal fechava como se tivesse
-    // salvo. Agora ele fica aberto com o motivo — e o rascunho não se perde.
-    if (falha) {
-      setError(falha);
-      return;
-    }
-    onClose();
+    return falha;
   }
 
   return (
@@ -277,6 +304,20 @@ export function MachineManagerModal({
         vale é a proporção entre as máquinas <em>elegíveis</em> de cada produto.
       </div>
       {error ? <div className="form-error">{error}</div> : null}
+
+      {proposta ? (
+        <RepriceGate
+          proposal={proposta}
+          title="Salvar as máquinas"
+          confirmLabel="Salvar e aplicar"
+          onCommit={commit}
+          onCancel={() => setProposta(null)}
+          // TD-020 continua valendo do outro lado: quem fecha este diálogo é o
+          // sucesso da gravação, não o clique. Com a prévia, o sucesso chega
+          // pelo `onDone`.
+          onDone={onClose}
+        />
+      ) : null}
     </Modal>
   );
 }

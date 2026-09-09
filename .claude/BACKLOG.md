@@ -5,79 +5,23 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob demanda. A foto
 > do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-08 (fim do dia): o [TD-033] FECHOU; sobra o [FEAT-12]** — os dois nasceram da
-> conversa sobre *reprecificação automática*; o TD-033 (preço vivo do insumo) foi primeiro e sozinho,
-> como a spec dele exigia, e o writeup está no `HISTORICO.md`. Fora o FEAT-12 a lista não tem dívida
-> de código: a [AUD-08] provou as regras do Firestore — a
-> lacuna mais velha, aberta desde a AUD-09; a [AUD-18] fechou seis lacunas de prova e os 2 defeitos
-> que elas revelaram (writeups no `HISTORICO.md`); a [AUD-17] fechara os 6 dela antes, e as duas
-> fases do [FROTA] em 2026-09-01. O resto **depende de algo de fora**: a logo, o cadastro do dono, o
-> LibreOffice, ou ~1-2 meses de venda real.
->
+> **Estado em 2026-09-09: o [FEAT-12] FECHOU, e com ele a lista fica SEM dívida de código
+> disponível** — sobra a metade da [FEAT-03] que não precisa de marca. O [FEAT-12] e o [TD-033]
+> nasceram da mesma conversa sobre *reprecificação automática*; o TD-033 (preço vivo do insumo) veio
+> primeiro e sozinho, como a spec dele exigia. A prévia de reprecificação achou de quebra um defeito
+> que nenhum teste unitário pegaria (duas instâncias do mesmo hook disputando o localStorage) —
+> writeups dos dois no `HISTORICO.md`. Antes deles, a [AUD-08] provou as regras do Firestore (a
+> lacuna mais velha, aberta desde a AUD-09), a [AUD-18] fechou seis lacunas de prova e os 2 defeitos
+> que elas revelaram, a [AUD-17] fechara os 6 dela, e as duas fases do [FROTA] em 2026-09-01. O resto
+> **depende de algo de fora**: a logo, o cadastro do dono, o LibreOffice, ou ~1-2 meses de venda real.
+
 > ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho.
 
 ## ▶ Disponível HOJE — a frente que não espera ninguém
 
-> **Ordem:** o **[FEAT-12]** primeiro (o [TD-033], que tinha de vir antes dele, fechou em
-> 2026-09-08). A **[FEAT-03] sem a logo** continua livre, atrás dele.
-
-- **▶ [FEAT-12] Controle de mudança GLOBAL de preço + página de Configurações.**
-  **O problema, medido:** o preço não é dado, é **função**. Não existe campo de preço no produto
-  (`ProductPayload` não tem nenhum) — toda tela chama `calculatePricing(product, machines,
-  fixedCosts, stock, supplies)` no render. Logo, mexer numa alavanca global reprecifica o catálogo inteiro,
-  **em todos os aparelhos** (os docs `config/*` são realtime e compartilhados), **sem aviso, sem
-  antes/depois e sem desfazer** — o `rev` da AUD-18 conta versão, não guarda a anterior. `lifeHours`
-  7500 → 750 multiplica a depreciação por 10 em todo produto da máquina, calado.
-  ⚠ **O que NÃO é o problema** (dono, 2026-09-08): que o preço acompanhe o insumo. **Filamento mais
-  caro DEVE deixar o produto mais caro** — falta controle e rastro, não trava.
-  **Já é imune, e continua fora:** venda (`frozenCost` + preço congelado), evento de produção e
-  orçamento emitido (`QuoteItemSnapshot.unitPrice`). O dano nunca foi retroativo — é a vitrine e o
-  que for emitido depois.
-  **As 5 alavancas, e o tratamento de cada uma** *(o critério é a tela em que o dono está: se ele
-  está olhando para a alavanca, pergunta antes; se ela se moveu como efeito colateral de outra
-  tarefa, conta depois)*:
-  - **pergunta antes** → máquinas (watts, preço/vida, manutenção, peso) · **excluir máquina** (o id
-    salvo vira órfão e o produto cai na frota inteira, `resolveFleet`) · custo fixo (`config/negocio`).
-  - **conta depois** → rolo novo de uma cor / cor arquivada (`resolveFilamentPrices`) · lote novo de
-    um insumo (`resolveAccessoryPrices`, viva desde o [TD-033]).
-  **Fora de escopo, decidido:** `config/taxas` — é doc compartilhado (não é por venda, ao contrário
-  do que parece na tela), mas move só a **dica de margem líquida**, não a etiqueta. E mover os
-  painéis de config existentes de casa (ver peça 4).
-  **As peças:**
-  1. **`lib/repriceImpact.ts`, pura** — `computeRepriceImpact(products, antes, depois)`, onde
-     *antes/depois* é o pacote de alavancas. Devolve por produto preço antes/depois/Δ R$/Δ% e os
-     agregados: afetados, subiram, desceram, média, os maiores movimentos e **quem CRUZA a faixa do
-     `marginTier`** (dono: "preço mais quem cruza"). A régua usada é a **margem precificada bruta,
-     pré-taxa** — a mesma que o catálogo pinta —, e é por isso que a prévia não depende de
-     `config/taxas`. Uma função, três superfícies; molde do `fleet.ts`.
-  2. **Passo de confirmação — componente AUTÔNOMO**, não colado no `MachineManagerModal`: os painéis
-     de config vão mudar de casa (peça 4) e acoplar custaria reescrita. Cancelar não grava (é o
-     rascunho de hoje). ⚠ **A prévia calcula contra a MESMA lista que a `revDoRascunho` descreve**
-     (AUD-18): usar o `machines` vivo mostraria um "antes" que é o de quem acabou de sobrescrever;
-     `rev` recusada → prévia descartada com o motivo, e a trava atual segue idêntica.
-  3. **Aviso pós-fato**, nas portas do estoque: **UM aviso que ACUMULA** ("3 alterações
-     reprecificaram 21 produtos · ver quais") — cadastrar 4 rolos seguidos não pode virar 4 caixas.
-     **Fica até dispensar** (dono), dispensa persistida por entrada do registro (localStorage), e
-     vive no **aparelho que fez a mudança** — os outros ficam com o registro, que é permanente e não
-     interrompe ninguém. "Ver quais" abre a entrada em `/configuracoes`. Sem leitura nova: a
-     `StockPage` já precifica o catálogo inteiro (`StockPage.tsx:254`).
-  4. **Página nova `/configuracoes`** — **⚙ discreto, separado das abas de conteúdo** da `NavBar`
-     (dono, 2026-09-08): não é destino diário e seria a 8ª aba numa linha de 7. Nasce só com o
-     registro, mas é a **casa futura da coleção `config/`**, hoje espalhada — `config/machines`
-     (modal da calculadora), `config/negocio` (painel da calculadora), `config/taxas` (modal da
-     venda), `config/orcamento` (página Orçamento). **Mover não é deste item**; registrar o destino é
-     o que justifica a peça 2 nascer desacoplada.
-  5. **O registro** — coleção `alteracoes`, um doc por mudança: `at`, quem (e-mail do AuthGate),
-     alavanca, antes, depois, e `impacto` (afetados, subiram, desceram, médiaPct, **até 10** maiores
-     com id/nome/antes/depois, e quem cruzou a faixa). Guarda **resumo, nunca o catálogo**. É o que
-     responde *"por que este produto está 18% mais caro que semana passada?"* — hoje sem resposta por
-     porta nenhuma. ⚠ Coleção nova entra no `firestore.rules` **e** no `pnpm test:rules` (AUD-08).
-  6. **Desfazer derivado do registro** — o `antes` da alavanca está lá, então não é preciso guardar
-     `prevItems` no doc. E o desfazer **passa pela mesma prévia**: desfazer também é mudança global.
-  **Aceite:** a lib pura coberta por teste (inclusive "nada mudou" = lista vazia, e produto órfão de
-  máquina); a prévia contra `rev` velha recusa sem gravar; o aviso acumulado dispensado não
-  ressuscita ao recarregar.
+> Só sobrou um item, e ele é meio item: as cinco sementes do PDF que **não tocam em marca**. O
+> [FEAT-12] fechou em 2026-09-09 e o [TD-033], que tinha de vir antes dele, em 2026-09-08.
 
 - **[FEAT-03] sem a logo.** O guarda-chuva do PDF tem cinco sementes que **não tocam em marca**:
   prazo de entrega, formas de pagamento/condições, termos e observações, desconto/acréscimo,
@@ -89,6 +33,19 @@
 > identidades, mutação conferida) e o **ruleset publicado** (diff mecânico contra o Console: 17
 > linhas, idênticas). **A 2ª conta Google nunca foi necessária** — o emulador forja identidade.
 > Writeup no `HISTORICO.md`.
+
+> **[FEAT-12] FECHADA em 2026-09-09, sem resíduo de código** — as 6 peças entregues: a lib pura
+> (`repriceImpact.ts`), o passo de confirmação autônomo (`RepriceGate`), o aviso acumulado nas portas
+> do estoque, a página `/configuracoes` (⚙ fora das abas), a coleção `alteracoes` (com sonda nomeada
+> no `pnpm test:rules`) e o desfazer derivado do registro. **Um resíduo de DADO, declarado:** duas
+> entradas de teste ficaram no `alteracoes` de produção — registro honesto de mudanças que de fato
+> aconteceram, e a coleção é append-only de propósito. Writeup no `HISTORICO.md`.
+>
+> ⚠ **O que ela NAO fez, e não era escopo:** mover os painéis de config existentes
+> (`config/machines`, `config/negocio`, `config/taxas`, `config/orcamento`) para a `/configuracoes`.
+> A página registra o destino; a mudança de casa é outro item, e só se justifica quando o dono
+> quiser. `config/taxas` seguiu fora do controle de reprecificação por decisão: ele move a dica de
+> margem líquida, não a etiqueta.
 
 ## ▶ Aberto pela [FROTA] Fase 2 — pequeno, e nenhum bloqueia nada
 
@@ -286,7 +243,7 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
   ⚠ **A mecânica que SOBREVIVE ao recadastro:** `saveProduct` usa `tx.update`, que faz **merge** —
   campo que o `buildProductPayload` deixe de gravar fica no documento pra sempre.
 - **[TD-021] e [CSV-30]** seguem ressalva por decisão do dono.
-- **O `CLAUDE.md` está em 330 linhas, contra o alvo de ~270** (Diretriz 8). O Status já foi
+- **O `CLAUDE.md` está em 345 linhas, contra o alvo de ~270** (Diretriz 8). O Status já foi
   comprimido; o que sobra de gordura são as **7 regras de CSS/UI** dos Pontos-chave (~30 linhas).
   Movê-las para o `HISTORICO.md` é a saída natural, mas é decisão deliberada — elas são guarda-corpo
   de quem escreve CSS novo, e o `HISTORICO` só entra em contexto quando alguém o lê.

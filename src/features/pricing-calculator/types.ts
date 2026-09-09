@@ -1,6 +1,7 @@
 import type { RoundingMode } from "./lib/roundPrice";
+import type { MarginTier } from "./lib/marginTier";
 
-export type { RoundingMode };
+export type { RoundingMode, MarginTier };
 
 export type Machine = {
   id: string;
@@ -1097,3 +1098,88 @@ export type FinishedConsumptionResult = {
   // `Sale.unattributedUnits` em vez de deixá-las serem rateadas calado.
   unattributedUnits: number;
 };
+
+// ===========================================================================
+// [FEAT-12] — o REGISTRO de mudança global de preço (coleção `alteracoes`).
+//
+// O preço não é dado, é função: nenhuma tela guarda preço, todas chamam o
+// `calculatePricing` no render. Logo uma alavanca global reprecifica o catálogo
+// inteiro, em todos os aparelhos, e até aqui não havia por onde perguntar "por
+// que este produto está 18% mais caro que semana passada?".
+//
+// O documento guarda RESUMO, nunca o catálogo: os agregados, até dez maiores
+// movimentos e quem cruzou a faixa. E guarda o `antes` da alavanca — é dele que
+// o DESFAZER sai, sem precisar de uma cópia dos produtos.
+// ===========================================================================
+
+// Qual alavanca se moveu. O critério de tratamento é a TELA em que o dono está:
+// as duas primeiras ele está olhando (pergunta antes), as duas últimas se movem
+// como efeito colateral de outra tarefa (conta depois).
+export type ChangeLever = "maquinas" | "custo-fixo" | "cor" | "insumo";
+
+// O estado de UMA alavanca, num instante. Chapado de propósito: o Firestore não
+// aceita `undefined`, e um campo por alavanca (com `null` no que não se aplica)
+// evita união discriminada no documento — que exigiria conferir a forma na
+// leitura para o desfazer não montar um doc torto.
+export type ChangeState = {
+  // `maquinas`: a lista inteira, que é como ela é editada e gravada.
+  machines: Machine[] | null;
+  // `custo-fixo`: a taxa do `config/negocio` (sem o `enabled`, que é por-produto).
+  fixedCostRate: FixedCostRate | null;
+  // `cor`/`insumo`: a cotação viva (R$/kg do rolo mais novo, R$/un do lote mais
+  // novo). É só para a frase do registro — desfazer aqui seria apagar um lote.
+  unitPrice: number | null;
+};
+
+// Um produto entre os maiores movimentos. Sem a margem: o que o registro precisa
+// responder é "quanto mudou", e a faixa vive na lista de cruzamentos ao lado.
+export type ChangeTopItem = {
+  id: string;
+  name: string;
+  before: number;
+  after: number;
+};
+
+// Quem atravessou a régua da DEC-04. `null` nas pontas é produto sem faixa
+// (receita 0) — entrar ou sair da régua também é cruzamento.
+export type ChangeCrossing = {
+  id: string;
+  name: string;
+  from: MarginTier | null;
+  to: MarginTier | null;
+};
+
+// O impacto, como ele é GRAVADO — o recorte do `RepriceImpact` que cabe num
+// documento. `evaluated` fica junto porque "3 de 104" e "3 de 3" são recados
+// diferentes.
+export type ChangeImpact = {
+  evaluated: number;
+  affected: number;
+  up: number;
+  down: number;
+  avgPct: number;
+  top: ChangeTopItem[];
+  crossings: ChangeCrossing[];
+};
+
+export type ChangeRecordPayload = {
+  at: number;
+  // Quem mexeu — o e-mail do AuthGate. É a única identidade que o app tem.
+  by: string;
+  lever: ChangeLever;
+  // A frase de UMA linha que abre a entrada ("A1 Combo · vida útil 7500 → 750 h").
+  // Vem do `describeChange`, puro: a mesma frase serve à prévia, ao aviso e aqui.
+  summary: string;
+  // As linhas de detalhe do que mudou, uma por campo. Lista vazia = alavanca que
+  // não se descreve campo a campo (cor/insumo, onde o `summary` já é tudo).
+  details: string[];
+  before: ChangeState;
+  after: ChangeState;
+  impact: ChangeImpact;
+  // O id da entrada que este registro DESFAZ. `null` = mudança original.
+  // Desfazer também é mudança global — ele passa pela mesma prévia e deixa o
+  // próprio rastro, em vez de apagar o anterior.
+  undoOf: string | null;
+};
+
+export type ChangeRecord = ChangeRecordPayload & { id: string };

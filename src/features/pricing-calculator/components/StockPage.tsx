@@ -23,7 +23,7 @@ import {
 import { errorMessage, guardOnline } from "@/lib/errors";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import { formatDate } from "@/lib/formatting/date";
-import { num } from "@/lib/number";
+import { num, round2 } from "@/lib/number";
 import { matchesQuery } from "@/lib/text";
 import {
   activeRoll,
@@ -37,6 +37,7 @@ import {
   materialOptions,
   rollNumbers,
 } from "../lib/stock";
+import { catalogUnitPrice } from "../lib/supplies";
 import {
   assemblyBreakdown,
   goodCostComposition,
@@ -47,6 +48,8 @@ import {
   skuValue,
 } from "../lib/finishedGoods";
 import { calculatePricing } from "../lib/calculatePricing";
+import { stockChangePayload } from "../lib/changeLog";
+import { computeRepriceImpact } from "../lib/repriceImpact";
 import { NO_COLOR_KEY } from "../lib/filaments";
 import { marginTierClass, marginTierTitle } from "../lib/marginTier";
 import {
@@ -59,7 +62,9 @@ import { colorIdTable } from "../lib/idTable";
 import { addFrozen, sumFrozen, ZERO_FROZEN } from "../lib/production";
 import { copyText } from "@/lib/clipboard";
 import { DEFAULT_FIXED_COSTS } from "../constants";
+import { useAuth } from "../hooks/useAuth";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
+import { useChangeLog } from "../hooks/useChangeLog";
 import { useMachines } from "../hooks/useMachines";
 import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useProduction } from "../hooks/useProduction";
@@ -78,12 +83,14 @@ import type {
   SavedProduct,
   StockFilament,
   StockFilamentPayload,
+  Supply,
 } from "../types";
 import { useConfirm } from "./ConfirmDialog";
 import { CostStack } from "./CostBars";
 import { CostBreakdownTable, CostDetail } from "./CostDetail";
 import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { NavBar } from "./NavBar";
+import { RepriceNotice } from "./RepriceNotice";
 import { PageHeader } from "./PageHeader";
 import { PageIntro } from "./PageIntro";
 import { SaleFlow } from "./SaleFlow";
@@ -152,6 +159,11 @@ export function StockPage() {
   // FEAT-05c: o Estoque de Produtos (acabados). Leitura viva; a produção é quem
   // incrementa (05b) e o passo 8 quem vai decrementar. Aqui é só apresentação.
   const { goods } = useFinishedGoods();
+  // [FEAT-12] — o rastro das alavancas de "conta depois" (rolo novo, lote novo)
+  // e o aviso acumulado que sai dele. As portas do estoque são onde as duas
+  // acontecem, então é aqui que o aviso mora.
+  const { recordChange } = useChangeLog();
+  const { user } = useAuth();
 
   const [tab, setTab] = useState<"filamentos" | "insumos" | "produtos">(
     "filamentos",
@@ -318,10 +330,66 @@ export function StockPage() {
 
   async function saveRoll(color: StockFilament, roll: FilamentRoll) {
     guardOnline();
-    await updateFilament(color.id, {
-      ...toPayload(color),
+    const proxima: StockFilament = {
+      ...color,
       rolls: [...color.rolls, roll],
-    });
+    };
+    await updateFilament(color.id, toPayload(proxima));
+    // [FEAT-12] — a alavanca de "conta depois". O rolo mais novo é a cotação de
+    // catálogo (D3), então um rolo mais caro reprecifica na hora todo produto
+    // ligado a esta cor. A gravação da alavanca vem PRIMEIRO: um rastro sem a
+    // mudança descreveria um preço que nunca existiu.
+    await registrarCotacao(
+      "cor",
+      filamentLabel(color),
+      "R$/kg",
+      catalogPricePerKg(color),
+      catalogPricePerKg(proxima),
+      filaments.map((item) => (item.id === color.id ? proxima : item)),
+      supplies,
+    );
+  }
+
+  /**
+   * [FEAT-12] — grava o rastro de uma cotação que mudou, quando ela de fato
+   * moveu algum preço.
+   *
+   * Preço parado, ou catálogo que não usa a cor/insumo, não vira entrada: o
+   * registro é sobre reprecificação, e uma linha por compra que não moveu nada
+   * afogaria as que moveram. A falha aqui NÃO derruba o cadastro — a compra já
+   * está gravada, e dizer "não salvou" convidaria a repeti-la.
+   */
+  async function registrarCotacao(
+    lever: "cor" | "insumo",
+    label: string,
+    unit: string,
+    priceBefore: number,
+    priceAfter: number,
+    stockDepois: StockFilament[],
+    suppliesDepois: Supply[],
+  ) {
+    if (round2(priceBefore) === round2(priceAfter)) return;
+    const impact = computeRepriceImpact(
+      products,
+      { machines, fixedCosts, stock: filaments, supplies },
+      { machines, fixedCosts, stock: stockDepois, supplies: suppliesDepois },
+    );
+    if (impact.affected === 0) return;
+    try {
+      await recordChange(
+        stockChangePayload({
+          lever,
+          label,
+          unit,
+          priceBefore,
+          priceAfter,
+          by: user?.email ?? "",
+          impact,
+        }),
+      );
+    } catch (err) {
+      console.warn("[FEAT-12] cotação aplicada, registro falhou:", errorMessage(err));
+    }
   }
 
   async function saveAdjust(
@@ -1199,6 +1267,10 @@ export function StockPage() {
 
       {error ? <div className="app-error">{error}</div> : null}
 
+      {/* [FEAT-12] peça 3 — acima das abas, e não dentro de uma delas: rolo e
+          lote vivem em abas diferentes, e o aviso ACUMULA os dois. */}
+      <RepriceNotice />
+
       <div className="stock-tabs" role="tablist">
         <button
           className={`stock-tab ${tab === "filamentos" ? "active" : ""}`}
@@ -1329,6 +1401,17 @@ export function StockPage() {
           products={products}
           production={production}
           outcomeShort={OUTCOME_SHORT}
+          onQuotationChange={(supply, next) =>
+            registrarCotacao(
+              "insumo",
+              supply.name,
+              `R$/${supply.unit || "un"}`,
+              catalogUnitPrice(supply),
+              catalogUnitPrice(next),
+              filaments,
+              supplies.map((item) => (item.id === supply.id ? next : item)),
+            )
+          }
         />
       ) : (
         <>

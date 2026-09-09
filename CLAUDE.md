@@ -10,28 +10,30 @@
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
-- **Última mudança (2026-09-08): [TD-033] — o preço do INSUMO ficou VIVO, como o do filamento.**
-  O acessório carregava o preço copiado no dia em que foi ligado; insumo que mudava de preço não
-  chegava ao produto (metade não escrita da 7c). `resolveAccessoryPrices` é a gêmea da
-  `resolveFilamentPrices`; **arquivado segue vivo** e o campo virou **só-leitura** quando há cotação
-  (as 2 decisões do dono). O fanout de 11 pontos achou 5 lugares com o preço velho (`QuotePage`,
-  `StockPage`, `CatalogDetails`, CSV e o `historico` do `planSupplies`). **Medido no ar**: lote novo
-  em outra aba → custo R$ 15,27 → 17,77 **sem tocar no produto**; e o modo cartão do celular pediu
-  piso de 44px no valor só-leitura (ele não é `input`). 974 testes; writeup no
+- **Última mudança (2026-09-09): [FEAT-12] — a reprecificação global ganhou PRÉVIA, RASTRO e DESFAZER.**
+  O preço não é dado, é **função** (nenhuma tela guarda preço; todas chamam `calculatePricing`), então
+  qualquer alavanca global reprecificava o catálogo inteiro em todos os aparelhos, calada. Critério:
+  **pergunta antes** (máquinas, excluir máquina, custo fixo) · **conta depois** (rolo/lote novo).
+  Peças: `lib/repriceImpact.ts` (pura) · `RepriceGate` (autônomo, não colado no modal) · aviso
+  acumulado nas portas do estoque · **`/configuracoes`** (⚙ no `PageHeader`, fora das abas) · coleção
+  **`alteracoes`** · desfazer derivado do registro. ⚠ O `FixedCostsPanel` **gravava a cada tecla** —
+  virou rascunho + "Revisar e aplicar". **Medido no ar:** excluir a A1 Mini move **94 de 105
+  produtos, +7,0%**; aluguel 1500→1800 move 26; ciclo aplicar→desfazer devolveu a frota. 🔴 A prova
+  achou um defeito que teste unitário não pega: **duas instâncias do `useChangeLog` na mesma página**
+  disputavam o localStorage e o aviso contava 1 de 2 → virou armazém module-level com
+  `useSyncExternalStore`. 1.014 testes + 158 de regras; writeup no
   [`HISTORICO.md`](.claude/HISTORICO.md).
-- **▶ PRÓXIMA TAREFA — [FEAT-12]** (dono, 2026-09-08): hoje **qualquer** alavanca global reprecifica
-  o catálogo inteiro, em todos os aparelhos, sem prévia nem rastro. Ele traz a prévia+confirmação, o
-  aviso pós-fato, o registro `alteracoes` e a página nova **`/configuracoes`** (⚙ discreto, fora das
-  abas). O [TD-033], que tinha de vir antes dele, já fechou. Spec completa no
-  [`BACKLOG.md`](.claude/BACKLOG.md) — **não** depende de nenhum chat. A [FEAT-03] sem a logo segue
-  livre, atrás dele.
+- **▶ PRÓXIMA TAREFA — [FEAT-03] sem a logo**, o único item de código que não espera ninguém: as 5
+  sementes do PDF que não tocam em marca (prazo, formas de pagamento, termos, desconto/acréscimo,
+  detalhar etapas e subitens). **Onde:** `generateQuotePdf.ts` + `QuotePage`/`config/orcamento`. Spec
+  no [`BACKLOG.md`](.claude/BACKLOG.md) — **não** depende de nenhum chat.
 - ⚠ **O projeto Firebase é da conta `lopolab3d`, NÃO da `nivaldo.lopo`** — ela vive em **outro
   perfil do Chrome**, e a extensão precisa estar conectada *nele* (`list_connected_browsers` mostra
   as duas). Deep-link pra página de regras redireciona: o caminho é Firestore → aba **Security**.
 - **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)**, **✅ [AUD-17]**, **✅ [AUD-18]**,
-  **✅ [AUD-08]** e **✅ [TD-033]** — custo decomponível ponta a ponta, o PREÇO não depende mais de
-  quem estava livre nem de preço congelado de insumo, e o que a 10ª varredura e as duas campanhas de
-  prova acharam está corrigido e medido.
+  **✅ [AUD-08]**, **✅ [TD-033]** e **✅ [FEAT-12]** — custo decomponível ponta a ponta, o PREÇO não
+  depende mais de quem estava livre nem de preço congelado de insumo, e mudança global de preço não
+  acontece mais calada. O que a 10ª varredura e as duas campanhas de prova acharam está corrigido.
 - ⚠ **Esta máquina NÃO tem Excel, LibreOffice nem Firefox** — o round-trip de planilha real segue sem
   prova (o Sheets exige o diálogo nativo do Windows, que eu não opero).
 - **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
@@ -67,22 +69,26 @@ preço sugerido e a capacidade produtiva. Tudo salvo no Firestore, sincronizado 
 ```
 src/app/          # App Router. layout.tsx · page.tsx (calculadora) · catalogo (FEAT-07) ·
                   # vendas (histórico) · orcamento (PDF) · maquinas (ROI) · estoque · producao ·
+                  # configuracoes (FEAT-12: registro de alterações; casa futura do config/) ·
                   # globals.css (só @import) + styles/*.css (CSS por área)
 src/features/pricing-calculator/
   components/     # calculadora: PricingCalculator (raiz) + ProductForm + PricingResultCard +
                   #   CapacityPanel/MachineSelector/FixedCostsPanel/Accessories/ExtraStages/
                   #   Subitems/LinksSection + MachineCheckboxes (as elegíveis)
                   # uma por rota: CatalogPage(+ProductCatalog) · SalesPage · QuotePage ·
-                  #   MachinesPage · ProductionPage · StockPage (abas) + SuppliesTab
+                  #   MachinesPage · ProductionPage · StockPage (abas) + SuppliesTab ·
+                  #   SettingsPage
                   # venda: SaleModal + SaleFlow (a fiação, usada pelas 2 páginas)
                   # casca: PageHeader · PageIntro · NavBar · MobilePriceBar · AuthGate ·
                   #   Modal (casca dos 9 diálogos) + os 8 que a consomem + ConfirmDialog
+                  # reprecificação (FEAT-12): RepriceGate (prévia+confirmação, autônomo) ·
+                  #   RepriceImpactView (o desenho do impacto, 3 telas) · RepriceNotice (aviso)
                   # compartilhados: NumberInput · ProfitSummary · SearchBox · CostBars ·
                   #   FeedbackNote · NetMarginHint · CostDetail (exporta CostBreakdownTable,
                   #   reusada por 3 rotas)
   hooks/          # useProducts · usePricingForm · useMachines · useTheme · useAuth · e um por
                   #   coleção: useSales/useSupplies/useStock/useProduction/useFinishedGoods/
-                  #   useQuotes/useQuoteConfig/useFees
+                  #   useQuotes/useQuoteConfig/useFees/useChangeLog
   lib/            # TODA a matemática, pura. calculatePricing · calculateCapacity ·
                   #   fleet (taxa de frota: média ponderada por componente +
                   #     as decisões do seletor, sobre o MARCADO VIVO) ·
@@ -100,7 +106,8 @@ src/lib/
                   #   quoteConfig · quotes · fees · sales (`vendas`; reconcileRecibo = 1
                   #   transação p/ as 4 coleções) · stock (`estoque`, doc por COR) ·
                   #   supplies (`insumos`, doc por INSUMO) · production (`producao`, N eventos +
-                  #   baixa na mesma transação) · finishedGoods (`acabados`, doc por PRODUTO)
+                  #   baixa na mesma transação) · finishedGoods (`acabados`, doc por PRODUTO) ·
+                  #   changeLog (`alteracoes`, append-only: 1 doc por mudança global de preço)
   errors.ts       # guardOnline (barra ANTES do await) + withWriteTimeout (12s, na BORDA do
                   #   repositório — escrita nova passa por ele) + errorMessage
   cloudStatus.ts  # cloudStatusOf(metadata) + COM_METADATA — o chip de sincronização
@@ -144,6 +151,13 @@ src/lib/
   (`resolveFilamentPrices`) e insumo (`resolveAccessoryPrices`) resolvem pelo id; o gravado é
   **fallback** e só volta a valer quando o id sumiu (aí acende `filamentMissing`/`supplyMissing`).
   ⚠ A lista vai **INTEIRA**, com arquivados — filtrar antes faz arquivado passar por removido.
+- **Alavanca GLOBAL não grava sem prévia** (FEAT-12): máquinas, excluir máquina e custo fixo passam
+  pelo `RepriceGate` (o "antes" é o da `revDoRascunho`, nunca o vivo); rolo/lote novo **conta
+  depois**, com o aviso acumulado. Toda mudança vira 1 doc em `alteracoes` (resumo, nunca o
+  catálogo), e o desfazer sai do `before` — **alavanca primeiro, rastro depois**, e falha do rastro
+  não derruba a mudança. Campo de config que grave **a cada tecla** é reprecificação global calada:
+  editar rascunho + aplicar. ⚠ **Dois `useState` do mesmo estado em duas instâncias do mesmo hook
+  discordam** — estado de aparelho compartilhado entre telas é `useSyncExternalStore`, não `useState`.
 - **Função que REMONTA objeto salvo copia TODO campo — ou come dado calado** (FORM-01/RT-01): o par
   `buildLoadedProduct` ⇄ `buildProductPayload` (puros e exportados, `usePricingForm.ts` /
   `lib/productPayload.ts`), o `toSavedProduct` e o `parseProductsCsv`; o que falta vira `null` no

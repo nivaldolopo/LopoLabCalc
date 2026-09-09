@@ -54,6 +54,11 @@ type SuppliesTabProps = {
   production: ProductionEvent[];
   // Rótulo curto do desfecho da produção, para a linha de consumo do extrato.
   outcomeShort: Record<ProductionEvent["outcome"], string>;
+  // [FEAT-12] — o rastro do LOTE NOVO (alavanca de "conta depois"). A conta é
+  // feita no `StockPage`, que já tem máquinas, custo fixo, cores e produtos na
+  // mão; passá-la como prop evita esta aba abrir três assinaturas só para
+  // descrever uma mudança que já aconteceu.
+  onQuotationChange: (supply: Supply, next: Supply) => Promise<void>;
 };
 
 // O insumo vivo JÁ satisfaz o payload (o `id` sobra, mas é a chave do doc e o
@@ -66,6 +71,7 @@ export function SuppliesTab({
   products,
   production,
   outcomeShort,
+  onQuotationChange,
 }: SuppliesTabProps) {
   const { supplies, error, addSupply, updateSupply, deleteSupply } =
     useSupplies();
@@ -156,10 +162,13 @@ export function SuppliesTab({
 
   async function saveLot(supply: Supply, lot: SupplyLot) {
     guardOnline();
-    await updateSupply(supply.id, {
-      ...toPayload(supply),
-      lots: [...supply.lots, lot],
-    });
+    const proximo: Supply = { ...supply, lots: [...supply.lots, lot] };
+    await updateSupply(supply.id, toPayload(proximo));
+    // [FEAT-12] — o lote mais novo é a cotação de catálogo (D3), e desde o
+    // TD-033 ela chega VIVA ao produto: um lote mais caro reprecifica na hora
+    // todo produto que usa este insumo. A alavanca grava primeiro; o rastro
+    // depois, e a falha dele não derruba o cadastro da compra.
+    await onQuotationChange(supply, proximo);
   }
 
   async function saveAdjust(

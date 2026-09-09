@@ -133,6 +133,13 @@ export const DEFAULT_PRODUCT_INPUT: ProductInput = {
 };
 
 export const MACHINE_STORAGE_KEY = "calc3d-machines";
+
+// [FEAT-12] — o aviso pós-fato vive no APARELHO que fez a mudança (dono): os
+// outros ficam com o registro, que é permanente e não interrompe ninguém. Dois
+// conjuntos de ids no localStorage bastam para isso, e nenhum deles é dado de
+// negócio — perdê-los só faz o aviso não aparecer.
+export const CHANGES_LOCAL_KEY = "calc3d-alteracoes-locais";
+export const CHANGES_DISMISSED_KEY = "calc3d-alteracoes-dispensadas";
 export const THEME_STORAGE_KEY = "calc3d-theme";
 
 // E-mails Google autorizados a acessar o app. A tela de login barra os demais,
