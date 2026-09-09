@@ -58,6 +58,18 @@ lote → campo editável, sem badge · lote novo a R$ 4,00 registrado em OUTRA a
 do Estoque" no card e o custo de volta a R$ 15,27. No catálogo, os produtos ligados à Argola já
 mostram os R$ 0,43 do lote mais novo (estavam gravados a R$ 0,50).
 
+**O celular pediu uma linha a mais.** O `resize_window` do Chrome real **não pega** numa janela
+maximizada (reporta sucesso e o viewport segue em 1707px), e o navegador embutido esbarra no
+AuthGate. Saída que funcionou: um **harness de CSS** — `scratchpad/harness.html` com o
+`src/app/styles/*.css` concatenado NA ORDEM do `globals.css` e a marcação real da fileira, medido a
+375/700/1280px. A 375 (modo cartão, UX-47) ele achou o defeito: `.acc-live-price` **não é `input`** e
+por isso ficava fora do `min-height: 44px` de `.accessory-row input` — 47px contra 57 do campo de
+Qtd ao lado e, com `align-items: end`, o rótulo "R$/UN" 10px abaixo do "QTD/PEÇA". Com o piso
+próprio: 98×57 os dois, idênticos ao par editável. Desktop (1280) e a faixa de 700 já casavam e
+seguem iguais. **A regra que fica:** caixa só-leitura que ocupa a trilha de um campo herda a régua
+do campo, não a do texto — e a régua do celular mira `input`, então classe nova precisa entrar
+explícita.
+
 **Cobertura:** 8 testes novos no `calculatePricing.test.ts` (inclusive "o preço acompanha o insumo" e
 o rateio por subitem, onde as partes têm de somar o inteiro), 3 no `production.test.ts` e 2 no
 round-trip do CSV. ⚠ **Lista de insumos vazia = tudo `missing`** — indistinguível de "o insumo não

@@ -16,7 +16,8 @@
   `resolveFilamentPrices`; **arquivado segue vivo** e o campo virou **só-leitura** quando há cotação
   (as 2 decisões do dono). O fanout de 11 pontos achou 5 lugares com o preço velho (`QuotePage`,
   `StockPage`, `CatalogDetails`, CSV e o `historico` do `planSupplies`). **Medido no ar**: lote novo
-  em outra aba → custo R$ 15,27 → 17,77 **sem tocar no produto**. 974 testes; writeup no
+  em outra aba → custo R$ 15,27 → 17,77 **sem tocar no produto**; e o modo cartão do celular pediu
+  piso de 44px no valor só-leitura (ele não é `input`). 974 testes; writeup no
   [`HISTORICO.md`](.claude/HISTORICO.md).
 - **▶ PRÓXIMA TAREFA — [FEAT-12]** (dono, 2026-09-08): hoje **qualquer** alavanca global reprecifica
   o catálogo inteiro, em todos os aparelhos, sem prévia nem rastro. Ele traz a prévia+confirmação, o

@@ -256,6 +256,17 @@
     min-height: 44px;
   }
 
+  /* TD-033 — o preço só-leitura do acessório ligado NÃO é `input` e por isso
+     ficava fora da regra acima: medido no cartão a 375px, 47px de caixa contra
+     57 do campo de Qtd ao lado, e com `align-items: end` a diferença virava
+     rótulo desalinhado (o "R$/UN" 10px abaixo do "QTD/PEÇA"). Não é alvo — é
+     texto derivado —, mas ocupa a trilha de um campo e tem de medir como um.
+     A altura sai igual à do irmão; o desktop já casava (lá o campo não tem
+     piso, e a caixa é a mesma do `.field-input`). */
+  .acc-live-price {
+    min-height: 44px;
+  }
+
   /* Medido: `.btn.primary` 41 e os três `.btn-secondary` da barra de ações 34.
      O recuo de 14px desta faixa já está aplicado — o que falta é o piso. */
   .btn {
