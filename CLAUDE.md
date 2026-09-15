@@ -18,10 +18,13 @@
   Última de código: [FEAT-12] (2026-09-09), writeup no [`HISTORICO.md`](.claude/HISTORICO.md).
 - **▶ PRÓXIMA TAREFA — frente 1: o pedido do PDF ao designer** (conversa, sem código). Começa
   **conferindo a logo no Drive** (os atalhos da marca/designer foram adicionados em 2026-09-15).
-- ⚠ **Airtable e Google Drive são geridos por OUTRO agente do dono.** Aqui só se toca **o que é do
-  LopoLabCalc** (não criar/reestruturar base, tabela ou pasta alheia). Airtable = só **painel Kanban**
-  (os `.md` seguem a fonte); Drive (`G:\My Drive\Lopo Lab - Empresa\`) = marca, designer, planilhas,
-  PDFs — **nunca código**. Ler é livre; escrever lá é compartilhar → só a pedido.
+- ⚠ **Airtable: o projeto LopoLabCalc é MEU (controle total); o resto da base é do OUTRO agente do
+  dono**, que só LÊ o nosso. Base `Lopo Lab OS` (`appQiYC4NVQy34QtH`) · projeto **LopoLabCalc**
+  (`rec72ERQgc4Ypy8CW`, tabela Projects) · cartões na tabela **Work** ligados a ele, Origem
+  **Claude**. **Fechou/mudou uma frente → atualizar o cartão (Status + Próxima ação) no mesmo
+  passo**; os `.md` seguem a fonte do detalhe. Não tocar cartão/projeto de outra frente da loja.
+- ⚠ **Drive** (`G:\My Drive\Lopo Lab - Empresa\`, geral do outro agente) = marca, designer,
+  planilhas, PDFs — **nunca código**. Ler é livre; escrever lá é compartilhar → só a pedido.
 - ⚠ **O projeto Firebase é da conta `lopolab3d`, NÃO da `nivaldo.lopo`** — ela vive em **outro
   perfil do Chrome**, e a extensão precisa estar conectada *nele* (`list_connected_browsers` mostra
   as duas). Deep-link pra página de regras redireciona: o caminho é Firestore → aba **Security**.

@@ -84,9 +84,12 @@ Inventário de 2026-09-15 (conferir no código antes de desenhar):
 - Pendências de prova que o uso real exercita: import >500, Excel/LibreOffice real.
 
 ### Airtable e Drive (LopoLabCalc)
-- **Airtable:** achar a base/tabela que o outro agente usa e espelhar só o backlog **aberto** do
-  LopoLabCalc (item, status, prioridade, frente, bloqueio). Quem fecha item aqui atualiza lá no mesmo
-  passo — o `BACKLOG.md` continua a fonte do detalhe.
+- **✅ Airtable (2026-09-15):** o projeto **LopoLabCalc** ficou com 12 cartões na Work — um por
+  frente, não por item técnico (lacunas de prova e ressalvas NÃO vão). O projeto duplicado "Site Lopo
+  Lab" foi **arquivado** (era o mesmo sistema) e seus 2 cartões vieram pra cá. Opção **Claude**
+  criada no campo Origem. Quem fecha item aqui atualiza lá no mesmo passo. ⚠ **Sem visão Kanban**:
+  a base só tem Grid view e a interface do outro agente só tem listas — criar uma página Kanban do
+  LopoLabCalc é pendente de o dono pedir.
 - **Drive:** só a pasta `07_SITE_E_SISTEMAS\LopoLabCalc` e o que for do projeto em `06_MARCA`.
   Código **não** vai pro Drive (GitHub já é a nuvem dele; `node_modules`/`.git` sincronizando
   corrompem).
