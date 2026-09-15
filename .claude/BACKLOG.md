@@ -39,8 +39,11 @@
 `G:\My Drive\Lopo Lab - Empresa\` → `06_MARCA\01_ARQUIVOS_LOPO_LAB` (finais da marca; estava vazia) ·
 `06_MARCA\02_COMPARTILHADO_DESIGNER` (troca com o designer) · `07_SITE_E_SISTEMAS\LopoLabCalc`
 (planilhas, PDFs de exemplo; hoje só um "snapshot antigo" — cópia de doc que ficou pra trás, não
-repetir). ⚠ O dono adicionou **atalhos** das pastas da marca e do designer em 2026-09-15; ainda não
-tinham sincronizado na hora — **o chat do PDF confere primeiro** se a logo aparece.
+repetir). ✅ **A pasta do designer é legível pelo atalho** (`02_COMPARTILHADO_DESIGNER\Lopo Lab.lnk`
+→ `G:\.shortcut-targets-by-id\1Qp5-Ostzq-61UTdZJhNL6b-tQgH8Ck9o\Lopo Lab\`): tem `.ai`/`.svg`/`.eps`/
+`.jpg` (cartão de visita, elementos auxiliares, padrão, WhatsApp, QR) e a subpasta "Minha bagunça"
+com os rascunhos (ideia caixa, ideia abelha). **Qual é a logo FINAL o chat do PDF descobre** — não
+está nomeada como tal.
 
 ### 1 · Pedido do PDF ao designer — [FEAT-03] inteira + marca
 - **Ver a logo** (qual opção venceu: caixas de traço fino ou abelha pixel art; formatos entregues).
@@ -87,9 +90,9 @@ Inventário de 2026-09-15 (conferir no código antes de desenhar):
 - **✅ Airtable (2026-09-15):** o projeto **LopoLabCalc** ficou com 12 cartões na Work — um por
   frente, não por item técnico (lacunas de prova e ressalvas NÃO vão). O projeto duplicado "Site Lopo
   Lab" foi **arquivado** (era o mesmo sistema) e seus 2 cartões vieram pra cá. Opção **Claude**
-  criada no campo Origem. Quem fecha item aqui atualiza lá no mesmo passo. ⚠ **Sem visão Kanban**:
-  a base só tem Grid view e a interface do outro agente só tem listas — criar uma página Kanban do
-  LopoLabCalc é pendente de o dono pedir.
+  criada no campo Origem. Quem fecha item aqui atualiza lá no mesmo passo. **Sem visão Kanban, e não
+  precisa** (dono): ele não abre o Airtable — acompanha pelo outro agente, que lê os cartões. Por
+  isso o que importa é o TEXTO de Status e Próxima ação estar certo.
 - **Drive:** só a pasta `07_SITE_E_SISTEMAS\LopoLabCalc` e o que for do projeto em `06_MARCA`.
   Código **não** vai pro Drive (GitHub já é a nuvem dele; `node_modules`/`.git` sincronizando
   corrompem).
