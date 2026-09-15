@@ -10,23 +10,18 @@
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
-- **Última mudança (2026-09-09): [FEAT-12] — a reprecificação global ganhou PRÉVIA, RASTRO e DESFAZER.**
-  O preço não é dado, é **função** (nenhuma tela guarda preço; todas chamam `calculatePricing`), então
-  qualquer alavanca global reprecificava o catálogo inteiro em todos os aparelhos, calada. Critério:
-  **pergunta antes** (máquinas, excluir máquina, custo fixo) · **conta depois** (rolo/lote novo).
-  Peças: `lib/repriceImpact.ts` (pura) · `RepriceGate` (autônomo, não colado no modal) · aviso
-  acumulado nas portas do estoque · **`/configuracoes`** (⚙ no `PageHeader`, fora das abas) · coleção
-  **`alteracoes`** · desfazer derivado do registro. ⚠ O `FixedCostsPanel` **gravava a cada tecla** —
-  virou rascunho + "Revisar e aplicar". **Medido no ar:** excluir a A1 Mini move **94 de 105
-  produtos, +7,0%**; aluguel 1500→1800 move 26; ciclo aplicar→desfazer devolveu a frota. 🔴 A prova
-  achou um defeito que teste unitário não pega: **duas instâncias do `useChangeLog` na mesma página**
-  disputavam o localStorage e o aviso contava 1 de 2 → virou armazém module-level com
-  `useSyncExternalStore`. 1.014 testes + 158 de regras; writeup no
-  [`HISTORICO.md`](.claude/HISTORICO.md).
-- **▶ PRÓXIMA TAREFA — [FEAT-03] sem a logo**, o único item de código que não espera ninguém: as 5
-  sementes do PDF que não tocam em marca (prazo, formas de pagamento, termos, desconto/acréscimo,
-  detalhar etapas e subitens). **Onde:** `generateQuotePdf.ts` + `QuotePage`/`config/orcamento`. Spec
-  no [`BACKLOG.md`](.claude/BACKLOG.md) — **não** depende de nenhum chat.
+- **Última mudança (2026-09-15): PLANO de 5 frentes, sem código.** A **logo ficou pronta**; o dono
+  fechou a ordem num chat de planejamento — **um chat por frente**: **1** pedido do PDF ao designer ·
+  **2** aba de Configurações (todo o `config/` num lugar) · **3** checklist + uso real (a Diretriz 7
+  expira aí) · e, sem dependência, **Airtable** e **Drive** do LopoLabCalc. Escopo, inventário e
+  perguntas de cada uma na seção **"PLANO 2026-09-15"** do [`BACKLOG.md`](.claude/BACKLOG.md).
+  Última de código: [FEAT-12] (2026-09-09), writeup no [`HISTORICO.md`](.claude/HISTORICO.md).
+- **▶ PRÓXIMA TAREFA — frente 1: o pedido do PDF ao designer** (conversa, sem código). Começa
+  **conferindo a logo no Drive** (os atalhos da marca/designer foram adicionados em 2026-09-15).
+- ⚠ **Airtable e Google Drive são geridos por OUTRO agente do dono.** Aqui só se toca **o que é do
+  LopoLabCalc** (não criar/reestruturar base, tabela ou pasta alheia). Airtable = só **painel Kanban**
+  (os `.md` seguem a fonte); Drive (`G:\My Drive\Lopo Lab - Empresa\`) = marca, designer, planilhas,
+  PDFs — **nunca código**. Ler é livre; escrever lá é compartilhar → só a pedido.
 - ⚠ **O projeto Firebase é da conta `lopolab3d`, NÃO da `nivaldo.lopo`** — ela vive em **outro
   perfil do Chrome**, e a extensão precisa estar conectada *nele* (`list_connected_browsers` mostra
   as duas). Deep-link pra página de regras redireciona: o caminho é Firestore → aba **Security**.
@@ -36,8 +31,8 @@
   acontece mais calada. O que a 10ª varredura e as duas campanhas de prova acharam está corrigido.
 - ⚠ **Esta máquina NÃO tem Excel, LibreOffice nem Firefox** — o round-trip de planilha real segue sem
   prova (o Sheets exige o diálogo nativo do Windows, que eu não opero).
-- **⏸ branding ADIADO (dono, 2026-08-12):** **cores saíram (amarelo + preto)**, a **logo não** —
-  destrava quando o dono avisar. Com o `--on-accent` já criado, a troca virou paleta.
+- **Branding:** cores **amarelo + preto** e **logo pronta** (2026-09-15) — o código do rebrand espera
+  a entrega do designer (frente 1). Com o `--on-accent` já criado, a troca virou paleta.
 - ⚠ **NÃO REPROPOR (avaliadas e descartadas pelo dono):** `lifeHours` por máquina (**DEC-02**),
   `residualValue`, peso em **horas/dia** (D6.1), chutar a de maior peso na `/producao`, e a
   conversão **peso↔metragem**.

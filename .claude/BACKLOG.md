@@ -5,28 +5,91 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob demanda. A foto
 > do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-09: o [FEAT-12] FECHOU, e com ele a lista fica SEM dívida de código
-> disponível** — sobra a metade da [FEAT-03] que não precisa de marca. O [FEAT-12] e o [TD-033]
-> nasceram da mesma conversa sobre *reprecificação automática*; o TD-033 (preço vivo do insumo) veio
-> primeiro e sozinho, como a spec dele exigia. A prévia de reprecificação achou de quebra um defeito
-> que nenhum teste unitário pegaria (duas instâncias do mesmo hook disputando o localStorage) —
-> writeups dos dois no `HISTORICO.md`. Antes deles, a [AUD-08] provou as regras do Firestore (a
-> lacuna mais velha, aberta desde a AUD-09), a [AUD-18] fechou seis lacunas de prova e os 2 defeitos
-> que elas revelaram, a [AUD-17] fechara os 6 dela, e as duas fases do [FROTA] em 2026-09-01. O resto
-> **depende de algo de fora**: a logo, o cadastro do dono, o LibreOffice, ou ~1-2 meses de venda real.
+> **Estado em 2026-09-15: a LOGO FICOU PRONTA e o dono voltou com um plano de 5 frentes** (abaixo),
+> fechado em chat de planejamento — **um chat por frente**, na ordem da tabela. A logo destrava a
+> metade da [FEAT-03] que esperava marca, o [branding/rebrand] e o [DEC-05]. Antes disso: [FEAT-12]
+> (2026-09-09), [TD-033], [AUD-08], [AUD-18], [AUD-17] e o [FROTA] — writeups no `HISTORICO.md`.
 
 > ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
-> causa de dado velho.
+> causa de dado velho — **até a frente 3** (uso real), que é o marco em que ela expira.
 
-## ▶ Disponível HOJE — a frente que não espera ninguém
+## ▶ PLANO 2026-09-15 — cinco frentes, um chat cada
 
-> Só sobrou um item, e ele é meio item: as cinco sementes do PDF que **não tocam em marca**. O
-> [FEAT-12] fechou em 2026-09-09 e o [TD-033], que tinha de vir antes dele, em 2026-09-08.
+> **Por que esta ordem:** o designer trabalha em paralelo (o pedido sai primeiro) · mudar a casa das
+> configurações é barato enquanto o dado é teste e o dono aprende o lugar definitivo no 1º cadastro
+> real (Configurações antes do uso real) · o Airtable e a rotina de Drive não dependem de nada.
+>
+> **Papéis dos lugares (decidido pelo dono):** **GitHub** = código + a cópia EXPORTADA da logo que o
+> app usa · **`.md`** = spec, backlog detalhado, porquês (continua a fonte de trabalho, nada muda) ·
+> **Airtable** = só PAINEL Kanban do dono · **Drive** = originais da marca, pedidos/entregas do
+> designer, planilhas de cadastro, PDFs de exemplo. ⚠ **Airtable e Drive são geridos por OUTRO agente
+> do dono** — aqui só se toca **o que é do LopoLabCalc**: não criar/reestruturar base, tabela ou
+> pasta alheia; descobrir a estrutura existente e encaixar. Ler no Drive é livre; **escrever** lá é
+> compartilhar (o designer vê) → só a pedido.
 
-- **[FEAT-03] sem a logo.** O guarda-chuva do PDF tem cinco sementes que **não tocam em marca**:
-  prazo de entrega, formas de pagamento/condições, termos e observações, desconto/acréscimo,
-  detalhar etapas e subitens (usa FEAT-01). Só a foto do item, o QR do WhatsApp e o branding real
-  esperam o designer. **Onde:** `generateQuotePdf.ts` + `QuotePage`/`config/orcamento`.
+| # | Frente | Tipo | Entrega |
+|---|---|---|---|
+| 1 | **Pedido do PDF ao designer** | conversa, sem código | documento pro designer, no Drive |
+| 2 | **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
+| 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
+| — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
+| — | **Drive (LopoLabCalc)** | organização da pasta do projeto | só o que é do projeto, sem código |
+
+**Drive — onde está cada coisa** (unidade `G:`, Drive para Desktop instalado; eu leio direto):
+`G:\My Drive\Lopo Lab - Empresa\` → `06_MARCA\01_ARQUIVOS_LOPO_LAB` (finais da marca; estava vazia) ·
+`06_MARCA\02_COMPARTILHADO_DESIGNER` (troca com o designer) · `07_SITE_E_SISTEMAS\LopoLabCalc`
+(planilhas, PDFs de exemplo; hoje só um "snapshot antigo" — cópia de doc que ficou pra trás, não
+repetir). ⚠ O dono adicionou **atalhos** das pastas da marca e do designer em 2026-09-15; ainda não
+tinham sincronizado na hora — **o chat do PDF confere primeiro** se a logo aparece.
+
+### 1 · Pedido do PDF ao designer — [FEAT-03] inteira + marca
+- **Ver a logo** (qual opção venceu: caixas de traço fino ou abelha pixel art; formatos entregues).
+- **Decidir o que entra:** prazo de entrega · formas de pagamento/condições · termos e observações ·
+  desconto/acréscimo · detalhar etapas e subitens (FEAT-01) · foto do item · QR do WhatsApp.
+  Hoje: logo placeholder + nome/contato à esquerda, "ORÇAMENTO nº/data" à direita, tabela, total
+  (`generateQuotePdf.ts`, `ACCENT` ainda laranja `#FF6B35`).
+- **Rascunho da disposição** (pode ser artifact) + **como entregar**: SVG + PNG, versões (horizontal,
+  só símbolo, fundo claro/escuro), **hex exato** do amarelo, fonte. Pedir junto o que o app precisa:
+  **favicon 16/32px** e **marca de ~32px** no cabeçalho (ver as restrições de contraste em
+  [branding/rebrand], abaixo).
+- ⚠ Limite técnico a levar ao designer: o PDF é **jsPDF no cliente**, fonte padrão Helvetica
+  (cp1252); fonte da marca = embutir (centenas de KB) — decidir se vale.
+
+### 2 · Aba de Configurações — mover o `config/` pra `/configuracoes`
+Inventário de 2026-09-15 (conferir no código antes de desenhar):
+
+| Config | Onde se edita hoje | Doc |
+|---|---|---|
+| Máquinas (frota, watts, pesos) | modal da calculadora | `config/machines` |
+| Custo fixo + capacidade | `FixedCostsPanel` na calculadora | `config/negocio` |
+| Taxas de pagamento | modal no fluxo de venda (`SaleFlow`/`SalesPage`) | `config/taxas` |
+| Dados do negócio | página Orçamento | `config/orcamento` |
+| Registro de alterações | já em `/configuracoes` | `alteracoes` |
+| **Fixos no código** | `constants.ts` | validade do orçamento (7), falha padrão (3%), manutenção/h, pagamento/canal padrão, 3 parcelas |
+
+- **A decisão por item:** mover de vez · deixar nos dois · **editar só lá + resumo com atalho no
+  lugar de uso** (ex.: taxa do cartão visível na venda). Pesar o que se perde: o custo fixo na
+  calculadora mostra o preço reagindo; a taxa na venda corrige no meio da venda.
+- ⚠ Já decidido: a página entra pelo ⚙ **fora das abas**. Máquinas e custo fixo **passam pelo
+  `RepriceGate`** onde quer que morem (FEAT-12). Mudar a casa **não muda o caminho do doc**.
+- Os campos novos do PDF (prazo/pagamento/termos padrão) nascem **já na casa nova**.
+
+### 3 · Checklist e uso real
+- **O que se apaga** (dado de teste): `products`, `vendas`, `orcamentos`, `estoque`, `insumos`,
+  `acabados`, `producao`, `alteracoes`, `config/orcamentoSeq` — conferir coleção por coleção, e o
+  que o dono **já cadastrou de verdade** antes não pode ir junto.
+- **Ordem do cadastro real:** máquinas (a frota real tem 3) → custo fixo/capacidade → taxas → dados
+  do negócio → cores e insumos → catálogo (planilha, ver "A frente do DONO") → acessórios religados.
+- **A Diretriz 7 expira aqui** — o dono anuncia o marco; a partir dele, migração é obrigatória.
+- Pendências de prova que o uso real exercita: import >500, Excel/LibreOffice real.
+
+### Airtable e Drive (LopoLabCalc)
+- **Airtable:** achar a base/tabela que o outro agente usa e espelhar só o backlog **aberto** do
+  LopoLabCalc (item, status, prioridade, frente, bloqueio). Quem fecha item aqui atualiza lá no mesmo
+  passo — o `BACKLOG.md` continua a fonte do detalhe.
+- **Drive:** só a pasta `07_SITE_E_SISTEMAS\LopoLabCalc` e o que for do projeto em `06_MARCA`.
+  Código **não** vai pro Drive (GitHub já é a nuvem dele; `node_modules`/`.git` sincronizando
+  corrompem).
 
 > **[AUD-08] FECHADA em 2026-09-08, sem resíduo** — as regras estão provadas nas **três** pontas:
 > produção sem token (403 em 18/18 sondas), o texto do `firestore.rules` (119 testes no emulador, 12
@@ -102,12 +165,12 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
 
 ## Bloqueadas por dado externo
 
-- **[FEAT-03] — só a METADE que precisa de marca.** Bloqueadas aqui: foto/thumbnail do item, QR code
-  do WhatsApp e branding real. As outras cinco sementes **não esperam ninguém** → ver "Disponível
-  HOJE", no topo. Lista completa em `HISTORICO.md`.
+- **[FEAT-03] inteira** → frente 1 do PLANO, no topo (a logo ficou pronta em 2026-09-15). Lista
+  completa em `HISTORICO.md`.
 - **[branding/rebrand]** paleta + logo real *(engloba o antigo "[branding/logo real]": trocar o
-  placeholder de impressora no PDF, que já tem comentário no código)*. **Bloqueado:** a logo ainda
-  não está fechada. **Leva junto a [DEC-05]** (lucide) e a logo do **[FEAT-03]**.
+  placeholder de impressora no PDF, que já tem comentário no código)*. **✅ Desbloqueado (2026-09-15):
+  a logo está pronta** — o código espera a entrega da frente 1. **Leva junto a [DEC-05]** (lucide) e
+  a logo do **[FEAT-03]**.
   ✅ **Cores marteladas pelo dono (2026-08-16): amarelo + preto.** Prévia do designer vista — duas
   opções (1: wordmark em caixas de traço fino · 2: abelha + wordmark em pixel art), **ainda não
   escolhida**; um jogo de 5 padrões de preenchimento acompanha as duas.
