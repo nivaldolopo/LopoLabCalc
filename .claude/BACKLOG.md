@@ -30,6 +30,7 @@
 | # | Frente | Tipo | Entrega |
 |---|---|---|---|
 | 1 | ✅ **Designer: pedido do PDF + checklist da marca** | conversa, sem código | os dois no Drive |
+| 1c | ▶ **Site do designer** (projeto separado) | código, fora deste repo | a checklist no ar, no domínio |
 | 2 | **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
@@ -73,21 +74,52 @@ só na logo) + **Archivo** (OFL, embutível). O pedido está no Drive, em
   tipografia (pt) + peças isoladas (SVG/PNG transparente) + página 2.
 ### 1b · Checklist geral da marca — ✅ ENTREGUE (2026-09-15), com a frente 1 fechada
 `00 - CHECKLIST DA MARCA.html` na **raiz** do `INPUT LOPO LAB` (o LEIA-ME já aponta pra ela).
-Artifact: `claude.ai/artifact/6tRp2pVZRQdgSj8jNo319X`. **32 itens em 6 blocos e 3 levas**, caixinhas
-que salvam no `localStorage` de quem abre; linhas marcadas **"só responder"** não precisam de arte.
-Não é pedido — cada bloco vira pedido numerado quando chegar a vez.
+Artifact: `claude.ai/artifact/6tRp2pVZRQdgSj8jNo319X`. **Revisão 2 (2026-09-15): 30 itens em 6 blocos
+e 3 levas**, caixinhas no `localStorage` de quem abre; linhas **"só responder"** não pedem arte. Não
+é pedido — cada bloco vira pedido numerado quando chegar a vez. ⚠ **Toda revisão escreve o que
+entrou/mudou/saiu** no bloco "O que mudou nesta lista", com data — foi pedido do dono.
 - **Bloco A (destrava o resto):** qual arquivo é a logo final · o `.ai` só dela · o que são as artes
-  de WhatsApp · pra onde aponta o QR do cartão · o padrão em vetor ladrilhável · nomear os 5 infills.
+  de WhatsApp · o padrão em vetor ladrilhável · nomear os 5 infills.
 - **1ª leva — kit base + site/app:** cores (HEX/RGB/CMYK), pesos da Archivo, **símbolo sozinho** e a
   **versão miúda** (16–32px), respiro/tamanho mínimo, usos proibidos, resumo em PDF · favicon
-  SVG+32, ícone iOS 180 com **fundo sólido**, Android 192/512 + recorte no **círculo de 80%**, marca
-  de cabeçalho **32px em duas tintas** (`#0f0f1a` e `#fafaf7`), marca de login ~120px, `theme-color`
-  por tema, imagem de link 1200×630. ⚠ Pergunta aberta que vira token: **o `#F2B705` muda no tema
-  escuro?** O sistema guarda um valor por tema.
+  SVG+32, ícone Android 192/512 + recorte no **círculo de 80%**, **símbolo pro quadrado de 36×36
+  (raio 10) e/ou a marca em SVG no lugar do nome escrito** — medido no cabeçalho em 15/09 —, nas
+  duas tintas (`#0f0f1a` e `#fafaf7`), marca de login ~120px, `theme-color` por tema. ⚠ Pergunta
+  aberta que vira token: **o `#F2B705` muda no tema escuro?** O sistema guarda um valor por tema.
 - **2ª leva:** Instagram (perfil 1080, 6 capas de destaque, 2 modelos de post 1080×1350, story,
   assinatura de foto) · WhatsApp (perfil 640, cartão de boas-vindas, moldura de catálogo 1000×1000,
-  QR de vitrine em SVG ≥25 mm). **3ª leva:** Google (logo 720×720, capa 1024×576, guia de foto).
+  **desenho** do QR de vitrine). **3ª leva:** Google (logo 720×720, capa 1024×576, guia de foto) e a
+  imagem de link 1200×630, que só vale quando existir **site público** (o sistema é interno).
 - **Fora por enquanto:** embalagem, adesivo, cartão de agradecimento, camiseta, sinalização.
+- 🔴 **QR CODE É DO DONO — regra da empresa, não deste projeto:** todo QR da Lopo Lab **quem gera é
+  ele**, e todos apontam pro **endereço fixo dele**, redirecionável depois sem reimprimir (o do
+  cartão cai hoje no WhatsApp). Do designer vem só o **desenho em volta**. ⚠ Isso encosta no QR do
+  PDF (seção 1), que o sistema geraria por orçamento com o nº no texto: **perguntar antes de
+  implementar** se o QR do orçamento passa a sair do redirecionador dele ou se aquele é a exceção.
+- ⚠ **Sem iPhone:** o sistema roda no computador e no **Android** do dono, mais ninguém usa — não
+  gastar ícone, teste nem CSS com iOS.
+- ⚠ **Tom da lista (pedido do dono):** o designer é **amigo e dono da loja vizinha** (República
+  Ludóvico, boardgame). Profissional, sim, mas a lista se apresenta como **sugestão** — "quem manda
+  no design é ele" — e os dois pedem coisa um pro outro com liberdade.
+
+### 1c · Site do designer — ▶ PRÓXIMA (decidido em 2026-09-15)
+A checklist deixa de ser arquivo e vira **página no ar**: os dois abrem o mesmo endereço e veem a
+mesma versão. Depois, vira o lugar do acompanhamento — o designer **marca as caixinhas, responde as
+perguntas e comenta ali**, em vez de tudo no WhatsApp.
+- 🔴 **SEPARADO DE TUDO** (decisão do dono): repositório próprio, projeto Vercel próprio e **banco
+  novo, que ele mesmo cria** — nada do LopoLabCalc, **nada da base da loja**. O motivo é esse:
+  escrita sem login não pode encostar em vendas/estoque. Não misturar com `calculadora.`, não mexer
+  no `AuthGate`, não abrir regra no banco `lopo-lab-calculadora`.
+- **Fase 1 — estático:** o HTML de 30 itens que já existe, servido pela Vercel, com o bloco "O que
+  mudou" fazendo o papel de changelog. Resolve o "abriu, está atualizado" sem banco nenhum.
+- **Fase 2 — ao vivo:** caixinhas compartilhadas, respostas às linhas "só responder" e comentário
+  por item. Só depois da fase 1 provar que ele usa. O dono disse que, uma vez pronto, quase não vai
+  mexer — então o desenho é para durar sem manutenção.
+- **Depende do dono:** criar o banco novo e passar a config · escolher o subdomínio (`lopolab.com.br`
+  no **Cloudflare**, CNAME **DNS only**, igual ao `calculadora`) · dizer se o repositório é novo no
+  GitHub dele.
+- ⚠ A CLI da Vercel está **deslogada** aqui (`vercel login` resolve) — o caminho normal continua
+  sendo repositório + integração Git.
 
 ### 2 · Aba de Configurações — mover o `config/` pra `/configuracoes`
 Inventário de 2026-09-15 (conferir no código antes de desenhar):

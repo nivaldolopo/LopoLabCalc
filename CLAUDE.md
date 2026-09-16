@@ -14,14 +14,19 @@
   dois no Drive, sem código.** A **logo final** é o retângulo `LOPO LAB` **sem "Impressão 3D"** +
   ondas do **giroide** (amarelo `#F2B705`); os quadradinhos são elementos auxiliares (infill). Tudo
   vive em `Drive\Lopo Lab\INPUT LOPO LAB\` — **pasta nova, nada do que já existia foi tocado**: o
-  pedido em `01 - Pedidos\01 - Orcamento em PDF` e a checklist (32 itens, 3 levas, caixinhas que
-  salvam no navegador) em `00 - CHECKLIST DA MARCA.html`, na raiz, já apontada pelo LEIA-ME. As
-  decisões que viram código quando a arte chegar (blocos opcionais, prazo sugerido/editável, foto
-  por item, QR+link, Archivo embutida) e o que a checklist pede do site/app (ícones, marca de 32px,
-  amarelo no tema escuro) estão na seção **1** do [`BACKLOG.md`](.claude/BACKLOG.md). Última de
-  código: [FEAT-12] (2026-09-09).
-- **▶ PRÓXIMA TAREFA — frente 2: a aba de Configurações** (desenho → código): juntar o `config/` num
-  lugar só, em `/configuracoes`. Inventário e critérios na seção **2** do `BACKLOG.md`.
+  pedido em `01 - Pedidos\01 - Orcamento em PDF` e a checklist (30 itens, 3 levas, caixinhas que
+  salvam no navegador) em `00 - CHECKLIST DA MARCA.html`, na raiz — **revisão 2**, com o bloco "O
+  que mudou" (toda revisão registra o que entrou/mudou/saiu, com data). O que vira código quando a
+  arte chegar e o que a checklist pede do site/app (ícones, símbolo no quadrado de 36×36 do
+  cabeçalho, amarelo no tema escuro) estão nas seções **1** e **1b** do
+  [`BACKLOG.md`](.claude/BACKLOG.md). Última de código: [FEAT-12] (2026-09-09).
+- **▶ PRÓXIMA TAREFA — o site do designer** (seção **1c** do `BACKLOG.md`): a checklist vira página
+  no ar, e depois o lugar onde ele marca, responde e comenta. 🔴 **Projeto SEPARADO** — repo, Vercel
+  e **banco novos** (o dono cria o banco); **nada** da base da loja, nada de mexer no `AuthGate`.
+  Depende dele: banco + subdomínio. Frente 2 (aba de Configurações, seção **2**) vem depois.
+- 🔴 **QR da Lopo Lab quem gera é o DONO** (regra da empresa): todos apontam pro endereço fixo dele,
+  redirecionável sem reimprimir. Designer só desenha em volta. ⚠ Confirmar com ele o QR do orçamento
+  antes de implementar. ⚠ **Sem iPhone** — o sistema roda no PC e no Android dele, só.
 - ⚠ **Airtable: o projeto LopoLabCalc é MEU (controle total); o resto da base é do OUTRO agente do
   dono**, que só LÊ o nosso. Base `Lopo Lab OS` (`appQiYC4NVQy34QtH`) · projeto **LopoLabCalc**
   (`rec72ERQgc4Ypy8CW`, tabela Projects) · cartões na tabela **Work** ligados a ele, Origem
