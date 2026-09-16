@@ -119,8 +119,9 @@ da fase 2 vivem no `CLAUDE.md` de lá** — este item fica só como registro de 
   passo seguinte, lá.
 - ⚠ **O bloco "O que mudou" saiu da lista**: o designer ainda não a leu, não há o que comparar. Volta
   **quando o dono declarar a versão final** — e daí toda revisão registra entrou/mudou/saiu, com data.
-- ⚠ Quando o site subir, o `00 - CHECKLIST DA MARCA.html` do Drive vira **ponteiro** pro endereço,
-  pra não existirem duas listas divergindo.
+- ⚠ Quando o site subir, o **pedido do orçamento em PDF vira a segunda página dele** (o conteúdo não
+  muda — só de endereço), e os dois HTMLs do Drive viram **ponteiros**, pra não existirem duas
+  versões divergindo. O **PDF imprimível fica** no Drive, junto das entregas.
 
 ### 2 · Aba de Configurações — mover o `config/` pra `/configuracoes`
 Inventário de 2026-09-15 (conferir no código antes de desenhar):
