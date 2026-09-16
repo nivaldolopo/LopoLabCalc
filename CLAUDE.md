@@ -28,9 +28,11 @@
 - **▶ PRÓXIMA TAREFA DESTE PROJETO — frente 2: a aba de Configurações** (seção **2** do
   `BACKLOG.md`): juntar o `config/` num lugar só, em `/configuracoes`. ⚠ O chat do site do designer
   corre em paralelo, **na pasta dele**.
-- 🔴 **QR da Lopo Lab quem gera é o DONO** (regra da empresa): todos apontam pro endereço fixo dele,
-  redirecionável sem reimprimir. Designer só desenha em volta. ⚠ Confirmar com ele o QR do orçamento
-  antes de implementar. ⚠ **Sem iPhone** — o sistema roda no PC e no Android dele, só.
+- 🔴 **QR (fechado em 2026-09-15):** **impresso e duradouro** (cartão, vitrine, adesivo) quem gera é
+  o DONO, sempre pro endereço fixo dele, redirecionável sem reimprimir — designer só desenha em
+  volta. **De um orçamento só**, o SISTEMA gera na hora, direto pro `wa.me/...?text=` com o nº (a
+  mensagem muda a cada orçamento; redirecionador exigiria um link novo na mão para cada um).
+  ⚠ **Sem iPhone** — o sistema roda no PC e no Android dele, só.
 - ⚠ **Airtable: o projeto LopoLabCalc é MEU (controle total); o resto da base é do OUTRO agente do
   dono**, que só LÊ o nosso. Base `Lopo Lab OS` (`appQiYC4NVQy34QtH`) · projeto **LopoLabCalc**
   (`rec72ERQgc4Ypy8CW`, tabela Projects) · cartões na tabela **Work** ligados a ele, Origem

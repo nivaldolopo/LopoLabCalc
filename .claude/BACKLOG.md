@@ -91,11 +91,15 @@ entrou/mudou/saiu** no bloco "O que mudou nesta lista", com data — foi pedido 
   **desenho** do QR de vitrine). **3ª leva:** Google (logo 720×720, capa 1024×576, guia de foto) e a
   imagem de link 1200×630, que só vale quando existir **site público** (o sistema é interno).
 - **Fora por enquanto:** embalagem, adesivo, cartão de agradecimento, camiseta, sinalização.
-- 🔴 **QR CODE É DO DONO — regra da empresa, não deste projeto:** todo QR da Lopo Lab **quem gera é
-  ele**, e todos apontam pro **endereço fixo dele**, redirecionável depois sem reimprimir (o do
-  cartão cai hoje no WhatsApp). Do designer vem só o **desenho em volta**. ⚠ Isso encosta no QR do
-  PDF (seção 1), que o sistema geraria por orçamento com o nº no texto: **perguntar antes de
-  implementar** se o QR do orçamento passa a sair do redirecionador dele ou se aquele é a exceção.
+- 🔴 **QR CODE — a regra, fechada em 2026-09-15.** Depende de o código ser **duradouro** ou
+  **descartável**:
+  - **Impresso e duradouro** (cartão, vitrine, adesivo, embalagem): **quem gera é o DONO**, sempre
+    apontando pro **endereço fixo dele**, que redireciona depois sem reimprimir nada. Do designer
+    vem só o desenho em volta. Nada disso nasce no código.
+  - **De um orçamento só:** o **sistema gera na hora**, direto pro `wa.me/...?text=` com o nº do
+    orçamento na mensagem. Redirecionador não serve aqui: a mensagem muda a cada orçamento, e cada
+    um exigiria um link novo cadastrado na mão — trabalho sem fim para um papel que vale 7 dias.
+    Gerar no navegador ainda tira um salto do caminho (menos coisa para dar errado na leitura).
 - ⚠ **Sem iPhone:** o sistema roda no computador e no **Android** do dono, mais ninguém usa — não
   gastar ícone, teste nem CSS com iOS.
 - ⚠ **Tom da lista (pedido do dono):** o designer é **amigo e dono da loja vizinha** (República
