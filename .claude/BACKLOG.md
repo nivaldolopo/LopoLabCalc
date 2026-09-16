@@ -30,7 +30,7 @@
 | # | Frente | Tipo | Entrega |
 |---|---|---|---|
 | 1 | ✅ **Designer: pedido do PDF + checklist da marca** | conversa, sem código | os dois no Drive |
-| 1c | ▶ **Site do designer** (projeto separado) | código, fora deste repo | a checklist no ar, no domínio |
+| 1c | ✅ **Site do designer** virou projeto próprio | fora deste repo | `lopolab-designer`, fase 1 pronta |
 | 2 | **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
@@ -102,24 +102,21 @@ entrou/mudou/saiu** no bloco "O que mudou nesta lista", com data — foi pedido 
   Ludóvico, boardgame). Profissional, sim, mas a lista se apresenta como **sugestão** — "quem manda
   no design é ele" — e os dois pedem coisa um pro outro com liberdade.
 
-### 1c · Site do designer — ▶ PRÓXIMA (decidido em 2026-09-15)
-A checklist deixa de ser arquivo e vira **página no ar**: os dois abrem o mesmo endereço e veem a
-mesma versão. Depois, vira o lugar do acompanhamento — o designer **marca as caixinhas, responde as
-perguntas e comenta ali**, em vez de tudo no WhatsApp.
-- 🔴 **SEPARADO DE TUDO** (decisão do dono): repositório próprio, projeto Vercel próprio e **banco
-  novo, que ele mesmo cria** — nada do LopoLabCalc, **nada da base da loja**. O motivo é esse:
-  escrita sem login não pode encostar em vendas/estoque. Não misturar com `calculadora.`, não mexer
-  no `AuthGate`, não abrir regra no banco `lopo-lab-calculadora`.
-- **Fase 1 — estático:** o HTML de 30 itens que já existe, servido pela Vercel, com o bloco "O que
-  mudou" fazendo o papel de changelog. Resolve o "abriu, está atualizado" sem banco nenhum.
-- **Fase 2 — ao vivo:** caixinhas compartilhadas, respostas às linhas "só responder" e comentário
-  por item. Só depois da fase 1 provar que ele usa. O dono disse que, uma vez pronto, quase não vai
-  mexer — então o desenho é para durar sem manutenção.
-- **Depende do dono:** criar o banco novo e passar a config · escolher o subdomínio (`lopolab.com.br`
-  no **Cloudflare**, CNAME **DNS only**, igual ao `calculadora`) · dizer se o repositório é novo no
-  GitHub dele.
-- ⚠ A CLI da Vercel está **deslogada** aqui (`vercel login` resolve) — o caminho normal continua
-  sendo repositório + integração Git.
+### 1c · Site do designer — ✅ SAIU DAQUI (2026-09-15): virou projeto próprio
+**`C:\Users\Lopo\Documents\lopolab-designer`** — pasta criada, repo local com commit, **fase 1
+pronta** (a checklist de 30 itens como site estático). **O contexto inteiro, as decisões e o desenho
+da fase 2 vivem no `CLAUDE.md` de lá** — este item fica só como registro de que a frente nasceu aqui.
+- Endereço: **`designer.lopolab.com.br`** · **sem login**, página aberta (só os dois usam, endereço
+  não divulgado; `robots.txt` + `X-Robots-Tag` mantêm fora de buscador).
+- 🔴 **Separado de tudo:** repo, Vercel e banco próprios. **Nada** da base da loja — escrita sem
+  login não encosta em vendas/estoque, e não se mexe no `AuthGate` por causa disso.
+- **Falta:** o dono criar o repositório no GitHub → conectar na Vercel → CNAME **DNS only** no
+  Cloudflare. A **fase 2** (marcações e respostas compartilhadas, Firestore em projeto novo) é o
+  passo seguinte, lá.
+- ⚠ **O bloco "O que mudou" saiu da lista**: o designer ainda não a leu, não há o que comparar. Volta
+  **quando o dono declarar a versão final** — e daí toda revisão registra entrou/mudou/saiu, com data.
+- ⚠ Quando o site subir, o `00 - CHECKLIST DA MARCA.html` do Drive vira **ponteiro** pro endereço,
+  pra não existirem duas listas divergindo.
 
 ### 2 · Aba de Configurações — mover o `config/` pra `/configuracoes`
 Inventário de 2026-09-15 (conferir no código antes de desenhar):

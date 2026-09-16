@@ -15,15 +15,19 @@
   ondas do **giroide** (amarelo `#F2B705`); os quadradinhos são elementos auxiliares (infill). Tudo
   vive em `Drive\Lopo Lab\INPUT LOPO LAB\` — **pasta nova, nada do que já existia foi tocado**: o
   pedido em `01 - Pedidos\01 - Orcamento em PDF` e a checklist (30 itens, 3 levas, caixinhas que
-  salvam no navegador) em `00 - CHECKLIST DA MARCA.html`, na raiz — **revisão 2**, com o bloco "O
-  que mudou" (toda revisão registra o que entrou/mudou/saiu, com data). O que vira código quando a
-  arte chegar e o que a checklist pede do site/app (ícones, símbolo no quadrado de 36×36 do
-  cabeçalho, amarelo no tema escuro) estão nas seções **1** e **1b** do
+  salvam no navegador) em `00 - CHECKLIST DA MARCA.html`, na raiz. ⚠ **Sem bloco de "o que mudou"
+  por enquanto** — ele ainda não leu a lista; volta quando o dono declarar a versão final. O que
+  vira código quando a arte chegar e o que a checklist pede do sistema (ícones, símbolo no quadrado
+  de 36×36 do cabeçalho, amarelo no tema escuro) estão nas seções **1** e **1b** do
   [`BACKLOG.md`](.claude/BACKLOG.md). Última de código: [FEAT-12] (2026-09-09).
-- **▶ PRÓXIMA TAREFA — o site do designer** (seção **1c** do `BACKLOG.md`): a checklist vira página
-  no ar, e depois o lugar onde ele marca, responde e comenta. 🔴 **Projeto SEPARADO** — repo, Vercel
-  e **banco novos** (o dono cria o banco); **nada** da base da loja, nada de mexer no `AuthGate`.
-  Depende dele: banco + subdomínio. Frente 2 (aba de Configurações, seção **2**) vem depois.
+- **O site do designer SAIU deste projeto** (2026-09-15): vive em
+  `C:\Users\Lopo\Documents\lopolab-designer` (repo próprio, fase 1 pronta, vai pra
+  `designer.lopolab.com.br`, **sem login**). O contexto dele está no `CLAUDE.md` de lá; aqui só o
+  registro, na seção **1c** do `BACKLOG.md`. 🔴 De lá **não se toca** neste projeto nem na base da
+  loja — e daqui não se mexe lá.
+- **▶ PRÓXIMA TAREFA DESTE PROJETO — frente 2: a aba de Configurações** (seção **2** do
+  `BACKLOG.md`): juntar o `config/` num lugar só, em `/configuracoes`. ⚠ O chat do site do designer
+  corre em paralelo, **na pasta dele**.
 - 🔴 **QR da Lopo Lab quem gera é o DONO** (regra da empresa): todos apontam pro endereço fixo dele,
   redirecionável sem reimprimir. Designer só desenha em volta. ⚠ Confirmar com ele o QR do orçamento
   antes de implementar. ⚠ **Sem iPhone** — o sistema roda no PC e no Android dele, só.
