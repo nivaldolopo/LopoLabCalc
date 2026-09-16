@@ -45,18 +45,35 @@ repetir). ✅ **A pasta do designer é legível pelo atalho** (`02_COMPARTILHADO
 com os rascunhos (ideia caixa, ideia abelha). **Qual é a logo FINAL o chat do PDF descobre** — não
 está nomeada como tal.
 
-### 1 · Pedido do PDF ao designer — [FEAT-03] inteira + marca
-- **Ver a logo** (qual opção venceu: caixas de traço fino ou abelha pixel art; formatos entregues).
-- **Decidir o que entra:** prazo de entrega · formas de pagamento/condições · termos e observações ·
-  desconto/acréscimo · detalhar etapas e subitens (FEAT-01) · foto do item · QR do WhatsApp.
-  Hoje: logo placeholder + nome/contato à esquerda, "ORÇAMENTO nº/data" à direita, tabela, total
-  (`generateQuotePdf.ts`, `ACCENT` ainda laranja `#FF6B35`).
-- **Rascunho da disposição** (pode ser artifact) + **como entregar**: SVG + PNG, versões (horizontal,
-  só símbolo, fundo claro/escuro), **hex exato** do amarelo, fonte. Pedir junto o que o app precisa:
-  **favicon 16/32px** e **marca de ~32px** no cabeçalho (ver as restrições de contraste em
-  [branding/rebrand], abaixo).
-- ⚠ Limite técnico a levar ao designer: o PDF é **jsPDF no cliente**, fonte padrão Helvetica
-  (cp1252); fonte da marca = embutir (centenas de KB) — decidir se vale.
+### 1 · Pedido do PDF ao designer — ✅ PEDIDO ENTREGUE (2026-09-15), aguarda o designer
+**A logo final** é o retângulo `LOPO LAB` **sem "Impressão 3D"**, com as ondas do **giroide**; os
+quadradinhos são **elementos auxiliares** (tipos de infill). Amarelo `#F2B705`, Futura Round (paga,
+só na logo) + **Archivo** (OFL, embutível). O pedido está no Drive, em
+`Lopo Lab\INPUT LOPO LAB\01 - Pedidos\01 - Orcamento em PDF\` (HTML + PDF, mesmo conteúdo); o
+`00 - LEIA-ME.html` da raiz explica a convenção (pedido numerado ↔ entrega de mesmo nome em
+`02 - Entregas do designer`). Artifact: `claude.ai/artifact/NjMbHuXmAhbpARtrF9mbQy`.
+
+**Decidido pelo dono, vira código quando a arte chegar:**
+- Entram no PDF: **prazo**, **pagamento/condições**, **observações** (era "termos"), **desconto**,
+  **partes/etapas**, **comentário por item** (texto livre na hora), **foto por item** e **QR + link**
+  do WhatsApp. Cabeçalho: telefone · `@lopo_lab` · `contato@lopolab.com.br` (site quando existir).
+- **Bloco vazio não imprime**, e cada opcional (pagamento, prazo, observações, QR, foto) tem chave
+  "sair no PDF" por orçamento; o texto padrão mora nas Configurações (frente 2) e não se apaga.
+  Fixos: logo, número, cliente, itens, total.
+- **Prazo:** o sistema SUGERE (horas → dias, arredonda pra cima, folga de pós-processamento e
+  **mínimo** configurável) e o digitado do dono **manda**. Nunca sair em horas.
+- **QR:** `wa.me/...?text=` com "quero **falar sobre** o orçamento nº X" (texto curto, senão o código
+  fica denso demais pro papel); o chamado impresso segue "Aprovar pelo WhatsApp", e o **link também
+  vai escrito** (clicável). Precisa de lib de QR nova.
+- **Foto:** comprimida no cliente (~1000px, ~80–150 KB) e salva em **doc separado** do orçamento
+  (não no doc do orçamento, que a lista assina) — evita o Storage, que exige Blaze.
+- **Fonte:** **Archivo embutida** (carregada só ao gerar o PDF), o que de quebra mata o limite
+  cp1252; a Futura Round só dentro da imagem da logo.
+- ⚠ O pedido diz **não** mandar PDF de fundo pronto: o que serve é gabarito de medidas (mm) +
+  tipografia (pt) + peças isoladas (SVG/PNG transparente) + página 2.
+- **▶ Próximo:** a **checklist geral do designer** (HTML com caixinhas) — tudo que a marca precisa
+  além do PDF: site/app (símbolo pequeno, marca de ~32px, amarelo no tema escuro), Instagram,
+  WhatsApp, Google Maps. Sai da raiz do `INPUT LOPO LAB`. Foi **tirado de propósito** deste pedido.
 
 ### 2 · Aba de Configurações — mover o `config/` pra `/configuracoes`
 Inventário de 2026-09-15 (conferir no código antes de desenhar):

@@ -10,14 +10,16 @@
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
-- **Última mudança (2026-09-15): PLANO de 5 frentes, sem código.** A **logo ficou pronta**; o dono
-  fechou a ordem num chat de planejamento — **um chat por frente**: **1** pedido do PDF ao designer ·
-  **2** aba de Configurações (todo o `config/` num lugar) · **3** checklist + uso real (a Diretriz 7
-  expira aí) · e, sem dependência, **Airtable** e **Drive** do LopoLabCalc. Escopo, inventário e
-  perguntas de cada uma na seção **"PLANO 2026-09-15"** do [`BACKLOG.md`](.claude/BACKLOG.md).
-  Última de código: [FEAT-12] (2026-09-09), writeup no [`HISTORICO.md`](.claude/HISTORICO.md).
-- **▶ PRÓXIMA TAREFA — frente 1: o pedido do PDF ao designer** (conversa, sem código). Começa
-  **conferindo a logo no Drive** (os atalhos da marca/designer foram adicionados em 2026-09-15).
+- **Última mudança (2026-09-15): frente 1 ENTREGUE — o pedido do PDF está com o designer**, sem
+  código. A **logo final** é o retângulo `LOPO LAB` **sem "Impressão 3D"** + ondas do **giroide**
+  (amarelo `#F2B705`); os quadradinhos são elementos auxiliares (infill). O pedido (HTML + PDF) e a
+  convenção de pastas vivem em `Drive\Lopo Lab\INPUT LOPO LAB\` — **pasta nova, nada do que já
+  existia foi tocado**. As decisões que viram código quando a arte chegar (blocos opcionais, prazo
+  sugerido/editável, foto por item, QR+link, Archivo embutida) estão na seção **1** do
+  [`BACKLOG.md`](.claude/BACKLOG.md). Última de código: [FEAT-12] (2026-09-09).
+- **▶ PRÓXIMA TAREFA — a checklist geral do designer** (HTML com caixinhas, na raiz do
+  `INPUT LOPO LAB`): tudo que a marca precisa **além do PDF** — site/app, Instagram, WhatsApp,
+  Google Maps. Depois dela, frente 2 (aba de Configurações).
 - ⚠ **Airtable: o projeto LopoLabCalc é MEU (controle total); o resto da base é do OUTRO agente do
   dono**, que só LÊ o nosso. Base `Lopo Lab OS` (`appQiYC4NVQy34QtH`) · projeto **LopoLabCalc**
   (`rec72ERQgc4Ypy8CW`, tabela Projects) · cartões na tabela **Work** ligados a ele, Origem
