@@ -29,7 +29,7 @@
 
 | # | Frente | Tipo | Entrega |
 |---|---|---|---|
-| 1 | **Pedido do PDF ao designer** | conversa, sem código | documento pro designer, no Drive |
+| 1 | ✅ **Designer: pedido do PDF + checklist da marca** | conversa, sem código | os dois no Drive |
 | 2 | **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
@@ -42,8 +42,8 @@
 repetir). ✅ **A pasta do designer é legível pelo atalho** (`02_COMPARTILHADO_DESIGNER\Lopo Lab.lnk`
 → `G:\.shortcut-targets-by-id\1Qp5-Ostzq-61UTdZJhNL6b-tQgH8Ck9o\Lopo Lab\`): tem `.ai`/`.svg`/`.eps`/
 `.jpg` (cartão de visita, elementos auxiliares, padrão, WhatsApp, QR) e a subpasta "Minha bagunça"
-com os rascunhos (ideia caixa, ideia abelha). **Qual é a logo FINAL o chat do PDF descobre** — não
-está nomeada como tal.
+com os rascunhos (ideia caixa, ideia abelha). ⚠ **Não existe arquivo só da logo** — ela aparece
+dentro do cartão e das artes; pedir o `.ai` isolado é o item **A2** da checklist (bloco 1b).
 
 ### 1 · Pedido do PDF ao designer — ✅ PEDIDO ENTREGUE (2026-09-15), aguarda o designer
 **A logo final** é o retângulo `LOPO LAB` **sem "Impressão 3D"**, com as ondas do **giroide**; os
@@ -71,9 +71,23 @@ só na logo) + **Archivo** (OFL, embutível). O pedido está no Drive, em
   cp1252; a Futura Round só dentro da imagem da logo.
 - ⚠ O pedido diz **não** mandar PDF de fundo pronto: o que serve é gabarito de medidas (mm) +
   tipografia (pt) + peças isoladas (SVG/PNG transparente) + página 2.
-- **▶ Próximo:** a **checklist geral do designer** (HTML com caixinhas) — tudo que a marca precisa
-  além do PDF: site/app (símbolo pequeno, marca de ~32px, amarelo no tema escuro), Instagram,
-  WhatsApp, Google Maps. Sai da raiz do `INPUT LOPO LAB`. Foi **tirado de propósito** deste pedido.
+### 1b · Checklist geral da marca — ✅ ENTREGUE (2026-09-15), com a frente 1 fechada
+`00 - CHECKLIST DA MARCA.html` na **raiz** do `INPUT LOPO LAB` (o LEIA-ME já aponta pra ela).
+Artifact: `claude.ai/artifact/6tRp2pVZRQdgSj8jNo319X`. **32 itens em 6 blocos e 3 levas**, caixinhas
+que salvam no `localStorage` de quem abre; linhas marcadas **"só responder"** não precisam de arte.
+Não é pedido — cada bloco vira pedido numerado quando chegar a vez.
+- **Bloco A (destrava o resto):** qual arquivo é a logo final · o `.ai` só dela · o que são as artes
+  de WhatsApp · pra onde aponta o QR do cartão · o padrão em vetor ladrilhável · nomear os 5 infills.
+- **1ª leva — kit base + site/app:** cores (HEX/RGB/CMYK), pesos da Archivo, **símbolo sozinho** e a
+  **versão miúda** (16–32px), respiro/tamanho mínimo, usos proibidos, resumo em PDF · favicon
+  SVG+32, ícone iOS 180 com **fundo sólido**, Android 192/512 + recorte no **círculo de 80%**, marca
+  de cabeçalho **32px em duas tintas** (`#0f0f1a` e `#fafaf7`), marca de login ~120px, `theme-color`
+  por tema, imagem de link 1200×630. ⚠ Pergunta aberta que vira token: **o `#F2B705` muda no tema
+  escuro?** O sistema guarda um valor por tema.
+- **2ª leva:** Instagram (perfil 1080, 6 capas de destaque, 2 modelos de post 1080×1350, story,
+  assinatura de foto) · WhatsApp (perfil 640, cartão de boas-vindas, moldura de catálogo 1000×1000,
+  QR de vitrine em SVG ≥25 mm). **3ª leva:** Google (logo 720×720, capa 1024×576, guia de foto).
+- **Fora por enquanto:** embalagem, adesivo, cartão de agradecimento, camiseta, sinalização.
 
 ### 2 · Aba de Configurações — mover o `config/` pra `/configuracoes`
 Inventário de 2026-09-15 (conferir no código antes de desenhar):

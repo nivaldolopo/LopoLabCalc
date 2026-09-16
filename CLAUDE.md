@@ -10,16 +10,18 @@
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
-- **Última mudança (2026-09-15): frente 1 ENTREGUE — o pedido do PDF está com o designer**, sem
-  código. A **logo final** é o retângulo `LOPO LAB` **sem "Impressão 3D"** + ondas do **giroide**
-  (amarelo `#F2B705`); os quadradinhos são elementos auxiliares (infill). O pedido (HTML + PDF) e a
-  convenção de pastas vivem em `Drive\Lopo Lab\INPUT LOPO LAB\` — **pasta nova, nada do que já
-  existia foi tocado**. As decisões que viram código quando a arte chegar (blocos opcionais, prazo
-  sugerido/editável, foto por item, QR+link, Archivo embutida) estão na seção **1** do
-  [`BACKLOG.md`](.claude/BACKLOG.md). Última de código: [FEAT-12] (2026-09-09).
-- **▶ PRÓXIMA TAREFA — a checklist geral do designer** (HTML com caixinhas, na raiz do
-  `INPUT LOPO LAB`): tudo que a marca precisa **além do PDF** — site/app, Instagram, WhatsApp,
-  Google Maps. Depois dela, frente 2 (aba de Configurações).
+- **Última mudança (2026-09-15): frente 1 FECHADA — pedido do PDF + checklist geral da marca, os
+  dois no Drive, sem código.** A **logo final** é o retângulo `LOPO LAB` **sem "Impressão 3D"** +
+  ondas do **giroide** (amarelo `#F2B705`); os quadradinhos são elementos auxiliares (infill). Tudo
+  vive em `Drive\Lopo Lab\INPUT LOPO LAB\` — **pasta nova, nada do que já existia foi tocado**: o
+  pedido em `01 - Pedidos\01 - Orcamento em PDF` e a checklist (32 itens, 3 levas, caixinhas que
+  salvam no navegador) em `00 - CHECKLIST DA MARCA.html`, na raiz, já apontada pelo LEIA-ME. As
+  decisões que viram código quando a arte chegar (blocos opcionais, prazo sugerido/editável, foto
+  por item, QR+link, Archivo embutida) e o que a checklist pede do site/app (ícones, marca de 32px,
+  amarelo no tema escuro) estão na seção **1** do [`BACKLOG.md`](.claude/BACKLOG.md). Última de
+  código: [FEAT-12] (2026-09-09).
+- **▶ PRÓXIMA TAREFA — frente 2: a aba de Configurações** (desenho → código): juntar o `config/` num
+  lugar só, em `/configuracoes`. Inventário e critérios na seção **2** do `BACKLOG.md`.
 - ⚠ **Airtable: o projeto LopoLabCalc é MEU (controle total); o resto da base é do OUTRO agente do
   dono**, que só LÊ o nosso. Base `Lopo Lab OS` (`appQiYC4NVQy34QtH`) · projeto **LopoLabCalc**
   (`rec72ERQgc4Ypy8CW`, tabela Projects) · cartões na tabela **Work** ligados a ele, Origem
