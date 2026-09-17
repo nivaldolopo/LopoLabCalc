@@ -30,7 +30,6 @@
 | # | Frente | Tipo | Entrega |
 |---|---|---|---|
 | 1 | ✅ **Designer: pedido do PDF + checklist da marca** | conversa, sem código | os dois no Drive |
-| 1c | ✅ **Site do designer** virou projeto próprio | fora deste repo | `lopolab-designer`, fase 1 pronta |
 | 2 | **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
@@ -106,18 +105,8 @@ entrou/mudou/saiu** no bloco "O que mudou nesta lista", com data — foi pedido 
   (República Ludóvico, boardgame). Profissional, sim, mas a lista se apresenta como **sugestão** —
   "quem manda no design é ele" — e os dois pedem coisa um pro outro com liberdade.
 
-### 1c · Site do designer — ✅ SAIU DAQUI: projeto TOTALMENTE separado
-**`C:\Users\Lopo\Documents\lopolab-designer`** (repo `nivaldolopo/lopolab-designer`, Vercel via
-integração Git, CNAME DNS only no Cloudflare) — **no ar em `designer.lopolab.com.br`**, sem login.
-**O contexto inteiro, as decisões e o código vivem no `CLAUDE.md` de lá** — este item fica só como
-registro de que a frente nasceu aqui e onde foi morar.
-- 🔴 **Separado de tudo:** repo, Vercel e banco (Firestore) próprios. **Nada** da base da loja —
-  escrita sem login não encosta em vendas/estoque, e não se mexe no `AuthGate` por causa disso.
-- **2026-09-16: link mandado a Hermes** (o designer). Aguardando as **5 respostas do Bloco A** da
-  checklist da marca para ajustar o resto. O pedido do orçamento virou a 2ª página do site (conteúdo
-  não mudou); as cópias no Drive viraram **ponteiros** pro site — o **PDF imprimível fica** no
-  Drive, junto das entregas.
-- Detalhe de fase, testes e arquitetura: no `CLAUDE.md`/histórico de lá, não aqui.
+> ⚠ **O site do designer virou projeto próprio, fora deste repo** — writeup breve no
+> [`HISTORICO.md`](HISTORICO.md). Nada dele encosta neste backlog.
 
 ### 2 · Aba de Configurações — mover o `config/` pra `/configuracoes`
 ⚠ **2026-09-16: a 1ª conta de energia real da loja já está disponível** (dono) — usar pra calibrar

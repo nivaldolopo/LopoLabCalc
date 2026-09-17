@@ -9,6 +9,15 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Site do designer — separado em projeto próprio (2026-09-15/17)
+
+A frente 1 do plano (pedido do PDF + checklist da marca ao designer, **Hermes**) virou um projeto de
+código totalmente separado: `C:\Users\Lopo\Documents\lopolab-designer` (repo
+`nivaldolopo/lopolab-designer`, Vercel via integração Git, CNAME DNS only no Cloudflare), no ar em
+`designer.lopolab.com.br`, sem login. Contexto, decisões e código vivem no `CLAUDE.md` de lá. Link
+mandado a Hermes em 16/09/2026. **Nada dele encosta neste projeto nem na base da loja**, e daqui não
+se mexe lá — registro só pra não se perder de onde essa frente foi morar.
+
 ## ✅ FEAT-12 — a reprecificação global ganhou prévia, rastro e desfazer (2026-09-09)
 
 > **O preço não é dado, é FUNÇÃO.** Não existe campo de preço no produto — toda tela chama
