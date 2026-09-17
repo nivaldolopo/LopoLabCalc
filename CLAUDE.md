@@ -9,7 +9,6 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
 - **Última mudança (2026-09-15): frente 1 (pedido ao designer) fechada, sem código** — aguardando a
   entrega da arte final. O que vira código quando ela chegar está nas seções **1** e **1b** do
   [`BACKLOG.md`](.claude/BACKLOG.md). Última de código: **[DEC-07]** (2026-09-17) — local e
@@ -80,9 +79,10 @@ src/features/pricing-calculator/
                   # compartilhados: NumberInput · ProfitSummary · SearchBox · CostBars ·
                   #   FeedbackNote · NetMarginHint · CostDetail (exporta CostBreakdownTable,
                   #   reusada por 3 rotas)
-  hooks/          # useProducts · usePricingForm · useMachines · useTheme · useAuth · e um por
-                  #   coleção: useSales/useSupplies/useStock/useProduction/useFinishedGoods/
-                  #   useQuotes/useQuoteConfig/useFees/useChangeLog
+  hooks/          # useProducts · usePricingForm · useMachines · useBusinessSettings (config/
+                  #   negocio — lido em 10 telas, editado só no FixedCostsPanel) · useTheme ·
+                  #   useAuth · e um por coleção: useSales/useSupplies/useStock/useProduction/
+                  #   useFinishedGoods/useQuotes/useQuoteConfig/useFees/useChangeLog
   lib/            # TODA a matemática, pura. calculatePricing · calculateCapacity ·
                   #   fleet (taxa de frota: média ponderada por componente +
                   #     as decisões do seletor, sobre o MARCADO VIVO) ·
@@ -97,11 +97,13 @@ src/features/pricing-calculator/
 src/lib/
   firebase/       # client.ts (init + db) · frozenCost.ts (o mesmo objeto vai p/ 3 coleções) ·
                   #   um repositório por coleção: products · machines (config/machines) ·
-                  #   quoteConfig · quotes · fees · sales (`vendas`; reconcileRecibo = 1
-                  #   transação p/ as 4 coleções) · stock (`estoque`, doc por COR) ·
-                  #   supplies (`insumos`, doc por INSUMO) · production (`producao`, N eventos +
-                  #   baixa na mesma transação) · finishedGoods (`acabados`, doc por PRODUTO) ·
-                  #   changeLog (`alteracoes`, append-only: 1 doc por mudança global de preço)
+                  #   businessSettings (config/negocio) · quoteConfig · quotes · fees ·
+                  #   sales (`vendas`; reconcileRecibo = 1 transação p/ as 4 coleções) ·
+                  #   stock (`estoque`, doc por COR) · supplies (`insumos`, doc por INSUMO) ·
+                  #   production (`producao`, N eventos + baixa na mesma transação) ·
+                  #   finishedGoods (`acabados`, doc por PRODUTO) · changeLog (`alteracoes`,
+                  #   append-only: 1 doc por mudança global de preço) · revGuard (trava de `rev`
+                  #   otimista, AUD-18 — quem grava alavanca global chama antes de gravar)
   errors.ts       # guardOnline (barra ANTES do await) + withWriteTimeout (12s, na BORDA do
                   #   repositório — escrita nova passa por ele) + errorMessage
   cloudStatus.ts  # cloudStatusOf(metadata) + COM_METADATA — o chip de sincronização
@@ -327,6 +329,8 @@ git push
 
 ## Infra / referência de deploy
 
+- **No ar em:** `calculadora.lopolab.com.br` (custom, SSL ok) e `lopolabcalc.vercel.app` (Vercel) —
+  movido do "Status atual" pra cá (Diretriz 4): é fato estável, não tarefa em aberto.
 - **Projeto Vercel:** `lopo-lab/lopolabcalc` (time `lopo-lab`, plano Hobby).
 - **Vínculo:** já feito (`.vercel/repo.json` na raiz; pasta `.vercel` está no `.gitignore`).
 - **Integração Git nativa:** **conectada** — push na `main` faz deploy de produção automático; não
