@@ -9,6 +9,25 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Diretriz 2 fundida na 4, domínio de Preview automatizado (2026-09-17)
+
+Revertido ainda no mesmo dia da entrada logo abaixo: o dono pediu pra fundir a Diretriz 2 (Resumo)
+na 5 (Status) mesmo assim — "não tem problema, atualiza as referências". Feito:
+
+- **Diretriz 2 (Resumo) some como seção própria** — a instrução ("mantenha o Resumo do projeto
+  atualizado quando arquitetura/stack/arquivo-chave mudar") virou frase dentro da Diretriz 4
+  (Status atual), que passou a se chamar "Manter Status atual e Resumo do projeto sincronizados".
+- **Renumeração 3→2, 4→3, 5→4 (a fundida), 6→5, 7→6, 8→7, 9→8, 10→9** no `CLAUDE.md`, e toda
+  referência por número no `BACKLOG.md`/`HISTORICO.md` seguiu junto (`sed` em duas passadas com
+  marcador temporário, pra um número que vira outro não colidir com outro que viraria o primeiro).
+- **[DEC-07] Cadastro do domínio de Preview no Firebase (Authorized Domains) passou a automático**
+  — antes exigia um passo manual seu; agora, sempre que eu abrir um Preview novo pra verificação,
+  cadastro o domínio da branch primeiro. Não resolve o limite de fundo (Firebase não aceita
+  wildcard — é sempre um domínio por branch), só tira você do meio do caminho.
+
+**Nota:** o bullet "Cogitado e DESCARTADO" na entrada abaixo ficou desatualizado por causa disso —
+a fusão saiu, afinal.
+
 ## ✅ Faxina nas Diretrizes de trabalho + [DEC-07] ambiente de teste (2026-09-17)
 
 Revisão pedida pelo dono de todas as 9 diretrizes do `CLAUDE.md`, mais o fio da conversa sobre
@@ -16,40 +35,39 @@ ambiente de teste/Preview que já vinha sendo discutido. O que mudou:
 
 - **Status atual voltou de ~54 pra ~40 linhas** — id do Airtable, conta do Firebase (`lopolab3d`) e
   a ressalva de Excel/LibreOffice saíram de lá: os dois primeiros já tinham writeup completo aqui
-  (linha ~256 pra conta Firebase) ou já estavam na Diretriz 9; o terceiro já estava, com mais
+  (linha ~256 pra conta Firebase) ou já estavam na Diretriz 8; o terceiro já estava, com mais
   detalhe, no `BACKLOG.md`. Ficaram só ponteiro onde fazia sentido.
-- **Diretriz 9** deixou de rodar automático no início de todo chat — passa a ser sob comando
+- **Diretriz 8** deixou de rodar automático no início de todo chat — passa a ser sob comando
   ("analisa a Table"), e ganhou a regra de atualizar o cartão do Airtable ao fechar uma frente
   mesmo sem a conferência ter sido pedida.
-- **Diretriz 5** ganhou a frase que faltava: fato de referência permanente não é "Status atual"
+- **Diretriz 4** ganhou a frase que faltava: fato de referência permanente não é "Status atual"
   (foi exatamente isso que inflou a seção antes da faxina acima).
-- **Diretriz 8**: a meta de linha do `CLAUDE.md` foi recalibrada de ~270 pra ~380. O arquivo estava
+- **Diretriz 7**: a meta de linha do `CLAUDE.md` foi recalibrada de ~270 pra ~380. O arquivo estava
   em 353 e a maior parte disso (o "Resumo do projeto", ~155 linhas) é arquitetura real que cresceu
   com o código — mais rotas, mais módulos em `lib/` — não acúmulo de lixo. Forçar corte só pra bater
   um número antigo seria otimizar a métrica, não o objetivo.
-- **Cogitado e DESCARTADO: fundir a Diretriz 2 (Resumo) na 5 (Status).** "Diretriz 7", "Diretriz 8" e
-  "Diretriz 4" são citadas **por número** dezenas de vezes neste arquivo e no `BACKLOG.md`
-  (`grep -c "Diretriz [0-9]"` deu 40+). Renumerar quebraria essas referências por um ganho de
-  3 linhas — custo maior que o benefício. As diretrizes ficam com os números que têm hoje,
-  permanentemente (novo item sempre entra no fim, nunca no meio).
-- **Diretriz 10, nova:** bug de dado/coerção (campo comido, `String(objeto)` fabricando valor
+- ~~Cogitado e DESCARTADO: fundir a Diretriz 2 (Resumo) na 5 (Status)~~ — **revertido no mesmo
+  dia**, ver a entrada acima. Motivo original, só por registro: as diretrizes eram citadas por
+  número 40+ vezes no HISTORICO/BACKLOG, e o custo de atualizar tudo parecia maior que o ganho de
+  3 linhas — até o dono decidir que valia o custo mesmo assim.
+- **Diretriz 9, nova:** bug de dado/coerção (campo comido, `String(objeto)` fabricando valor
   errado) primeiro passa pelo `/code-review`, não pela reprodução no navegador — nomeia o padrão
   que os clusters AUD-02 a AUD-18 já repetiam.
 - **`package.json`: `pnpm build` passou a rodar `pnpm test && pnpm typecheck` antes do `next
   build`.** Era só `next build` — uma regressão no vitest não bloqueava o deploy, mesmo com
-  "commit+deploy imediato" (Diretriz 3) empurrando toda alteração pra `main`. Validado local antes
+  "commit+deploy imediato" (Diretriz 2) empurrando toda alteração pra `main`. Validado local antes
   do push: 1014 testes + typecheck + build, todos verdes.
 - **[DEC-07] Ambiente de teste isolado do Firestore — aprovado, mas BLOQUEADO.** O plano era: banco
   Firestore de teste separado (local/Preview não escrevem no real) + `AuthGate` sem login em
   `localhost` (hoje o navegador embutido esbarra nele — só o Chrome real com sessão Google
-  persistida contorna, é por isso que a Diretriz 4 existe como está). Ao tentar criar o 2º banco no
+  persistida contorna, é por isso que a Diretriz 3 existe como está). Ao tentar criar o 2º banco no
   Console (`console.firebase.google.com/project/lopo-lab/firestore/databases`), o botão era
   **"Upgrade to add database"** — o plano **Spark** (grátis) permite só 1 banco por projeto;
   precisa virar **Blaze** (pago por uso). Como isso é billing (cartão), é decisão do dono, não
   minha — ele decide se/quando fazer o upgrade. As 3 opções (Blaze / só emulador local / não fazer
   agora) e o detalhe de cada uma foram registradas como **[DEC-07]** no `BACKLOG.md`, seção
-  "Decisões já marteladas que ainda são tarefa de CÓDIGO". **Diretriz 1, 3 (parte do bullet de
-  checagem local) e 4 (Chrome vs. navegador embutido) NÃO foram reescritas** — dependem de qual
+  "Decisões já marteladas que ainda são tarefa de CÓDIGO". **Diretriz 1, 2 (parte do bullet de
+  checagem local) e 3 (Chrome vs. navegador embutido) NÃO foram reescritas** — dependem de qual
   caminho o dono escolher pro DEC-07, pra não descrever um fluxo que ainda pode mudar de forma.
 
 **Achado incidental que vale registrar:** a "SSO Protection" da Vercel já está ligada pra
@@ -304,7 +322,7 @@ carregava "conferido em 13/07/2026"; agora carrega esta medição.
 ⚠ **O caminho até o Console custou 4 idas e vindas, e a lição é de ferramenta:** o `lopo-lab` não é
 da conta que o dono usa no Chrome do dia a dia (`nivaldo.lopo`), e sim da `lopolab3d`. Ela vive em
 **outro perfil do Chrome**, que só virou alcançável quando o dono conectou a extensão *naquela*
-janela — `list_connected_browsers` passou a mostrar duas instâncias e a Diretriz 4 vale para a que
+janela — `list_connected_browsers` passou a mostrar duas instâncias e a Diretriz 3 vale para a que
 tem o projeto. Deep-link para a página de regras **redireciona para a visão geral**: o caminho que
 funciona é Firestore → aba **Security**.
 
@@ -627,7 +645,7 @@ O segundo caso foi encontrado escrevendo o teste: a primeira versão do teste af
 inteira" nos dois, e o código estava certo e o teste errado. Vale registrar porque o instinto puxa
 para a regra única.
 
-Todo produto anterior à fase chega no primeiro caso (Diretriz 7 — sem migração, o dono recadastra),
+Todo produto anterior à fase chega no primeiro caso (Diretriz 6 — sem migração, o dono recadastra),
 e o preço deles passa a ser o da frota inteira, com o badge aceso.
 
 ### O fallback mudo que o escopo mandou matar
@@ -805,7 +823,7 @@ conjunto é do **produto/etapa** (quem PODE rodar), nunca do evento (quem RODOU)
   tem. Somar só o labor das etapas barataria o evento em silêncio.
 - **`submissionId`** — o id do 1º evento, carimbado nos N, decidido em UM lugar
   (`buildProductionPayloads`), por onde passam os **dois** caminhos que gravam produção. Evento
-  anterior é lido como `submissionId = próprio id` (Diretriz 7, sem migração) e a exclusão dele
+  anterior é lido como `submissionId = próprio id` (Diretriz 6, sem migração) e a exclusão dele
   segue apagando exatamente ele.
 - **Excluir qualquer card apaga o LOTE INTEIRO** (decisão do dono). Substitui a regra que quebrava
   nos dois sentidos: card secundário deixava o custo do lote inflado; 1º card estornava o acabado e
@@ -1650,7 +1668,7 @@ prova do tamanho do furo, D6) e não se apaga — o saldo, esse, voltou exato.
 
 ### O que ficou de fora
 
-Documento sem o campo `rev` vale 0 e a primeira gravação o cria: **nada a migrar** (Diretriz 7).
+Documento sem o campo `rev` vale 0 e a primeira gravação o cria: **nada a migrar** (Diretriz 6).
 Não exercitei duas vendas reais concorrendo pela mesma cor (exigiria encenar a corrida com duas
 submissões de venda no mesmo instante); o que está provado é a **regra** (7 testes do `revGuard`), o
 **mecanismo ponta a ponta em produção** (produtos e estoque) e que **toda escrita incrementa**.
@@ -2078,7 +2096,7 @@ avisos. Dava 2 em 97 linhas, e o aviso estava certo.
 afirmava `Etapas (R$) 16,64` ao lado de `Etapas JSON []`. Reimportar derrubava o custo de 35,85 para
 10,63 (**3,4×**) — em silêncio, se o CSV-03 não existisse.
 
-**Corrigido no DADO, não no código** (decisão do dono, Diretriz 7): os 2 produtos legados
+**Corrigido no DADO, não no código** (decisão do dono, Diretriz 6): os 2 produtos legados
 (`Caixa uno`, `livro torre dados`) foram abertos e salvos no formulário, que migra `stage2 → stages`
 e zera `combineEnabled`/`fixedCostPerHour`. Custo idêntico antes/depois. **Zero produto legado
 no catálogo** — e, com isso, o export do catálogo (a semente da planilha do recadastro) reimporta
@@ -2259,7 +2277,7 @@ construção — na comparação que o `CostDetail` existe para mostrar.
 achatamento, o override foi **removido** de `PrintStage`, do parser, do cálculo, da validação e do
 `stageLabor`. **Medido antes:** dos 29 produtos com etapa extra, **zero** divergiam do valor do
 produto → remoção neutra no preço do catálogo inteiro. Docs antigos seguem com as chaves: lixo
-inerte, ignorado (Diretriz 7, sem migração). Import que traga tarifa na etapa a **ignora calado**
+inerte, ignorado (Diretriz 6, sem migração). Import que traga tarifa na etapa a **ignora calado**
 (decisão do dono — o aviso não pagava o código).
 
 ### O que a auditoria NÃO achou (varredura dos outros round-trips)
@@ -2277,7 +2295,7 @@ que doc antigo com a chave repetida **não** muda preço. `lint` ✅ · **414/41
 
 > **Pedido como diagnóstico, não como tarefa.** O dono vai recadastrar o catálogo do zero a partir
 > de um CSV **gerado fora do app**, e quis provar antes que `exportar → importar` devolve o produto
-> íntegro. O momento foi escolhido de propósito: o dado de hoje é descartável (Diretriz 7), então um
+> íntegro. O momento foi escolhido de propósito: o dado de hoje é descartável (Diretriz 6), então um
 > import ruim agora não custa nada — depois do recadastro, custaria.
 
 ### O que o diagnóstico achou (round-trip em produção, 2 produtos reais)
@@ -2491,7 +2509,7 @@ continua com os espaços (`"custo real gasto R$ 10,88 · composição ▾"`).
 ### UX-39 — fechado sem código
 
 O dono confirmou: os "coffee prank coffee part" ×4 e "Arraia Flexível" ×2 são **lixo de teste**, e
-somem no recadastro (Diretriz 7). Nada a desempatar no seletor.
+somem no recadastro (Diretriz 6). Nada a desempatar no seletor.
 
 ### O achado que ficou aberto
 
@@ -3680,7 +3698,7 @@ X por Y: R$ 128/kg vs R$ 110/kg do cadastro → +R$ 0,90 por peça"; e **no resu
 com a margem resultante ("fica em 36%, precificada 42%"). O `origin` é só para o aviso — o cálculo
 usa sempre a cor escolhida.
 
-### Consequências no dado (Diretriz 7 — sem migração)
+### Consequências no dado (Diretriz 6 — sem migração)
 
 - SKU sem `colorKey` (tudo que existe hoje) vira o balde **"Sem cor"**, normalizado no `toSku` do
   repositório — um ponto só, para o núcleo puro não carregar `??` em cada função. O saldo velho
@@ -3702,7 +3720,7 @@ lint/build/teste unitário não pegam sozinhos:
    `colorKey`. Trocar a sentinela resolveria o caso, não a classe: id de subitem esquisito reabriria
    o furo. Em memória segue `Record`; converte só na fronteira da gravação.
    ⚠ Venda de **subitem** (não do inteiro) chegava a salvar antes do conserto — `subitemId` é nome de
-   campo válido. Essas ficam sem a cor congelada ao reeditar (cai no default). Diretriz 7: não migrar.
+   campo válido. Essas ficam sem a cor congelada ao reeditar (cai no default). Diretriz 6: não migrar.
 2. **A aba Produtos mostrava contagem de CORES no lugar do saldo.** Num produto sem subitens, a linha
    exibia `rows.length` com o rótulo "SKUs" — antes do FEAT-11 esse produto tinha sempre UMA SKU, então
    o ramo quase nunca disparava; com a cor na chave ele virou o caso normal, e quem tinha 5 peças em 2
@@ -3870,7 +3888,7 @@ centro. Deixava a A1 a R$ 0,65/h de depreciação + manutenção contra R$ 1,06/
 **Onde:** `constants.ts` (`DEFAULT_MACHINES` + o comentário auditado) e `MachineManagerModal.tsx`
 (padrão de máquina nova). ⚠ **Esses valores só SEMEIAM o doc `config/machines`** — as máquinas já
 cadastradas guardam o próprio `lifeHours`, então a mudança **não** as alcança: o dono edita as duas à
-mão em `/maquinas` (2 campos). Não foi escrita migração — Diretriz 7, e a alternativa (código que
+mão em `/maquinas` (2 campos). Não foi escrita migração — Diretriz 6, e a alternativa (código que
 sobrescreve máquina salva) apagaria edição legítima do dono.
 
 ### DEC-03 — markup **deixa de incidir** sobre a mão de obra
@@ -3944,7 +3962,7 @@ Pedido do dono (2026-08-07): dar desconto ao registrar a venda, com lucro/margem
 preço COM desconto** (não o de tabela). **Escopo (decisão do dono):** por **item** _XOR_ no **total** do
 recibo — um modo ou o outro por venda, nunca os dois. **Formato:** R$ ou %.
 
-**Modelo (congelado, Diretriz 7):** `SaleInput` ganhou `discountKind` (`"item"|"total"`), `discountInput`
+**Modelo (congelado, Diretriz 6):** `SaleInput` ganhou `discountKind` (`"item"|"total"`), `discountInput`
 (`{mode:"abs"|"pct", value}` — o que o dono digitou, p/ exibir "10%") e `discountAmount` (o **R$ efetivo**
 da linha; no modo total, já a fatia rateada). Congelados no snapshot; `profit`/`margin`/`feeAmount` já
 entram líquidos. Custo real **não muda** → lucro = preço_com_desconto − custo real.
@@ -3960,7 +3978,7 @@ o valor com desconto; rateio proporcional à receita.
 (número + toggle R$/%) por item ou no total; resumo mostra Subtotal/Desconto/Receita quando há desconto.
 Round-trip na edição (reconstrói o modo do recibo salvo). Exibição em `/vendas` (nota "−R$X" na linha,
 "(rateado)" no modo total) + coluna no CSV. `toSale`/`saleToDocument` (salesRepository) leem/gravam os 3
-campos. Sem migração de venda antiga (Diretriz 7): sem os campos, a tela mostra a venda como sempre.
+campos. Sem migração de venda antiga (Diretriz 6): sem os campos, a tela mostra a venda como sempre.
 
 ## ✅ UX-03 (nome do produto truncado no catálogo) — 2026-08-10
 
@@ -3973,7 +3991,7 @@ desktop. Só `ProductCatalog.tsx` + `catalog.css`.
 ## ✅ TD-006 (paginação) + UX-05 Fase 2/3 (busca em vendas/produção) — 2026-08-10
 
 **O problema:** `/vendas` e `/produção` assinavam a **coleção inteira** (`onSnapshot` sem limite). Ok
-com dados de teste, mas o **marco** (recadastro de tudo de uma vez — Diretriz 7) chega como um volume
+com dados de teste, mas o **marco** (recadastro de tudo de uma vez — Diretriz 6) chega como um volume
 grande; paginar importa *no* marco. UX-05 (busca por nome) foi acoplada porque tem a mesma raiz: ao
 paginar, a busca client-side da Fase 1 só varreria o que está carregado — precisa virar query no banco.
 
@@ -4087,7 +4105,7 @@ antes dos 6-7 (a tela).
   produto **vivo**, com markup e preço sugerido — que é exatamente o que o FEAT-06 recusa.
 
 35 testes novos (álgebra, plano, rateio × units, overdraft, camada antiga, `qty=3` para pegar o ÷qty
-esquecido) — **281 no total**. Zero migração (Diretriz 7).
+esquecido) — **281 no total**. Zero migração (Diretriz 6).
 
 ## ✅ 7e — Insumos no estoque + baixa do acessório na produção (2026-07-20)
 
@@ -4353,7 +4371,7 @@ diferente que só reaproveitou a sigla.)
      `colorStatement`, `filamentReferences`. **Decisões do dono:** só arquivar, mas **excluir
      liberado em cor arquivada SEM referências** (produto/venda apontando pro `filamentId`;
      `filamentReferences` é o guarda — inerte até a 7c, quando os `filamentId` deixam de ser `null`);
-     **editar cor liberado** (inclusive `material`, que re-agrupa retroativo — ok por Diretriz 7);
+     **editar cor liberado** (inclusive `material`, que re-agrupa retroativo — ok por Diretriz 6);
      rolo default 1000 g. Ainda **desligado** do produto. Detalhe no "Status atual".
    - **7c — Ligar produto ↔ estoque. ✅ FEITA (jul/2026).** Entregue: campo "Cor" virou **dropdown
      das cores do Estoque** (mono E multi) + opção **"Avulso"** (texto livre + preço manual, fallback
@@ -4364,7 +4382,7 @@ diferente que só reaproveitou a sigla.)
      `exportProductsCsv`. **NÃO** mostra "rolo em uso/quanto resta" nem avisos D5 (é da 8). +5 testes
      (108 verdes). **Decisão do dono: SÓ O NÚCLEO** — a **faxina do legado FEAT-02 foi ADIADA**
      (`weightG`/`filamentPricePerKg` escalares, `normalizeFilaments`, round-trip do CSV velho
-     **mantidos** como peso morto inofensivo) → vira **tarefa própria** depois (Diretriz 7 segue
+     **mantidos** como peso morto inofensivo) → vira **tarefa própria** depois (Diretriz 6 segue
      cobrindo). Detalhe no "Status atual".
    - **FEAT-01 — Preço/subitens por etapa. ✅ FEITA (jul/2026).** Toggle "vender por subitens" no
      produto (default OFF); `SubitemsSection` agrupa etapas (exclusividade mútua; fora de grupo = passos
@@ -4373,7 +4391,7 @@ diferente que só reaproveitou a sigla.)
      fixo sem markup). **Inteiro = Σ subitens.** Catálogo/`/orcamento`/`SaleModal` vendem inteiro + cada
      subitem; `SaleInput.subitemId` grava a parte; `PrintStage.id` persiste. **Decisão do rateio (a que
      estava em aberto):** aditivo por custo, markup por subitem atrás de botão discreto, acessório
-     atribuível por box. CSV **não** carrega subitem (Diretriz 7). +8 testes (116 verdes). Detalhe no
+     atribuível por box. CSV **não** carrega subitem (Diretriz 6). +8 testes (116 verdes). Detalhe no
      "Status atual" e no item FEAT-01 abaixo.
    - **FEAT-04 — Registro de Produção (a primitiva de baixa migra pra cá).** O evento que gasta
      filamento + hora é a **produção**, não a venda. Registra TODA impressão com um **desfecho**
@@ -4537,7 +4555,7 @@ pendente da auditoria.
   (custo/preço/peso errados), criar produto-fantasma no catálogo (duplica dado), ou não registrar
   (perde a venda). **Pior depois do passo 8:** a baixa deduz FIFO a partir do `filaments[]` do
   snapshot → registrar o produto inteiro numa venda de uma etapa **dá baixa do filamento do produto
-  inteiro**, e o erro sai do histórico e entra no **estoque físico** (o único dado que a Diretriz 7
+  inteiro**, e o erro sai do histórico e entra no **estoque físico** (o único dado que a Diretriz 6
   NÃO deixa descartar — os rolos são reais).
 
   **Por que entre a 7c e a 8, e não antes da 7a** (decisão do dono, jul/2026): o acoplamento
@@ -4694,7 +4712,7 @@ pendente da auditoria.
   NÃO pode deduzir de novo; (2) **congelamento migra pra produção** (custo do rolo no dia da impressão,
   não no da venda); (3) falha registrada (dado real) ≠ reserva de falha do pricing (provisão
   estatística) — não misturar. **Relacionado:** FEAT-05 (consome este log), passo 8 (ver nota de
-  ordem), TD-003, Estoque (item 3), Diretriz 7 (backfill no marco = sem migração).
+  ordem), TD-003, Estoque (item 3), Diretriz 6 (backfill no marco = sem migração).
 - ⬜ **[FEAT-05] Estoque de Produtos (finished goods) — peça pronta parada na loja** *(guarda-chuva ·
   grande · **posição FECHADA jul/2026: depois do FEAT-04, antes da 8** · depende conceptualmente do
   FEAT-04)*. **O quê:** um **estoque de produtos** (separado do
@@ -4748,10 +4766,10 @@ pendente da auditoria.
   congeladas" exigem escolher: **(a)** puxar a composição do **produto VIVO** (`calculatePricing`) e
   congelar só o total — barato, mas se o produto mudou desde a impressão a composição diverge (não é
   fiel); **(b)** passar a **congelar o breakdown na produção** — fiel, mas mexe no modelo do FEAT-04
-  (`ProductionInput`/`FinishedLayer` ganham a composição) e, por Diretriz 7, backfill no marco = sem
+  (`ProductionInput`/`FinishedLayer` ganham a composição) e, por Diretriz 6, backfill no marco = sem
   migração. Múltiplas camadas por SKU (custos diferentes) → o custo do card é média ponderada ou
   por-camada. **Onde:** `StockPage` (aba Produtos) + reusar `CostBars`/`ProfitSummary`/`CatalogDetails`.
-  **Relacionado:** FEAT-05 (base), FEAT-04 (fonte do congelamento), Diretriz 7.
+  **Relacionado:** FEAT-05 (base), FEAT-04 (fonte do congelamento), Diretriz 6.
   **✅ DECISÃO DO DONO (jul/2026): opção (b) — o acabado guarda a COMPOSIÇÃO INTEIRA congelada na
   produção** (não puxa do produto vivo), para a aba Produtos mostrar os dados igual à calculadora, mas
   fiéis ao dia da impressão. Consequência que casa com o passo 8: quando isto existir, o
@@ -4771,7 +4789,7 @@ pendente da auditoria.
   fração, mantém o comportamento h + min. Só UI, sem migração. **Relacionado:** UX-02.
 - ✅ **[BUG-02] Produção/estoque/encomenda ignoravam o `piecesCount` (mesa de N peças) — FEITO
   (2026-07-19).** O dono reclassificou como URGENTE e furou a fila pré-marco (fundação de dado,
-  Diretriz 7). **Modelo (o MESMO da precificação): 1 evento = 1 placa** → baixa filamento/horas 1×,
+  Diretriz 6). **Modelo (o MESMO da precificação): 1 evento = 1 placa** → baixa filamento/horas 1×,
   credita **N = `piecesCount`** acabados a `custo÷N`. Mudanças: `submissionEntries` (`finishedGoods.ts`)
   ganhou `units` (= peças×placas) e cada acabado vira `qty:units`/`unitCost = custo÷units` (fim do
   `qty:1` cravado); `subitemEventRows` (`productionPlan.ts`) multiplica o labor por `pieces` — o
@@ -4795,7 +4813,7 @@ pendente da auditoria.
   de produção **já gravam `createdAt` (timestamp cheio)** → usar como **desempate** resolve os dois sem
   mexer no modelo (recibo ganha `createdAt = max(items.createdAt)`; statement desempata consumo por
   `event.createdAt`). Rolos/ajustes só têm data de dia — se quiser ordem fina entre compra e consumo do
-  mesmo dia, aí sim guardar `createdAt` neles (Diretriz 7: sem migração, recadastra no marco). **Onde:**
+  mesmo dia, aí sim guardar `createdAt` neles (Diretriz 6: sem migração, recadastra no marco). **Onde:**
   `SalesPage` (sort), `stock.ts` `colorStatement`.
 - ✅ **[NOTA→UX] Custo congelado NÃO inclui reserva de falha — ❌ improcede (intencional); TRANSPARÊNCIA
   ADICIONADA (jul/2026).** `productionCost` (`production.ts`) exclui reserva de falha, custo fixo e
@@ -4871,7 +4889,7 @@ pendente da auditoria.
 ## 📒 Arquivo do BACKLOG — itens FECHADOS movidos para cá (faxina de 2026-08-16)
 
 > **Por que este bloco existe:** o `BACKLOG.md` chegou a **671 linhas / 61KB** carregando o writeup
-> completo de dezenas de itens JÁ CONCLUÍDOS — exatamente o que a Diretriz 8 manda morar aqui.
+> completo de dezenas de itens JÁ CONCLUÍDOS — exatamente o que a Diretriz 7 manda morar aqui.
 > O texto abaixo veio **verbatim** de lá (nada foi reescrito nem resumido: as medições e os ⚠ de
 > cada item estão intactos). O `BACKLOG.md` ficou só com o que está **aberto**.
 > Vários destes itens também têm um writeup próprio e mais longo nas seções `## ✅` acima —
@@ -4969,7 +4987,7 @@ pendente da auditoria.
   **[DEC-05]**. O UX-19 precisa das faixas de margem (**[DEC-04]**): o código continua na fila, só a
   pergunta saiu na frente.
 
-> Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
+> Diretriz 6 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
 
 ### Bugs fechados (BUG-02…BUG-05) e UX/navegação fechada (UX-01…UX-12)
@@ -5252,7 +5270,7 @@ pendente da auditoria.
   a parte certa). A venda de peça pronta ganhou **seletor de cor por parte** (só quando há 2+ cores
   com saldo), congelado no recibo; a **encomenda** segue na cor do cadastro. **Aviso ativo** na
   `/producao`: quanto a troca custou por peça e a margem resultante. +40 testes (**369**).
-  ⚠ Diretriz 7: o saldo de acabados anterior vira o balde **"Sem cor"** e não se mistura com o novo.
+  ⚠ Diretriz 6: o saldo de acabados anterior vira o balde **"Sem cor"** e não se mistura com o novo.
   Writeup + as 5 decisões em `HISTORICO.md`.
 - ~~**[FEAT-06] Aba Produtos rica / composição congelada**~~ ✅ **FEITO (2026-07-20)** — evento, camada
   do acabado e venda passaram a guardar o `FrozenCostBreakdown`; `CostDetail` ganhou o modo de 2 colunas
@@ -5359,7 +5377,7 @@ pendente da auditoria.
 > varreduras** foram escritas lá e **nenhuma foi movida depois de fechar** — ~85% do arquivo era
 > material concluído, e o cabeçalho tinha 90 linhas de "⚠ LEIA PRIMEIRO" empilhados, um por
 > varredura, cada um anulando parcialmente o anterior ("o backlog voltou a ZERO" aparecia três
-> vezes, com três datas). Contra a Diretriz 8: o backlog é só o que está **aberto**.
+> vezes, com três datas). Contra a Diretriz 7: o backlog é só o que está **aberto**.
 >
 > Abaixo, **na íntegra e sem edição** (só os títulos rebaixados um nível, para não competir com as
 > seções deste arquivo), os clusters **AUD-07, AUD-09, AUD-12, AUD-13, AUD-14, AUD-15 e AUD-16**,
@@ -5616,7 +5634,7 @@ typecheck ✅ build ✅.**
   avisando que o lixo **não existe mais no tipo**, que é exatamente o que o teste simula. Deixá-lo
   de fora manteria o `tsc` vermelho e a rotina abaixo seria decorativa.
   **Decisão tomada (a que o item pedia):** **`pnpm typecheck` entra em "concluir a tarefa"**, ao
-  lado de `lint`/`test`/`build`. Script novo no `package.json`; `CLAUDE.md` atualizado na Diretriz 4,
+  lado de `lint`/`test`/`build`. Script novo no `package.json`; `CLAUDE.md` atualizado na Diretriz 3,
   na 8 e nos Comandos. **O motivo, medido:** `pnpm build` **não typa arquivo de teste** — ele passou
   verde com o TS2322 vivo o tempo todo — e `pnpm lint` não roda `tsc`. Sem o comando próprio, todo
   erro de tipo em teste é invisível.
@@ -5746,7 +5764,7 @@ typecheck ✅ build ✅.**
 > que sobra são as **ressalvas** (que só viram item se o dono mandar) e a lista do que a varredura
 > não cobriu.
 
-> **A pergunta que ela existiu para responder:** *a Diretriz 7 pode expirar?* Resposta medida:
+> **A pergunta que ela existiu para responder:** *a Diretriz 6 pode expirar?* Resposta medida:
 > **sim, com uma trava** — havia um caminho que corrompia a carga **em silêncio** (o `[D1]`, que
 > fechou no lote 1). Relatório completo, com as medições cruas:
 > [artifact 99e19ac1](https://claude.ai/code/artifact/99e19ac1-7b0b-4d05-8640-2fb3217eab71).
@@ -5888,7 +5906,7 @@ typecheck ✅ build ✅.**
   coberta por 4 testes) devolve `{ entries, malformed }`. Campo ausente e lista vazia → `malformed:
   false` (a venda de encomenda, a venda pré-FEAT-11: não há nada a lamentar); **mapa** ou lista cujos
   itens não sobrevivem → `malformed: true`.
-  · **Sem migração, de propósito** (Diretriz 7): a forma de mapa nem consegue representar a peça
+  · **Sem migração, de propósito** (Diretriz 6): a forma de mapa nem consegue representar a peça
   INTEIRA — o Firestore recusa `__whole__` como nome de campo, que é a razão de a lista existir.
   Aceitá-la seria ressuscitar um formato que o app não sabe escrever.
   · **O que mudou de verdade é o `finishedColorLabel`**: ele deixou de sobreviver sozinho. Era outro
@@ -5942,7 +5960,7 @@ typecheck ✅ build ✅.**
   `producao/32Fa5M0jFy2wvCe7dDod`. Um terceiro fixa que no modo `historico` os dois coincidem (não há
   rolo a consumir). O `pricePerKg` e o `id` **não sobrevivem** à travessia — é o que o teste afirma,
   campo a campo.
-  ⚠ **Sem migração (Diretriz 7), mas a LEITURA é tolerante**: doc anterior aceita `pricePerKg` /
+  ⚠ **Sem migração (Diretriz 6), mas a LEITURA é tolerante**: doc anterior aceita `pricePerKg` /
   `unitPrice` como o que eles sempre foram (preço de cadastro). Escrever, só com o nome novo.
   ⚠ A tela do `/producao` passou a dizer **"R$ 85,00/kg no cadastro"** na etiqueta de cor — o número
   sozinho era metade da informação.
@@ -6085,7 +6103,7 @@ typecheck ✅ build ✅.**
 > estão nesta tabela** — não passaram pelo martelo do dono. A fila de ondas continua valendo só para
 > o que sobrou do rebrand; a ordem dos itens novos é a decisão pendente.
 
-> Diretriz 7 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
+> Diretriz 6 (dados descartáveis, marco futuro) cobre o backlog inteiro → **nenhum item precisa de
 > migração**. Não reordenar por causa disso.
 
 ### Itens abertos

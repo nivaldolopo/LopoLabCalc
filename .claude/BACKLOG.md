@@ -10,7 +10,7 @@
 > metade da [FEAT-03] que esperava marca, o [branding/rebrand] e o [DEC-05]. Antes disso: [FEAT-12]
 > (2026-09-09), [TD-033], [AUD-08], [AUD-18], [AUD-17] e o [FROTA] — writeups no `HISTORICO.md`.
 
-> ⚠ **Diretriz 7 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
+> ⚠ **Diretriz 6 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho — **até a frente 3** (uso real), que é o marco em que ela expira.
 
 ## ▶ PLANO 2026-09-15 — cinco frentes, um chat cada
@@ -137,7 +137,7 @@ Inventário de 2026-09-15 (conferir no código antes de desenhar):
   que o dono **já cadastrou de verdade** antes não pode ir junto.
 - **Ordem do cadastro real:** máquinas (a frota real tem 3) → custo fixo/capacidade → taxas → dados
   do negócio → cores e insumos → catálogo (planilha, ver "A frente do DONO") → acessórios religados.
-- **A Diretriz 7 expira aqui** — o dono anuncia o marco; a partir dele, migração é obrigatória.
+- **A Diretriz 6 expira aqui** — o dono anuncia o marco; a partir dele, migração é obrigatória.
 - Pendências de prova que o uso real exercita: import >500, Excel/LibreOffice real.
 
 ### Airtable e Drive (LopoLabCalc)
@@ -309,7 +309,7 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
      continua com login (decisão do dono, 2026-09-17) e cai no banco de teste também.
   2. **Sem Blaze:** só o emulador local (`firebase.json` já tem a base de `pnpm test:rules`) cobre
      `pnpm dev`; Preview continua sem uso real (ou compartilha o banco real, aceitando o risco
-     enquanto a Diretriz 7 vale). Não resolve a fricção do navegador embutido em Preview.
+     enquanto a Diretriz 6 vale). Não resolve a fricção do navegador embutido em Preview.
   3. **Não fazer nada agora** — mantém o Chrome real (extensão) como está pra qualquer teste.
   Detalhe completo da análise: pedir pra reabrir esta conversa, ou ver o commit de
   2026-09-17 no `git log`.
@@ -384,7 +384,7 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
   ⚠ **A mecânica que SOBREVIVE ao recadastro:** `saveProduct` usa `tx.update`, que faz **merge** —
   campo que o `buildProductPayload` deixe de gravar fica no documento pra sempre.
 - **[TD-021] e [CSV-30]** seguem ressalva por decisão do dono.
-- **O `CLAUDE.md` está em 345 linhas, contra o alvo de ~270** (Diretriz 8). O Status já foi
+- **O `CLAUDE.md` está em 345 linhas, contra o alvo de ~270** (Diretriz 7). O Status já foi
   comprimido; o que sobra de gordura são as **7 regras de CSS/UI** dos Pontos-chave (~30 linhas).
   Movê-las para o `HISTORICO.md` é a saída natural, mas é decisão deliberada — elas são guarda-corpo
   de quem escreve CSS novo, e o `HISTORICO` só entra em contexto quando alguém o lê.

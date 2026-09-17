@@ -1,20 +1,20 @@
 # LopoLabCalc — Orientações para o chat
 
 > Lido automaticamente a cada conversa. Leia as **Diretrizes de trabalho** antes de qualquer ação.
-> **Três arquivos, três papéis** (Diretriz 8): este = AGORA (auto, todo turno) ·
+> **Três arquivos, três papéis** (Diretriz 7): este = AGORA (auto, todo turno) ·
 > [`BACKLOG.md`](.claude/BACKLOG.md) = a-fazer · [`HISTORICO.md`](.claude/HISTORICO.md) = o porquê
 > (pesado, sob demanda). **Não** traga o conteúdo desses dois de volta pra cá.
 
 ## Status atual (contexto de continuidade)
 
-> Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 5 e 8.
+> Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
 - **Última mudança (2026-09-15): frente 1 (pedido ao designer) fechada, sem código** — aguardando a
   entrega da arte final. O que vira código quando ela chegar está nas seções **1** e **1b** do
   [`BACKLOG.md`](.claude/BACKLOG.md). Última de código: **[DEC-07]** (2026-09-17) — local e
   Preview passaram a usar banco de teste do Firestore, `AuthGate` sem login em `localhost`
-  (Diretrizes 1 e 4).
+  (Diretrizes 1 e 3).
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
@@ -38,7 +38,7 @@
   conversão **peso↔metragem**.
 - ⚠ **A frota real tem TRÊS máquinas** (A1 Combo 40% · X2D Combo 40% · A1 Mini 20%, medido em
   2026-09-03) — o `DEFAULT_MACHINES` do código só tem duas, então não raciocine por ele. **Todo
-  produto anterior à fase entra SEM conjunto** → frota inteira + badge de órfão (Diretriz 7 — sem
+  produto anterior à fase entra SEM conjunto** → frota inteira + badge de órfão (Diretriz 6 — sem
   migração; o dono recadastra).
 - ⚠ **`/producao` e VENDA por encomenda PERGUNTAM a máquina** quando há 2+ candidatas (dono,
   2026-09-01: *"vazia só quando há dúvida"*); sem escolher, o botão trava com o motivo na tela — não
@@ -214,12 +214,10 @@ src/lib/
   fallback é o comportamento de hoje — nunca o banco errado em produção).
 - **`AuthGate` só pula login em `localhost`.** Preview exige login normal — e o domínio da branch
   precisa estar em Authorized Domains do Firebase Auth pra completar (sem wildcard, um por branch;
-  detalhe no `BACKLOG.md`).
+  detalhe no `BACKLOG.md`). **Eu cadastro esse domínio sozinho ao abrir um Preview novo** — você
+  não precisa fazer nada pra o login funcionar lá.
 
-### 2. Resumo para contexto
-- **Mantenha o "Resumo do projeto" atualizado** quando arquitetura, stack ou arquivos-chave mudarem.
-
-### 3. Commit + deploy imediatos a cada alteração
+### 2. Commit + deploy imediatos a cada alteração
 Concluída uma **alteração no código** que eu pedi, execute **imediatamente**, sem esperar novo pedido:
 
 ```powershell
@@ -231,7 +229,7 @@ git push
 > Deploy pela **integração Git nativa da Vercel** (push na `main` → produção). **Não** rode
 > `vercel --prod` no fluxo normal — deploy duplicado. Acompanhe com `vercel ls`.
 
-### 4. Verificação visual: embutido pra local, Chrome real pra URL publicada
+### 3. Verificação visual: embutido pra local, Chrome real pra URL publicada
 - **Não** abra navegador pra "confirmar" toda alteração — gasta tempo/tokens à toa. Pro código são,
   prefira o barato: `pnpm lint`, `pnpm test`, `pnpm typecheck` (e `pnpm build` quando fizer sentido).
 - **Mas quando a verificação visual for de fato útil, ABRA você mesmo** — não espere eu validar.
@@ -245,16 +243,17 @@ git push
 - **URL de fato publicada (Preview/produção): Chrome real**, via *Claude in Chrome*
   (`mcp__claude-in-chrome__*`: `tabs_context_mcp` → `tabs_create_mcp`/`navigate` +
   `read_page`/`computer`/`javascript_tool`) — a sessão Google já logada evita a tela de login a
-  cada verificação. Abra **aba nova** por conversa e feche ao fim. Preview exige o domínio
-  autorizado primeiro (Diretriz 1).
+  cada verificação. Abra **aba nova** por conversa e feche ao fim. Preview já vem com o domínio
+  autorizado (Diretriz 1).
 - **Login Google (AuthGate), quando precisar dele:** eu **nunca** te passo senha e você **nunca**
   digita credencial. Sessão logada → siga direto. Caiu na tela de login → **pausa e me avisa**
   ("logue aí que eu continuo").
 - Terminada a verificação, **me mostre a prova** (screenshot/medição/console), não só o "funcionou".
 
-### 5. Manter o "Status atual" atualizado (regra irmã da 8)
+### 4. Manter "Status atual" e "Resumo do projeto" sincronizados (regra irmã da 7)
 - Concluída uma mudança relevante (feature, correção, decisão de arquitetura/infra), **atualize o
-  "Status atual"** — é ele que permite abrir um **chat novo por tarefa**.
+  "Status atual"** — é ele que permite abrir um **chat novo por tarefa**. Mudou arquitetura, stack
+  ou arquivo-chave? **Atualize também o "Resumo do projeto".**
 - **Para não virar changelog:** **≤ ~40 linhas** · só a mudança **MAIS recente**, **substituindo** a
   anterior (nada de `Antes: … Antes: …`) · bullets estáveis, não parágrafo de implementação (isso
   mora no código e no `git log`) · o **porquê** vai pro `HISTORICO.md` e o item aberto pro
@@ -264,14 +263,14 @@ git push
   fato que não muda de uma tarefa pra outra mora no `Infra/referência` ou dentro da diretriz que usa
   aquele fato, nunca aqui (foi o que inflou a seção pra 54 linhas antes da faxina de 2026-09-17).
 
-### 6. Sinalizar hora de trocar de chat
+### 5. Sinalizar hora de trocar de chat
 - **Tarefa concluída** (fechada, commitada, pushada) é bom ponto de corte: sugira encerrar o chat e
   abrir um novo (o "Status atual" carrega o contexto).
 - Conversa longa e ainda no meio de algo: avise que o contexto está grande e que pode valer fechar um
   passo lógico e seguir em chat novo — **sem prometer precisão de tokens** (não há medidor ao vivo;
   o gatilho confiável é "tarefa concluída", não contagem).
 
-### 7. Dados atuais são descartáveis — priorize velocidade sobre compatibilidade
+### 6. Dados atuais são descartáveis — priorize velocidade sobre compatibilidade
 - **O histórico de hoje (catálogo, vendas, orçamentos) NÃO é o dado real** — é teste. O dono
   recadastra **tudo, inclusive os acessórios**, num **marco que ele mesmo vai anunciar** — **nunca
   presumir a data**. Logo: **nenhum item do backlog precisa de migração**, e nada se reordena por isso.
@@ -286,7 +285,7 @@ git push
 - **Expira** quando o dono declarar a ferramenta madura e recadastrar; aí migração volta a ser
   obrigatória. Reler antes de assumir que ela ainda vale.
 
-### 8. Manter o CLAUDE.md INTEIRO enxuto — a doc é 3 arquivos por custo de token
+### 7. Manter o CLAUDE.md INTEIRO enxuto — a doc é 3 arquivos por custo de token
 - **Por quê:** só o `CLAUDE.md` é **auto-carregado e re-enviado a cada turno** — cada linha aqui é
   token multiplicado pela conversa toda. Os outros dois só entram **quando eu os leio**.
 - **Os 3 papéis:** `CLAUDE.md` (auto, todo turno · alvo **≤ ~380 linhas**, recalibrado 2026-09-17 —
@@ -305,7 +304,7 @@ git push
 - Esta verificação de tamanho/divisão é parte de "concluir a tarefa", igual a `lint`/`typecheck`/
   `build`/`test`.
 
-### 9. Conferir o Airtable contra os `.md` — só quando eu pedir
+### 8. Conferir o Airtable contra os `.md` — só quando eu pedir
 - **Não é automático.** Rodar só quando eu disser algo como "analisa a Table" / "confere o
   Airtable" — não repetir a cada chat nem a cada mensagem da mesma conversa.
 - Ao rodar: buscar o cartão do projeto **LopoLabCalc** (`rec72ERQgc4Ypy8CW`, base `Lopo Lab OS`
@@ -318,7 +317,7 @@ git push
   MEU (controle total); o resto da base é do OUTRO agente do dono, que só LÊ o nosso — não tocar
   cartão/projeto de outra frente da loja.
 
-### 10. Bug de dado/coerção primeiro passa pelo `/code-review`, não pelo navegador
+### 9. Bug de dado/coerção primeiro passa pelo `/code-review`, não pelo navegador
 - **O padrão das varreduras AUD-\* (medir na tela → commit → fix → commit) é caro pra bug que nem
   precisa de tela** — campo opcional comido no save, `String(objeto)` fabricando valor errado,
   coerção antes da validação. Isso é diff de código, não de UX.
