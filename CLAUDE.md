@@ -12,7 +12,9 @@
 - **Estado do site:** no ar em `calculadora.lopolab.com.br` (SSL ok) e `lopolabcalc.vercel.app`;
 - **Última mudança (2026-09-15): frente 1 (pedido ao designer) fechada, sem código** — aguardando a
   entrega da arte final. O que vira código quando ela chegar está nas seções **1** e **1b** do
-  [`BACKLOG.md`](.claude/BACKLOG.md). Última de código: [FEAT-12] (2026-09-09).
+  [`BACKLOG.md`](.claude/BACKLOG.md). Última de código: **[DEC-07]** (2026-09-17) — local e
+  Preview passaram a usar banco de teste do Firestore, `AuthGate` sem login em `localhost`
+  (Diretrizes 1 e 4).
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
@@ -20,10 +22,6 @@
   `BACKLOG.md`): juntar o `config/` num lugar só, em `/configuracoes`. ⚠ **Novidade pra essa
   frente:** a 1ª conta de energia real da loja já está disponível (dono, 2026-09-16) — calibrar a
   tarifa de energia da precificação por ela em vez da estimativa; ler a fatura na hora de desenhar.
-- ⏸ **PENDENTE (2026-09-17): ambiente de teste isolado do Firestore.** Criar um 2º banco (pra
-  local/Preview não escreverem no dado real) exige plano **Blaze** — o Spark só deixa 1 banco por
-  projeto. Decisão do dono: fazer o upgrade (grátis até passar a franquia), ou seguir com o
-  emulador local só (sem cobrir Preview). Opções detalhadas na seção do `BACKLOG.md`.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
   SISTEMA gera na hora pro `wa.me/...?text=`. Regra completa (e "sem iPhone") na seção do
   `BACKLOG.md` — ainda não codado.
@@ -208,10 +206,15 @@ src/lib/
 
 ## Diretrizes de trabalho
 
-### 1. Usar apenas o ambiente de produção
-- **Só existe produção.** Preview e Development da Vercel não são mantidos (as variáveis do Firebase
-  só estão em **Production**) — use sempre o target `production`, e todo deploy é de produção
-  (push na `main` → deploy automático).
+### 1. Ambiente: produção é o real; local e Preview usam banco de teste
+- **Deploy só tem um alvo: produção** — push na `main` → ar automaticamente, sem mudar isso.
+- **[DEC-07] Local (`pnpm dev`) e Preview caem no banco Firestore de TESTE**
+  (`lopo-lab-calculadora-test`, mesmo projeto `lopo-lab`) — `client.ts` escolhe pelo
+  `NEXT_PUBLIC_VERCEL_ENV`; produção nunca depende dessa detecção acertar (se a env faltar, o
+  fallback é o comportamento de hoje — nunca o banco errado em produção).
+- **`AuthGate` só pula login em `localhost`.** Preview exige login normal — e o domínio da branch
+  precisa estar em Authorized Domains do Firebase Auth pra completar (sem wildcard, um por branch;
+  detalhe no `BACKLOG.md`).
 
 ### 2. Resumo para contexto
 - **Mantenha o "Resumo do projeto" atualizado** quando arquitetura, stack ou arquivos-chave mudarem.
@@ -228,22 +231,25 @@ git push
 > Deploy pela **integração Git nativa da Vercel** (push na `main` → produção). **Não** rode
 > `vercel --prod` no fluxo normal — deploy duplicado. Acompanhe com `vercel ls`.
 
-### 4. Verificação visual: use o CHROME (plugin), não o navegador embutido
-- **Não** abra o navegador pra "confirmar" toda alteração — gasta tempo/tokens à toa. Pro código são,
+### 4. Verificação visual: embutido pra local, Chrome real pra URL publicada
+- **Não** abra navegador pra "confirmar" toda alteração — gasta tempo/tokens à toa. Pro código são,
   prefira o barato: `pnpm lint`, `pnpm test`, `pnpm typecheck` (e `pnpm build` quando fizer sentido).
 - **Mas quando a verificação visual for de fato útil, ABRA você mesmo** — não espere eu validar.
   Típicos: layout/responsivo, medir no DOM, lógica interativa que lint/build não cobre, ou a meu
   pedido.
-- **Onde abrir:** o **Chrome real**, via *Claude in Chrome* (`mcp__claude-in-chrome__*`:
-  `tabs_context_mcp` → `tabs_create_mcp`/`navigate` + `read_page`/`computer`/`javascript_tool`).
-  A sessão Google já está logada lá, então o AuthGate não reaparece a cada verificação — foi por
-  isso que o embutido saiu (dono, 2026-09-07). Abra **aba nova** pra cada conversa e feche ao fim.
-- **Navegador embutido (`preview_start`/pane) só em dois casos:** o Chrome não estar conectado
-  (`list_connected_browsers` vazio) ou eu pedir. Pra **subir o servidor local** continua sendo
-  `preview_start` com o `.claude/launch.json` (nunca `pnpm dev` no Bash) — subiu o servidor,
-  a inspeção vai pro Chrome em `http://localhost:3000`.
-- **Login Google (AuthGate):** eu **nunca** te passo senha e você **nunca** digita credencial. Sessão
-  logada → siga direto. Caiu na tela de login → **pausa e me avisa** ("logue aí que eu continuo").
+- **Local (`pnpm dev`): navegador embutido é o padrão de novo** ([DEC-07], 2026-09-17) — o
+  `AuthGate` pula o login em `localhost`, então o embutido não esbarra mais nele (era exatamente
+  isso que tinha tirado ele de uso, 2026-09-07). Suba com `preview_start`
+  (`.claude/launch.json`, nunca `pnpm dev` no Bash) — a inspeção vai pro embutido em
+  `http://localhost:3000`.
+- **URL de fato publicada (Preview/produção): Chrome real**, via *Claude in Chrome*
+  (`mcp__claude-in-chrome__*`: `tabs_context_mcp` → `tabs_create_mcp`/`navigate` +
+  `read_page`/`computer`/`javascript_tool`) — a sessão Google já logada evita a tela de login a
+  cada verificação. Abra **aba nova** por conversa e feche ao fim. Preview exige o domínio
+  autorizado primeiro (Diretriz 1).
+- **Login Google (AuthGate), quando precisar dele:** eu **nunca** te passo senha e você **nunca**
+  digita credencial. Sessão logada → siga direto. Caiu na tela de login → **pausa e me avisa**
+  ("logue aí que eu continuo").
 - Terminada a verificação, **me mostre a prova** (screenshot/medição/console), não só o "funcionou".
 
 ### 5. Manter o "Status atual" atualizado (regra irmã da 8)

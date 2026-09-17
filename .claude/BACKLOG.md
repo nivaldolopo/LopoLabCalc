@@ -296,7 +296,7 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
   [TD-014] — fazer antes da marca **custa** retrabalho. → **fazer junto do rebrand.**
   Detalhe da decisão: `HISTORICO.md`.
 
-- **▶ [DEC-06] Ambiente de teste isolado do Firestore** *(aprovado pelo dono em 2026-09-17)* —
+- **▶ [DEC-07] Ambiente de teste isolado do Firestore** *(aprovado pelo dono em 2026-09-17)* —
   local/Preview passam a escrever num banco separado do real, e o `AuthGate` deixa de exigir login
   Google em `localhost` (hoje o navegador embutido esbarra nele — só o Chrome real com sessão
   persistida contorna). **Bloqueado:** o Firestore só permite 1 banco por projeto no plano **Spark**

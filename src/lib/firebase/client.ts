@@ -19,6 +19,18 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-export const db = getFirestore(app, "lopo-lab-calculadora");
+// [DEC-06] Local (pnpm dev) e Preview da Vercel caem no banco de TESTE — só
+// produção (VERCEL_ENV "production") usa o banco real. NEXT_PUBLIC_VERCEL_ENV é
+// exposto automaticamente pela Vercel; se por algum motivo não vier (build
+// local sem essa env), cai no NODE_ENV — o que faz o pior caso possível ser o
+// de HOJE (preview sem isolamento), nunca produção apontando pro banco errado.
+const isProduction = process.env.NEXT_PUBLIC_VERCEL_ENV
+  ? process.env.NEXT_PUBLIC_VERCEL_ENV === "production"
+  : process.env.NODE_ENV === "production";
+
+export const db = getFirestore(
+  app,
+  isProduction ? "lopo-lab-calculadora" : "lopo-lab-calculadora-test",
+);
 
 export const auth = getAuth(app);

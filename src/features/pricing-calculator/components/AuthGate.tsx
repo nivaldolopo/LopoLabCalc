@@ -7,8 +7,18 @@ import { useAuth } from "../hooks/useAuth";
 // Barreira de acesso: só renderiza o app para um e-mail Google autorizado.
 // Envolve TODAS as rotas (usado no layout). Lembrete: isto é a camada de UI —
 // a proteção real do banco vem das Regras do Firestore (Console).
+//
+// [DEC-06] Em localhost (pnpm dev) o login é pulado: o navegador embutido
+// esbarrava no AuthGate (sem sessão Google persistida), e agora que o banco
+// local é o de TESTE (client.ts) não há mais dado real em jogo pra proteger
+// aqui. O hook continua sendo chamado sempre (regra dos hooks) — só o que ele
+// devolve é ignorado nesse caso. Preview e produção continuam exigindo login.
 export function AuthGate({ children }: { children: ReactNode }) {
   const { state, user, error, signIn, signOut } = useAuth();
+
+  if (process.env.NODE_ENV === "development") {
+    return <>{children}</>;
+  }
 
   if (state === "authorized") {
     return <>{children}</>;

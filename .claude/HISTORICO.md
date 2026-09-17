@@ -9,7 +9,7 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
-## ✅ Faxina nas Diretrizes de trabalho + [DEC-06] ambiente de teste (2026-09-17)
+## ✅ Faxina nas Diretrizes de trabalho + [DEC-07] ambiente de teste (2026-09-17)
 
 Revisão pedida pelo dono de todas as 9 diretrizes do `CLAUDE.md`, mais o fio da conversa sobre
 ambiente de teste/Preview que já vinha sendo discutido. O que mudou:
@@ -39,7 +39,7 @@ ambiente de teste/Preview que já vinha sendo discutido. O que mudou:
   build`.** Era só `next build` — uma regressão no vitest não bloqueava o deploy, mesmo com
   "commit+deploy imediato" (Diretriz 3) empurrando toda alteração pra `main`. Validado local antes
   do push: 1014 testes + typecheck + build, todos verdes.
-- **[DEC-06] Ambiente de teste isolado do Firestore — aprovado, mas BLOQUEADO.** O plano era: banco
+- **[DEC-07] Ambiente de teste isolado do Firestore — aprovado, mas BLOQUEADO.** O plano era: banco
   Firestore de teste separado (local/Preview não escrevem no real) + `AuthGate` sem login em
   `localhost` (hoje o navegador embutido esbarra nele — só o Chrome real com sessão Google
   persistida contorna, é por isso que a Diretriz 4 existe como está). Ao tentar criar o 2º banco no
@@ -47,10 +47,10 @@ ambiente de teste/Preview que já vinha sendo discutido. O que mudou:
   **"Upgrade to add database"** — o plano **Spark** (grátis) permite só 1 banco por projeto;
   precisa virar **Blaze** (pago por uso). Como isso é billing (cartão), é decisão do dono, não
   minha — ele decide se/quando fazer o upgrade. As 3 opções (Blaze / só emulador local / não fazer
-  agora) e o detalhe de cada uma foram registradas como **[DEC-06]** no `BACKLOG.md`, seção
+  agora) e o detalhe de cada uma foram registradas como **[DEC-07]** no `BACKLOG.md`, seção
   "Decisões já marteladas que ainda são tarefa de CÓDIGO". **Diretriz 1, 3 (parte do bullet de
   checagem local) e 4 (Chrome vs. navegador embutido) NÃO foram reescritas** — dependem de qual
-  caminho o dono escolher pro DEC-06, pra não descrever um fluxo que ainda pode mudar de forma.
+  caminho o dono escolher pro DEC-07, pra não descrever um fluxo que ainda pode mudar de forma.
 
 **Achado incidental que vale registrar:** a "SSO Protection" da Vercel já está ligada pra
 `all_except_custom_domains` — toda URL de Preview (menos o domínio customizado) já exige login da
