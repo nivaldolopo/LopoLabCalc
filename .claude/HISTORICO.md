@@ -66,9 +66,19 @@ ambiente de teste/Preview que já vinha sendo discutido. O que mudou:
   precisa virar **Blaze** (pago por uso). Como isso é billing (cartão), é decisão do dono, não
   minha — ele decide se/quando fazer o upgrade. As 3 opções (Blaze / só emulador local / não fazer
   agora) e o detalhe de cada uma foram registradas como **[DEC-07]** no `BACKLOG.md`, seção
-  "Decisões já marteladas que ainda são tarefa de CÓDIGO". **Diretriz 1, 2 (parte do bullet de
-  checagem local) e 3 (Chrome vs. navegador embutido) NÃO foram reescritas** — dependem de qual
+  "Decisões já marteladas que ainda são tarefa de CÓDIGO". ~~Diretriz 1, 2 (parte do bullet de
+  checagem local) e 3 (Chrome vs. navegador embutido) NÃO foram reescritas~~ — dependem de qual
   caminho o dono escolher pro DEC-07, pra não descrever um fluxo que ainda pode mudar de forma.
+
+  **Atualização, ainda no mesmo dia:** o dono aprovou o upgrade pra Blaze, o bloqueio caiu.
+  ✅ **[DEC-07] CONCLUÍDO:** banco `lopo-lab-calculadora-test` criado (mesmo projeto, regra
+  permanente `allow read, write: if true`), `client.ts` e `AuthGate` reescritos e mergeados pra
+  `main` (commit `1fc76ed`). Provado localmente ponta a ponta (Firebase Console confirmou o seed
+  de `config/machines` indo pro banco de teste); Preview provado mantendo a tela de login. A
+  seleção do banco de teste **no Preview** (via `NEXT_PUBLIC_VERCEL_ENV`) não foi confirmada
+  interativamente — o login por popup do Google não persistiu no navegador automatizado da sessão
+  — mas é segura por construção (produção nunca cai no banco errado mesmo se essa env faltar).
+  Item removido do `BACKLOG.md` (a-fazer virou feito).
 
 **Achado incidental que vale registrar:** a "SSO Protection" da Vercel já está ligada pra
 `all_except_custom_domains` — toda URL de Preview (menos o domínio customizado) já exige login da

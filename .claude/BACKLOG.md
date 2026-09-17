@@ -296,25 +296,6 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
   [TD-014] — fazer antes da marca **custa** retrabalho. → **fazer junto do rebrand.**
   Detalhe da decisão: `HISTORICO.md`.
 
-- **▶ [DEC-07] Ambiente de teste isolado do Firestore** *(aprovado pelo dono em 2026-09-17)* —
-  local/Preview passam a escrever num banco separado do real, e o `AuthGate` deixa de exigir login
-  Google em `localhost` (hoje o navegador embutido esbarra nele — só o Chrome real com sessão
-  persistida contorna). **Bloqueado:** o Firestore só permite 1 banco por projeto no plano **Spark**
-  (grátis) — um 2º banco (`lopo-lab-calculadora-test`) exige virar **Blaze** (pago por uso; grátis
-  até passar a franquia, mas exige forma de pagamento — decisão do dono, não posso fazer por ele).
-  **Caminhos, em ordem de preferência:**
-  1. **Virar Blaze** → 2º banco nomeado no mesmo projeto (Console, "Add database") → regra de
-     teste (`allow read, write: if true`, só ele) → `client.ts` escolhe o banco por
-     `NODE_ENV`/`VERCEL_ENV` → `AuthGate` pula login só em `NODE_ENV === "development"`. Preview
-     continua com login (decisão do dono, 2026-09-17) e cai no banco de teste também.
-  2. **Sem Blaze:** só o emulador local (`firebase.json` já tem a base de `pnpm test:rules`) cobre
-     `pnpm dev`; Preview continua sem uso real (ou compartilha o banco real, aceitando o risco
-     enquanto a Diretriz 6 vale). Não resolve a fricção do navegador embutido em Preview.
-  3. **Não fazer nada agora** — mantém o Chrome real (extensão) como está pra qualquer teste.
-  Detalhe completo da análise: pedir pra reabrir esta conversa, ou ver o commit de
-  2026-09-17 no `git log`.
-
-
 ## Lacunas de PROVA — o que continua sem medição
 
 > Não são defeitos: é o que continua **sem medição**. Vale reler antes de afirmar que algo "está
@@ -384,10 +365,6 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
   ⚠ **A mecânica que SOBREVIVE ao recadastro:** `saveProduct` usa `tx.update`, que faz **merge** —
   campo que o `buildProductPayload` deixe de gravar fica no documento pra sempre.
 - **[TD-021] e [CSV-30]** seguem ressalva por decisão do dono.
-- **O `CLAUDE.md` está em 345 linhas, contra o alvo de ~270** (Diretriz 7). O Status já foi
-  comprimido; o que sobra de gordura são as **7 regras de CSS/UI** dos Pontos-chave (~30 linhas).
-  Movê-las para o `HISTORICO.md` é a saída natural, mas é decisão deliberada — elas são guarda-corpo
-  de quem escreve CSS novo, e o `HISTORICO` só entra em contexto quando alguém o lê.
 
 ## Fechado
 
