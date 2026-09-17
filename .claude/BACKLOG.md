@@ -102,28 +102,28 @@ entrou/mudou/saiu** no bloco "O que mudou nesta lista", com data — foi pedido 
     Gerar no navegador ainda tira um salto do caminho (menos coisa para dar errado na leitura).
 - ⚠ **Sem iPhone:** o sistema roda no computador e no **Android** do dono, mais ninguém usa — não
   gastar ícone, teste nem CSS com iOS.
-- ⚠ **Tom da lista (pedido do dono):** o designer é **amigo e dono da loja vizinha** (República
-  Ludóvico, boardgame). Profissional, sim, mas a lista se apresenta como **sugestão** — "quem manda
-  no design é ele" — e os dois pedem coisa um pro outro com liberdade.
+- ⚠ **Tom da lista (pedido do dono):** o designer (**Hermes**) é **amigo e dono da loja vizinha**
+  (República Ludóvico, boardgame). Profissional, sim, mas a lista se apresenta como **sugestão** —
+  "quem manda no design é ele" — e os dois pedem coisa um pro outro com liberdade.
 
-### 1c · Site do designer — ✅ SAIU DAQUI (2026-09-15): virou projeto próprio
-**`C:\Users\Lopo\Documents\lopolab-designer`** — pasta criada, repo local com commit, **fase 1
-pronta** (a checklist de 30 itens como site estático). **O contexto inteiro, as decisões e o desenho
-da fase 2 vivem no `CLAUDE.md` de lá** — este item fica só como registro de que a frente nasceu aqui.
-- Endereço: **`designer.lopolab.com.br`** · **sem login**, página aberta (só os dois usam, endereço
-  não divulgado; `robots.txt` + `X-Robots-Tag` mantêm fora de buscador).
-- 🔴 **Separado de tudo:** repo, Vercel e banco próprios. **Nada** da base da loja — escrita sem
-  login não encosta em vendas/estoque, e não se mexe no `AuthGate` por causa disso.
-- **Falta:** o dono criar o repositório no GitHub → conectar na Vercel → CNAME **DNS only** no
-  Cloudflare. A **fase 2** (marcações e respostas compartilhadas, Firestore em projeto novo) é o
-  passo seguinte, lá.
-- ⚠ **O bloco "O que mudou" saiu da lista**: o designer ainda não a leu, não há o que comparar. Volta
-  **quando o dono declarar a versão final** — e daí toda revisão registra entrou/mudou/saiu, com data.
-- ⚠ Quando o site subir, o **pedido do orçamento em PDF vira a segunda página dele** (o conteúdo não
-  muda — só de endereço), e os dois HTMLs do Drive viram **ponteiros**, pra não existirem duas
-  versões divergindo. O **PDF imprimível fica** no Drive, junto das entregas.
+### 1c · Site do designer — ✅ SAIU DAQUI: projeto TOTALMENTE separado
+**`C:\Users\Lopo\Documents\lopolab-designer`** (repo `nivaldolopo/lopolab-designer`, Vercel via
+integração Git, CNAME DNS only no Cloudflare) — **no ar em `designer.lopolab.com.br`**, sem login.
+**O contexto inteiro, as decisões e o código vivem no `CLAUDE.md` de lá** — este item fica só como
+registro de que a frente nasceu aqui e onde foi morar.
+- 🔴 **Separado de tudo:** repo, Vercel e banco (Firestore) próprios. **Nada** da base da loja —
+  escrita sem login não encosta em vendas/estoque, e não se mexe no `AuthGate` por causa disso.
+- **2026-09-16: link mandado a Hermes** (o designer). Aguardando as **5 respostas do Bloco A** da
+  checklist da marca para ajustar o resto. O pedido do orçamento virou a 2ª página do site (conteúdo
+  não mudou); as cópias no Drive viraram **ponteiros** pro site — o **PDF imprimível fica** no
+  Drive, junto das entregas.
+- Detalhe de fase, testes e arquitetura: no `CLAUDE.md`/histórico de lá, não aqui.
 
 ### 2 · Aba de Configurações — mover o `config/` pra `/configuracoes`
+⚠ **2026-09-16: a 1ª conta de energia real da loja já está disponível** (dono) — usar pra calibrar
+a tarifa de energia da precificação (hoje estimada) em vez do chute; pedir/ler a fatura na hora de
+desenhar esta frente, sem presumir o valor antes disso.
+
 Inventário de 2026-09-15 (conferir no código antes de desenhar):
 
 | Config | Onde se edita hoje | Doc |
