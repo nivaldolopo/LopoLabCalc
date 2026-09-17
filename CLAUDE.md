@@ -20,27 +20,15 @@
   `BACKLOG.md`): juntar o `config/` num lugar só, em `/configuracoes`. ⚠ **Novidade pra essa
   frente:** a 1ª conta de energia real da loja já está disponível (dono, 2026-09-16) — calibrar a
   tarifa de energia da precificação por ela em vez da estimativa; ler a fatura na hora de desenhar.
-- 🔴 **QR (fechado em 2026-09-15):** **impresso e duradouro** (cartão, vitrine, adesivo) quem gera é
-  o DONO, sempre pro endereço fixo dele, redirecionável sem reimprimir — designer só desenha em
-  volta. **De um orçamento só**, o SISTEMA gera na hora, direto pro `wa.me/...?text=` com o nº (a
-  mensagem muda a cada orçamento; redirecionador exigiria um link novo na mão para cada um).
-  ⚠ **Sem iPhone** — o sistema roda no PC e no Android dele, só.
-- ⚠ **Airtable: o projeto LopoLabCalc é MEU (controle total); o resto da base é do OUTRO agente do
-  dono**, que só LÊ o nosso. Base `Lopo Lab OS` (`appQiYC4NVQy34QtH`) · projeto **LopoLabCalc**
-  (`rec72ERQgc4Ypy8CW`, tabela Projects) · cartões na tabela **Work** ligados a ele, Origem
-  **Claude**. **Fechou/mudou uma frente → atualizar o cartão (Status + Próxima ação) no mesmo
-  passo**; os `.md` seguem a fonte do detalhe. Não tocar cartão/projeto de outra frente da loja.
+- 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
+  SISTEMA gera na hora pro `wa.me/...?text=`. Regra completa (e "sem iPhone") na seção do
+  `BACKLOG.md` — ainda não codado.
 - ⚠ **Drive** (`G:\My Drive\Lopo Lab - Empresa\`, geral do outro agente) = marca, designer,
   planilhas, PDFs — **nunca código**. Ler é livre; escrever lá é compartilhar → só a pedido.
-- ⚠ **O projeto Firebase é da conta `lopolab3d`, NÃO da `nivaldo.lopo`** — ela vive em **outro
-  perfil do Chrome**, e a extensão precisa estar conectada *nele* (`list_connected_browsers` mostra
-  as duas). Deep-link pra página de regras redireciona: o caminho é Firestore → aba **Security**.
 - **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)**, **✅ [AUD-17]**, **✅ [AUD-18]**,
   **✅ [AUD-08]**, **✅ [TD-033]** e **✅ [FEAT-12]** — custo decomponível ponta a ponta, o PREÇO não
   depende mais de quem estava livre nem de preço congelado de insumo, e mudança global de preço não
   acontece mais calada. O que a 10ª varredura e as duas campanhas de prova acharam está corrigido.
-- ⚠ **Esta máquina NÃO tem Excel, LibreOffice nem Firefox** — o round-trip de planilha real segue sem
-  prova (o Sheets exige o diálogo nativo do Windows, que eu não opero).
 - **Branding:** cores **amarelo + preto** e **logo pronta** (2026-09-15) — o código do rebrand espera
   a entrega do designer (frente 1). Com o `--on-accent` já criado, a troca virou paleta.
 - ⚠ **NÃO REPROPOR (avaliadas e descartadas pelo dono):** `lifeHours` por máquina (**DEC-02**),
@@ -54,10 +42,9 @@
   2026-09-01: *"vazia só quando há dúvida"*); sem escolher, o botão trava com o motivo na tela — não
   é bug. Na venda as opções são a **interseção** das etapas ambíguas; com UMA o seletor some e a
   reconciliação deduz sozinha (não é bug desde o lote 2 da AUD-17).
-- ⚠ **A frente do DONO:** cadastrar **cores e insumos**, **religar os acessórios** e passar os ids
-  pro sistema externo dele — a spec sai **comigo no chat** depois do cadastro (detalhe no
-  `BACKLOG.md`). ⚠ **"Pode recadastrar?" → SIM, sem trava.** ⚠ Acessório sem baixa *não é bug, é
-  vínculo em branco* (`planSupplies`): ligar o `supplyId` no formulário liga a baixa, sem código novo.
+- ⚠ **A frente do DONO (bloqueia a carga em massa):** cadastrar cores/insumos e religar os
+  acessórios — detalhe no `BACKLOG.md`. **"Pode recadastrar?" → SIM, sem trava.** Acessório sem
+  baixa *não é bug, é vínculo em branco* (`planSupplies`): ligar o `supplyId` liga a baixa.
 
 ## Resumo do projeto (contexto rápido)
 
@@ -304,13 +291,18 @@ git push
 - Esta verificação de tamanho/divisão é parte de "concluir a tarefa", igual a `lint`/`typecheck`/
   `build`/`test`.
 
-### 9. No INÍCIO de cada chat, conferir o Airtable contra os `.md`
-- Buscar o cartão do projeto **LopoLabCalc** (`rec72ERQgc4Ypy8CW`) e os cartões da Work ligados a
-  ele; comparar Status/Próxima ação/Notas com o que está aqui, no `BACKLOG.md` e no `HISTORICO.md`.
+### 9. Conferir o Airtable contra os `.md` — só quando eu pedir
+- **Não é automático.** Rodar só quando eu disser algo como "analisa a Table" / "confere o
+  Airtable" — não repetir a cada chat nem a cada mensagem da mesma conversa.
+- Ao rodar: buscar o cartão do projeto **LopoLabCalc** (`rec72ERQgc4Ypy8CW`, base `Lopo Lab OS`
+  `appQiYC4NVQy34QtH`, tabela Projects) e os cartões da tabela **Work** ligados a ele (Origem
+  **Claude**); comparar Status/Próxima ação/Notas com este arquivo, o `BACKLOG.md` e o `HISTORICO.md`.
 - **Achou divergência → PROPOR o ajuste no chat** (o que mudou lá, o que ajustar aqui). **Nunca
   editar `.md` ou Airtable por conta própria** — só depois que eu confirmar.
-- **Só no início** — não repetir essa varredura a cada mensagem da mesma conversa.
-- Sem divergência: seguir direto pra tarefa, sem anunciar "conferi e está igual".
+- ⚠ **Fechou/mudou uma frente → atualizar o cartão (Status + Próxima ação) no mesmo passo, mesmo
+  sem eu ter pedido a conferência** — os `.md` seguem a fonte do detalhe. O projeto LopoLabCalc é
+  MEU (controle total); o resto da base é do OUTRO agente do dono, que só LÊ o nosso — não tocar
+  cartão/projeto de outra frente da loja.
 
 ## Infra / referência de deploy
 
@@ -324,6 +316,9 @@ git push
 - **Domínio `lopolab.com.br`:** DNS **só no Cloudflare** — **NÃO** gerenciar pelo registro.br (onde
   é registrado). O CNAME do `calculadora` fica **"DNS only" / nuvem cinza**, nunca proxied; no ar com
   SSL. Detalhe (valores, motivo da migração): [`HISTORICO.md`](.claude/HISTORICO.md).
+- ⚠ **O projeto Firebase é da conta `lopolab3d`, NÃO da `nivaldo.lopo`** — outro **perfil do
+  Chrome** (`list_connected_browsers` mostra as duas); deep-link de regras redireciona, o caminho é
+  Firestore → aba **Security**. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 
 ### Ambiente Windows (evita retrabalho de PATH)
 - **Node:** `C:\Program Files\nodejs` (v24). **pnpm** e **vercel** instalados globalmente em
