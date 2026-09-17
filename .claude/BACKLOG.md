@@ -67,6 +67,10 @@ só na logo) + **Archivo** (OFL, embutível). O pedido está no Drive, em
   vai escrito** (clicável). Precisa de lib de QR nova.
 - **Foto:** comprimida no cliente (~1000px, ~80–150 KB) e salva em **doc separado** do orçamento
   (não no doc do orçamento, que a lista assina) — evita o Storage, que exige Blaze.
+  ⚠ **Reabrir na hora de codar (2026-09-17): o Blaze foi aprovado** (ver Infra no `CLAUDE.md`) — o
+  motivo original de evitar o Storage caiu. Comparar rápido: base64 em doc Firestore (mais simples,
+  já decidido) vs. Storage (upload real, mais barato por GB, exige regra própria). Não é reabrir a
+  decisão toda — só vale um "ainda faz sentido?" de 1 minuto antes de escrever o código.
 - **Fonte:** **Archivo embutida** (carregada só ao gerar o PDF), o que de quebra mata o limite
   cp1252; a Futura Round só dentro da imagem da logo.
 - ⚠ O pedido diz **não** mandar PDF de fundo pronto: o que serve é gabarito de medidas (mm) +
@@ -139,6 +143,10 @@ Inventário de 2026-09-15 (conferir no código antes de desenhar):
   do negócio → cores e insumos → catálogo (planilha, ver "A frente do DONO") → acessórios religados.
 - **A Diretriz 6 expira aqui** — o dono anuncia o marco; a partir dele, migração é obrigatória.
 - Pendências de prova que o uso real exercita: import >500, Excel/LibreOffice real.
+- **Antes de apagar o dado de teste, ligar o backup agendado do Firestore** (Console → Firestore →
+  Backups; recurso nativo, exige Blaze — já aprovado). Custo é só o de armazenar as cópias
+  (centavos/mês num banco deste tamanho). Vale nascer ligado **antes** do 1º cadastro real, não
+  depois — sem isso o dado real de verdade não tem rede de proteção nenhuma.
 
 ### Airtable e Drive (LopoLabCalc)
 - **✅ Airtable (2026-09-15):** o projeto **LopoLabCalc** ficou com 12 cartões na Work — um por

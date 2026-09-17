@@ -340,6 +340,9 @@ git push
 - ⚠ **O projeto Firebase é da conta `lopolab3d`, NÃO da `nivaldo.lopo`** — outro **perfil do
   Chrome** (`list_connected_browsers` mostra as duas); deep-link de regras redireciona, o caminho é
   Firestore → aba **Security**. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
+- **Plano Firebase: Blaze** (pago por uso, aprovado 2026-09-17 pro [DEC-07]) — foi o que destravou o
+  2º banco Firestore. Ainda **não usa** Storage nem Cloud Functions; ambos ficaram baratos de ligar
+  se algum item do backlog precisar (ex.: foto do orçamento, backup agendado).
 
 ### Ambiente Windows (evita retrabalho de PATH)
 - **Node:** `C:\Program Files\nodejs` (v24). **pnpm** e **vercel** instalados globalmente em
