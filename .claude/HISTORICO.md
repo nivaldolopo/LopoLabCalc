@@ -9,6 +9,55 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Faxina nas Diretrizes de trabalho + [DEC-06] ambiente de teste (2026-09-17)
+
+Revisão pedida pelo dono de todas as 9 diretrizes do `CLAUDE.md`, mais o fio da conversa sobre
+ambiente de teste/Preview que já vinha sendo discutido. O que mudou:
+
+- **Status atual voltou de ~54 pra ~40 linhas** — id do Airtable, conta do Firebase (`lopolab3d`) e
+  a ressalva de Excel/LibreOffice saíram de lá: os dois primeiros já tinham writeup completo aqui
+  (linha ~256 pra conta Firebase) ou já estavam na Diretriz 9; o terceiro já estava, com mais
+  detalhe, no `BACKLOG.md`. Ficaram só ponteiro onde fazia sentido.
+- **Diretriz 9** deixou de rodar automático no início de todo chat — passa a ser sob comando
+  ("analisa a Table"), e ganhou a regra de atualizar o cartão do Airtable ao fechar uma frente
+  mesmo sem a conferência ter sido pedida.
+- **Diretriz 5** ganhou a frase que faltava: fato de referência permanente não é "Status atual"
+  (foi exatamente isso que inflou a seção antes da faxina acima).
+- **Diretriz 8**: a meta de linha do `CLAUDE.md` foi recalibrada de ~270 pra ~380. O arquivo estava
+  em 353 e a maior parte disso (o "Resumo do projeto", ~155 linhas) é arquitetura real que cresceu
+  com o código — mais rotas, mais módulos em `lib/` — não acúmulo de lixo. Forçar corte só pra bater
+  um número antigo seria otimizar a métrica, não o objetivo.
+- **Cogitado e DESCARTADO: fundir a Diretriz 2 (Resumo) na 5 (Status).** "Diretriz 7", "Diretriz 8" e
+  "Diretriz 4" são citadas **por número** dezenas de vezes neste arquivo e no `BACKLOG.md`
+  (`grep -c "Diretriz [0-9]"` deu 40+). Renumerar quebraria essas referências por um ganho de
+  3 linhas — custo maior que o benefício. As diretrizes ficam com os números que têm hoje,
+  permanentemente (novo item sempre entra no fim, nunca no meio).
+- **Diretriz 10, nova:** bug de dado/coerção (campo comido, `String(objeto)` fabricando valor
+  errado) primeiro passa pelo `/code-review`, não pela reprodução no navegador — nomeia o padrão
+  que os clusters AUD-02 a AUD-18 já repetiam.
+- **`package.json`: `pnpm build` passou a rodar `pnpm test && pnpm typecheck` antes do `next
+  build`.** Era só `next build` — uma regressão no vitest não bloqueava o deploy, mesmo com
+  "commit+deploy imediato" (Diretriz 3) empurrando toda alteração pra `main`. Validado local antes
+  do push: 1014 testes + typecheck + build, todos verdes.
+- **[DEC-06] Ambiente de teste isolado do Firestore — aprovado, mas BLOQUEADO.** O plano era: banco
+  Firestore de teste separado (local/Preview não escrevem no real) + `AuthGate` sem login em
+  `localhost` (hoje o navegador embutido esbarra nele — só o Chrome real com sessão Google
+  persistida contorna, é por isso que a Diretriz 4 existe como está). Ao tentar criar o 2º banco no
+  Console (`console.firebase.google.com/project/lopo-lab/firestore/databases`), o botão era
+  **"Upgrade to add database"** — o plano **Spark** (grátis) permite só 1 banco por projeto;
+  precisa virar **Blaze** (pago por uso). Como isso é billing (cartão), é decisão do dono, não
+  minha — ele decide se/quando fazer o upgrade. As 3 opções (Blaze / só emulador local / não fazer
+  agora) e o detalhe de cada uma foram registradas como **[DEC-06]** no `BACKLOG.md`, seção
+  "Decisões já marteladas que ainda são tarefa de CÓDIGO". **Diretriz 1, 3 (parte do bullet de
+  checagem local) e 4 (Chrome vs. navegador embutido) NÃO foram reescritas** — dependem de qual
+  caminho o dono escolher pro DEC-06, pra não descrever um fluxo que ainda pode mudar de forma.
+
+**Achado incidental que vale registrar:** a "SSO Protection" da Vercel já está ligada pra
+`all_except_custom_domains` — toda URL de Preview (menos o domínio customizado) já exige login da
+conta Vercel do time pra ser vista. Ou seja, Preview **já é privado hoje**, independente do
+Firestore — o risco de ligar Preview nunca foi exposição pública, só o dado de teste caindo no
+banco real.
+
 ## ✅ Site do designer — separado em projeto próprio (2026-09-15/17)
 
 A frente 1 do plano (pedido do PDF + checklist da marca ao designer, **Hermes**) virou um projeto de

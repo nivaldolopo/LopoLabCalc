@@ -20,6 +20,10 @@
   `BACKLOG.md`): juntar o `config/` num lugar só, em `/configuracoes`. ⚠ **Novidade pra essa
   frente:** a 1ª conta de energia real da loja já está disponível (dono, 2026-09-16) — calibrar a
   tarifa de energia da precificação por ela em vez da estimativa; ler a fatura na hora de desenhar.
+- ⏸ **PENDENTE (2026-09-17): ambiente de teste isolado do Firestore.** Criar um 2º banco (pra
+  local/Preview não escreverem no dado real) exige plano **Blaze** — o Spark só deixa 1 banco por
+  projeto. Decisão do dono: fazer o upgrade (grátis até passar a franquia), ou seguir com o
+  emulador local só (sem cobrir Preview). Opções detalhadas na seção do `BACKLOG.md`.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
   SISTEMA gera na hora pro `wa.me/...?text=`. Regra completa (e "sem iPhone") na seção do
   `BACKLOG.md` — ainda não codado.
@@ -250,6 +254,9 @@ git push
   mora no código e no `git log`) · o **porquê** vai pro `HISTORICO.md` e o item aberto pro
   `BACKLOG.md` — **nunca** pro Status.
 - **Status + código no MESMO commit/push.** Só vira commit separado se o código já foi pushado antes.
+- **Status atual é só tarefa/decisão em aberto — não é referência.** Id, conta, caminho de pasta —
+  fato que não muda de uma tarefa pra outra mora no `Infra/referência` ou dentro da diretriz que usa
+  aquele fato, nunca aqui (foi o que inflou a seção pra 54 linhas antes da faxina de 2026-09-17).
 
 ### 6. Sinalizar hora de trocar de chat
 - **Tarefa concluída** (fechada, commitada, pushada) é bom ponto de corte: sugira encerrar o chat e
@@ -276,8 +283,9 @@ git push
 ### 8. Manter o CLAUDE.md INTEIRO enxuto — a doc é 3 arquivos por custo de token
 - **Por quê:** só o `CLAUDE.md` é **auto-carregado e re-enviado a cada turno** — cada linha aqui é
   token multiplicado pela conversa toda. Os outros dois só entram **quando eu os leio**.
-- **Os 3 papéis:** `CLAUDE.md` (auto, todo turno · alvo **≤ ~270 linhas**) = AGORA + próxima tarefa +
-  stack/estrutura + diretrizes + infra + comandos, o que é preciso em TODA conversa ·
+- **Os 3 papéis:** `CLAUDE.md` (auto, todo turno · alvo **≤ ~380 linhas**, recalibrado 2026-09-17 —
+  o Resumo de arquitetura cresceu de verdade com o projeto, não é acúmulo de lixo) = AGORA +
+  próxima tarefa + stack/estrutura + diretrizes + infra + comandos, o que é preciso em TODA conversa ·
   [`BACKLOG.md`](.claude/BACKLOG.md) (curto) = só os itens **abertos** + prioridade ·
   [`HISTORICO.md`](.claude/HISTORICO.md) (pesado) = D1–D8, auditoria (TD-*) e writeups do que foi
   **concluído**, lido só quando um item precisa do *porquê*.
@@ -303,6 +311,14 @@ git push
   sem eu ter pedido a conferência** — os `.md` seguem a fonte do detalhe. O projeto LopoLabCalc é
   MEU (controle total); o resto da base é do OUTRO agente do dono, que só LÊ o nosso — não tocar
   cartão/projeto de outra frente da loja.
+
+### 10. Bug de dado/coerção primeiro passa pelo `/code-review`, não pelo navegador
+- **O padrão das varreduras AUD-\* (medir na tela → commit → fix → commit) é caro pra bug que nem
+  precisa de tela** — campo opcional comido no save, `String(objeto)` fabricando valor errado,
+  coerção antes da validação. Isso é diff de código, não de UX.
+- **Antes de abrir o Chrome pra reproduzir**, rode `/code-review` (`--high` pra alteração em
+  `lib/`) no diff. Reserve a reprodução no navegador pra bug de layout/interação que só aparece
+  renderizado — a classe de bug que o `/code-review` não alcança.
 
 ## Infra / referência de deploy
 
