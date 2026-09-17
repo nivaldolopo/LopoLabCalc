@@ -304,6 +304,14 @@ git push
 - Esta verificação de tamanho/divisão é parte de "concluir a tarefa", igual a `lint`/`typecheck`/
   `build`/`test`.
 
+### 9. No INÍCIO de cada chat, conferir o Airtable contra os `.md`
+- Buscar o cartão do projeto **LopoLabCalc** (`rec72ERQgc4Ypy8CW`) e os cartões da Work ligados a
+  ele; comparar Status/Próxima ação/Notas com o que está aqui, no `BACKLOG.md` e no `HISTORICO.md`.
+- **Achou divergência → PROPOR o ajuste no chat** (o que mudou lá, o que ajustar aqui). **Nunca
+  editar `.md` ou Airtable por conta própria** — só depois que eu confirmar.
+- **Só no início** — não repetir essa varredura a cada mensagem da mesma conversa.
+- Sem divergência: seguir direto pra tarefa, sem anunciar "conferi e está igual".
+
 ## Infra / referência de deploy
 
 - **Projeto Vercel:** `lopo-lab/lopolabcalc` (time `lopo-lab`, plano Hobby).
