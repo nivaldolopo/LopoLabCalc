@@ -17,7 +17,10 @@
   `SettingsModal` só monta ao abrir, ele quase sempre congelava o placeholder antes do dado real
   chegar. Fix: `useMachines` ganhou `loaded` (true só após a 1ª resposta real do Firestore);
   `SettingsModal` não monta `MachinesSettingsPanel` antes disso. Sem mudança de schema/cálculo (1014
-  testes passam sem alteração).
+  testes passam sem alteração). ⚠ O push desse commit não disparou deploy — a integração
+  Git↔Vercel engasgou uma vez (webhook não chegou; sem deployment nem check no GitHub pro commit,
+  confirmado pela API). Um commit vazio subsequente reacordou em segundos; se voltar a acontecer,
+  reabrir com um commit vazio antes de investigar mais fundo.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
