@@ -132,13 +132,14 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
   depois — sem isso o dado real de verdade não tem rede de proteção nenhuma.
 
 ### Airtable e Drive (LopoLabCalc)
-- **✅ Airtable (2026-09-15, conferido em 2026-09-17):** o projeto **LopoLabCalc** tem 11 cartões na
-  Work — um por frente, não por item técnico (lacunas de prova e ressalvas NÃO vão). O projeto
-  duplicado "Site Lopo Lab" foi **arquivado** (era o mesmo sistema) e seus 2 cartões (site cancelado +
-  meta-tarefa concluída) vieram pra cá. Opção **Claude** criada no campo Origem. Quem fecha item aqui
-  atualiza lá no mesmo passo. **Sem visão Kanban, e não precisa** (dono): ele não abre o Airtable —
-  acompanha pelo outro agente, que lê os cartões. Por isso o que importa é o TEXTO de Status e Próxima
-  ação estar certo.
+- **✅ Airtable (2026-09-15, conferido em 2026-09-18):** o projeto **LopoLabCalc** tem 12 cartões na
+  Work — um por frente, não por item técnico (lacunas de prova e ressalvas NÃO vão); o 12º
+  (`rec8FnwaoUfKJMXwf`) nasceu em 2026-09-17, quando os créditos acabaram antes da sincronização
+  final — fechado em 2026-09-18 junto com o resto. O projeto duplicado "Site Lopo Lab" foi
+  **arquivado** (era o mesmo sistema) e seus 2 cartões (site cancelado + meta-tarefa concluída)
+  vieram pra cá. Opção **Claude** criada no campo Origem. Quem fecha item aqui atualiza lá no mesmo
+  passo. **Sem visão Kanban, e não precisa** (dono): ele não abre o Airtable — acompanha pelo outro
+  agente, que lê os cartões. Por isso o que importa é o TEXTO de Status e Próxima ação estar certo.
 - **Drive:** só a pasta `07_SITE_E_SISTEMAS\LopoLabCalc` e o que for do projeto em `06_MARCA`.
   Código **não** vai pro Drive (GitHub já é a nuvem dele; `node_modules`/`.git` sincronizando
   corrompem).
