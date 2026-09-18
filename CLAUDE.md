@@ -9,26 +9,19 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-17): corrigida a aba Máquinas do modal de Configurações mostrando
-  menos impressoras que a calculadora** (2 em vez das 3 da frota real). Não era o `DEFAULT_MACHINES`
-  sobrescrevendo o Firestore — o Firestore já era a fonte da verdade (é de lá que a calculadora lê
-  certo). O bug era só visual: `useMachines` nasce com o placeholder `DEFAULT_MACHINES` até o 1º
-  snapshot chegar, e `MachinesSettingsPanel` congela `draft`/`base` via `useState(machines)` — como o
-  `SettingsModal` só monta ao abrir, ele quase sempre congelava o placeholder antes do dado real
-  chegar. Fix: `useMachines` ganhou `loaded` (true só após a 1ª resposta real do Firestore);
-  `SettingsModal` não monta `MachinesSettingsPanel` antes disso. Sem mudança de schema/cálculo (1014
-  testes passam sem alteração). ⚠ O push desse commit não disparou deploy — a integração
-  Git↔Vercel engasgou uma vez (webhook não chegou; sem deployment nem check no GitHub pro commit,
-  confirmado pela API). Um commit vazio subsequente reacordou em segundos; se voltar a acontecer,
-  reabrir com um commit vazio antes de investigar mais fundo.
+- **Última mudança (2026-09-18): tarifa de energia virou GLOBAL — frente 2 FECHADA.** Era
+  `ProductInput.energyTariff` (por produto); agora é `energyTariff` em `config/negocio`, alavanca do
+  `RepriceGate` como máquinas/custo fixo, com sua própria aba "Energia" no modal de Configurações.
+  `calculatePricing`/`calculateStageCost` deixaram de ler do produto (~19 chamadores atualizados);
+  `productionPlan.ts` congela o valor GLOBAL vigente no evento; a coluna "Tarifa Energia" saiu do
+  CSV de carga em massa (planilha externa do dono — avisado). Valor seed: R$1,11/kWh. Sem
+  migração (Diretriz 6); 1011 testes passam. Writeup e o porquê do valor no `HISTORICO.md`.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
-- **▶ PRÓXIMA TAREFA DESTE PROJETO — fechar a frente 2: tarifa de energia vira GLOBAL** (hoje é
-  campo por-produto). Decisões já tomadas (não reabrir) e o tamanho real do impacto no código estão
-  na seção **2** do [`BACKLOG.md`](.claude/BACKLOG.md) — inclui trocar a assinatura de
-  `calculatePricing`, o congelamento em `productionPlan.ts` e tirar a coluna do CSV de carga em
-  massa.
+- **▶ PRÓXIMA TAREFA DESTE PROJETO — frente 3: checklist + uso real** (a foto do que se apaga,
+  a ordem do recadastro e o backup agendado do Firestore estão na seção **3** do
+  [`BACKLOG.md`](.claude/BACKLOG.md)). Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
   SISTEMA gera na hora pro `wa.me/...?text=`. Regra completa (e "sem iPhone") na seção do
   `BACKLOG.md` — ainda não codado.
@@ -168,8 +161,9 @@ src/lib/
   save seguinte. Campo novo entra em **todos** os lados no mesmo commit, gravado EXPLÍCITO (chave de
   carona num spread é a que some). ⚠ **Preço não é canário** — o teste é **diff campo a campo do
   documento** (`productPayload.test.ts` e `productCsvRoundTrip.test.ts`), e diff de célula JSON exige
-  **stringify canônico** (o Firestore não preserva ordem de chave em mapa). **Tarifa e valor-hora são
-  do PRODUTO**, nunca da etapa; o **`id` não é campo do documento**, é o caminho; o export escreve
+  **stringify canônico** (o Firestore não preserva ordem de chave em mapa). **Valor-hora é do
+  PRODUTO** e **tarifa de energia é GLOBAL** (`config/negocio`, frente 2) — nenhum dos dois é da
+  etapa; o **`id` não é campo do documento**, é o caminho; o export escreve
   etapa **normalizada**, não crua. ⚠ **A importação de CSV AVISA, não engole** (CSV-05): coluna nova
   que possa falhar calada entra com a checagem dela no mesmo commit — e renomear coluna pede `alias`
   na passada EXATA, senão o nome que o app mesmo escrevia vira "lido por aproximação".

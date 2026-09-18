@@ -84,9 +84,14 @@ const NO_FIXED: FixedCostSettings = {
   daysMonth: 26,
 };
 
+// Frente 2 (2026-09-17): a tarifa virou GLOBAL, não mais `product.energyTariff`.
+// 0,8 é o antigo default por produto — mantido aqui para as expectativas
+// numéricas destes testes não mudarem.
+const ENERGY_TARIFF = 0.8;
+
 describe("calculatePricing — componentes de custo", () => {
   it("calcula cada categoria da etapa principal (a1, 40g/3h)", () => {
-    const r = calculatePricing(makeProduct(), DEFAULT_MACHINES, NO_FIXED);
+    const r = calculatePricing(makeProduct(), DEFAULT_MACHINES, NO_FIXED, ENERGY_TARIFF);
     expect(r.materialCost).toBeCloseTo(4.4, 6); // (40/1000)*110
     expect(r.energyCost).toBeCloseTo(0.228, 6); // 3*(95/1000)*0.8
     expect(r.depreciationCost).toBeCloseTo(2.1196, 4); // (5299/7500)*3 — DEC-02
@@ -102,13 +107,11 @@ describe("calculatePricing — componentes de custo", () => {
     const comFalha = calculatePricing(
       makeProduct({ failureRate: 3 }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     const semFalha = calculatePricing(
       makeProduct({ failureRate: 0 }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(comFalha.failureReserve).toBeGreaterThan(0);
     expect(semFalha.failureReserve).toBe(0);
     expect(comFalha.variableCost).toBeGreaterThan(semFalha.variableCost);
@@ -119,8 +122,7 @@ describe("calculatePricing — componentes de custo", () => {
     const r = calculatePricing(
       makeProduct({ markup: 3, failureRate: 0, roundingMode: "exact" }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(r.fixedCost).toBe(0);
     expect(r.suggestedPrice).toBeCloseTo(
       (r.variableCost - r.laborCost) * 3 + r.laborCost,
@@ -136,13 +138,11 @@ describe("calculatePricing — componentes de custo", () => {
     const barato = calculatePricing(
       makeProduct({ ...base, laborMinutes: 10, laborRate: 30 }), // R$ 5,00
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     const caro = calculatePricing(
       makeProduct({ ...base, laborMinutes: 20, laborRate: 30 }), // R$ 10,00
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     // +R$ 5 de mão de obra ⇒ +R$ 5 no preço (não +R$ 15 como na fórmula antiga).
     expect(caro.suggestedPrice - barato.suggestedPrice).toBeCloseTo(5, 6);
     // ...mas o custo sobe igual, então a margem cai.
@@ -157,13 +157,11 @@ describe("calculatePricing — componentes de custo", () => {
     const barato = calculatePricing(
       makeProduct({ ...base, laborMinutes: 10, laborRate: 30 }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     const caro = calculatePricing(
       makeProduct({ ...base, laborMinutes: 20, laborRate: 30 }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(caro.laborCost - barato.laborCost).toBeCloseTo(5, 6);
     expect(caro.suggestedPrice - barato.suggestedPrice).toBeCloseTo(6.25, 6);
   });
@@ -172,16 +170,14 @@ describe("calculatePricing — componentes de custo", () => {
     const semAcess = calculatePricing(
       makeProduct({ failureRate: 10 }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     const comAcess = calculatePricing(
       makeProduct({
         failureRate: 10,
         accessories: [{ desc: "Ímã", qty: 2, unitPrice: 1.5 }],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(comAcess.accessoriesCost).toBeCloseTo(3, 6);
     // A reserva de falha (peça perdida) não deve crescer com acessórios —
     // ímãs são montados depois e não se perdem numa falha de impressão.
@@ -201,20 +197,18 @@ describe("calculatePricing — componentes de custo", () => {
     const r = calculatePricing(
       makeProduct({ includeFixed: true }),
       DEFAULT_MACHINES,
-      fixed,
-    );
+      fixed, ENERGY_TARIFF);
     const perHour = calculateFixedCostPerHour(fixed);
     expect(r.fixedCost).toBeCloseTo(perHour * 3, 6); // 3h de impressão
     expect(r.fixedCost).toBeGreaterThan(0);
   });
 
   it("divide os custos por peça quando piecesCount > 1", () => {
-    const um = calculatePricing(makeProduct(), DEFAULT_MACHINES, NO_FIXED);
+    const um = calculatePricing(makeProduct(), DEFAULT_MACHINES, NO_FIXED, ENERGY_TARIFF);
     const dois = calculatePricing(
       makeProduct({ piecesCount: 2 }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(dois.pieces).toBe(2);
     expect(dois.materialCost).toBeCloseTo(um.materialCost / 2, 6);
     expect(dois.variableCost).toBeCloseTo(um.variableCost / 2, 6);
@@ -245,13 +239,11 @@ describe("calculatePricing — múltiplas etapas / máquinas", () => {
         stages: [{ ...stage, energyTariff: 2, laborRate: 90 }],
       } as unknown as Partial<ProductInput>),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     const limpo = calculatePricing(
       makeProduct({ stages: [stage] }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
 
     expect(comLixo.energyCost).toBeCloseTo(limpo.energyCost, 6);
     expect(comLixo.laborCost).toBeCloseTo(limpo.laborCost, 6);
@@ -272,8 +264,7 @@ describe("calculatePricing — múltiplas etapas / máquinas", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(r.stagesCount).toBe(1);
     expect(r.materialCost).toBeCloseTo(6.6, 6); // 4,4 (a1) + 2,2 (x2d)
     // ⚠ [FROTA] Fase 2 — era `machineUsage` (horas/depreciação POR máquina), e
@@ -294,8 +285,7 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     // 40/1000*110 + 20/1000*200 = 4,4 + 4 = 8,4
     expect(r.materialCost).toBeCloseTo(8.4, 6);
     expect(r.filaments).toHaveLength(2); // multicolor
@@ -318,8 +308,7 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     // Total = 80+22+68+10 = 180 g → 180/1000*100 = 18 (não só os 80 g da peça).
     expect(r.materialCost).toBeCloseTo(18, 6);
     expect(r.filaments[0].totalG).toBe(180);
@@ -343,8 +332,7 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(r.filaments).toHaveLength(1); // mesma cor/preço → merge
     expect(r.filaments[0].totalG).toBe(60);
   });
@@ -353,8 +341,7 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
     const legado = calculatePricing(
       makeProduct({ weightG: 40, filamentPricePerKg: 110, filaments: undefined }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(legado.filaments).toHaveLength(1);
     expect(legado.materialCost).toBeCloseTo(4.4, 6);
   });
@@ -391,8 +378,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
     const r = calculatePricing(
       makeProduct({ markup: 3, failureRate: 0, roundingMode: "exact" }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(r.subitems).toBeUndefined();
     expect(r.suggestedPrice).toBeCloseTo(
       (r.variableCost - r.laborCost) * 3 + r.laborCost,
@@ -401,7 +387,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
   });
 
   it("Σ preço dos subitens = preço do inteiro; Σ custo = custo total", () => {
-    const r = calculatePricing(twoSubitemProduct(), DEFAULT_MACHINES, NO_FIXED);
+    const r = calculatePricing(twoSubitemProduct(), DEFAULT_MACHINES, NO_FIXED, ENERGY_TARIFF);
     expect(r.subitems).toHaveLength(2);
     const sumPrice = r.subitems!.reduce((s, x) => s + x.price, 0);
     const sumCost = r.subitems!.reduce((s, x) => s + x.cost, 0);
@@ -421,8 +407,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
     const r = calculatePricing(
       twoSubitemProduct({ includeFixed: true, roundingMode: "1", failureRate: 5 }),
       DEFAULT_MACHINES,
-      fixed,
-    );
+      fixed, ENERGY_TARIFF);
     const sumPrice = r.subitems!.reduce((s, x) => s + x.price, 0);
     const sumCost = r.subitems!.reduce((s, x) => s + x.cost, 0);
     // O inteiro é DEFINIDO como a soma das partes arredondadas.
@@ -455,8 +440,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     const sumCost = r.subitems!.reduce((s, x) => s + x.cost, 0);
     expect(sumCost).toBeCloseTo(r.totalCost, 6); // custo interno foi distribuído
     // Cada subitem custa mais que só o próprio material (recebeu fatia da interna).
@@ -472,8 +456,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     const a = r.subitems!.find((s) => s.id === "A")!;
     const b = r.subitems!.find((s) => s.id === "B")!;
     expect(a.markup).toBe(3);
@@ -492,8 +475,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
         accessories: [{ desc: "Ímã", qty: 1, unitPrice: 4, subitemId: "A" }],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     const a = atribuido.subitems!.find((s) => s.id === "A")!;
     const b = atribuido.subitems!.find((s) => s.id === "B")!;
     expect(a.costBreakdown.accessories).toBeCloseTo(4, 6); // tudo na Base
@@ -504,8 +486,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
         accessories: [{ desc: "Ímã", qty: 1, unitPrice: 4 }], // sem subitemId
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     const sumAcc = rateado.subitems!.reduce(
       (s, x) => s + x.costBreakdown.accessories,
       0,
@@ -537,8 +518,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
         accessories: [{ desc: "Ímã", qty: 1, unitPrice: 4 }],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(r.subitems).toHaveLength(2);
     const sumCost = r.subitems!.reduce((s, x) => s + x.cost, 0);
     expect(sumCost).toBeCloseTo(r.totalCost, 6);
@@ -550,7 +530,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
 
 describe("calculatePricing — máquina órfã (TD-009)", () => {
   it("não sinaliza quando o machineId existe", () => {
-    const r = calculatePricing(makeProduct(), DEFAULT_MACHINES, NO_FIXED);
+    const r = calculatePricing(makeProduct(), DEFAULT_MACHINES, NO_FIXED, ENERGY_TARIFF);
     expect(r.machineMissing).toBe(false);
   });
 
@@ -558,8 +538,7 @@ describe("calculatePricing — máquina órfã (TD-009)", () => {
     const r = calculatePricing(
       makeProduct({ machineIds: ["inexistente"] }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(r.machineMissing).toBe(true);
     // ⚠ [FROTA] Fase 2 — o fallback deixou de ser "a 1ª máquina" e passou a ser
     // a frota INTEIRA. A 1ª máquina era um palpite que se disfarçava de escolha;
@@ -584,8 +563,7 @@ describe("calculatePricing — máquina órfã (TD-009)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-    );
+      NO_FIXED, ENERGY_TARIFF);
     expect(r.machineMissing).toBe(true);
   });
 });
@@ -605,9 +583,8 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-      stock,
-    );
+      NO_FIXED, ENERGY_TARIFF,
+      stock);
     // Usa 130 (rolo mais novo), ignorando o pricePerKg salvo (50): 100/1000*130.
     expect(r.materialCost).toBeCloseTo(13, 6);
     expect(r.filamentMissing).toBe(false);
@@ -622,9 +599,8 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-      stock,
-    );
+      NO_FIXED, ENERGY_TARIFF,
+      stock);
     expect(r.materialCost).toBeCloseTo(8, 6); // 100/1000*80 (salvo)
     expect(r.filamentMissing).toBe(false);
   });
@@ -637,7 +613,7 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
+      NO_FIXED, ENERGY_TARIFF,
       [], // estoque vazio → a cor "sumiu" não existe
     );
     expect(r.materialCost).toBeCloseTo(7, 6); // fallback no salvo
@@ -652,9 +628,8 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-      [makeColor("cor1", [{ pricePerKg: 999 }])],
-    );
+      NO_FIXED, ENERGY_TARIFF,
+      [makeColor("cor1", [{ pricePerKg: 999 }])]);
     expect(r.materialCost).toBeCloseTo(6, 6); // 100/1000*60
     expect(r.filamentMissing).toBe(false);
   });
@@ -674,9 +649,8 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
-      [],
-    );
+      NO_FIXED, ENERGY_TARIFF,
+      []);
     expect(r.filamentMissing).toBe(true);
   });
 });
@@ -699,10 +673,9 @@ describe("calculatePricing — preço vivo do INSUMO (TD-033)", () => {
     const r = calculatePricing(
       produtoCom({}),
       DEFAULT_MACHINES,
-      NO_FIXED,
+      NO_FIXED, ENERGY_TARIFF,
       [],
-      supplies,
-    );
+      supplies);
     expect(r.accessoriesCost).toBeCloseTo(1.6, 6); // 2 × 0,80, não 2 × 1,00
     expect(r.supplyMissing).toBe(false);
   });
@@ -711,22 +684,20 @@ describe("calculatePricing — preço vivo do INSUMO (TD-033)", () => {
     const antes = calculatePricing(
       produtoCom({}),
       DEFAULT_MACHINES,
-      NO_FIXED,
+      NO_FIXED, ENERGY_TARIFF,
       [],
-      [makeSupply("ima", [{ purchaseDate: 1, unitPrice: 0.5 }])],
-    );
+      [makeSupply("ima", [{ purchaseDate: 1, unitPrice: 0.5 }])]);
     const depois = calculatePricing(
       produtoCom({}),
       DEFAULT_MACHINES,
-      NO_FIXED,
+      NO_FIXED, ENERGY_TARIFF,
       [],
       [
         makeSupply("ima", [
           { purchaseDate: 1, unitPrice: 0.5 },
           { purchaseDate: 2, unitPrice: 3 },
         ]),
-      ],
-    );
+      ]);
     // O MESMO documento de produto, só o cadastro andou: +2,50/un × 2 un = +5.
     expect(depois.accessoriesCost - antes.accessoriesCost).toBeCloseTo(5, 6);
     expect(depois.suggestedPrice).toBeGreaterThan(antes.suggestedPrice);
@@ -736,7 +707,7 @@ describe("calculatePricing — preço vivo do INSUMO (TD-033)", () => {
     const r = calculatePricing(
       produtoCom({ unitPrice: 1.5 }),
       DEFAULT_MACHINES,
-      NO_FIXED,
+      NO_FIXED, ENERGY_TARIFF,
       [],
       [], // cadastro vazio → o insumo "ima" não existe
     );
@@ -748,10 +719,9 @@ describe("calculatePricing — preço vivo do INSUMO (TD-033)", () => {
     const r = calculatePricing(
       produtoCom({ unitPrice: 1.5 }),
       DEFAULT_MACHINES,
-      NO_FIXED,
+      NO_FIXED, ENERGY_TARIFF,
       [],
-      [makeSupply("ima", [])],
-    );
+      [makeSupply("ima", [])]);
     expect(r.accessoriesCost).toBeCloseTo(3, 6);
     expect(r.supplyMissing).toBe(false); // ele existe, só não tem cotação
   });
@@ -760,10 +730,9 @@ describe("calculatePricing — preço vivo do INSUMO (TD-033)", () => {
     const r = calculatePricing(
       produtoCom({ unitPrice: 9 }),
       DEFAULT_MACHINES,
-      NO_FIXED,
+      NO_FIXED, ENERGY_TARIFF,
       [],
-      [makeSupply("ima", [{ unitPrice: 0.4 }], { archived: true })],
-    );
+      [makeSupply("ima", [{ unitPrice: 0.4 }], { archived: true })]);
     expect(r.accessoriesCost).toBeCloseTo(0.8, 6); // 2 × 0,40 do cadastro
     expect(r.supplyMissing).toBe(false);
   });
@@ -776,10 +745,9 @@ describe("calculatePricing — preço vivo do INSUMO (TD-033)", () => {
         ],
       }),
       DEFAULT_MACHINES,
-      NO_FIXED,
+      NO_FIXED, ENERGY_TARIFF,
       [],
-      [makeSupply("ima", [{ unitPrice: 999 }])],
-    );
+      [makeSupply("ima", [{ unitPrice: 999 }])]);
     expect(r.accessoriesCost).toBeCloseTo(3, 6);
     expect(r.supplyMissing).toBe(false);
   });
@@ -789,7 +757,7 @@ describe("calculatePricing — preço vivo do INSUMO (TD-033)", () => {
     // existe mais", e o resultado é o mesmo do filamento com estoque vazio —
     // fallback no preço salvo e a flag ligada. Simetria deliberada: quem quiser
     // o preço vivo passa a lista, e as 9 superfícies do app passam.
-    const r = calculatePricing(produtoCom({ unitPrice: 2 }), DEFAULT_MACHINES, NO_FIXED);
+    const r = calculatePricing(produtoCom({ unitPrice: 2 }), DEFAULT_MACHINES, NO_FIXED, ENERGY_TARIFF);
     expect(r.accessoriesCost).toBeCloseTo(4, 6);
     expect(r.supplyMissing).toBe(true);
   });
@@ -808,10 +776,9 @@ describe("calculatePricing — preço vivo do INSUMO (TD-033)", () => {
     const r = calculatePricing(
       produto,
       DEFAULT_MACHINES,
-      NO_FIXED,
+      NO_FIXED, ENERGY_TARIFF,
       [],
-      [makeSupply("ima", [{ unitPrice: 3 }])],
-    );
+      [makeSupply("ima", [{ unitPrice: 3 }])]);
     // 2 × 3,00 = 6,00 vivo (o salvo diria 2,00), rateado em pesos iguais.
     expect(r.accessoriesCost).toBeCloseTo(6, 6);
     expect(r.subitems![0].costBreakdown.accessories).toBeCloseTo(3, 6);
@@ -828,19 +795,19 @@ describe("TD-024 — lista de máquinas vazia não derruba o preço", () => {
   const produto = makeProduct({ weightG: 40, printHours: 3, machineIds: ["a1"] });
 
   it("não lança, e marca a máquina como ausente", () => {
-    const r = calculatePricing(produto, [], NO_FIXED);
+    const r = calculatePricing(produto, [], NO_FIXED, ENERGY_TARIFF);
     expect(r.machineMissing).toBe(true);
   });
 
   it("energia, desgaste e manutenção saem ZERO — não há máquina de onde tirá-los", () => {
-    const r = calculatePricing(produto, [], NO_FIXED);
+    const r = calculatePricing(produto, [], NO_FIXED, ENERGY_TARIFF);
     expect(r.energyCost).toBe(0);
     expect(r.depreciationCost).toBe(0);
     expect(r.maintenanceCost).toBe(0);
   });
 
   it("o material continua entrando: o resto do custo não depende da máquina", () => {
-    const r = calculatePricing(produto, [], NO_FIXED);
+    const r = calculatePricing(produto, [], NO_FIXED, ENERGY_TARIFF);
     expect(r.materialCost).toBeGreaterThan(0);
     expect(Number.isFinite(r.suggestedPrice)).toBe(true);
   });

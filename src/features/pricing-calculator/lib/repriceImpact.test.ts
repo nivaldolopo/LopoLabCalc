@@ -43,6 +43,7 @@ function levers(over: Partial<RepriceLevers> = {}): RepriceLevers {
   return {
     machines: FROTA,
     fixedCosts: { ...DEFAULT_FIXED_COSTS, enabled: false },
+    energyTariff: 0.8,
     stock: [],
     supplies: [],
     ...over,
@@ -174,7 +175,7 @@ describe("[FEAT-12] as alavancas que reprecificam", () => {
     // `calculatePricing` devolve — é isso que faz a prévia ser a vitrine, e não
     // uma segunda conta que precisa concordar com ela.
     const direto = (l: RepriceLevers) =>
-      calculatePricing(produtos[0], l.machines, l.fixedCosts, l.stock, l.supplies)
+      calculatePricing(produtos[0], l.machines, l.fixedCosts, l.energyTariff, l.stock, l.supplies)
         .suggestedPrice;
     expect(impacto.items[0].before).toBe(direto(antes));
     expect(impacto.items[0].after).toBe(direto(depois));

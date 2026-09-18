@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Undo2 } from "lucide-react";
 import { formatDate } from "@/lib/formatting/date";
 import {
   canUndo,
+  energyTariffProposal,
   fixedCostProposal,
   undoLabelOf,
   undoProposal,
@@ -17,6 +18,7 @@ import { useMachines } from "../hooks/useMachines";
 import { useQuoteConfig } from "../hooks/useQuoteConfig";
 import type { ChangeLever, ChangeRecord } from "../types";
 import { BusinessInfoPanel } from "./BusinessInfoPanel";
+import { EnergyTariffPanel } from "./EnergyTariffPanel";
 import { FixedCostRatePanel } from "./FixedCostRatePanel";
 import { MachinesSettingsPanel } from "./MachinesSettingsPanel";
 import { Modal } from "./Modal";
@@ -24,11 +26,18 @@ import { PaymentFeesPanel } from "./PaymentFeesPanel";
 import { RepriceGate } from "./RepriceGate";
 import { RepriceImpactView } from "./RepriceImpactView";
 
-export type SettingsTab = "maquinas" | "custo-fixo" | "taxas" | "negocio" | "alteracoes";
+export type SettingsTab =
+  | "maquinas"
+  | "custo-fixo"
+  | "energia"
+  | "taxas"
+  | "negocio"
+  | "alteracoes";
 
 const TABS: { key: SettingsTab; label: string }[] = [
   { key: "maquinas", label: "Máquinas" },
   { key: "custo-fixo", label: "Custo fixo" },
+  { key: "energia", label: "Energia" },
   { key: "taxas", label: "Taxas" },
   { key: "negocio", label: "Dados do negócio" },
   { key: "alteracoes", label: "Alterações de preço" },
@@ -37,6 +46,7 @@ const TABS: { key: SettingsTab; label: string }[] = [
 const LEVER_WORD: Record<ChangeLever, string> = {
   maquinas: "Frota",
   "custo-fixo": "Custo fixo",
+  energia: "Energia",
   cor: "Cor",
   insumo: "Insumo",
 };
@@ -64,7 +74,13 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
   const [tab, setTab] = useState<SettingsTab>(initialTab);
   const { changes, error: changeLogError } = useChangeLog();
   const { machines, rev, loaded: machinesLoaded, saveMachines } = useMachines();
-  const { fixedCostRate, saveFixedCostRate, error: fixedCostError } = useBusinessSettings();
+  const {
+    fixedCostRate,
+    saveFixedCostRate,
+    energyTariff,
+    saveEnergyTariff,
+    error: fixedCostError,
+  } = useBusinessSettings();
   const { fees, saveFees, error: feesError } = useFees();
   const { business, saveBusiness } = useQuoteConfig();
 
@@ -72,6 +88,8 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
   const [aberta, setAberta] = useState<string | null>(entrada);
   // A proposta de custo fixo na mesa. `null` = nada pendente.
   const [taxaProposta, setTaxaProposta] = useState<RepriceProposal | null>(null);
+  // A proposta de tarifa de energia na mesa. `null` = nada pendente.
+  const [tarifaProposta, setTarifaProposta] = useState<RepriceProposal | null>(null);
   // A proposta de DESFAZER na mesa, com a entrada de origem.
   const [desfazer, setDesfazer] = useState<
     { proposal: RepriceProposal; record: ChangeRecord } | null
@@ -89,8 +107,13 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
     return null;
   }
 
+  async function commitTarifa(tariff: number): Promise<string | null> {
+    await saveEnergyTariff(tariff);
+    return null;
+  }
+
   function abrirDesfazer(record: ChangeRecord) {
-    const proposal = undoProposal(record, machines, fixedCostRate);
+    const proposal = undoProposal(record, machines, fixedCostRate, energyTariff);
     if (!proposal) return;
     setRevDoDesfazer(rev);
     setDesfazer({ proposal, record });
@@ -104,6 +127,10 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
     }
     if (proposal.lever === "custo-fixo" && proposal.after.fixedCostRate) {
       await saveFixedCostRate(proposal.after.fixedCostRate);
+      return null;
+    }
+    if (proposal.lever === "energia" && proposal.after.energyTariff !== null) {
+      await saveEnergyTariff(proposal.after.energyTariff);
       return null;
     }
     return "Esta alteração não pode ser desfeita.";
@@ -147,7 +174,22 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
             key={`${fixedCostRate.rent}-${fixedCostRate.other}-${fixedCostRate.machines}-${fixedCostRate.hoursDay}-${fixedCostRate.daysMonth}`}
             rate={fixedCostRate}
             onApplyRate={(rate) =>
-              setTaxaProposta(fixedCostProposal(fixedCostRate, rate, machines))
+              setTaxaProposta(
+                fixedCostProposal(fixedCostRate, rate, machines, energyTariff),
+              )
+            }
+            saveError={fixedCostError}
+          />
+        ) : null}
+
+        {tab === "energia" ? (
+          <EnergyTariffPanel
+            key={energyTariff}
+            tariff={energyTariff}
+            onApplyTariff={(tariff) =>
+              setTarifaProposta(
+                energyTariffProposal(energyTariff, tariff, machines, fixedCostRate),
+              )
             }
             saveError={fixedCostError}
           />
@@ -270,6 +312,17 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
           onCommit={() => commitTaxa(taxaProposta.after.fixedCostRate!)}
           onCancel={() => setTaxaProposta(null)}
           onDone={() => setTaxaProposta(null)}
+        />
+      ) : null}
+
+      {tarifaProposta && tarifaProposta.after.energyTariff !== null ? (
+        <RepriceGate
+          proposal={tarifaProposta}
+          title="Aplicar a tarifa de energia"
+          confirmLabel="Aplicar ao catálogo"
+          onCommit={() => commitTarifa(tarifaProposta.after.energyTariff!)}
+          onCancel={() => setTarifaProposta(null)}
+          onDone={() => setTarifaProposta(null)}
         />
       ) : null}
 

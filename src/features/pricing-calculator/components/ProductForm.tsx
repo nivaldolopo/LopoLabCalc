@@ -114,12 +114,6 @@ export function ProductForm({
           onChange={(printHours) => onChange({ printHours })}
         />
         <NumberField
-          label="⚡ Tarifa energia (R$/kWh)"
-          step="0.01"
-          value={product.energyTariff}
-          onChange={(energyTariff) => onChange({ energyTariff })}
-        />
-        <NumberField
           label="Mão de obra (min)"
           value={product.laborMinutes}
           onChange={(laborMinutes) => onChange({ laborMinutes })}

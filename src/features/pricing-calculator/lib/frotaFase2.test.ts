@@ -62,6 +62,10 @@ const X2D: Machine = {
 };
 const FROTA = [MINI, A1, X2D];
 const SEM_ESTOQUE: StockFilament[] = [];
+// Frente 2 (2026-09-17): a tarifa virou GLOBAL. 0,8 é o antigo default por
+// produto — mantido para os números travados neste arquivo (ex.: "energia
+// 0,0808") não mudarem.
+const ENERGY_TARIFF = 0.8;
 
 function produto(over: Partial<ProductInput> = {}): ProductInput {
   return {
@@ -78,7 +82,7 @@ function produto(over: Partial<ProductInput> = {}): ProductInput {
 }
 
 const preco = (p: ProductInput) =>
-  calculatePricing(p, FROTA, DEFAULT_FIXED_COSTS, SEM_ESTOQUE);
+  calculatePricing(p, FROTA, DEFAULT_FIXED_COSTS, ENERGY_TARIFF, SEM_ESTOQUE);
 
 // ===========================================================================
 // 1. A MÉDIA — cada componente com a SUA, nunca um total rateado
@@ -279,7 +283,7 @@ describe("[FROTA] Fase 2 — conjunto vazio e ids inexistentes", () => {
   });
 
   it("lista de máquinas VAZIA não explode o preço (TD-024)", () => {
-    const r = calculatePricing(produto(), [], DEFAULT_FIXED_COSTS, SEM_ESTOQUE);
+    const r = calculatePricing(produto(), [], DEFAULT_FIXED_COSTS, ENERGY_TARIFF, SEM_ESTOQUE);
     expect(r.machineMissing).toBe(true);
     expect(r.depreciationCost).toBe(0);
     expect(r.energyCost).toBe(0);
@@ -333,7 +337,7 @@ describe("[FROTA] Fase 2 — evento sem máquina custa a FROTA, não a primeira"
   };
 
   it("o custo sai da média do conjunto elegível", () => {
-    const { built, summary } = planejar(wholeEventRows(PECA, FROTA, []));
+    const { built, summary } = planejar(wholeEventRows(PECA, FROTA, [], ENERGY_TARIFF));
     expect(built[0].machine).toBeUndefined();
     // Elegível a a1+x2d, pesos 40 e 30 → 4/7 e 3/7.
     const esperado =
@@ -348,7 +352,7 @@ describe("[FROTA] Fase 2 — evento sem máquina custa a FROTA, não a primeira"
   });
 
   it("as horas dele NÃO entram no machineUsage — ficam órfãs", () => {
-    const { summary } = planejar(wholeEventRows(PECA, FROTA, []));
+    const { summary } = planejar(wholeEventRows(PECA, FROTA, [], ENERGY_TARIFF));
     // Empurrá-lo com id vazio faria a soma `horas ÷ total` do ROI fechar em 1
     // sobre as máquinas conhecidas, rateando para elas o lucro das horas órfãs.
     expect(summary.machineUsage).toEqual([]);
@@ -356,7 +360,7 @@ describe("[FROTA] Fase 2 — evento sem máquina custa a FROTA, não a primeira"
   });
 
   it("com a máquina escolhida, tudo volta ao normal", () => {
-    const rows = wholeEventRows(PECA, FROTA, []).map((row) => ({
+    const rows = wholeEventRows(PECA, FROTA, [], ENERGY_TARIFF).map((row) => ({
       ...row,
       machineId: "x2d",
     }));
@@ -384,6 +388,7 @@ describe("[FROTA] Fase 2 — a encomenda conta as unidades sem lastro", () => {
       products,
       machines: FROTA,
       fixedCosts: DEFAULT_FIXED_COSTS,
+      energyTariff: ENERGY_TARIFF,
       at: 1000,
       createdAt: 1000,
       genId: () => `ev${(n += 1)}`,
@@ -462,6 +467,7 @@ describe("[FROTA] Fase 2 — a máquina escolhida na venda chega ao evento", () 
       products,
       machines: FROTA,
       fixedCosts: DEFAULT_FIXED_COSTS,
+      energyTariff: ENERGY_TARIFF,
       at: 1000,
       createdAt: 1000,
       genId: () => `ev${(n += 1)}`,
@@ -568,7 +574,7 @@ describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
         },
       ],
     } as unknown as SavedProduct;
-    const rows = wholeEventRows(p, FROTA, []);
+    const rows = wholeEventRows(p, FROTA, [], ENERGY_TARIFF);
     expect(encomendaMachineOptions(rows, FROTA)!.map((m) => m.id)).toEqual([
       "a1",
       "x2d",
@@ -587,7 +593,7 @@ describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
         },
       ],
     } as unknown as SavedProduct;
-    const rows = wholeEventRows(p, FROTA, []);
+    const rows = wholeEventRows(p, FROTA, [], ENERGY_TARIFF);
     expect(encomendaMachineOptions(rows, FROTA)!.map((m) => m.id)).toEqual([
       "mini",
       "a1",
@@ -614,13 +620,13 @@ describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
     // (mini+x2d) — a interseção é só a Mini. ⚠ AUD-17 [E2]: o título antigo dizia
     // "sem interseção", e não é — há UMA, que o modal escondia e a reconciliação
     // agora carimba sozinha (o "sem interseção" de verdade é o `[]`, logo abaixo).
-    const rows = wholeEventRows(p, FROTA, []);
+    const rows = wholeEventRows(p, FROTA, [], ENERGY_TARIFF);
     expect(encomendaMachineOptions(rows, FROTA)!.map((m) => m.id)).toEqual(["mini"]);
   });
 
   it("produto SEM conjunto (anterior à fase) pode ser qualquer uma da frota", () => {
     const antigo = { ...PECA, machineIds: [], stages: [] } as unknown as SavedProduct;
-    const rows = wholeEventRows(antigo, FROTA, []);
+    const rows = wholeEventRows(antigo, FROTA, [], ENERGY_TARIFF);
     expect(encomendaMachineOptions(rows, FROTA)).toHaveLength(3);
   });
 
@@ -632,7 +638,7 @@ describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
     const resolvido = {
       ...PECA, machineIds: ["x2d"], stages: [],
     } as unknown as SavedProduct;
-    const rows = wholeEventRows(resolvido, FROTA, []);
+    const rows = wholeEventRows(resolvido, FROTA, [], ENERGY_TARIFF);
     expect(rows.map((r) => r.machineId)).toEqual(["x2d"]); // tudo atribuído
     expect(encomendaMachineOptions(rows, FROTA)).toBeNull();
   });
@@ -654,7 +660,7 @@ describe("[FROTA] Fase 2 — o que o seletor da venda pode oferecer", () => {
         },
       ],
     } as unknown as SavedProduct;
-    const rows = wholeEventRows(p, FROTA, []);
+    const rows = wholeEventRows(p, FROTA, [], ENERGY_TARIFF);
     // As três linhas nasceram ambíguas (2 elegíveis cada), e a interseção
     // {mini,a1} ∩ {x2d,a1} ∩ {x2d,mini} é vazia.
     expect(rows.every((r) => !r.machineId)).toBe(true);
@@ -763,6 +769,7 @@ const CTX_FROTA = (products: SavedProduct[]) => {
     products,
     machines: FROTA,
     fixedCosts: DEFAULT_FIXED_COSTS,
+    energyTariff: ENERGY_TARIFF,
     at: 1000,
     createdAt: 1000,
     genId: () => `ev${(n += 1)}`,
@@ -838,7 +845,7 @@ const roiDe = (
 
 describe("[FROTA] Fase 2 — AUD-17 [E2]: interseção de UMA é resposta, não dúvida", () => {
   it("a premissa: as duas linhas nascem vazias e a interseção tem UMA", () => {
-    const rows = wholeEventRows(INTERSECAO_UNICA, FROTA, []);
+    const rows = wholeEventRows(INTERSECAO_UNICA, FROTA, [], ENERGY_TARIFF);
     expect(rows.map((r) => r.machineId)).toEqual(["", ""]);
     expect(encomendaMachineOptions(rows, FROTA)!.map((m) => m.id)).toEqual([
       "x2d",
@@ -912,7 +919,7 @@ describe("[FROTA] Fase 2 — AUD-17 [E2]: interseção de UMA é resposta, não 
         },
       ],
     } as unknown as SavedProduct;
-    const rows = wholeEventRows(semComum, FROTA, []);
+    const rows = wholeEventRows(semComum, FROTA, [], ENERGY_TARIFF);
     expect(encomendaMachineOptions(rows, FROTA)).toEqual([]);
     const plan = reconcileReciboWrite(
       [ITEM_ENCOMENDA()],
@@ -1045,11 +1052,11 @@ const TOTAL_SEM_COMUM = {
 } as unknown as SavedProduct;
 
 const notaDe = (p: SavedProduct) =>
-  encomendaAssignmentNote(wholeEventRows(p, FROTA, []), FROTA);
+  encomendaAssignmentNote(wholeEventRows(p, FROTA, [], ENERGY_TARIFF), FROTA);
 
 describe("[FROTA] Fase 2 — AUD-17 [E8]: 'o ROI não credita ninguém' só quando é verdade", () => {
   it("a premissa: interseção vazia, e ainda assim UMA etapa com dono", () => {
-    const rows = wholeEventRows(PARCIAL_SEM_COMUM, FROTA, []);
+    const rows = wholeEventRows(PARCIAL_SEM_COMUM, FROTA, [], ENERGY_TARIFF);
     expect(encomendaMachineOptions(rows, FROTA)).toEqual([]);
     expect(rows.map((r) => r.machineId)).toEqual(["", "", "", "x2d"]);
   });
@@ -1118,7 +1125,7 @@ describe("[FROTA] Fase 2 — AUD-17 [E8]: 'o ROI não credita ninguém' só quan
   });
 
   it("2+ candidatas não avisam — ali quem fala é o seletor, não um aviso", () => {
-    expect(encomendaMachineOptions(wholeEventRows(PARCIAL, FROTA, []), FROTA))
+    expect(encomendaMachineOptions(wholeEventRows(PARCIAL, FROTA, [], ENERGY_TARIFF), FROTA))
       .toHaveLength(2);
     expect(notaDe(PARCIAL)).toBeNull();
   });

@@ -63,7 +63,7 @@ export function QuotePage() {
   // TD-033: o preço do acessório é VIVO, como o do rolo — sem os insumos aqui a
   // mesma opção sairia por um valor no catálogo e outro no orçamento.
   const { supplies } = useSupplies();
-  const { fixedCostRate } = useBusinessSettings();
+  const { fixedCostRate, energyTariff } = useBusinessSettings();
   const { business: cfgBusiness, loaded, saveBusiness } = useQuoteConfig();
 
   // Taxa de custo fixo real do negócio (TD-001). O toggle `enabled` vem do
@@ -130,6 +130,7 @@ export function QuotePage() {
             product,
             machines,
             fixedCosts,
+            energyTariff,
             stock,
             supplies,
           );
@@ -151,7 +152,7 @@ export function QuotePage() {
           return [whole, ...subs];
         })
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
-    [products, machines, fixedCosts, stock, supplies],
+    [products, machines, fixedCosts, energyTariff, stock, supplies],
   );
 
   const total = useMemo(

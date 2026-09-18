@@ -31,6 +31,7 @@ import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 export const EMPTY_CHANGE_STATE: ChangeState = {
   machines: null,
   fixedCostRate: null,
+  energyTariff: null,
   unitPrice: null,
 };
 
@@ -40,6 +41,10 @@ export function machineState(machines: Machine[]): ChangeState {
 
 export function fixedCostState(rate: FixedCostRate): ChangeState {
   return { ...EMPTY_CHANGE_STATE, fixedCostRate: { ...rate } };
+}
+
+export function energyTariffState(energyTariff: number): ChangeState {
+  return { ...EMPTY_CHANGE_STATE, energyTariff };
 }
 
 export function priceState(unitPrice: number): ChangeState {
@@ -153,6 +158,17 @@ export function describeFixedCostChanges(
   return linhas;
 }
 
+/** A linha de detalhe da mudança na TARIFA DE ENERGIA (frente 2, 2026-09-17). */
+export function describeEnergyTariffChange(
+  antes: number,
+  depois: number,
+): string[] {
+  const de = Number(antes) || 0;
+  const para = Number(depois) || 0;
+  if (de === para) return [];
+  return [campo("tarifa de energia", "R$/kWh", de, para)];
+}
+
 /**
  * A frase de UMA linha que abre a entrada. É a mesma na prévia, no aviso
  * acumulado e no registro — escrever três é a receita de as três divergirem.
@@ -167,6 +183,7 @@ export function summarizeChange(lever: ChangeLever, details: string[]): string {
   const onde: Record<ChangeLever, string> = {
     maquinas: "Frota",
     "custo-fixo": "Custo fixo",
+    energia: "Energia",
     cor: "Cor",
     insumo: "Insumo",
   };
@@ -230,6 +247,7 @@ export function toChangeImpact(
 export function canUndo(record: ChangeRecord): boolean {
   if (record.lever === "maquinas") return record.before.machines !== null;
   if (record.lever === "custo-fixo") return record.before.fixedCostRate !== null;
+  if (record.lever === "energia") return record.before.energyTariff !== null;
   return false;
 }
 
@@ -239,9 +257,9 @@ export function canUndo(record: ChangeRecord): boolean {
  */
 export function undoLabelOf(record: ChangeRecord): string | null {
   if (!canUndo(record)) return null;
-  return record.lever === "maquinas"
-    ? "Restaurar a frota como estava"
-    : "Restaurar o custo fixo como estava";
+  if (record.lever === "maquinas") return "Restaurar a frota como estava";
+  if (record.lever === "energia") return "Restaurar a tarifa de energia como estava";
+  return "Restaurar o custo fixo como estava";
 }
 
 // ---------------------------------------------------------------------------
@@ -273,13 +291,19 @@ export type RepriceProposal = {
   machinesAfter: Machine[];
   fixedRateBefore: FixedCostRate;
   fixedRateAfter: FixedCostRate;
+  energyTariffBefore: number;
+  energyTariffAfter: number;
 };
 
-/** A proposta de mexer na FROTA, com o custo fixo parado dos dois lados. */
+/**
+ * A proposta de mexer na FROTA, com o custo fixo e a tarifa de energia
+ * PARADOS dos dois lados.
+ */
 export function machinesProposal(
   antes: Machine[],
   depois: Machine[],
   fixedRate: FixedCostRate,
+  energyTariff: number,
 ): RepriceProposal {
   const details = describeMachineChanges(antes, depois);
   return {
@@ -292,14 +316,20 @@ export function machinesProposal(
     machinesAfter: depois,
     fixedRateBefore: fixedRate,
     fixedRateAfter: fixedRate,
+    energyTariffBefore: energyTariff,
+    energyTariffAfter: energyTariff,
   };
 }
 
-/** A proposta de mexer no CUSTO FIXO, com a frota parada dos dois lados. */
+/**
+ * A proposta de mexer no CUSTO FIXO, com a frota e a tarifa de energia
+ * PARADAS dos dois lados.
+ */
 export function fixedCostProposal(
   antes: FixedCostRate,
   depois: FixedCostRate,
   machines: Machine[],
+  energyTariff: number,
 ): RepriceProposal {
   const details = describeFixedCostChanges(antes, depois);
   return {
@@ -312,6 +342,36 @@ export function fixedCostProposal(
     machinesAfter: machines,
     fixedRateBefore: antes,
     fixedRateAfter: depois,
+    energyTariffBefore: energyTariff,
+    energyTariffAfter: energyTariff,
+  };
+}
+
+/**
+ * A proposta de mexer na TARIFA DE ENERGIA, com a frota e o custo fixo
+ * PARADOS dos dois lados. Frente 2 (2026-09-17) — mesmo padrão das outras
+ * duas alavancas de "pergunta antes": todo produto usa energia, então não é
+ * opt-in por produto como o custo fixo.
+ */
+export function energyTariffProposal(
+  antes: number,
+  depois: number,
+  machines: Machine[],
+  fixedRate: FixedCostRate,
+): RepriceProposal {
+  const details = describeEnergyTariffChange(antes, depois);
+  return {
+    lever: "energia",
+    details,
+    summary: summarizeChange("energia", details),
+    before: energyTariffState(antes),
+    after: energyTariffState(depois),
+    machinesBefore: machines,
+    machinesAfter: machines,
+    fixedRateBefore: fixedRate,
+    fixedRateAfter: fixedRate,
+    energyTariffBefore: antes,
+    energyTariffAfter: depois,
   };
 }
 
@@ -337,16 +397,22 @@ export function undoProposal(
   record: ChangeRecord,
   machinesAtuais: Machine[],
   fixedRateAtual: FixedCostRate,
+  energyTariffAtual: number,
 ): RepriceProposal | null {
   if (record.lever === "maquinas") {
     const alvo = record.before.machines;
     if (!alvo) return null;
-    return machinesProposal(machinesAtuais, alvo, fixedRateAtual);
+    return machinesProposal(machinesAtuais, alvo, fixedRateAtual, energyTariffAtual);
   }
   if (record.lever === "custo-fixo") {
     const alvo = record.before.fixedCostRate;
     if (!alvo) return null;
-    return fixedCostProposal(fixedRateAtual, alvo, machinesAtuais);
+    return fixedCostProposal(fixedRateAtual, alvo, machinesAtuais, energyTariffAtual);
+  }
+  if (record.lever === "energia") {
+    const alvo = record.before.energyTariff;
+    if (alvo === null) return null;
+    return energyTariffProposal(energyTariffAtual, alvo, machinesAtuais, fixedRateAtual);
   }
   return null;
 }

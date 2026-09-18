@@ -45,7 +45,6 @@ const cobaia: SavedProduct = {
   mainStageName: "Corpo principal",
   machineIds: ["x2d"],
   printHours: 4.75,
-  energyTariff: 1.07,          // != 0.8
   laborMinutes: 42,            // != 15
   laborRate: 55.5,             // != 30
   markup: 2.8,                 // != 3
@@ -88,6 +87,11 @@ const cobaia: SavedProduct = {
   fixedCostPerHour: null, combineEnabled: null, stage2: null,
 };
 
+// Frente 2 (2026-09-17): a tarifa virou GLOBAL — 1,07 é o valor que a cobaia
+// carregava em `energyTariff` antes da migração, mantido para o export ainda
+// gerar o mesmo dinheiro nos testes que comparam célula a célula.
+const ENERGY_TARIFF = 1.07;
+
 function rows(csv: string): { headers: string[]; body: string[][] } {
   const lines = csv.replace(/^﻿/, "").split("\n").filter((l) => l.trim());
   const parse = (line: string) => {
@@ -128,16 +132,16 @@ function asSaved(p: ProductPayload, id: string): SavedProduct {
 }
 
 describe("round-trip do CSV — export -> import -> export", () => {
-  const csvA = exportProductsCsv([cobaia], machines, fixedCosts, stock);
+  const csvA = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock);
   const imported = reimport(csvA);
-  const csvB = exportProductsCsv([asSaved(imported[0], "prod_copia")], machines, fixedCosts, stock);
+  const csvB = exportProductsCsv([asSaved(imported[0], "prod_copia")], machines, fixedCosts, ENERGY_TARIFF, stock);
 
-  it("A e B: celula por celula, 34 colunas", () => {
+  it("A e B: celula por celula, 33 colunas", () => {
     const A = rows(csvA), B = rows(csvB);
     const { diffs, compared } = diffRows(A.headers, A.body[0], B.body[0]);
     // Coluna nova sem cobertura aqui é um buraco silencioso: o diff só prova o
-    // que ele percorre.
-    expect(compared).toBe(34);
+    // que ele percorre. 33 = 34 - "Tarifa Energia" (saiu do CSV, frente 2).
+    expect(compared).toBe(33);
     expect(diffs).toEqual([]);
   });
 
@@ -149,7 +153,7 @@ describe("round-trip do CSV — export -> import -> export", () => {
         falhas.push(`${label}: esperado ${JSON.stringify(esperado)} - obtido ${JSON.stringify(obtido)}`);
       }
     };
-    (["name", "mainStageName", "machineIds", "printHours", "energyTariff", "laborMinutes",
+    (["name", "mainStageName", "machineIds", "printHours", "laborMinutes",
       "laborRate", "markup", "failureRate", "includeFixed", "roundingMode", "piecesCount",
       "linkModel", "linkCompetitor", "linkFile", "sellBySubitems"] as const)
       .forEach((k) => eq(k, cobaia[k], p[k]));
@@ -181,14 +185,14 @@ describe("round-trip do CSV — export -> import -> export", () => {
 describe("round-trip do CSV — bordas", () => {
   it("sellBySubitems ligado com ZERO subitens", () => {
     const p: SavedProduct = { ...cobaia, subitems: [], sellBySubitems: true };
-    const back = reimport(exportProductsCsv([p], machines, fixedCosts, stock))[0];
+    const back = reimport(exportProductsCsv([p], machines, fixedCosts, ENERGY_TARIFF, stock))[0];
     expect(back.sellBySubitems).toBe(true);
     expect(back.subitems).toEqual([]);
   });
 
   it("sem acessorios e sem etapas extras: arrays VAZIOS, nao ausentes", () => {
     const p: SavedProduct = { ...cobaia, stages: [], accessories: [] };
-    const back = reimport(exportProductsCsv([p], machines, fixedCosts, stock))[0];
+    const back = reimport(exportProductsCsv([p], machines, fixedCosts, ENERGY_TARIFF, stock))[0];
     expect(back.stages).toEqual([]);
     expect(back.accessories).toEqual([]);
     expect("stages" in back).toBe(true);
@@ -200,7 +204,7 @@ describe("round-trip do CSV — bordas", () => {
   // nome ilegível caía na 1ª máquina com um aviso; agora ele é DESCARTADO, e o
   // que a linha ganha depende do que sobrou.
   it("maquina inexistente SOZINHA: avisa e cai na frota inteira", () => {
-    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock)
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock)
       .replace("Bambu Lab X2D", "Impressora Fantasma");
     const r = parseProductsCsv(csv, machines);
     // O produto da cobaia declara só a X2D, então descartá-la esvazia a lista.
@@ -210,7 +214,7 @@ describe("round-trip do CSV — bordas", () => {
 
   it("descarte PARCIAL avisa — as boas valem, e o preço muda", () => {
     const duas: SavedProduct = { ...cobaia, machineIds: ["a1", "x2d"] };
-    const csv = exportProductsCsv([duas], machines, fixedCosts, stock)
+    const csv = exportProductsCsv([duas], machines, fixedCosts, ENERGY_TARIFF, stock)
       .replace("Bambu Lab X2D", "Impressora Fantasma");
     const r = parseProductsCsv(csv, machines);
     // ⚠ É o caso que some sozinho: o produto entra com preço plausível (a A1
@@ -222,7 +226,7 @@ describe("round-trip do CSV — bordas", () => {
   it("celula VAZIA avisa e vale frota inteira", () => {
     const semNada: SavedProduct = { ...cobaia, machineIds: [] };
     const r = parseProductsCsv(
-      exportProductsCsv([semNada], machines, fixedCosts, stock),
+      exportProductsCsv([semNada], machines, fixedCosts, ENERGY_TARIFF, stock),
       machines,
     );
     expect((r.issues ?? []).some((i) => i.kind === "maquina-vazia")).toBe(true);
@@ -231,7 +235,7 @@ describe("round-trip do CSV — bordas", () => {
 
   it("lista de DUAS sobrevive ao round-trip, na ordem do cadastro", () => {
     const duas: SavedProduct = { ...cobaia, machineIds: ["x2d", "a1"] };
-    const csvA = exportProductsCsv([duas], machines, fixedCosts, stock);
+    const csvA = exportProductsCsv([duas], machines, fixedCosts, ENERGY_TARIFF, stock);
     const back = reimport(csvA)[0];
     // A ordem normaliza para a do cadastro nos dois lados — é o que faz o
     // export do que acabou de entrar ser byte a byte igual.
@@ -239,15 +243,14 @@ describe("round-trip do CSV — bordas", () => {
     const csvB = exportProductsCsv(
       [asSaved(back, "copia")],
       machines,
-      fixedCosts,
-      stock,
-    );
+      fixedCosts, ENERGY_TARIFF,
+      stock);
     const A = rows(csvA), B = rows(csvB);
     expect(diffRows(A.headers, A.body[0], B.body[0]).diffs).toEqual([]);
   });
 
   it("escape de ; e aspas sobrevive", () => {
-    const back = reimport(exportProductsCsv([cobaia], machines, fixedCosts, stock))[0];
+    const back = reimport(exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock))[0];
     expect(back.name).toBe('Cobaia "Full"; Round-Trip');
     expect(back.filaments?.[0].colorName).toBe('Azul "Royal"');
     expect(back.filaments?.[1].colorName).toBe("Branco; Neve");
@@ -258,12 +261,11 @@ describe("round-trip do CSV — bordas", () => {
       ...cobaia,
       stages: [{ ...cobaia.stages[0], energyTariff: 9.99, laborRate: 999 } as never],
     };
-    const csv = exportProductsCsv([sujo], machines, fixedCosts, stock);
+    const csv = exportProductsCsv([sujo], machines, fixedCosts, ENERGY_TARIFF, stock);
     const back = reimport(csv)[0];
     const etapa = back.stages[0] as Record<string, unknown>;
     expect(etapa.energyTariff).toBeUndefined();
     expect(etapa.laborRate).toBeUndefined();
-    expect(back.energyTariff).toBe(1.07);
     expect(back.laborRate).toBe(55.5);
   });
 
@@ -274,7 +276,7 @@ describe("round-trip do CSV — bordas", () => {
       ...cobaia,
       stages: [{ ...cobaia.stages[0], energyTariff: 9.99, laborRate: 999 } as never],
     };
-    const csv = exportProductsCsv([sujo], machines, fixedCosts, stock);
+    const csv = exportProductsCsv([sujo], machines, fixedCosts, ENERGY_TARIFF, stock);
     expect(csv).not.toContain("energyTariff");
     expect(csv).not.toContain("laborRate");
     expect(csv).not.toContain("9.99");
@@ -288,15 +290,14 @@ describe("round-trip do CSV — bordas", () => {
           laborMinutes: 0, weightG: 30, filamentPricePerKg: 110 },
       ],
     };
-    const csv = exportProductsCsv([legado], machines, fixedCosts, stock);
+    const csv = exportProductsCsv([legado], machines, fixedCosts, ENERGY_TARIFF, stock);
     const back = reimport(csv)[0];
     expect(back.stages[0].filaments).toEqual([
       { filamentId: null, colorName: "", pricePerKg: 110, totalG: 30 },
     ]);
     // E o round-trip segue estavel: reexportar da o mesmo CSV.
     const csv2 = exportProductsCsv(
-      [asSaved(back, "x")], machines, fixedCosts, stock,
-    );
+      [asSaved(back, "x")], machines, fixedCosts, ENERGY_TARIFF, stock);
     expect(csv2).toBe(csv);
   });
 });
@@ -306,15 +307,15 @@ describe("round-trip do CSV — bordas", () => {
 // certo; o defeito era o SILÊNCIO. Estes testes travam o aviso.
 // ---------------------------------------------------------------------------
 describe("CSV-03 — o que a importação IGNORA, ela conta", () => {
-  const opcoes = { fixedCosts, stock };
+  const opcoes = { fixedCosts, energyTariff: ENERGY_TARIFF, stock };
 
   it("reimportação sem nada ter mudado: nenhum aviso", () => {
-    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock);
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock);
     expect(parseProductsCsv(csv, machines, opcoes).recalc).toBeUndefined();
   });
 
   it("preço editado na planilha: avisa, com o valor do arquivo e o recalculado", () => {
-    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock);
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock);
     const linhas = csv.split("\n");
     const celulas = linhas[1].split(";");
     // "Preco Sugerido (R$)" é a 17ª coluna (índice 16); o nome está entre
@@ -339,8 +340,8 @@ describe("CSV-03 — o que a importação IGNORA, ela conta", () => {
   // TD-033 — o preço do acessório passou a sair do CADASTRO, então a lista de
   // insumos entrou no recálculo. Estes dois travam as duas pontas.
   it("TD-033: export e import com os MESMOS insumos não acusam divergência", () => {
-    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock, supplies);
-    const r = parseProductsCsv(csv, machines, { fixedCosts, stock, supplies });
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock, supplies);
+    const r = parseProductsCsv(csv, machines, { fixedCosts, energyTariff: ENERGY_TARIFF, stock, supplies });
     expect(r.recalc).toBeUndefined();
   });
 
@@ -348,13 +349,13 @@ describe("CSV-03 — o que a importação IGNORA, ela conta", () => {
     // É o mesmo aviso de "a config mudou desde o export" — e é ele que impede a
     // divergência de passar calada. Sem a lista, o recálculo cai no preço salvo
     // (0,43 e 0,90) enquanto o arquivo traz o do cadastro (0,77 e 1,40).
-    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock, supplies);
-    const r = parseProductsCsv(csv, machines, { fixedCosts, stock });
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock, supplies);
+    const r = parseProductsCsv(csv, machines, { fixedCosts, energyTariff: ENERGY_TARIFF, stock });
     expect(r.recalc?.divergentes).toBe(1);
   });
 
   it("sem as opções (taxa de fixo/estoque) a checagem não roda", () => {
-    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock)
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock)
       .replace("81,80", "999,99");
     expect(parseProductsCsv(csv, machines).recalc).toBeUndefined();
   });
@@ -381,7 +382,7 @@ describe("CSV-03 — o que a importação IGNORA, ela conta", () => {
     const varios = Array.from({ length: 6 }, (_, i) => ({
       ...cobaia, id: `p${i}`, name: `Produto ${i}`,
     }));
-    const csv = exportProductsCsv(varios, machines, fixedCosts, stock);
+    const csv = exportProductsCsv(varios, machines, fixedCosts, ENERGY_TARIFF, stock);
     const linhas = csv.split("\n");
     const H = linhas[0].replace(/^﻿/, "").split(";");
     const i = H.indexOf("Custo Total (R$)");
@@ -402,7 +403,7 @@ describe("CSV-03 — o que a importação IGNORA, ela conta", () => {
 // despercebidos até alguém abrir e salvar o produto.
 describe("importação — a forma do documento importado", () => {
   it("com as cores na linha, os escalares legados NÃO vão para o documento", () => {
-    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock);
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock);
     const produto = parseProductsCsv(csv, machines).products[0];
 
     expect("weightG" in produto).toBe(false);
@@ -424,9 +425,9 @@ describe("importação — a forma do documento importado", () => {
 
   it("o peso continua chegando ao custo pelos dois caminhos", () => {
     const comCores = parseProductsCsv(
-      exportProductsCsv([cobaia], machines, fixedCosts, stock),
+      exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock),
       machines,
-      { fixedCosts, stock },
+      { fixedCosts, energyTariff: ENERGY_TARIFF, stock },
     );
     // Reimportar o próprio arquivo não acende aviso: o custo é o mesmo com a
     // linha inteira vindo das cores.
@@ -467,7 +468,7 @@ describe("importação — arquivo escrito à mão", () => {
   }
 
   it("CSV-02: cabeçalho em ordem INVERTIDA importa igual", () => {
-    const csv = exportProductsCsv([cobaia], machines, fixedCosts, stock)
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock)
       .replace(/^\uFEFF/, "");
     const [cabecalho, linha] = csv.split("\n");
     const invertido = [
@@ -507,7 +508,7 @@ describe("importação — arquivo escrito à mão", () => {
       name: "Linha 1\nLinha 2",
       linkModel: "https://exemplo/a\nb",
     };
-    const csv = exportProductsCsv([comQuebra], machines, fixedCosts, stock);
+    const csv = exportProductsCsv([comQuebra], machines, fixedCosts, ENERGY_TARIFF, stock);
     const produtos = parseProductsCsv(csv, machines).products;
 
     expect(produtos).toHaveLength(1);
@@ -528,16 +529,15 @@ describe("importação — arquivo escrito à mão", () => {
 });
 
 // AUD-14/D1 — o arquivo é pt-BR inteiro. Onze colunas de dinheiro já saíam
-// assim; nove escalares saíam com PONTO decimal, e é o ponto que o Excel pt-BR
+// assim; oito escalares saíam com PONTO decimal, e é o ponto que o Excel pt-BR
 // lê como separador de milhar.
 describe("AUD-14/D1 — nenhuma coluna escalar sai com ponto decimal", () => {
-  const csvExportado = exportProductsCsv([cobaia], machines, fixedCosts, stock);
+  const csvExportado = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock);
   const { headers, body } = rows(csvExportado);
   const celula = (coluna: string) => body[0][headers.indexOf(coluna)];
 
-  it("as 9 colunas que saíam com ponto, uma a uma", () => {
+  it("as 8 colunas que saíam com ponto, uma a uma", () => {
     expect(celula("Tempo (h)")).toBe("4,75");
-    expect(celula("Tarifa Energia")).toBe("1,07");
     expect(celula("Valor-hora (R$)")).toBe("55,5");
     expect(celula("Markup")).toBe("2,8x");
     expect(celula("Filamento (R$/kg)")).toBe("118,9");
@@ -565,8 +565,7 @@ describe("AUD-14/D1 — nenhuma coluna escalar sai com ponto decimal", () => {
     // Excel como 5.283.333.333.333.330.
     const horas = 5.283333333333333;
     const csvA = exportProductsCsv(
-      [{ ...cobaia, printHours: horas }], machines, fixedCosts, stock,
-    );
+      [{ ...cobaia, printHours: horas }], machines, fixedCosts, ENERGY_TARIFF, stock);
     expect(rows(csvA).body[0][rows(csvA).headers.indexOf("Tempo (h)")]).toBe(
       "5,283333333333333",
     );
@@ -593,13 +592,13 @@ describe("AUD-14/D8 — o export não depende da ordem de chave do banco", () =>
   };
 
   it("as duas exportações dão o MESMO texto, byte a byte", () => {
-    const a = exportProductsCsv([cobaia], machines, fixedCosts, stock);
-    const b = exportProductsCsv([embaralhado], machines, fixedCosts, stock);
+    const a = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock);
+    const b = exportProductsCsv([embaralhado], machines, fixedCosts, ENERGY_TARIFF, stock);
     expect(b).toBe(a);
   });
 
   it("e a ordem escrita é a que a importação produz", () => {
-    const { headers, body } = rows(exportProductsCsv([cobaia], machines, fixedCosts, stock));
+    const { headers, body } = rows(exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock));
     const acessorio = JSON.parse(body[0][headers.indexOf("Acessorios JSON")])[0];
     expect(Object.keys(acessorio)).toEqual([
       "desc", "qty", "unitPrice", "supplyId", "subitemId",
@@ -609,7 +608,7 @@ describe("AUD-14/D8 — o export não depende da ordem de chave do banco", () =>
   });
 
   it("markup ausente segue OMITIDO — null viraria 0 na volta", () => {
-    const { headers, body } = rows(exportProductsCsv([cobaia], machines, fixedCosts, stock));
+    const { headers, body } = rows(exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock));
     const primeiro = JSON.parse(body[0][headers.indexOf("Subitens JSON")])[0];
     expect(Object.keys(primeiro)).toEqual(["id", "name", "stageKeys"]);
   });

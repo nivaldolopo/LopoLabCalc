@@ -28,7 +28,6 @@ function filamentError(
 export function validateProduct(product: ProductInput): string | null {
   const checks: Array<[number, string]> = [
     [product.printHours, "Tempo de impressão"],
-    [product.energyTariff, "Tarifa de energia"],
     [product.laborMinutes, "Mão de obra (min)"],
     [product.laborRate, "Valor-hora"],
   ];
@@ -87,8 +86,8 @@ export function validateProduct(product: ProductInput): string | null {
   }
 
   // Etapas extras: nenhum campo pode ser negativo (tempo/mão de obra e o
-  // peso/preço de cada cor). Tarifa e valor-hora não entram: são do produto e
-  // já foram checados acima.
+  // peso/preço de cada cor). Valor-hora não entra: é do produto e já foi
+  // checado acima; tarifa de energia nem existe mais aqui — é GLOBAL.
   const stages = product.stages ?? [];
   for (let index = 0; index < stages.length; index += 1) {
     const stage = stages[index];

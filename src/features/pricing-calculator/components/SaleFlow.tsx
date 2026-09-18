@@ -28,6 +28,7 @@ type SaleFlowProps = {
   machines: Machine[];
   stock: StockFilament[];
   fixedCosts: FixedCostSettings;
+  energyTariff: number;
   // Precificação já memoizada pela página (o catálogo tem a sua). Opcional —
   // sem ela o SaleFlow calcula por conta própria.
   pricingByProduct?: Map<string, PricingResult>;
@@ -46,6 +47,7 @@ export function SaleFlow({
   machines,
   stock,
   fixedCosts,
+  energyTariff,
   pricingByProduct,
   onClose,
 }: SaleFlowProps) {
@@ -64,7 +66,7 @@ export function SaleFlow({
         .flatMap((product) => {
           const result =
             pricingByProduct?.get(product.id) ??
-            calculatePricing(product, machines, fixedCosts, stock, supplies);
+            calculatePricing(product, machines, fixedCosts, energyTariff, stock, supplies);
           const baseName = product.name || product.mainStageName || "";
           // O produto inteiro sempre é vendável; subitens (FEAT-01) entram como
           // itens vendáveis à parte, cada um congelando só o seu custo/consumo.
@@ -88,7 +90,7 @@ export function SaleFlow({
         .sort((a, b) =>
           a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),
-    [products, pricingByProduct, machines, fixedCosts, stock, supplies],
+    [products, pricingByProduct, machines, fixedCosts, energyTariff, stock, supplies],
   );
 
   return (
@@ -102,6 +104,7 @@ export function SaleFlow({
       products={products}
       machines={machines}
       fixedCosts={fixedCosts}
+      energyTariff={energyTariff}
       // Venda NOVA não estorna produção existente — o `production` só serve ao
       // caminho de edição (SalesPage), que resolve os eventos por id. Vazio aqui.
       production={[]}

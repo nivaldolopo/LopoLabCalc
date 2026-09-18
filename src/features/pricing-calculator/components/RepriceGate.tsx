@@ -87,12 +87,14 @@ export function RepriceGate({
     const antes: RepriceLevers = {
       machines: proposal.machinesBefore,
       fixedCosts: fixedOf(proposal.fixedRateBefore),
+      energyTariff: proposal.energyTariffBefore,
       stock: filaments,
       supplies,
     };
     const depois: RepriceLevers = {
       machines: proposal.machinesAfter,
       fixedCosts: fixedOf(proposal.fixedRateAfter),
+      energyTariff: proposal.energyTariffAfter,
       stock: filaments,
       supplies,
     };

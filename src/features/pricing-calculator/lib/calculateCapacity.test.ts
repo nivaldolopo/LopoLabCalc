@@ -28,7 +28,7 @@ const NO_FIXED: FixedCostSettings = {
 };
 
 function priceOf(product: ProductInput) {
-  return calculatePricing(product, DEFAULT_MACHINES, NO_FIXED);
+  return calculatePricing(product, DEFAULT_MACHINES, NO_FIXED, 0.8);
 }
 
 // Os casos herdados foram escritos quando o horizonte era 30 dias fixos e a

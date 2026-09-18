@@ -65,6 +65,7 @@ function produto(id: string, over: Partial<SavedProduct> = {}): SavedProduct {
 const levers = (machines: Machine[]): RepriceLevers => ({
   machines,
   fixedCosts: { ...DEFAULT_FIXED_COSTS, enabled: false },
+  energyTariff: 0.8,
   stock: [],
   supplies: [],
 });
@@ -166,7 +167,7 @@ describe("[FEAT-12] a frase de uma linha", () => {
 
 describe("[FEAT-12] proposta", () => {
   it("mexer na frota deixa o custo fixo PARADO nos dois lados", () => {
-    const p = machinesProposal(FROTA, [{ ...A1, watts: 120 }, X2D], TAXA);
+    const p = machinesProposal(FROTA, [{ ...A1, watts: 120 }, X2D], TAXA, 0.8);
     expect(p.lever).toBe("maquinas");
     expect(p.fixedRateBefore).toBe(p.fixedRateAfter);
     expect(p.before.machines).toHaveLength(2);
@@ -178,7 +179,7 @@ describe("[FEAT-12] proposta", () => {
   });
 
   it("mexer no custo fixo deixa a FROTA parada nos dois lados", () => {
-    const p = fixedCostProposal(TAXA, { ...TAXA, rent: 3000 }, FROTA);
+    const p = fixedCostProposal(TAXA, { ...TAXA, rent: 3000 }, FROTA, 0.8);
     expect(p.lever).toBe("custo-fixo");
     expect(p.machinesBefore).toBe(p.machinesAfter);
     expect(p.after.fixedCostRate?.rent).toBe(3000);
@@ -187,7 +188,7 @@ describe("[FEAT-12] proposta", () => {
 
   it("o `before` é uma CÓPIA: mexer na lista viva depois não reescreve o rastro", () => {
     const viva = [{ ...A1 }, { ...X2D }];
-    const p = machinesProposal(viva, [{ ...A1, watts: 120 }, X2D], TAXA);
+    const p = machinesProposal(viva, [{ ...A1, watts: 120 }, X2D], TAXA, 0.8);
     viva[0].watts = 999;
     expect(p.before.machines?.[0].watts).toBe(95);
   });
@@ -205,10 +206,11 @@ function registro(over: Partial<ChangeRecord> = {}): ChangeRecord {
     lever: "maquinas",
     summary: "A1 Combo · consumo 95 W → 120 W",
     details: ["A1 Combo · consumo 95 W → 120 W"],
-    before: { machines: FROTA, fixedCostRate: null, unitPrice: null },
+    before: { machines: FROTA, fixedCostRate: null, energyTariff: null, unitPrice: null },
     after: {
       machines: [{ ...A1, watts: 120 }, X2D],
       fixedCostRate: null,
+      energyTariff: null,
       unitPrice: null,
     },
     impact: {
@@ -227,7 +229,7 @@ describe("[FEAT-12] desfazer", () => {
       canUndo(
         registro({
           lever: "custo-fixo",
-          before: { machines: null, fixedCostRate: TAXA, unitPrice: null },
+          before: { machines: null, fixedCostRate: TAXA, energyTariff: null, unitPrice: null },
         }),
       ),
     ).toBe(true);
@@ -242,10 +244,10 @@ describe("[FEAT-12] desfazer", () => {
     // O repositório DESCARTA um `before` torto em vez de montar meio objeto
     // (AUD-16 [E5]); aqui isso tem de virar "não dá", não um save de lista vazia.
     const torto = registro({
-      before: { machines: null, fixedCostRate: null, unitPrice: null },
+      before: { machines: null, fixedCostRate: null, energyTariff: null, unitPrice: null },
     });
     expect(canUndo(torto)).toBe(false);
-    expect(undoProposal(torto, FROTA, TAXA)).toBeNull();
+    expect(undoProposal(torto, FROTA, TAXA, 0.8)).toBeNull();
   });
 
   it("desfazer parte do estado ATUAL, não do `after` gravado", () => {
@@ -253,7 +255,7 @@ describe("[FEAT-12] desfazer", () => {
     // aquele estado", e a prévia tem de mostrar o caminho a partir de onde o
     // preço está AGORA — senão ela descreve um movimento que já não existe.
     const agora = [{ ...A1, watts: 200 }, X2D];
-    const p = undoProposal(registro(), agora, TAXA);
+    const p = undoProposal(registro(), agora, TAXA, 0.8);
     expect(p).not.toBeNull();
     expect(p!.machinesBefore).toBe(agora);
     expect(p!.machinesAfter).toBe(registro().before.machines);
@@ -267,7 +269,7 @@ describe("[FEAT-12] desfazer", () => {
 
   it("o desfazer passa pela MESMA prévia: ele reprecifica de volta", () => {
     const produtos = [produto("chaveiro")];
-    const p = undoProposal(registro(), [{ ...A1, watts: 200 }, X2D], TAXA)!;
+    const p = undoProposal(registro(), [{ ...A1, watts: 200 }, X2D], TAXA, 0.8)!;
     const impacto = computeRepriceImpact(
       produtos,
       levers(p.machinesBefore),
@@ -314,6 +316,7 @@ describe("[FEAT-12] o impacto GRAVADO", () => {
     const semFixo: RepriceLevers = {
       machines: FROTA,
       fixedCosts: { ...DEFAULT_FIXED_COSTS, enabled: true, rent: 0, other: 0 },
+      energyTariff: 0.8,
       stock: [],
       supplies: [],
     };
@@ -381,7 +384,7 @@ describe("[FEAT-12] cotação do estoque", () => {
       impact: computeRepriceImpact([], levers(FROTA), levers(FROTA)),
     });
     expect(payload.before).toEqual({
-      machines: null, fixedCostRate: null, unitPrice: 110,
+      machines: null, fixedCostRate: null, energyTariff: null, unitPrice: 110,
     });
     expect(payload.after.unitPrice).toBe(160);
     // E o registro que sai daqui não oferece desfazer.

@@ -49,7 +49,7 @@ export function CatalogPage() {
   // CSV-05: só para a importação CONFERIR o `supplyId` dos acessórios da
   // planilha. Não entra em cálculo nenhum desta página.
   const { supplies } = useSupplies();
-  const { fixedCostRate } = useBusinessSettings();
+  const { fixedCostRate, energyTariff } = useBusinessSettings();
   // UX-10: só para EXIBIR a margem líquida ao lado da bruta — nenhuma taxa entra
   // no preço aqui (o repasse continua sendo escolha da venda).
   const { fees } = useFees();
@@ -90,11 +90,11 @@ export function CatalogPage() {
     productsApi.products.forEach((product) => {
       map.set(
         product.id,
-        calculatePricing(product, machines, fixedCosts, stock, supplies),
+        calculatePricing(product, machines, fixedCosts, energyTariff, stock, supplies),
       );
     });
     return map;
-  }, [productsApi.products, machines, fixedCosts, stock, supplies]);
+  }, [productsApi.products, machines, fixedCosts, energyTariff, stock, supplies]);
 
   // "Editar" virou cross-page: manda pra calculadora com o produto na query.
   // A `PricingCalculator` carrega o produto no form e limpa a URL.
@@ -184,6 +184,7 @@ export function CatalogPage() {
           stock={stock}
           supplies={supplies}
           fixedCosts={fixedCosts}
+          energyTariff={energyTariff}
           pricingByProduct={pricingByProduct}
           capacitySettings={capacitySettings}
           fees={fees}
@@ -207,6 +208,7 @@ export function CatalogPage() {
           machines={machines}
           stock={stock}
           fixedCosts={fixedCosts}
+          energyTariff={energyTariff}
           pricingByProduct={pricingByProduct}
           onClose={() => setSaleOpen(false)}
         />

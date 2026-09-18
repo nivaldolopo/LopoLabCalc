@@ -256,7 +256,7 @@ export function StockPage() {
   // FEAT-06). O custo fixo fica de fora pelo mesmo motivo da /producao: ele não
   // entra no custo real com que a margem é comparada.
   const { machines } = useMachines();
-  const { fixedCostRate } = useBusinessSettings();
+  const { fixedCostRate, energyTariff } = useBusinessSettings();
   // O `enabled` segue o mesmo racional do catálogo: cada produto traz o próprio
   // `includeFixed`, aplicado por cima deste piso pelo `calculatePricing`.
   const fixedCosts = useMemo<FixedCostSettings>(
@@ -270,11 +270,11 @@ export function StockPage() {
     for (const product of products) {
       map.set(
         product.id,
-        calculatePricing(product, machines, fixedCosts, filaments, supplies),
+        calculatePricing(product, machines, fixedCosts, energyTariff, filaments, supplies),
       );
     }
     return map;
-  }, [products, machines, fixedCosts, filaments, supplies]);
+  }, [products, machines, fixedCosts, energyTariff, filaments, supplies]);
 
   // Só produtos com algum saldo (≠ 0) aparecem; ordena por nome congelado.
   const stockedGoods = useMemo(
@@ -371,8 +371,8 @@ export function StockPage() {
     if (round2(priceBefore) === round2(priceAfter)) return;
     const impact = computeRepriceImpact(
       products,
-      { machines, fixedCosts, stock: filaments, supplies },
-      { machines, fixedCosts, stock: stockDepois, supplies: suppliesDepois },
+      { machines, fixedCosts, energyTariff, stock: filaments, supplies },
+      { machines, fixedCosts, energyTariff, stock: stockDepois, supplies: suppliesDepois },
     );
     if (impact.affected === 0) return;
     try {
@@ -1538,6 +1538,7 @@ export function StockPage() {
           machines={machines}
           stock={filaments}
           fixedCosts={fixedCosts}
+          energyTariff={energyTariff}
           pricingByProduct={pricingByProduct}
           onClose={() => setSaleOpen(false)}
         />

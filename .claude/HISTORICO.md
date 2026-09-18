@@ -9,6 +9,55 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Tarifa de energia virou GLOBAL — frente 2 fechada de vez (2026-09-18)
+
+Última peça da frente 2 (a movimentação de UI para o modal de Configurações já tinha fechado em
+2026-09-17). `ProductInput.energyTariff` — campo por produto desde sempre — virou `energyTariff`
+em `config/negocio`, alavanca do `RepriceGate` como máquinas e custo fixo.
+
+- **O valor: R$1,11/kWh.** O dono tinha avisado em 16/09 que já estava com a primeira conta de luz
+  real da loja. A conta (Neoenergia, set/2026) trouxe a tarifa base de R$0,9914/kWh; o valor final
+  soma a bandeira mais CARA do ano (Escassez Hídrica, R$0,0949/kWh nominal ANEEL, com o mesmo
+  gross-up de imposto que a bandeira Amarela levou na fatura) — em vez da bandeira do mês corrente,
+  porque a variação entre bandeiras é pequena e não vale reabrir o número a cada troca. Decisão
+  martelada no chat de 2026-09-17, não reabrir.
+- **Por que alavanca do `RepriceGate` e não um campo solto:** todo produto usa energia (ao contrário
+  do custo fixo, que é opt-in por produto via `includeFixed`), então mexer na tarifa reprecifica o
+  catálogo inteiro sem ninguém pedir — exatamente o problema que o FEAT-12 resolveu para máquinas e
+  custo fixo. Aba "Energia" própria no modal (`EnergyTariffPanel.tsx`), mesma disciplina de
+  rascunho local + "Revisar e aplicar" + prévia antes de gravar.
+- **O tamanho real da mudança, medido no código antes de codar (bateu com o previsto):**
+  `calculatePricing`/`calculateStageCost` ganharam `energyTariff` como parâmetro explícito (4º
+  posicional, antes de `stock`/`supplies`) em vez de ler `product.energyTariff` — ~19 arquivos
+  chamam `calculatePricing`, todos atualizados (a maioria já tinha `fixedCostRate` de
+  `useBusinessSettings()` por perto, então bastou puxar `energyTariff` do mesmo hook). `RepriceLevers`
+  (`repriceImpact.ts`) e `RepriceProposal`/`ChangeState` (`changeLog.ts`, `types.ts`) ganharam o campo
+  novo, do mesmo jeito que já carregavam `fixedCosts`. `productionPlan.ts` (`wholeEventRows`/
+  `subitemEventRows`) passou a receber a tarifa como parâmetro em vez de ler do produto — o
+  congelamento na linha do evento agora vem do valor GLOBAL vigente na hora do evento, não mais do
+  produto. `ReconContext` (`saleReconciliation.ts`) ganhou `energyTariff` pelo mesmo motivo de
+  `fixedCosts`.
+- **A coluna "Tarifa Energia" SAIU do CSV de carga em massa** (export, `COLUMN_SPECS`, leitura,
+  comparação de recálculo) — decisão já tomada, não reaberta. ⚠ É contrato com a planilha do
+  sistema externo do dono; se uma planilha antiga ainda tiver essa coluna, a importação não a lê
+  mais, mas também não quebra — ela cai no mecanismo genérico de "coluna não reconhecida" (CSV-05:
+  avisa, não engole), o mesmo que qualquer cabeçalho desconhecido.
+- **`ProductInput.energyTariff` foi REMOVIDO do tipo** (não só passou a ser ignorado) — o campo some
+  do formulário, da validação e do payload gravado no próximo save. Diretriz 6: sem migração; doc
+  antigo que ainda trouxer a chave carrega lixo inerte, ignorado na leitura (`productsRepository.ts`).
+- **1011 testes** (era 1014 — 3 a menos: dois testes e uma variante de `it.each` que só faziam
+  sentido para a coluna de CSV removida saíram, não foram substituídos por equivalente).
+  `pnpm typecheck`/`pnpm lint`/`pnpm build` limpos.
+- ⚠ **Bug pego no `/code-review --high` antes do commit:** `src/lib/firebase/changeLogRepository.ts`
+  tinha um `LEVERS: ChangeLever[]` — o allowlist que valida a alavanca ao LER um registro de volta do
+  Firestore — que não ganhou `"energia"` no mesmo commit que o tipo `ChangeLever`. Sem o fix, todo
+  registro de mudança de tarifa voltaria do Firestore com o lever silenciosamente trocado para
+  `"cor"`, e a entrada apareceria mal rotulada na aba "Alterações de preço" **e sem o botão de
+  desfazer** (a alavanca `"cor"` nunca oferece desfazer). Achado porque essa lista é um array simples,
+  não um `Record<ChangeLever, ...>` — os dois `Record` do app (`changeLog.ts`, `SettingsModal.tsx`)
+  o TypeScript já obrigava a ter todas as chaves. Testado manualmente no navegador embutido depois do
+  fix: aplicar, ver o registro rotulado "ENERGIA", desfazer, ver o desfazer também rotulado certo.
+
 ## ✅ Diretriz 2 fundida na 4, domínio de Preview automatizado (2026-09-17)
 
 Revertido ainda no mesmo dia da entrada logo abaixo: o dono pediu pra fundir a Diretriz 2 (Resumo)

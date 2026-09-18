@@ -41,7 +41,7 @@ export function MachinesSettingsPanel({
   const [base] = useState<Machine[]>(machines);
   // O custo fixo não se move aqui — ele entra na conta dos DOIS lados, porque o
   // preço de um produto com `includeFixed` depende dele.
-  const { fixedCostRate } = useBusinessSettings();
+  const { fixedCostRate, energyTariff } = useBusinessSettings();
   // A proposta na mesa. `null` = ainda editando.
   const [proposta, setProposta] = useState<RepriceProposal | null>(null);
   // AUD-18 — a versão é capturada AQUI, no mesmo `useState` do rascunho e com o
@@ -123,7 +123,7 @@ export function MachinesSettingsPanel({
     // [FEAT-12] — daqui em diante nada grava sem prévia. A frota é a alavanca
     // mais cara do app: watts, vida útil, manutenção e peso entram no preço de
     // TODO produto que marca a máquina, e excluir uma faz o id salvo virar órfão.
-    const proposal = machinesProposal(base, draft, fixedCostRate);
+    const proposal = machinesProposal(base, draft, fixedCostRate, energyTariff);
     if (proposal.details.length === 0) {
       // Nada mudou de verdade (ou uma máquina foi adicionada e removida no mesmo
       // rascunho). Não há o que aplicar.

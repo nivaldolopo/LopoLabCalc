@@ -49,9 +49,9 @@ export function buildProductPayload(
       machineIds: [...(stage.machineIds ?? [])],
       printHours: stage.printHours,
       laborMinutes: stage.laborMinutes,
-      // Tarifa e valor-hora NÃO se repetem aqui: são do produto. Copiá-los
-      // para dentro da etapa criava um override que o formulário não sabia
-      // editar e que a produção ignorava.
+      // Tarifa (GLOBAL, frente 2) e valor-hora (do produto) NÃO se repetem
+      // aqui. Copiá-las para dentro da etapa criava um override que o
+      // formulário não sabia editar e que a produção ignorava.
       filaments: stripFilamentIds(stage.filaments),
     })),
     accessories: product.accessories.map((accessory) => ({

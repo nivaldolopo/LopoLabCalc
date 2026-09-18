@@ -192,7 +192,7 @@ export function SalesPage() {
   } = useSalesPage(salesFilter);
   const { products } = useProducts();
   const { machines } = useMachines();
-  const { fixedCostRate } = useBusinessSettings();
+  const { fixedCostRate, energyTariff } = useBusinessSettings();
   const { fees } = useFees();
   // Passo 8: dados vivos para a reconciliação (custo real + baixa por caminho).
   const { filaments: stock } = useStock();
@@ -233,6 +233,7 @@ export function SalesPage() {
             product,
             machines,
             fixedCosts,
+            energyTariff,
             stock,
             supplies,
           );
@@ -259,7 +260,7 @@ export function SalesPage() {
         .sort((a, b) =>
           a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),
-    [products, machines, fixedCosts, stock, supplies],
+    [products, machines, fixedCosts, energyTariff, stock, supplies],
   );
 
   // Agrupa as vendas por recibo (fase 1b): itens de uma mesma compra ficam juntos.
@@ -975,6 +976,7 @@ export function SalesPage() {
           products={products}
           machines={machines}
           fixedCosts={fixedCosts}
+          energyTariff={energyTariff}
           production={editEvents}
           onClose={() => {
             setEditRecibo(null);
@@ -995,6 +997,7 @@ export function SalesPage() {
           products={products}
           machines={machines}
           fixedCosts={fixedCosts}
+          energyTariff={energyTariff}
           // Venda nova não estorna produção — o `production` só serve à edição.
           production={[]}
           onClose={() => setNewSale(false)}

@@ -37,7 +37,7 @@ import {
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
   const { machines } = useMachines();
-  const { fixedCostRate } = useBusinessSettings();
+  const { fixedCostRate, energyTariff } = useBusinessSettings();
   // UX-10: exibição da margem líquida no card de preço. Não entra no cálculo.
   const { fees } = useFees();
   // 7c: cores do Estoque para o dropdown de filamento e o preço vivo (D3). O
@@ -121,8 +121,8 @@ export function PricingCalculator() {
 
 
   const pricingResult = useMemo(
-    () => calculatePricing(form.product, machines, fixedCosts, stock, supplies),
-    [fixedCosts, form.product, machines, stock, supplies],
+    () => calculatePricing(form.product, machines, fixedCosts, energyTariff, stock, supplies),
+    [fixedCosts, energyTariff, form.product, machines, stock, supplies],
   );
 
   const capacityResult = useMemo(
@@ -483,6 +483,7 @@ export function PricingCalculator() {
           machines={machines}
           stock={stock}
           fixedCosts={fixedCosts}
+          energyTariff={energyTariff}
           onClose={() => setSaleOpen(false)}
         />
       ) : null}

@@ -1,5 +1,4 @@
 import { num } from "@/lib/number";
-import { DEFAULT_PRODUCT_INPUT } from "../constants";
 import { MAIN_STAGE_KEY, normalizeStages, stageKeyFor } from "./calculatePricing";
 import {
   colorKeyOf,
@@ -98,7 +97,7 @@ export type EventRow = {
   printHours: number;
   filaments: FilRow[];
   laborCost: number; // labor congelado da etapa/subitem (não editado)
-  energyTariff: number; // tarifa do produto, congelada na linha
+  energyTariff: number; // tarifa GLOBAL vigente no instante do evento, congelada na linha
   // 7e: insumos da SUBMISSÃO, já em unidades por PLACA (qtd/peça × peças), para
   // escalarem junto das gramas. Vão só na PRIMEIRA linha: o acessório é do
   // PRODUTO, não da etapa — repetido por linha, um produto de duas etapas
@@ -203,9 +202,6 @@ export function accessoryRows(
 function stageLabor(laborMinutes: number, productRate: number): number {
   return (num(laborMinutes) / 60) * num(productRate);
 }
-
-const productEnergyTariff = (product: SavedProduct): number =>
-  num(product.energyTariff ?? DEFAULT_PRODUCT_INPUT.energyTariff);
 
 // [FROTA] Fase 1 — o RÓTULO de uma etapa dentro do nome do evento. Antes o
 // desambiguador era a MÁQUINA (as etapas vinham agrupadas por ela); agora que
@@ -358,9 +354,10 @@ export function wholeEventRows(
   product: SavedProduct,
   machines: Machine[],
   stock: StockFilament[],
+  energyTariff: number = 0,
 ): EventRow[] {
   const base = product.name || product.mainStageName || "(sem nome)";
-  const tariff = productEnergyTariff(product);
+  const tariff = num(energyTariff);
   // FEAT-11: cada etapa entra com a MESMA chave estável que o rateio por subitem
   // usa (`stageDetails` em `calculatePricing`) — é o fio que leva a cor da linha
   // até a parte certa quando o inteiro é produzido de uma vez.
@@ -434,10 +431,11 @@ export function subitemEventRows(
   subitem: SubitemPrice,
   stock: StockFilament[],
   machines: Machine[] = [],
+  energyTariff: number = 0,
 ): EventRow[] {
   const base = product.name || product.mainStageName || "(sem nome)";
   const pieces = Math.max(1, num(product.piecesCount) || 1);
-  const tariff = productEnergyTariff(product);
+  const tariff = num(energyTariff);
   const totalLabor = subitem.costBreakdown.labor * pieces;
 
   // As etapas DESTE subitem, nas mesmas chaves estáveis do rateio.

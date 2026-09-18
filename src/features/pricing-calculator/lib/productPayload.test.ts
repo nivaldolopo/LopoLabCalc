@@ -21,7 +21,6 @@ const salvo: SavedProduct = {
   mainStageName: "Corpo principal",
   machineIds: ["x2d"],
   printHours: 4.75,
-  energyTariff: 1.07,
   laborMinutes: 42,
   laborRate: 55.5,
   markup: 2.8,
@@ -176,7 +175,7 @@ describe("round-trip do formulário — abrir e salvar sem tocar em nada", () =>
     expect(achados).toEqual([]);
   });
 
-  it("etapa com tarifa/valor-hora legados: as chaves somem, o produto manda", () => {
+  it("etapa com tarifa/valor-hora legados: as chaves somem, o valor-hora do produto manda", () => {
     const sujo: SavedProduct = {
       ...salvo,
       stages: [{ ...salvo.stages[0], energyTariff: 9.99, laborRate: 999 } as never],
@@ -185,7 +184,6 @@ describe("round-trip do formulário — abrir e salvar sem tocar em nada", () =>
     const etapa = p.stages[0] as Record<string, unknown>;
     expect(etapa.energyTariff).toBeUndefined();
     expect(etapa.laborRate).toBeUndefined();
-    expect(p.energyTariff).toBe(1.07);
     expect(p.laborRate).toBe(55.5);
   });
 });

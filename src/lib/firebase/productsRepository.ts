@@ -44,7 +44,9 @@ function toSavedProduct(id: string, data: DocumentData): SavedProduct {
     // `calculatePricing`/form migram a partir do escalar `weightG`/preço abaixo.
     filaments: Array.isArray(data.filaments) ? data.filaments : undefined,
     filamentPricePerKg: Number(data.filamentPricePerKg) || 0,
-    energyTariff: Number(data.energyTariff) || 0,
+    // ⚠ `energyTariff` NÃO se lê mais daqui — virou GLOBAL (frente 2,
+    // 2026-09-17). Documento antigo que ainda trouxer a chave por produto
+    // carrega lixo inerte, ignorado (Diretriz 7: sem migração).
     laborMinutes: Number(data.laborMinutes) || 0,
     laborRate: Number(data.laborRate) || 0,
     markup: Number(data.markup) || 3,

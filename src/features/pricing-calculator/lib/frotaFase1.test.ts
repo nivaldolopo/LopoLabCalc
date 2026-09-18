@@ -102,6 +102,12 @@ const KIT = {
 
 const MACHINES: Machine[] = DEFAULT_MACHINES;
 
+// Frente 2 (2026-09-17): a tarifa virou GLOBAL. 0,8 é o valor que o `KIT`
+// carregava em `energyTariff` antes da migração — mantido para os números
+// travados abaixo não mudarem (o campo no literal do KIT agora é lixo inerte,
+// ignorado por `calculatePricing`).
+const ENERGY_TARIFF = 0.8;
+
 // ===========================================================================
 // 1. A TRAVA DO PREÇO
 // ===========================================================================
@@ -111,7 +117,7 @@ describe("[FROTA] Fase 1 — o preço NÃO muda", () => {
   // `calculatePricing` rodando de novo não provaria nada: ela acompanharia
   // qualquer regressão. Só o literal é trava.
   it("o produto inteiro sai pelo MESMO preço, componente a componente", () => {
-    const r = calculatePricing(KIT, MACHINES, DEFAULT_FIXED_COSTS, []);
+    const r = calculatePricing(KIT, MACHINES, DEFAULT_FIXED_COSTS, ENERGY_TARIFF, []);
     expect(r.suggestedPrice).toBeCloseTo(36.99978947368422, 10);
     expect(r.exactPrice).toBeCloseTo(36.99978947368422, 10);
     expect(r.totalCost).toBeCloseTo(14.964842105263157, 10);
@@ -127,7 +133,7 @@ describe("[FROTA] Fase 1 — o preço NÃO muda", () => {
   });
 
   it("cada SUBITEM sai pelo MESMO preço, e a soma segue sendo o inteiro", () => {
-    const r = calculatePricing(KIT, MACHINES, DEFAULT_FIXED_COSTS, []);
+    const r = calculatePricing(KIT, MACHINES, DEFAULT_FIXED_COSTS, ENERGY_TARIFF, []);
     const [corpo, base] = r.subitems!;
     expect(corpo.price).toBeCloseTo(23.975576453213144, 10);
     expect(base.price).toBeCloseTo(13.024213020471073, 10);
@@ -144,7 +150,7 @@ describe("[FROTA] Fase 1 — o preço NÃO muda", () => {
     // pressupõem que alguém atribuiu a impressora na hora de precificar, e é
     // essa atribuição que a taxa de frota desfez. Sobrou o conjunto ELEGÍVEL, a
     // união do da etapa principal com o de cada extra.
-    const r = calculatePricing(KIT, MACHINES, DEFAULT_FIXED_COSTS, []);
+    const r = calculatePricing(KIT, MACHINES, DEFAULT_FIXED_COSTS, ENERGY_TARIFF, []);
     expect(r.eligibleMachines.map((m) => m.id)).toEqual(["a1", "x2d"]);
     expect(r.machineMissing).toBe(false);
   });
@@ -157,7 +163,10 @@ describe("[FROTA] Fase 1 — o preço NÃO muda", () => {
 // A montagem ANTIGA, reconstruída à mão: as etapas AGRUPADAS por máquina, como
 // o `wholeEventRows` fazia antes da Fase 1. É contra ela que o dinheiro é
 // comparado — a única prova honesta de que o split não custou nada.
-function linhasAgrupadasPorMaquina(product: SavedProduct): EventRow[] {
+function linhasAgrupadasPorMaquina(
+  product: SavedProduct,
+  energyTariff: number,
+): EventRow[] {
   const porMaquina = new Map<string, EventRow>();
   const etapas = [
     {
@@ -191,7 +200,7 @@ function linhasAgrupadasPorMaquina(product: SavedProduct): EventRow[] {
         printHours: etapa.printHours,
         filaments: etapa.filaments.map((f) => resolveFilRow(f, [])),
         laborCost: etapa.labor,
-        energyTariff: product.energyTariff,
+        energyTariff,
         supplies: [],
       });
     }
@@ -209,7 +218,7 @@ const planejar = (rows: EventRow[], stock: StockFilament[] = []) => {
 
 describe("[FROTA] Fase 1 — uma linha por ETAPA", () => {
   it("3 etapas viram 3 eventos, mesmo com duas na mesma impressora", () => {
-    const rows = wholeEventRows(KIT, MACHINES, []);
+    const rows = wholeEventRows(KIT, MACHINES, [], ENERGY_TARIFF);
     expect(rows).toHaveLength(3);
     expect(rows.map((r) => r.machineId)).toEqual(["a1", "a1", "x2d"]);
     // É ISTO que conserta o `printedCount`: antes as duas primeiras eram um
@@ -218,7 +227,7 @@ describe("[FROTA] Fase 1 — uma linha por ETAPA", () => {
   });
 
   it("o nome de cada evento identifica a ETAPA (antes identificava a máquina)", () => {
-    const rows = wholeEventRows(KIT, MACHINES, []);
+    const rows = wholeEventRows(KIT, MACHINES, [], ENERGY_TARIFF);
     // O agrupamento por máquina não conseguia distinguir as duas etapas da A1 —
     // as duas cabiam no mesmo rótulo "Kit (A1 Combo)".
     expect(rows.map((r) => r.productName)).toEqual([
@@ -229,7 +238,7 @@ describe("[FROTA] Fase 1 — uma linha por ETAPA", () => {
   });
 
   it("os acessórios continuam na PRIMEIRA linha só — nunca repetidos por etapa", () => {
-    const rows = wholeEventRows(KIT, MACHINES, []);
+    const rows = wholeEventRows(KIT, MACHINES, [], ENERGY_TARIFF);
     expect(rows[0].supplies.map((s) => s.name)).toEqual(["Ima"]);
     expect(rows[1].supplies).toEqual([]);
     expect(rows[2].supplies).toEqual([]);
@@ -238,8 +247,8 @@ describe("[FROTA] Fase 1 — uma linha por ETAPA", () => {
   });
 
   it("o DINHEIRO é idêntico ao do agrupamento antigo — só a atribuição mudou", () => {
-    const novo = planejar(wholeEventRows(KIT, MACHINES, []));
-    const antigo = planejar(linhasAgrupadasPorMaquina(KIT));
+    const novo = planejar(wholeEventRows(KIT, MACHINES, [], ENERGY_TARIFF));
+    const antigo = planejar(linhasAgrupadasPorMaquina(KIT, ENERGY_TARIFF));
 
     // Contagem de eventos: 3 contra 2. É a única diferença desejada.
     expect(novo.built).toHaveLength(3);
@@ -270,7 +279,7 @@ describe("[FROTA] Fase 1 — uma linha por ETAPA", () => {
   });
 
   it("a repartição por máquina soma as etapas que caem na mesma impressora", () => {
-    const { summary } = planejar(wholeEventRows(KIT, MACHINES, []));
+    const { summary } = planejar(wholeEventRows(KIT, MACHINES, [], ENERGY_TARIFF));
     const a1 = summary.machineUsage.find((u) => u.machineId === "a1")!;
     const x2d = summary.machineUsage.find((u) => u.machineId === "x2d")!;
     expect(a1.hours).toBeCloseTo(4, 10); // 3 (principal) + 1 (tampa)
@@ -285,9 +294,9 @@ describe("[FROTA] Fase 1 — uma linha por ETAPA", () => {
 
 describe("[FROTA] Fase 1 — subitem também vira uma linha por etapa", () => {
   it("as etapas do subitem viram eventos próprios, com a máquina de CADA uma", () => {
-    const r = calculatePricing(KIT, MACHINES, DEFAULT_FIXED_COSTS, []);
+    const r = calculatePricing(KIT, MACHINES, DEFAULT_FIXED_COSTS, ENERGY_TARIFF, []);
     const corpo = r.subitems!.find((s) => s.id === "corpo")!;
-    const rows = subitemEventRows(KIT, corpo, [], MACHINES);
+    const rows = subitemEventRows(KIT, corpo, [], MACHINES, ENERGY_TARIFF);
     expect(rows).toHaveLength(2);
     expect(rows.map((row) => row.machineId)).toEqual(["a1", "a1"]);
     // Antes era UMA linha, com TODAS as horas na `machineUsage[0]`.
@@ -295,9 +304,9 @@ describe("[FROTA] Fase 1 — subitem também vira uma linha por etapa", () => {
   });
 
   it("a mão de obra do subitem é PRESERVADA — só se reparte entre as linhas", () => {
-    const r = calculatePricing(KIT, MACHINES, DEFAULT_FIXED_COSTS, []);
+    const r = calculatePricing(KIT, MACHINES, DEFAULT_FIXED_COSTS, ENERGY_TARIFF, []);
     const corpo = r.subitems!.find((s) => s.id === "corpo")!;
-    const rows = subitemEventRows(KIT, corpo, [], MACHINES);
+    const rows = subitemEventRows(KIT, corpo, [], MACHINES, ENERGY_TARIFF);
     // O total continua sendo `costBreakdown.labor × peças` — inclusive a fatia
     // dos PASSOS INTERNOS que o rateio aditivo embute e que não pertence a
     // nenhuma etapa. Somar só o labor das etapas barataria o evento.
@@ -325,9 +334,9 @@ describe("[FROTA] Fase 1 — subitem também vira uma linha por etapa", () => {
         },
       ],
     } as SavedProduct;
-    const r = calculatePricing(comInterno, MACHINES, DEFAULT_FIXED_COSTS, []);
+    const r = calculatePricing(comInterno, MACHINES, DEFAULT_FIXED_COSTS, ENERGY_TARIFF, []);
     const corpo = r.subitems!.find((s) => s.id === "corpo")!;
-    const rows = subitemEventRows(comInterno, corpo, [], MACHINES);
+    const rows = subitemEventRows(comInterno, corpo, [], MACHINES, ENERGY_TARIFF);
     const total = rows.reduce((sum, row) => sum + row.laborCost, 0);
     expect(total).toBeCloseTo(corpo.costBreakdown.labor * 2, 10);
     // E ele é MAIOR que o labor próprio das duas etapas (5 + 2,5): a diferença
@@ -342,7 +351,7 @@ describe("[FROTA] Fase 1 — subitem também vira uma linha por etapa", () => {
 
 describe("[FROTA] Fase 1 — submissionId", () => {
   it("os N eventos do lote carregam o id do PRIMEIRO, ele inclusive", () => {
-    const { built } = planejar(wholeEventRows(KIT, MACHINES, []));
+    const { built } = planejar(wholeEventRows(KIT, MACHINES, [], ENERGY_TARIFF));
     const payloads = buildProductionPayloads(built, {
       at: 1000,
       outcome: "estoque",
@@ -365,7 +374,7 @@ describe("[FROTA] Fase 1 — submissionId", () => {
       name: "Peça",
       stages: [],
     } as unknown as SavedProduct;
-    const { built } = planejar(wholeEventRows(simples, MACHINES, []));
+    const { built } = planejar(wholeEventRows(simples, MACHINES, [], ENERGY_TARIFF));
     const [p] = buildProductionPayloads(built, {
       at: 0,
       outcome: "estoque",
@@ -409,7 +418,7 @@ function produzir(units = 4): {
   horasA1: number;
   horasX2d: number;
 } {
-  const { built, summary } = planejar(wholeEventRows(PECA, MACHINES, []));
+  const { built, summary } = planejar(wholeEventRows(PECA, MACHINES, [], ENERGY_TARIFF));
   const entries = submissionEntries("Peça", summary.frozen, {
     color: NO_COLOR,
     units,
@@ -487,6 +496,7 @@ describe("[FROTA] Fase 1 — a venda congela a máquina REAL", () => {
       products: [PECA],
       machines: MACHINES,
       fixedCosts: DEFAULT_FIXED_COSTS,
+      energyTariff: ENERGY_TARIFF,
       at: 1000,
       createdAt: 1000,
       genId: () => `venda-ev${(n += 1)}`,

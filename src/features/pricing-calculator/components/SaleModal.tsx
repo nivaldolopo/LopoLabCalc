@@ -181,6 +181,7 @@ type SaleModalProps = {
   products: SavedProduct[];
   machines: Machine[];
   fixedCosts: FixedCostSettings;
+  energyTariff: number;
   // Eventos de produção — para resolver os `stockMoves` das encomendas do recibo
   // antigo ao editar (o doc da venda só guarda os `productionEventIds`).
   production: ProductionEvent[];
@@ -306,6 +307,7 @@ export function SaleModal({
   products,
   machines,
   fixedCosts,
+  energyTariff,
   production,
   onClose,
   onConfirm,
@@ -700,6 +702,7 @@ export function SaleModal({
         products,
         machines,
         fixedCosts,
+        energyTariff,
         at: toTimestamp(dateStr),
         // Preview: createdAt/genId não afetam o custo exibido (id de evento fixo).
         createdAt: 0,
@@ -708,7 +711,7 @@ export function SaleModal({
       // UX-42: o MESMO estorno que a gravação faz — sem ele o preview simula
       // sobre um saldo que já não existe.
       oldRecibo),
-    [reconItems, goods, stock, supplies, products, machines, fixedCosts, dateStr, oldRecibo],
+    [reconItems, goods, stock, supplies, products, machines, fixedCosts, energyTariff, dateStr, oldRecibo],
   );
   const reconByKey = useMemo(
     () => new Map(recon.items.map((r) => [r.key, r])),
@@ -742,19 +745,19 @@ export function SaleModal({
       if (item.source.subitemId) {
         const priced =
           precoCache.get(product.id) ??
-          calculatePricing(product, machines, fixedCosts, stock, supplies);
+          calculatePricing(product, machines, fixedCosts, energyTariff, stock, supplies);
         precoCache.set(product.id, priced);
         const sub = priced.subitems?.find((x) => x.id === item.source.subitemId);
         if (!sub) continue;
-        rows = subitemEventRows(product, sub, stock, machines);
+        rows = subitemEventRows(product, sub, stock, machines, energyTariff);
       } else {
-        rows = wholeEventRows(product, machines, stock);
+        rows = wholeEventRows(product, machines, stock, energyTariff);
       }
       out.set(item.key, encomendaMachineOptions(rows, machines));
       notes.set(item.key, encomendaAssignmentNote(rows, machines));
     }
     return { machineOptionsByKey: out, machineNoteByKey: notes };
-  }, [items, products, machines, stock, fixedCosts, supplies]);
+  }, [items, products, machines, stock, fixedCosts, energyTariff, supplies]);
 
   // Itens travados: há mais de uma candidata e o dono não escolheu. Uma
   // candidata só não trava — não há escolha a fazer, e a reconciliação carimba
@@ -865,6 +868,7 @@ export function SaleModal({
       products,
       machines,
       fixedCosts,
+      energyTariff,
       at: saleDate,
       createdAt: now,
       genId: newProductionId,

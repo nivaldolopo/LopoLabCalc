@@ -26,7 +26,13 @@ const cor = {
 } as unknown as StockFilament;
 const insumo = { id: "sup_argola", name: "Argola", archived: false } as unknown as Supply;
 
-const opcoes = { fixedCosts, stock: [cor], supplies: [insumo], existingNames: ["Ja existe"] };
+const opcoes = {
+  fixedCosts,
+  energyTariff: 0.8,
+  stock: [cor],
+  supplies: [insumo],
+  existingNames: ["Ja existe"],
+};
 
 // Monta um CSV de 1 linha a partir de pares coluna→valor.
 function csv(row: Record<string, string>): string {
@@ -526,19 +532,19 @@ describe("CSV-07 — o apontamento de milhar errava dos dois lados", () => {
 // ---------------------------------------------------------------------------
 
 describe("CSV-09 — coluna escalar presente e vazia caía em 0, não no default", () => {
-  // As 4 colunas cujo vazio NÃO significa zero (as outras 3 têm default 0/1).
+  // As 3 colunas cujo vazio NÃO significa zero (as outras têm default 0/1).
+  // ⚠ `Tarifa Energia` saiu daqui na frente 2 (2026-09-17) — a tarifa virou
+  // GLOBAL, não é mais coluna do CSV.
   const DEFAULTS = {
-    "Tarifa Energia": ["energyTariff", 0.8],
     "Valor-hora (R$)": ["laborRate", 30],
     "Mao de obra (min)": ["laborMinutes", 15],
     "Taxa Falha (%)": ["failureRate", 3],
   } as const;
 
-  it("as 4 presentes e EM BRANCO caem no default, e não avisam", () => {
+  it("as 3 presentes e EM BRANCO caem no default, e não avisam", () => {
     const r = parseProductsCsv(
       csv({
         ...LINHA_BOA,
-        "Tarifa Energia": "",
         "Valor-hora (R$)": "",
         "Mao de obra (min)": "",
         "Taxa Falha (%)": "",
@@ -547,7 +553,6 @@ describe("CSV-09 — coluna escalar presente e vazia caía em 0, não no default
       opcoes,
     );
     const p = r.products[0];
-    expect(p.energyTariff).toBe(0.8);
     expect(p.laborRate).toBe(30);
     expect(p.laborMinutes).toBe(15);
     expect(p.failureRate).toBe(3);
@@ -593,18 +598,16 @@ describe("CSV-09 — coluna escalar presente e vazia caía em 0, não no default
 
   it("coluna AUSENTE segue no default, calada (o comportamento que já valia)", () => {
     const r = parseProductsCsv(csv(LINHA_BOA), machines, opcoes);
-    expect(r.products[0].energyTariff).toBe(0.8);
     expect(r.products[0].laborRate).toBe(30);
     expect(r.issues).toBeUndefined();
   });
 
   it("valor escrito continua mandando", () => {
     const p = parseProductsCsv(
-      csv({ ...LINHA_BOA, "Tarifa Energia": "0,95", "Valor-hora (R$)": "45" }),
+      csv({ ...LINHA_BOA, "Valor-hora (R$)": "45" }),
       machines,
       opcoes,
     ).products[0];
-    expect(p.energyTariff).toBe(0.95);
     expect(p.laborRate).toBe(45);
   });
 });
@@ -653,28 +656,10 @@ describe("CSV-10 — o cabeçalho abreviado 'Filamentos' era roubado pelo PREÇO
 });
 
 describe("CSV-11 — a supressão do aviso engolia 2 colunas de ENTRADA", () => {
-  it('"Tarifa de Energia" agora é LIDA (era 0,8 calado)', () => {
-    const r = parseProductsCsv(
-      csv({ ...LINHA_BOA, "Tarifa de Energia": "99" }),
-      machines,
-      opcoes,
-    );
-    expect(r.products[0].energyTariff).toBe(99);
-    expect(r.warnings).toEqual([
-      'Coluna(s) lida(s) por aproximação — confira se o palpite está certo: ' +
-        '"Tarifa de Energia" → Tarifa Energia.',
-    ]);
-  });
-
-  it('"Energia (R$/kWh)" também', () => {
-    const p = parseProductsCsv(
-      csv({ ...LINHA_BOA, "Energia (R$/kWh)": "1,2" }),
-      machines,
-      opcoes,
-    ).products[0];
-    expect(p.energyTariff).toBe(1.2);
-  });
-
+  // ⚠ Os dois casos de "Tarifa de Energia"/"Energia (R$/kWh)" saíram daqui na
+  // frente 2 (2026-09-17): a tarifa virou GLOBAL, não é mais lida do CSV — uma
+  // planilha com essa coluna cai em "coluna ignorada" (CSV-05: avisa, não
+  // engole), como qualquer outro cabeçalho que o app não reconhece.
   it('"Inclui custo fixo" agora é LIDA (era false calado)', () => {
     const r = parseProductsCsv(
       csv({ ...LINHA_BOA, "Inclui custo fixo": "sim" }),
@@ -688,13 +673,12 @@ describe("CSV-11 — a supressão do aviso engolia 2 colunas de ENTRADA", () => 
     ]);
   });
 
-  it("a coluna CALCULADA 'Energia (R$)' não vira tarifa nem acende aviso", () => {
+  it("a coluna CALCULADA 'Energia (R$)' não acende aviso de coluna ignorada", () => {
     const r = parseProductsCsv(
       csv({ ...LINHA_BOA, "Energia (R$)": "3,40" }),
       machines,
       opcoes,
     );
-    expect(r.products[0].energyTariff).toBe(0.8);
     expect(r.warnings).toEqual([]);
   });
 
@@ -1849,7 +1833,6 @@ describe("AUD-14/D1 — o decimal que o Excel transformou em milhar", () => {
       Markup: "1.234.567x",
       "Mao de obra (min)": "1.234.567",
       "Valor-hora (R$)": "1.234.567",
-      "Tarifa Energia": "1.234.567",
       "Tempo (min)": "1.234.567",
     };
     Object.entries(colunas).forEach(([coluna, valor]) => {
@@ -2227,7 +2210,7 @@ describe("AUD-17 [E6] — id de máquina inexistente dentro do Etapas JSON", () 
         machines,
         opcoes,
       );
-      return calculatePricing(r.products[0], machines, fixedCosts, [cor])
+      return calculatePricing(r.products[0], machines, fixedCosts, 0.8, [cor])
         .suggestedPrice;
     };
     // ⚠ Quem move o PREÇO é o descarte TOTAL, não o parcial: o `resolveFleet`

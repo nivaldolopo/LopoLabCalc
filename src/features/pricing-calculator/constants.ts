@@ -83,6 +83,15 @@ export const DEFAULT_FIXED_COSTS: FixedCostSettings = {
   daysMonth: 26,
 };
 
+// Tarifa de energia GLOBAL (R$/kWh), frente 2 (2026-09-17) — era por produto
+// (`ProductInput.energyTariff`), virou alavanca do `config/negocio`, como o
+// custo fixo. Valor-alvo decidido pelo dono a partir da fatura Neoenergia de
+// set/2026: base R$0,9914/kWh + a bandeira mais cara do ano (Escassez Hídrica,
+// R$0,0949/kWh nominal ANEEL, com o mesmo gross-up de imposto que a bandeira
+// Amarela levou na fatura) — em vez da bandeira do mês corrente, porque a
+// variação entre bandeiras é pequena e não vale reabrir o número a cada troca.
+export const DEFAULT_ENERGY_TARIFF = 1.11;
+
 // TD-010 (2026-08-13): o antigo `DEFAULT_CAPACITY` foi REMOVIDO. Ele era o
 // literal que fazia a calculadora projetar 1 máquina enquanto o /catalogo e o
 // rateio do custo fixo usavam o rate salvo (2) — duas fontes de verdade. Hoje as
@@ -92,14 +101,10 @@ export const DEFAULT_FIXED_COSTS: FixedCostSettings = {
 // placeholders (o usuário informa por produto). Os defaults abaixo foram auditados:
 // • filamentPricePerKg 110 — PLA no Brasil (jul/2026) custa R$80–130/kg; premium
 //   (Voolt/Slim/3DFila) ~R$105–128. R$110 é o centro do mercado. ✓
-// • energyTariff 0,80 R$/kWh — revisado (TD-012, ago/2026): a média nacional
-//   residencial projetada pela ANEEL para o fim de 2026 é ~R$0,849/kWh (faixa
-//   larga por região), então R$0,80 está um pouco ABAIXO dela — não acima, como
-//   dizia o comentário antigo (~R$0,68). O valor FICA: energia é ~1,9% do custo e
-//   subir para R$0,95 move o cenário base em ~R$0,13. Ideal segue o mesmo: o
-//   usuário põe o valor da PRÓPRIA conta de luz (com ICMS/PIS-COFINS + bandeira).
 // • markup 3 (3×) e laborRate 30 R$/h são DECISÕES de negócio, não "fatos" — 2–4× é
 //   a faixa típica de markup em impressão 3D; ambos editáveis.
+// ⚠ `energyTariff` NÃO mora mais aqui — virou alavanca GLOBAL (frente 2,
+// 2026-09-17), ver `DEFAULT_ENERGY_TARIFF` acima.
 export const DEFAULT_PRODUCT_INPUT: ProductInput = {
   name: "",
   mainStageName: "",
@@ -112,7 +117,6 @@ export const DEFAULT_PRODUCT_INPUT: ProductInput = {
   // com badge de dado órfão.
   machineIds: [],
   filamentPricePerKg: 110,
-  energyTariff: 0.8,
   laborMinutes: 10,
   laborRate: 30,
   markup: 3,

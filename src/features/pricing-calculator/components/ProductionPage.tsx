@@ -90,7 +90,7 @@ export function ProductionPage() {
   const { filaments: stock } = useStock();
   // 7e: insumos para a baixa dos acessórios ligados (o avulso segue só no custo).
   const { supplies } = useSupplies();
-  const { fixedCostRate } = useBusinessSettings();
+  const { fixedCostRate, energyTariff } = useBusinessSettings();
   // O custo fixo NÃO entra no frozenCost da produção — só uso o `calculatePricing`
   // pelos subitens/consumo, e nada que eu leio depende do fixo. `enabled: false`.
   const fixedCosts = useMemo<FixedCostSettings>(
@@ -150,11 +150,11 @@ export function ProductionPage() {
     for (const product of products) {
       map.set(
         product.id,
-        calculatePricing(product, machines, fixedCosts, stock, supplies),
+        calculatePricing(product, machines, fixedCosts, energyTariff, stock, supplies),
       );
     }
     return map;
-  }, [products, machines, fixedCosts, stock, supplies]);
+  }, [products, machines, fixedCosts, energyTariff, stock, supplies]);
 
   // Opções do seletor: produto inteiro + cada subitem vendável + "Avulso".
   const options = useMemo(() => {
@@ -206,7 +206,7 @@ export function ProductionPage() {
         },
       ],
       laborCost: 0,
-      energyTariff: DEFAULT_PRODUCT_INPUT.energyTariff ?? 0,
+      energyTariff,
       // Impressão avulsa não tem produto, logo não tem acessório para dar baixa.
       supplies: [],
     };
@@ -222,7 +222,7 @@ export function ProductionPage() {
     }
     if (key.startsWith("whole:")) {
       const product = products.find((p) => p.id === key.slice("whole:".length));
-      setRows(product ? wholeEventRows(product, machines, stock) : []);
+      setRows(product ? wholeEventRows(product, machines, stock, energyTariff) : []);
       return;
     }
     if (key.startsWith("sub:")) {
@@ -231,7 +231,11 @@ export function ProductionPage() {
       const sub = pricingByProduct
         .get(productId ?? "")
         ?.subitems?.find((s) => s.id === subitemId);
-      setRows(product && sub ? subitemEventRows(product, sub, stock, machines) : []);
+      setRows(
+        product && sub
+          ? subitemEventRows(product, sub, stock, machines, energyTariff)
+          : [],
+      );
       return;
     }
     setRows([]);

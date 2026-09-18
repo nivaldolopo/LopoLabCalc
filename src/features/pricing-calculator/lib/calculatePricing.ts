@@ -144,10 +144,10 @@ export function calculateFixedCostSummary(
   };
 }
 
-// `energyTariff` e `laborRate` chegam do PRODUTO e valem para todas as etapas —
-// não são fallback de um override por etapa. A etapa que os trouxesse (doc
-// antigo, CSV à mão) seria a única fonte de divergência entre o preço e o custo
-// real da produção, que sempre usou o do produto.
+// `energyTariff` (GLOBAL, frente 2) e `laborRate` (do PRODUTO) valem para
+// TODAS as etapas — não são fallback de um override por etapa. A etapa que os
+// trouxesse (doc antigo, CSV à mão) seria a única fonte de divergência entre o
+// preço e o custo real da produção, que sempre usou os mesmos dois valores.
 export function calculateStageCost(
   stage: PrintStage,
   machines: Machine[],
@@ -192,6 +192,7 @@ export function calculatePricing(
   product: ProductInput,
   machines: Machine[],
   fixedCosts: FixedCostSettings,
+  energyTariff: number,
   stock: StockFilament[] = [],
   supplies: Supply[] = [],
 ): PricingResult {
@@ -215,7 +216,7 @@ export function calculatePricing(
       laborMinutes: product.laborMinutes,
     },
     machines,
-    product.energyTariff,
+    energyTariff,
     product.laborRate,
     stockById,
   );
@@ -257,7 +258,7 @@ export function calculatePricing(
     const cost = calculateStageCost(
       stage,
       machines,
-      product.energyTariff,
+      energyTariff,
       product.laborRate,
       stockById,
     );

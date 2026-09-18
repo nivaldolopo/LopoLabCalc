@@ -85,6 +85,7 @@ type ProductCatalogProps = {
   // planilha contra os insumos que existem de verdade.
   supplies: Supply[];
   fixedCosts: FixedCostSettings;
+  energyTariff: number;
   pricingByProduct: Map<string, PricingResult>;
   capacitySettings: CapacitySettings;
   // UX-10: taxas de pagamento só para EXIBIR a margem líquida ao lado da bruta.
@@ -117,6 +118,7 @@ export function ProductCatalog({
   stock,
   supplies,
   fixedCosts,
+  energyTariff,
   pricingByProduct,
   capacitySettings,
   fees,
@@ -159,8 +161,8 @@ export function ProductCatalog({
   const resultFor = useCallback(
     (product: SavedProduct) =>
       pricingByProduct.get(product.id) ??
-      calculatePricing(product, machines, fixedCosts, stock, supplies),
-    [pricingByProduct, machines, fixedCosts, stock, supplies],
+      calculatePricing(product, machines, fixedCosts, energyTariff, stock, supplies),
+    [pricingByProduct, machines, fixedCosts, energyTariff, stock, supplies],
   );
 
   const sortedProducts = useMemo(() => {
@@ -231,7 +233,7 @@ export function ProductCatalog({
   }
 
   function exportCsv() {
-    const csv = exportProductsCsv(products, machines, fixedCosts, stock, supplies);
+    const csv = exportProductsCsv(products, machines, fixedCosts, energyTariff, stock, supplies);
     downloadCsv("catalogo-precos-3d.csv", csv);
   }
 
@@ -248,6 +250,7 @@ export function ProductCatalog({
           issues,
         } = parseProductsCsv(content, machines, {
           fixedCosts,
+          energyTariff,
           stock,
           supplies,
           // CSV-05: nome repetido não substitui nada — entra produto novo.

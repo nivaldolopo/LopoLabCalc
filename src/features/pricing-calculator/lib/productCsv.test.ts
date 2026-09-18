@@ -52,7 +52,6 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
     machineIds: ["x2d"],
     printHours: 3.8,
     piecesCount: 2,
-    energyTariff: 0.92,
     laborMinutes: 10,
     laborRate: 30,
     markup: 2.8,
@@ -140,8 +139,12 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
   };
 }
 
+// Frente 2 (2026-09-17): a tarifa virou GLOBAL — o valor aqui é irrelevante
+// para o round-trip do PRODUTO (ele não guarda mais tarifa nenhuma).
+const ENERGY_TARIFF = 0.92;
+
 function roundTrip(product: SavedProduct): ProductPayload {
-  const csv = exportProductsCsv([product], machines, fixedCosts, []);
+  const csv = exportProductsCsv([product], machines, fixedCosts, ENERGY_TARIFF, []);
   const { products } = parseProductsCsv(csv, machines);
   return products[0];
 }
@@ -260,7 +263,6 @@ describe("productCsv — CSV escrito à mão (números em pt-BR)", () => {
     "Markup",
     "Taxa Falha (%)",
     "Filamento (R$/kg)",
-    "Tarifa Energia",
     "Mao de obra (min)",
     "Valor-hora (R$)",
     "Inclui Fixo",
@@ -278,7 +280,6 @@ describe("productCsv — CSV escrito à mão (números em pt-BR)", () => {
       markup: "2,8",
       falha: "7",
       filamento: "118",
-      energia: "0,92",
       mao: "25",
       hora: "35",
       fixo: "sim",

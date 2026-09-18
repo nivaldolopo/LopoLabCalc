@@ -30,7 +30,7 @@
 | # | Frente | Tipo | Entrega |
 |---|---|---|---|
 | 1 | ✅ **Designer: pedido do PDF + checklist da marca** | conversa, sem código | os dois no Drive |
-| 2 | **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
+| 2 | ✅ **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
 | — | **Drive (LopoLabCalc)** | organização da pasta do projeto | só o que é do projeto, sem código |
@@ -113,31 +113,10 @@ entrou/mudou/saiu** no bloco "O que mudou nesta lista", com data — foi pedido 
 > [`HISTORICO.md`](HISTORICO.md). Nada dele encosta neste backlog.
 
 ### 2 · Aba de Configurações — mover o `config/` pra Configurações
-✅ **Movimentação de UI fechada em 2026-09-17.** As 4 seções (máquinas, custo fixo, taxas, dados do
-negócio) saíram das telas onde viviam e **moveram de vez** (dono, sem deixar cópia nem atalho) para
-um **modal único com abas** (`SettingsModal.tsx`) — não uma página: o dono pediu explicitamente que
-Configurações não abra outras janelas, só esse modal (o `RepriceGate` continua empilhando por cima
-quando máquina/custo fixo mexem em preço — já era assim dentro do antigo `MachineManagerModal`, não
-é regressão). A rota `/configuracoes` foi removida; o ⚙ do `PageHeader` e o "Ver quais" do
-`RepriceNotice` abrem o modal via contexto (`SettingsModalHost.tsx`), não navegação. A calculadora
-ficou só com o TOGGLE "incluir custo fixo nesta peça" (por-produto); a taxa em si só se edita em
-Configurações → Custo fixo.
-
-⚠ **Restou 1 peça, ainda não codada: a tarifa de energia vira campo GLOBAL** (hoje é
-`ProductInput.energyTariff`, por produto). Decisões já tomadas no chat de 2026-09-17 — não
-reabrir:
-- **Valor-alvo ~R$1,11/kWh** (fatura Neoenergia set/2026: base R$0,9914/kWh + pior bandeira —
-  Escassez Hídrica, R$0,0949/kWh nominal ANEEL, com o mesmo gross-up de imposto que a bandeira
-  Amarela levou nesta fatura — em vez da bandeira do mês, porque a variação entre bandeiras é
-  pequena e não vale reabrir o número a cada troca).
-- **Vira alavanca do `RepriceGate`**, como máquinas/custo fixo — muda o preço do catálogo inteiro
-  sem ser opt-in por produto (todo produto usa energia), então pede prévia igual às outras duas.
-- **Impacto real, medido no código antes de codar:** `calculatePricing`/`calculateStageCost` deixam
-  de ler `product.energyTariff` (~19 arquivos chamam `calculatePricing`); `productionPlan.ts`
-  **congela** a tarifa na linha do evento — o congelamento passa a vir do valor GLOBAL vigente na
-  hora do evento, não mais do produto; a coluna **"Tarifa Energia" sai do CSV** de carga em massa
-  (contrato com a planilha do sistema externo do dono, avisar se for buscar essa frente).
-- Dado de teste não migra (Diretriz 6) — `energyTariff` só some do documento no próximo save.
+✅ **FECHADA em 2026-09-18 — as duas partes.** A movimentação de UI (4 seções para um modal único
+com abas, `SettingsModal.tsx`) e a tarifa de energia virando alavanca GLOBAL (`config/negocio`, aba
+"Energia" própria) estão as duas prontas. Writeup completo (porquê do valor-alvo, o que mudou no
+código, a coluna que saiu do CSV) no `HISTORICO.md`.
 
 ### 3 · Checklist e uso real
 - **O que se apaga** (dado de teste): `products`, `vendas`, `orcamentos`, `estoque`, `insumos`,

@@ -69,12 +69,13 @@ export type PrintStage = {
   machineIds: string[];
   printHours: number;
   laborMinutes: number;
-  // ⚠ NÃO devolver `energyTariff`/`laborRate` para cá. Os dois são do PRODUTO:
-  // não há campo para informá-los por etapa, o save sempre escreveu o valor do
-  // produto em toda etapa, e a produção nunca leu o da etapa. Enquanto o tipo
-  // os aceitava, o preço podia divergir do custo real por um dado que ninguém
-  // conseguia digitar. Documentos antigos ainda trazem as chaves — são lixo
-  // inerte, ignorado na leitura (Diretriz 7: sem migração).
+  // ⚠ NÃO devolver `energyTariff`/`laborRate` para cá. `laborRate` é do
+  // PRODUTO; `energyTariff` é GLOBAL (frente 2, 2026-09-17) — nenhum dos dois
+  // tem campo por etapa. O save sempre escreveu o valor do produto em toda
+  // etapa, e a produção nunca leu o da etapa. Enquanto o tipo os aceitava, o
+  // preço podia divergir do custo real por um dado que ninguém conseguia
+  // digitar. Documentos antigos ainda trazem as chaves — são lixo inerte,
+  // ignorado na leitura (Diretriz 7: sem migração).
   // FEAT-02: filamentos por cor (mono = array de 1). Fonte da verdade do custo
   // de material. Ausente em etapas legadas → migrado a partir dos escalares
   // abaixo por `normalizeFilaments`.
@@ -125,7 +126,6 @@ export type ProductInput = {
   printHours: number;
   // [FROTA] Fase 2 — as máquinas elegíveis da ETAPA PRINCIPAL. Ver `PrintStage`.
   machineIds: string[];
-  energyTariff: number;
   // FEAT-02: filamentos por cor da ETAPA PRINCIPAL (mono = array de 1). Fonte da
   // verdade do custo de material. Ausente em produtos legados → migrado a partir
   // dos escalares `weightG`/`filamentPricePerKg` por `normalizeFilaments`.
@@ -1113,9 +1113,9 @@ export type FinishedConsumptionResult = {
 // ===========================================================================
 
 // Qual alavanca se moveu. O critério de tratamento é a TELA em que o dono está:
-// as duas primeiras ele está olhando (pergunta antes), as duas últimas se movem
+// as três primeiras ele está olhando (pergunta antes), as duas últimas se movem
 // como efeito colateral de outra tarefa (conta depois).
-export type ChangeLever = "maquinas" | "custo-fixo" | "cor" | "insumo";
+export type ChangeLever = "maquinas" | "custo-fixo" | "energia" | "cor" | "insumo";
 
 // O estado de UMA alavanca, num instante. Chapado de propósito: o Firestore não
 // aceita `undefined`, e um campo por alavanca (com `null` no que não se aplica)
@@ -1126,6 +1126,9 @@ export type ChangeState = {
   machines: Machine[] | null;
   // `custo-fixo`: a taxa do `config/negocio` (sem o `enabled`, que é por-produto).
   fixedCostRate: FixedCostRate | null;
+  // `energia`: a tarifa GLOBAL do `config/negocio` (R$/kWh) — era por produto,
+  // virou alavanca (frente 2, 2026-09-17).
+  energyTariff: number | null;
   // `cor`/`insumo`: a cotação viva (R$/kg do rolo mais novo, R$/un do lote mais
   // novo). É só para a frase do registro — desfazer aqui seria apagar um lote.
   unitPrice: number | null;

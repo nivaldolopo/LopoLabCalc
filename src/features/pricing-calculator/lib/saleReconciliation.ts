@@ -132,6 +132,7 @@ export type ReconContext = {
   products: SavedProduct[];
   machines: Machine[];
   fixedCosts: FixedCostSettings;
+  energyTariff: number;
   at: number; // timestamp da venda (vira o `at` do evento de produção)
   createdAt: number;
   notes?: string;
@@ -179,6 +180,7 @@ function makeSubitemsResolver(ctx: ReconContext): (id: string) => SubitemPrice[]
           product,
           ctx.machines,
           ctx.fixedCosts,
+          ctx.energyTariff,
           ctx.colors,
           ctx.supplies,
         ).subitems ?? []
@@ -324,10 +326,10 @@ function applyForward(
     if (item.subitemId) {
       const sub = subitemsOf(item.productId).find((s) => s.id === item.subitemId);
       rows = sub
-        ? subitemEventRows(product, sub, colorsNow, ctx.machines)
+        ? subitemEventRows(product, sub, colorsNow, ctx.machines, ctx.energyTariff)
         : [];
     } else {
-      rows = wholeEventRows(product, ctx.machines, colorsNow);
+      rows = wholeEventRows(product, ctx.machines, colorsNow, ctx.energyTariff);
     }
 
     // [FROTA] Fase 2 — a máquina escolhida no modal preenche as linhas que

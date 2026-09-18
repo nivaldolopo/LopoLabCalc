@@ -76,7 +76,6 @@ const CSV_HEADERS = [
   "Markup",
   "Taxa Falha (%)",
   "Filamento (R$/kg)",
-  "Tarifa Energia",
   "Mao de obra (min)",
   "Valor-hora (R$)",
   "Inclui Fixo",
@@ -292,10 +291,10 @@ function objetoJson(
 // CSV-09: a célula de uma coluna ESCALAR. O default só valia quando a coluna
 // estava AUSENTE (`index >= 0 ? parseNumber(...) : DEFAULT`); presente, ela caía
 // no `parseNumber`, que devolve 0 para vazio e para ilegível — e em
-// `Tarifa Energia`, `Valor-hora`, `Mao de obra (min)` e `Taxa Falha` o vazio não
-// significa zero, significa 0,8 / 30 / 15 / 3. Medido: a MESMA linha, com essas
-// 4 colunas presentes e em branco, saía por R$ 21,24 em vez de R$ 30,10, com
-// `warnings: []`. Das 8 colunas, só `Markup` avisava.
+// `Valor-hora`, `Mao de obra (min)` e `Taxa Falha` o vazio não significa zero,
+// significa 30 / 15 / 3. Medido: a MESMA linha, com essas colunas presentes e
+// em branco, saía com o custo errado, com `warnings: []`. Das 8 colunas, só
+// `Markup` avisava.
 //
 // A regra passa a tratar igual os dois jeitos de não escrever nada — coluna
 // ausente e célula vazia caem no MESMO default — e a célula escrita que não dá
@@ -438,13 +437,15 @@ const COLUMN_SPECS = {
   failure: { exact: "Taxa Falha (%)", needle: "taxa falha" },
   laborMinutes: { exact: "Mao de obra (min)", needle: "mao de obra (min)" },
   laborRate: { exact: "Valor-hora (R$)", needle: "valor-hora" },
-  // CSV-11: needles curtos de propósito — "Tarifa de Energia" e "Inclui custo
-  // fixo" (o que uma planilha à mão escreve) não casavam com o needle longo e
-  // ainda eram engolidos pela supressão do aviso. Quem impede que "energia"
-  // roube a coluna CALCULADA "Energia (R$)" é a `COLUNAS_CALCULADAS`, logo
-  // abaixo. Em `includeFixed` o needle é "inclui", não "fixo": "fixo" casaria
+  // CSV-11: needle curto de propósito — "Inclui custo fixo" (o que uma
+  // planilha à mão escreve) não casava com o needle longo e ainda era engolido
+  // pela supressão do aviso. O needle é "inclui", não "fixo": "fixo" casaria
   // com qualquer coluna de custo fixo que alguém invente ao lado.
-  energy: { exact: "Tarifa Energia", needle: "energia" },
+  //
+  // ⚠ Frente 2 (2026-09-17): a coluna "Tarifa Energia" SAIU do CSV — a tarifa
+  // virou GLOBAL (config/negocio), não é mais dado por produto. Quem ainda tem
+  // essa coluna numa planilha externa a ignora na importação (não há mais
+  // `energy` aqui) e o export não a escreve mais.
   includeFixed: { exact: "Inclui Fixo", needle: "inclui" },
   rounding: { exact: "Arredondamento", needle: "arredondamento" },
   linkModel: { exact: "Link Modelo", needle: "link modelo" },
@@ -760,10 +761,10 @@ function parseStages(
       ),
       printHours: numFromJson(item.printHours, campo("printHours"), report),
       laborMinutes: numFromJson(item.laborMinutes, campo("laborMinutes"), report),
-      // `energyTariff`/`laborRate` da etapa são IGNORADOS de propósito: valem os
-      // do produto (colunas "Tarifa Energia" e "Valor-hora"). Um CSV que os
-      // traga na etapa não vira override — não há onde editá-los depois, e a
-      // produção sempre usou o do produto.
+      // `energyTariff`/`laborRate` da etapa são IGNORADOS de propósito: o
+      // primeiro é GLOBAL (frente 2) e nem existe mais como coluna do CSV; o
+      // segundo é do produto (coluna "Valor-hora"). Um CSV que os traga na
+      // etapa não vira override — não há onde editá-los depois.
     };
     // FEAT-02: usa as cores quando presentes; senão mantém os escalares legados
     // (migrados no cálculo por `normalizeFilaments`).
@@ -1074,6 +1075,7 @@ export function exportProductsCsv(
   products: SavedProduct[],
   machines: Machine[],
   fixedCosts: FixedCostSettings,
+  energyTariff: number,
   stock: StockFilament[] = [],
   supplies: Supply[] = [],
 ): string {
@@ -1082,6 +1084,7 @@ export function exportProductsCsv(
       product,
       machines,
       fixedCosts,
+      energyTariff,
       stock,
       supplies,
     );
@@ -1178,7 +1181,6 @@ export function exportProductsCsv(
       `${numeroPtBr(product.markup)}x`,
       numeroPtBr(product.failureRate ?? DEFAULT_FAILURE_RATE),
       numeroPtBr(mainFilaments[0]?.pricePerKg ?? 0),
-      numeroPtBr(product.energyTariff),
       numeroPtBr(product.laborMinutes),
       numeroPtBr(product.laborRate),
       includeFixed ? "sim" : "nao",
@@ -1250,6 +1252,10 @@ export type CsvImportResult = {
 // dos testes de parsing puro, que não têm negócio configurado).
 export type CsvParseOptions = {
   fixedCosts: FixedCostSettings;
+  // Frente 2 (2026-09-17) — a tarifa de energia é GLOBAL agora; entra aqui pelo
+  // mesmo motivo do `fixedCosts`: sem ela o recálculo de comparação não é
+  // comparável.
+  energyTariff: number;
   stock?: StockFilament[];
   // CSV-05: confere referências da planilha (o insumo ligado ao acessório, 7e) e
   // o nome já usado no catálogo. ⚠ TD-033: a lista de insumos deixou de ser só
@@ -1331,7 +1337,6 @@ export function parseProductsCsv(
   const indexFailure = col.failure;
   const indexLaborMinutes = col.laborMinutes;
   const indexLaborRate = col.laborRate;
-  const indexEnergy = col.energy;
   const indexIncludeFixed = col.includeFixed;
   const indexRounding = col.rounding;
   const indexLinkModel = col.linkModel;
@@ -1778,13 +1783,6 @@ export function parseProductsCsv(
           reportColuna,
         ),
         piecesCount,
-        energyTariff: cellNumber(
-          columns[indexEnergy],
-          indexEnergy >= 0,
-          "Tarifa Energia",
-          0.8,
-          reportColuna,
-        ),
         laborMinutes: cellNumber(
           columns[indexLaborMinutes],
           indexLaborMinutes >= 0,
@@ -2034,7 +2032,6 @@ export function parseProductsCsv(
       [indexFailure, "Taxa Falha (%)"],
       [indexLaborMinutes, "Mao de obra (min)"],
       [indexLaborRate, "Valor-hora (R$)"],
-      [indexEnergy, "Tarifa Energia"],
     ] as const).forEach(([index, coluna]) => {
       if (index < 0) return;
       const bruto = columns[index]?.trim();
@@ -2278,6 +2275,7 @@ export function parseProductsCsv(
           product,
           machines,
           options.fixedCosts,
+          options.energyTariff,
           options.stock ?? [],
           options.supplies ?? [],
         );

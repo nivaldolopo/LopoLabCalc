@@ -100,6 +100,7 @@ function ctx(over: Partial<ReconContext>): ReconContext {
     products: [],
     machines: DEFAULT_MACHINES,
     fixedCosts: NO_FIXED,
+    energyTariff: 0.8,
     at: 1000,
     createdAt: 2000,
     genId: () => `e${(n += 1)}`,

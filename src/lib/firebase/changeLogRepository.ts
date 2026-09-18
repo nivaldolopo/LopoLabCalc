@@ -37,7 +37,7 @@ const changesCollection = collection(db, "alteracoes");
 // era o que o TD-006 tirou da `producao`.
 export const CHANGE_LOG_PAGE = 100;
 
-const LEVERS: ChangeLever[] = ["maquinas", "custo-fixo", "cor", "insumo"];
+const LEVERS: ChangeLever[] = ["maquinas", "custo-fixo", "energia", "cor", "insumo"];
 const TIERS: MarginTier[] = ["bad", "ok", "good"];
 
 function toLever(value: unknown): ChangeLever {
@@ -86,6 +86,10 @@ function toState(data: DocumentData | undefined): ChangeState {
       raw.fixedCostRate && typeof raw.fixedCostRate === "object"
         ? toFixedCostRate(raw.fixedCostRate)
         : null,
+    energyTariff:
+      raw.energyTariff === undefined || raw.energyTariff === null
+        ? null
+        : num(raw.energyTariff),
     unitPrice:
       raw.unitPrice === undefined || raw.unitPrice === null
         ? null

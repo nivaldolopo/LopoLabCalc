@@ -47,6 +47,9 @@ import { round2 } from "@/lib/number";
 export type RepriceLevers = {
   machines: Machine[];
   fixedCosts: FixedCostSettings;
+  // Frente 2 (2026-09-17) — a tarifa de energia GLOBAL entrou no pacote pelo
+  // mesmo motivo do custo fixo: mexer nela reprecifica o catálogo inteiro.
+  energyTariff: number;
   stock: StockFilament[];
   supplies: Supply[];
 };
@@ -114,6 +117,7 @@ function priceOf(
     product,
     levers.machines,
     levers.fixedCosts,
+    levers.energyTariff,
     levers.stock,
     levers.supplies,
   );
