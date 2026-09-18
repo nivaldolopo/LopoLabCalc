@@ -126,10 +126,10 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
   do negócio → cores e insumos → catálogo (planilha, ver "A frente do DONO") → acessórios religados.
 - **A Diretriz 6 expira aqui** — o dono anuncia o marco; a partir dele, migração é obrigatória.
 - Pendências de prova que o uso real exercita: import >500, Excel/LibreOffice real.
-- **Antes de apagar o dado de teste, ligar o backup agendado do Firestore** (Console → Firestore →
-  Backups; recurso nativo, exige Blaze — já aprovado). Custo é só o de armazenar as cópias
-  (centavos/mês num banco deste tamanho). Vale nascer ligado **antes** do 1º cadastro real, não
-  depois — sem isso o dado real de verdade não tem rede de proteção nenhuma.
+- ✅ **Backup agendado do Firestore LIGADO (2026-09-18)** — `lopo-lab-calculadora` (produção),
+  diário, retenção 98 dias (Console → Firestore → Disaster Recovery, conta `lopolab3d`; o banco
+  `-test` ficou de fora, de propósito). Feito pela conta certa, sem CLI (`firebase-tools` segue
+  deslogado). Rede de proteção nasceu antes do 1º cadastro real, como pedia o item.
 
 ### Airtable e Drive (LopoLabCalc)
 - **✅ Airtable (2026-09-15, conferido em 2026-09-18):** o projeto **LopoLabCalc** tem 12 cartões na

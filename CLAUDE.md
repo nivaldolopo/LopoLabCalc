@@ -9,19 +9,16 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-18): tarifa de energia virou GLOBAL — frente 2 FECHADA.** Era
-  `ProductInput.energyTariff` (por produto); agora é `energyTariff` em `config/negocio`, alavanca do
-  `RepriceGate` como máquinas/custo fixo, com sua própria aba "Energia" no modal de Configurações.
-  `calculatePricing`/`calculateStageCost` deixaram de ler do produto (~19 chamadores atualizados);
-  `productionPlan.ts` congela o valor GLOBAL vigente no evento; a coluna "Tarifa Energia" saiu do
-  CSV de carga em massa (planilha externa do dono — avisado). Valor seed: R$1,11/kWh. Sem
-  migração (Diretriz 6); 1011 testes passam. Writeup e o porquê do valor no `HISTORICO.md`.
+- **Última mudança (2026-09-18): backup agendado do Firestore LIGADO em produção** —
+  `lopo-lab-calculadora`, diário, retenção 98 dias (Console Firestore → Disaster Recovery, conta
+  `lopolab3d`; o banco `-test` ficou de fora). Era o pré-requisito da frente 3 antes de apagar o
+  dado de teste. Sem código/commit — mudança feita direto no Console.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
-- **▶ PRÓXIMA TAREFA DESTE PROJETO — frente 3: checklist + uso real** (a foto do que se apaga,
-  a ordem do recadastro e o backup agendado do Firestore estão na seção **3** do
-  [`BACKLOG.md`](.claude/BACKLOG.md)). Frente 2 (Configurações) está inteira fechada.
+- **▶ PRÓXIMA TAREFA DESTE PROJETO — frente 3: checklist + uso real** (a foto do que se apaga e
+  a ordem do recadastro estão na seção **3** do [`BACKLOG.md`](.claude/BACKLOG.md); o backup já
+  está ligado). Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
   SISTEMA gera na hora pro `wa.me/...?text=`. Regra completa (e "sem iPhone") na seção do
   `BACKLOG.md` — ainda não codado.
