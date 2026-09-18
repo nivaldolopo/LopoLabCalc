@@ -119,17 +119,51 @@ com abas, `SettingsModal.tsx`) e a tarifa de energia virando alavanca GLOBAL (`c
 código, a coluna que saiu do CSV) no `HISTORICO.md`.
 
 ### 3 · Checklist e uso real
-- **O que se apaga** (dado de teste): `products`, `vendas`, `orcamentos`, `estoque`, `insumos`,
-  `acabados`, `producao`, `alteracoes`, `config/orcamentoSeq` — conferir coleção por coleção, e o
-  que o dono **já cadastrou de verdade** antes não pode ir junto.
-- **Ordem do cadastro real:** máquinas (a frota real tem 3) → custo fixo/capacidade → taxas → dados
-  do negócio → cores e insumos → catálogo (planilha, ver "A frente do DONO") → acessórios religados.
-- **A Diretriz 6 expira aqui** — o dono anuncia o marco; a partir dele, migração é obrigatória.
-- Pendências de prova que o uso real exercita: import >500, Excel/LibreOffice real.
 - ✅ **Backup agendado do Firestore LIGADO (2026-09-18)** — `lopo-lab-calculadora` (produção),
   diário, retenção 98 dias (Console → Firestore → Disaster Recovery, conta `lopolab3d`; o banco
   `-test` ficou de fora, de propósito). Feito pela conta certa, sem CLI (`firebase-tools` segue
   deslogado). Rede de proteção nasceu antes do 1º cadastro real, como pedia o item.
+
+- **Checklist do que se apaga** — conferido coleção por coleção **direto no Console de produção em
+  2026-09-18** (não é mais a lista teórica de antes, é o que está lá de fato hoje):
+
+  **Apaga (dado de teste):**
+  - [ ] `products` — catálogo de teste
+  - [ ] `vendas` — histórico de vendas de teste
+  - [ ] `orcamentos` — orçamentos de teste (**não confundir** com `config/orcamento`, doc separado
+    de dados do negócio — esse FICA, ver abaixo)
+  - [ ] `estoque` — estoque de teste por cor (o dono ainda não cadastrou cores/insumos definitivos —
+    ver "A frente do DONO", mais abaixo neste arquivo)
+  - [ ] `insumos` — insumos de teste
+  - [ ] `acabados` — camadas FIFO de acabado de teste
+  - [ ] `producao` — eventos de produção de teste
+  - [ ] `alteracoes` — ⚠ **decidir na hora, não é só teste**: hoje tem também registros REAIS
+    (mudanças globais já feitas de verdade em `config/machines`/`config/negocio`, ex. o
+    `energyTariff` global da frente 2). Apagar a coleção inteira é clean slate mas perde esse
+    histórico de auditoria; a alternativa é filtrar documento por documento antes — mais trabalho,
+    zero perda. É append-only por design (FEAT-12), então a escolha é do dono.
+  - [ ] `config/orcamentoSeq` — contador de numeração (`last: 23` na conferência de 2026-09-18);
+    apagar reseta o próximo orçamento pro nº 1 (o `historyFloor` cai pra 0 junto com `orcamentos`)
+
+  **NÃO apaga — já é dado real, confirmado no Console em 2026-09-18:**
+  - `config/machines` — a frota real (A1 Combo, X2D Combo, A1 Mini) já está cadastrada aqui, não é
+    dado de teste
+  - `config/negocio` — tarifa de energia e capacidade já configuradas (frente 2)
+  - `config/taxas` — taxas de pagamento
+  - `config/orcamento` — nome/telefone/e-mail/Instagram do negócio **já são os reais** (`Lopo Lab`,
+    `61999923505`, `@lopo_lab`, `contato@lopolab.com.br`); só o campo solto `lastNumber: 2` é lixo
+    morto (achado antigo da AUD) — limpável na mão, não bloqueia nada
+
+  **Como apagar, na hora:** Console Firebase (conta `lopolab3d`) → Firestore → Data → "⋮" da
+  coleção → *Delete collection* (uma por vez; `config/orcamentoSeq` é doc único, mesmo caminho).
+  Confirmar antes que o backup agendado já rodou pelo menos uma vez (ele é diário — dar 1 dia de
+  folga antes de apagar, ou disparar um backup manual pela mesma aba).
+
+- **Ordem do cadastro real:** máquinas (a frota real tem 3, já cadastrada) → custo fixo/capacidade →
+  taxas → dados do negócio → cores e insumos → catálogo (planilha, ver "A frente do DONO") →
+  acessórios religados.
+- **A Diretriz 6 expira aqui** — o dono anuncia o marco; a partir dele, migração é obrigatória.
+- Pendências de prova que o uso real exercita: import >500, Excel/LibreOffice real.
 
 ### Airtable e Drive (LopoLabCalc)
 - **✅ Airtable (2026-09-15, conferido em 2026-09-18):** o projeto **LopoLabCalc** tem 12 cartões na
