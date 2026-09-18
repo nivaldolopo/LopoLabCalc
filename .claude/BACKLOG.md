@@ -159,6 +159,14 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
   Confirmar antes que o backup agendado já rodou pelo menos uma vez (ele é diário — dar 1 dia de
   folga antes de apagar, ou disparar um backup manual pela mesma aba).
 
+  ✅ **Rede de segurança extra (2026-09-18): o banco de TESTE (`lopo-lab-calculadora-test`) já é um
+  clone exato da produção** (export/import nativo do Firestore, 281 documentos — zerado antes pra
+  não sobrar mistura com o que já tinha de dev local). Então o dado de hoje não desaparece quando a
+  produção for limpa — continua disponível em `pnpm dev`/Preview (DEC-07). Se o dono quiser esse
+  mesmo clone de novo mais perto da hora (produção muda até lá), repetir: Console → Firestore →
+  Import/Export → Export (bucket GCS temporário) → apagar coleções do `-test` → Import → apagar o
+  bucket.
+
 - **Ordem do cadastro real:** máquinas (a frota real tem 3, já cadastrada) → custo fixo/capacidade →
   taxas → dados do negócio → cores e insumos → catálogo (planilha, ver "A frente do DONO") →
   acessórios religados.

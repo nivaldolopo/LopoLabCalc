@@ -9,10 +9,14 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-18): checklist do que se apaga MONTADO, conferido no Console de
-  produção** — coleção por coleção (o que é teste × o que já é dado real, ex. `config/machines` já
-  tem a frota real, `config/orcamento` já tem nome/telefone/Instagram reais) — seção **3** do
-  [`BACKLOG.md`](.claude/BACKLOG.md). O backup diário (98 dias) já está ligado desde mais cedo hoje.
+- **Última mudança (2026-09-18): banco de TESTE (`lopo-lab-calculadora-test`) virou clone exato da
+  produção** — export/import nativo do Firestore (Console → Import/Export, bucket GCS temporário
+  criado e apagado na hora), 281 documentos. Era só `config/machines`+`config/negocio`+2 docs de
+  `alteracoes` (sobra de dev local pós-DEC-07); zerado antes do import pra não sobrar mistura. Serve
+  de rede de segurança pro dado de teste rico continuar disponível em local/Preview depois que a
+  produção for limpa pro cadastro real (frente 3). Checklist do que se apaga na produção também
+  ficou pronto, conferido coleção por coleção — seção **3** do [`BACKLOG.md`](.claude/BACKLOG.md).
+  O backup diário (98 dias) da produção já está ligado desde mais cedo hoje.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
