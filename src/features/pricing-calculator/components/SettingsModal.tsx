@@ -63,7 +63,7 @@ type SettingsModalProps = {
 export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalProps) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
   const { changes, error: changeLogError } = useChangeLog();
-  const { machines, rev, saveMachines } = useMachines();
+  const { machines, rev, loaded: machinesLoaded, saveMachines } = useMachines();
   const { fixedCostRate, saveFixedCostRate, error: fixedCostError } = useBusinessSettings();
   const { fees, saveFees, error: feesError } = useFees();
   const { business, saveBusiness } = useQuoteConfig();
@@ -135,7 +135,11 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
         tabs={tabStrip}
       >
         {tab === "maquinas" ? (
-          <MachinesSettingsPanel machines={machines} rev={rev} onSave={saveMachines} />
+          machinesLoaded ? (
+            <MachinesSettingsPanel machines={machines} rev={rev} onSave={saveMachines} />
+          ) : (
+            <p className="settings-tab-intro">Carregando máquinas…</p>
+          )
         ) : null}
 
         {tab === "custo-fixo" ? (

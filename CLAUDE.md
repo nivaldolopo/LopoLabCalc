@@ -9,12 +9,15 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-17): frente 2 (Configurações) — movimentação de UI fechada.** As 4
-  seções (máquinas, custo fixo, taxas, dados do negócio) saíram das telas de origem e viraram
-  abas de **um modal único** (`SettingsModal.tsx`, aberto via `SettingsModalHost`) — o dono pediu
-  explicitamente que não abra página nem outro modal, só esse; a `/configuracoes` foi removida. A
-  calculadora ficou só com o TOGGLE de custo fixo. Sem mudança de schema/cálculo (1014 testes
-  passam sem alteração). Detalhe em `BACKLOG.md` seção 2.
+- **Última mudança (2026-09-17): corrigida a aba Máquinas do modal de Configurações mostrando
+  menos impressoras que a calculadora** (2 em vez das 3 da frota real). Não era o `DEFAULT_MACHINES`
+  sobrescrevendo o Firestore — o Firestore já era a fonte da verdade (é de lá que a calculadora lê
+  certo). O bug era só visual: `useMachines` nasce com o placeholder `DEFAULT_MACHINES` até o 1º
+  snapshot chegar, e `MachinesSettingsPanel` congela `draft`/`base` via `useState(machines)` — como o
+  `SettingsModal` só monta ao abrir, ele quase sempre congelava o placeholder antes do dado real
+  chegar. Fix: `useMachines` ganhou `loaded` (true só após a 1ª resposta real do Firestore);
+  `SettingsModal` não monta `MachinesSettingsPanel` antes disso. Sem mudança de schema/cálculo (1014
+  testes passam sem alteração).
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.

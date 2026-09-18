@@ -53,6 +53,12 @@ export function useMachines() {
   const [machines, setMachines] = useState<Machine[]>(() =>
     cloneMachines(DEFAULT_MACHINES),
   );
+  // Fica falso até o PRIMEIRO retorno real do Firestore (dado, semeadura de
+  // doc ausente, ou erro/offline) — enquanto isso `machines` é só o
+  // placeholder do `DEFAULT_MACHINES`. Quem congela um rascunho a partir de
+  // `machines` (ex.: `MachinesSettingsPanel`) precisa esperar este `true`
+  // antes de montar, senão congela o placeholder em vez do dado real.
+  const [loaded, setLoaded] = useState(false);
   const seededRef = useRef(false);
   // AUD-18 — a versão do doc `config/machines` contra a qual `machines` foi
   // lido. Vai para o ESTADO, e não para uma `ref`, porque quem grava precisa
@@ -78,6 +84,7 @@ export function useMachines() {
             setMachines(seed);
             void persistMachines(seed, 0);
           }
+          setLoaded(true);
           return;
         }
         const resolved = nextMachines.length
@@ -86,10 +93,12 @@ export function useMachines() {
         servidorRef.current = resolved;
         setMachines(resolved);
         writeLocalMachines(resolved);
+        setLoaded(true);
       },
       () => {
         // Erro ao ler do Firestore (ex.: offline/regras) → fallback local.
         setMachines(readLocalMachines() ?? cloneMachines(DEFAULT_MACHINES));
+        setLoaded(true);
       },
     );
 
@@ -144,5 +153,5 @@ export function useMachines() {
     }
   }
 
-  return { machines, rev, saveMachines };
+  return { machines, rev, loaded, saveMachines };
 }
