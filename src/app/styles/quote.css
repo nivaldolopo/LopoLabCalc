@@ -1,9 +1,11 @@
 /* --- Página de orçamento (PDF) --- */
 
-.quote-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-16);
+/* Frente 2 (2026-09-17) — "Dados do negócio" saiu pra Configurações; sem ele
+   ao lado, este cartão parou de ter par e virou bloco único. O respiro até o
+   `.quote-items-card` seguinte era o `margin-bottom` do antigo `.quote-grid`
+   (a grade de 2 colunas que os hospedava) — ele sai com ela, e o cartão
+   carrega o próprio espaçamento agora. */
+.quote-card {
   margin-bottom: var(--space-16);
 }
 
@@ -271,10 +273,6 @@
 }
 
 @media (max-width: 760px) {
-  .quote-grid {
-    grid-template-columns: 1fr;
-  }
-
   .quote-footer {
     flex-direction: column-reverse;
     align-items: stretch;

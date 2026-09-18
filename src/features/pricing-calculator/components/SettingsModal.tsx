@@ -109,24 +109,31 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
     return "Esta alteração não pode ser desfeita.";
   }
 
+  const tabStrip = (
+    <div className="stock-tabs" role="tablist">
+      {TABS.map((item) => (
+        <button
+          key={item.key}
+          className={`stock-tab ${tab === item.key ? "active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={tab === item.key}
+          onClick={() => setTab(item.key)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <>
-      <Modal title="Configurações" onClose={onClose} className="settings-modal">
-        <div className="stock-tabs" role="tablist">
-          {TABS.map((item) => (
-            <button
-              key={item.key}
-              className={`stock-tab ${tab === item.key ? "active" : ""}`}
-              type="button"
-              role="tab"
-              aria-selected={tab === item.key}
-              onClick={() => setTab(item.key)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
+      <Modal
+        title="Configurações"
+        onClose={onClose}
+        className="settings-modal"
+        tabs={tabStrip}
+      >
         {tab === "maquinas" ? (
           <MachinesSettingsPanel machines={machines} rev={rev} onSave={saveMachines} />
         ) : null}

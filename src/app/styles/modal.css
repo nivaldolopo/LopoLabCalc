@@ -43,6 +43,22 @@
   min-height: 0;
 }
 
+/* A faixa de abas (`tabs` do `Modal`) é uma 4ª linha FIXA da grade, entre
+   cabeçalho e corpo — só existe quando o modal a usa (`.has-tabs`), então o
+   template de 3 linhas dos outros 8 modais não muda. Ela precisa ficar FORA
+   do `.modal-body` que rola, senão trocar de aba exigiria rolar de volta ao
+   topo pra alcançar a fileira de novo. */
+.modal-box.has-tabs {
+  grid-template-rows: auto auto 1fr auto;
+}
+
+/* Sem padding vertical próprio: o `.stock-tabs` que mora dentro já tem
+   `margin-bottom` (stock.css) — duplicar o respiro aqui só afastaria demais a
+   faixa do conteúdo da aba. */
+.modal-tabs {
+  padding: 0 var(--space-24);
+}
+
 /* O ✕ que nenhum dos 8 modais tinha. Sai da rolagem junto com o cabeçalho —
    fechar não pode depender de rolar de volta ao topo.
    No celular ele sobe para 44px (UX-49, `responsive.css`): aqui é o alvo de

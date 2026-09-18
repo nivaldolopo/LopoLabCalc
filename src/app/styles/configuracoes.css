@@ -19,9 +19,28 @@
 
 /* O modal de Configurações (frente 2, 2026-09-17) hospeda a aba Máquinas, cuja
    grade de 7 colunas (`.machine-edit-row`, `modal.css`) já pedia 680px sozinha
-   — 860 sobra espaço pra faixa de abas sem apertar a tabela. */
+   — 860 sobra espaço pra faixa de abas sem apertar a tabela.
+
+   ⚠ ALTURA FIXA de propósito (dono, 2026-09-17): sem `height`, a caixa (grade
+   `auto 1fr auto` do `.modal-box`) encolhe/estica com o conteúdo de CADA aba —
+   trocar de aba fazia a caixa mudar de tamanho e as próprias abas pularem de
+   lugar na tela (a centralização do `.modal-overlay` recalcula em cima da
+   altura nova). Com `height` fixo (clampado pelo `max-height: 85vh` que o
+   `.modal-box` já tem, para caber em tela baixa), a caixa NUNCA muda: aba
+   curta sobra vazio embaixo, aba comprida (Máquinas com muitas impressoras,
+   Alterações de preço com o tempo) rola por dentro do `.modal-body`, que já é
+   `overflow-y: auto`. Nenhuma aba pode depender de crescer a caixa. */
 .modal-box.settings-modal {
   max-width: 860px;
+  height: min(620px, 85vh);
+}
+
+/* Este modal não passa `footer` pro `<Modal>` (nenhuma aba tem um botão único
+   de rodapé — cada uma aplica a própria mudança inline), então falta o
+   `padding-bottom` que o `.modal-actions` dá de graça aos outros 8 modais: sem
+   isto o último elemento de cada aba encostava no arredondamento da caixa. */
+.modal-box.settings-modal .modal-body {
+  padding-bottom: var(--space-24);
 }
 
 /* A linha de contexto no topo de cada aba — o que os `sub` dos modais que

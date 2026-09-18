@@ -16,6 +16,11 @@ type ModalProps = {
   // A linha explicativa abaixo do título. Fica no cabeçalho FIXO, junto do
   // título — é contexto da tarefa, não conteúdo que rola.
   sub?: ReactNode;
+  // Uma faixa de navegação FIXA entre o cabeçalho e o corpo (hoje só o
+  // `SettingsModal` usa, para as abas) — sem isto elas rolariam junto do
+  // conteúdo, e trocar de aba exigiria voltar ao topo pra trocar de novo.
+  // Ausente, a grade volta a ser a de sempre (`auto 1fr auto`).
+  tabs?: ReactNode;
   children: ReactNode;
   // Os botões da ação. Ficam no rodapé FIXO: o `SaleModal` mede 774px numa
   // viewport de 910px e antes deste componente eles rolavam junto do corpo,
@@ -52,6 +57,7 @@ const FOCUSABLE =
 export function Modal({
   title,
   sub,
+  tabs,
   children,
   footer,
   onClose,
@@ -122,7 +128,7 @@ export function Modal({
       <div
         aria-labelledby={titleId}
         aria-modal="true"
-        className={`modal-box${className ? ` ${className}` : ""}`}
+        className={`modal-box${tabs ? " has-tabs" : ""}${className ? ` ${className}` : ""}`}
         ref={boxRef}
         role="dialog"
         onKeyDown={onBoxKeyDown}
@@ -149,6 +155,8 @@ export function Modal({
             <X size={18} aria-hidden="true" />
           </button>
         </div>
+
+        {tabs ? <div className="modal-tabs">{tabs}</div> : null}
 
         <div className="modal-body" ref={bodyRef}>
           {children}
