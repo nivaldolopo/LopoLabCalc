@@ -44,7 +44,6 @@ import {
 import {
   apportionDiscount,
   discountAmountOf,
-  MAX_FEE_PCT,
   resolveFeeRate,
   saleItemFinancials,
 } from "../lib/paymentFees";
@@ -171,12 +170,9 @@ type SaleModalProps = {
   editRecibo?: EditReciboSeed | null;
   // Demais produtos do catálogo, para adicionar mais itens ao mesmo recibo.
   catalogItems: SaleModalContext[];
-  // Taxas por forma de pagamento (config global) + callback para editá-las ali.
+  // Taxas por forma de pagamento (config global) — só leitura aqui; a edição
+  // mora em Configurações → Taxas (`PaymentFeesPanel`).
   fees: PaymentFeeSettings;
-  onFeesChange?: (fees: PaymentFeeSettings) => void;
-  // TD-020: a última falha ao gravar as taxas. O editor grava a cada tecla e
-  // não espera o resultado, então a falha chega por aqui em vez de exceção.
-  feesError?: string | null;
   // Passo 8: dados vivos para a reconciliação (custo real + baixa por caminho).
   goods: FinishedGood[];
   stock: StockFilament[];
@@ -304,8 +300,6 @@ export function SaleModal({
   editRecibo,
   catalogItems,
   fees,
-  onFeesChange,
-  feesError,
   goods,
   stock,
   supplies,
@@ -543,7 +537,6 @@ export function SaleModal({
   });
   const [addPick, setAddPick] = useState("");
   const [stockPick, setStockPick] = useState("");
-  const [showFeesEditor, setShowFeesEditor] = useState(false);
   const [saving, setSaving] = useState(false);
   // Aviso inline (validação ou erro de gravação), no lugar do window.alert.
   const [error, setError] = useState<string | null>(null);
@@ -615,39 +608,6 @@ export function SaleModal({
     const next = !feePassedToCustomer;
     setFeePassedToCustomer(next);
     repriceItems(next, feeRatePct);
-  }
-
-  // TD-032: a entrada da taxa clampa no MESMO teto que a conta usa. Sem isto o
-  // campo guardava 100% e o `feeFraction` usava 95% — o preço de repasse saía
-  // ×20 sem que a tela tivesse dito nada. O `max` no `<input type="number">` é
-  // só a seta do stepper; quem digita passa por aqui.
-  function clampFeePct(valueStr: string) {
-    return Math.min(MAX_FEE_PCT, Math.max(0, Number(valueStr) || 0));
-  }
-
-  // Editor de taxas — planos (pix/dinheiro/outro) e a matriz de cartão por bandeira.
-  function updateFlatFee(key: "pix" | "dinheiro" | "outro", valueStr: string) {
-    if (!onFeesChange) return;
-    onFeesChange({ ...fees, [key]: clampFeePct(valueStr) });
-  }
-
-  function updateTierDebito(tier: CardBrandTier, valueStr: string) {
-    if (!onFeesChange) return;
-    const value = clampFeePct(valueStr);
-    onFeesChange({
-      ...fees,
-      card: { ...fees.card, [tier]: { ...fees.card[tier], debito: value } },
-    });
-  }
-
-  function updateTierCredito(tier: CardBrandTier, index: number, valueStr: string) {
-    if (!onFeesChange) return;
-    const value = clampFeePct(valueStr);
-    const credito = fees.card[tier].credito.map((v, i) => (i === index ? value : v));
-    onFeesChange({
-      ...fees,
-      card: { ...fees.card, [tier]: { ...fees.card[tier], credito } },
-    });
   }
 
   function updateItem(key: string, patch: Partial<CestaItem>) {
@@ -1259,113 +1219,7 @@ export function SaleModal({
             </span>
           </span>
         </button>
-        {onFeesChange ? (
-          <button
-            className="fee-edit-link"
-            type="button"
-            onClick={() => setShowFeesEditor((v) => !v)}
-          >
-            {showFeesEditor ? "Fechar taxas" : "Ajustar taxas"}
-          </button>
-        ) : null}
       </div>
-
-      {showFeesEditor && onFeesChange ? (
-        <div className="fee-editor">
-          <div className="fee-editor-title">Taxas da maquininha (%)</div>
-          {/* TD-020: offline a taxa mudava na tela e não chegava ao banco,
-              calada. As taxas valem para TODA venda seguinte — errar aqui é
-              errar o preço de todas elas. */}
-          {feesError ? (
-            <p className="form-error" role="alert">
-              {feesError}
-            </p>
-          ) : null}
-          <div className="fee-editor-grid">
-            <div className="fee-editor-item">
-              <label htmlFor={`${fieldId}-fee-pix`}>Pix</label>
-              <input
-                id={`${fieldId}-fee-pix`}
-                type="number"
-                min={0}
-                max={MAX_FEE_PCT}
-                step="0.1"
-                value={fees.pix ?? 0}
-                onChange={(event) => updateFlatFee("pix", event.target.value)}
-              />
-            </div>
-            <div className="fee-editor-item">
-              <label htmlFor={`${fieldId}-fee-dinheiro`}>Dinheiro</label>
-              <input
-                id={`${fieldId}-fee-dinheiro`}
-                type="number"
-                min={0}
-                max={MAX_FEE_PCT}
-                step="0.1"
-                value={fees.dinheiro ?? 0}
-                onChange={(event) => updateFlatFee("dinheiro", event.target.value)}
-              />
-            </div>
-            <div className="fee-editor-item">
-              <label htmlFor={`${fieldId}-fee-outro`}>Outro</label>
-              <input
-                id={`${fieldId}-fee-outro`}
-                type="number"
-                min={0}
-                max={MAX_FEE_PCT}
-                step="0.1"
-                value={fees.outro ?? 0}
-                onChange={(event) => updateFlatFee("outro", event.target.value)}
-              />
-            </div>
-          </div>
-          {CARD_BRAND_TIERS.map((tier) => (
-            <div className="fee-editor-tier" key={tier.value}>
-              <div className="fee-editor-subtitle">{tier.label}</div>
-              <div className="fee-editor-grid">
-                <div className="fee-editor-item">
-                  <label htmlFor={`${fieldId}-fee-${tier.value}-debito`}>
-                    Débito
-                  </label>
-                  <input
-                    id={`${fieldId}-fee-${tier.value}-debito`}
-                    type="number"
-                    min={0}
-                    max={MAX_FEE_PCT}
-                    step="0.1"
-                    value={fees.card[tier.value].debito ?? 0}
-                    onChange={(event) =>
-                      updateTierDebito(tier.value, event.target.value)
-                    }
-                  />
-                </div>
-                {fees.card[tier.value].credito.map((rate, index) => (
-                  <div className="fee-editor-item" key={index}>
-                    <label htmlFor={`${fieldId}-fee-${tier.value}-${index}`}>
-                      {index === 0 ? "Créd. à vista" : `Créd. ${index + 1}x`}
-                    </label>
-                    <input
-                      id={`${fieldId}-fee-${tier.value}-${index}`}
-                      type="number"
-                      min={0}
-                      max={MAX_FEE_PCT}
-                      step="0.1"
-                      value={rate ?? 0}
-                      onChange={(event) =>
-                        updateTierCredito(tier.value, index, event.target.value)
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-          <div className="fee-editor-hint">
-            Use os valores da sua maquininha (variam por bandeira e parcela). Salvo
-            na nuvem e compartilhado entre aparelhos.
-          </div>
-        </div>
-      ) : null}
 
       <div className="section-label cesta-label">
         {items.length > 1

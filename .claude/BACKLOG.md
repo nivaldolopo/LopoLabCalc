@@ -112,28 +112,32 @@ entrou/mudou/saiu** no bloco "O que mudou nesta lista", com data — foi pedido 
 > ⚠ **O site do designer virou projeto próprio, fora deste repo** — writeup breve no
 > [`HISTORICO.md`](HISTORICO.md). Nada dele encosta neste backlog.
 
-### 2 · Aba de Configurações — mover o `config/` pra `/configuracoes`
-⚠ **2026-09-16: a 1ª conta de energia real da loja já está disponível** (dono) — usar pra calibrar
-a tarifa de energia da precificação (hoje estimada) em vez do chute; pedir/ler a fatura na hora de
-desenhar esta frente, sem presumir o valor antes disso.
+### 2 · Aba de Configurações — mover o `config/` pra Configurações
+✅ **Movimentação de UI fechada em 2026-09-17.** As 4 seções (máquinas, custo fixo, taxas, dados do
+negócio) saíram das telas onde viviam e **moveram de vez** (dono, sem deixar cópia nem atalho) para
+um **modal único com abas** (`SettingsModal.tsx`) — não uma página: o dono pediu explicitamente que
+Configurações não abra outras janelas, só esse modal (o `RepriceGate` continua empilhando por cima
+quando máquina/custo fixo mexem em preço — já era assim dentro do antigo `MachineManagerModal`, não
+é regressão). A rota `/configuracoes` foi removida; o ⚙ do `PageHeader` e o "Ver quais" do
+`RepriceNotice` abrem o modal via contexto (`SettingsModalHost.tsx`), não navegação. A calculadora
+ficou só com o TOGGLE "incluir custo fixo nesta peça" (por-produto); a taxa em si só se edita em
+Configurações → Custo fixo.
 
-Inventário de 2026-09-15 (conferir no código antes de desenhar):
-
-| Config | Onde se edita hoje | Doc |
-|---|---|---|
-| Máquinas (frota, watts, pesos) | modal da calculadora | `config/machines` |
-| Custo fixo + capacidade | `FixedCostsPanel` na calculadora | `config/negocio` |
-| Taxas de pagamento | modal no fluxo de venda (`SaleFlow`/`SalesPage`) | `config/taxas` |
-| Dados do negócio | página Orçamento | `config/orcamento` |
-| Registro de alterações | já em `/configuracoes` | `alteracoes` |
-| **Fixos no código** | `constants.ts` | validade do orçamento (7), falha padrão (3%), manutenção/h, pagamento/canal padrão, 3 parcelas |
-
-- **A decisão por item:** mover de vez · deixar nos dois · **editar só lá + resumo com atalho no
-  lugar de uso** (ex.: taxa do cartão visível na venda). Pesar o que se perde: o custo fixo na
-  calculadora mostra o preço reagindo; a taxa na venda corrige no meio da venda.
-- ⚠ Já decidido: a página entra pelo ⚙ **fora das abas**. Máquinas e custo fixo **passam pelo
-  `RepriceGate`** onde quer que morem (FEAT-12). Mudar a casa **não muda o caminho do doc**.
-- Os campos novos do PDF (prazo/pagamento/termos padrão) nascem **já na casa nova**.
+⚠ **Restou 1 peça, ainda não codada: a tarifa de energia vira campo GLOBAL** (hoje é
+`ProductInput.energyTariff`, por produto). Decisões já tomadas no chat de 2026-09-17 — não
+reabrir:
+- **Valor-alvo ~R$1,11/kWh** (fatura Neoenergia set/2026: base R$0,9914/kWh + pior bandeira —
+  Escassez Hídrica, R$0,0949/kWh nominal ANEEL, com o mesmo gross-up de imposto que a bandeira
+  Amarela levou nesta fatura — em vez da bandeira do mês, porque a variação entre bandeiras é
+  pequena e não vale reabrir o número a cada troca).
+- **Vira alavanca do `RepriceGate`**, como máquinas/custo fixo — muda o preço do catálogo inteiro
+  sem ser opt-in por produto (todo produto usa energia), então pede prévia igual às outras duas.
+- **Impacto real, medido no código antes de codar:** `calculatePricing`/`calculateStageCost` deixam
+  de ler `product.energyTariff` (~19 arquivos chamam `calculatePricing`); `productionPlan.ts`
+  **congela** a tarifa na linha do evento — o congelamento passa a vir do valor GLOBAL vigente na
+  hora do evento, não mais do produto; a coluna **"Tarifa Energia" sai do CSV** de carga em massa
+  (contrato com a planilha do sistema externo do dono, avisar se for buscar essa frente).
+- Dado de teste não migra (Diretriz 6) — `energyTariff` só some do documento no próximo save.
 
 ### 3 · Checklist e uso real
 - **O que se apaga** (dado de teste): `products`, `vendas`, `orcamentos`, `estoque`, `insumos`,

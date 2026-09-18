@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import type { CloudStatus } from "../types";
 import { LogoutButton } from "./LogoutButton";
+import { useSettingsModal } from "./SettingsModalHost";
 
 type PageHeaderProps = {
   // O `<h1>` da página. É `ReactNode` (e não `string`) por causa da
@@ -62,6 +62,7 @@ export function PageHeader({
   theme,
   onToggleTheme,
 }: PageHeaderProps) {
+  const { openSettings } = useSettingsModal();
   return (
     // UX-29 — `<header>` de verdade, não `<div>`: com o `<nav>` da NavBar e o
     // `<main>` das 8 rotas, é o terceiro marco que faltava para a página ter
@@ -115,20 +116,22 @@ export function PageHeader({
             {theme === "dark" ? "Claro" : "Escuro"}
           </span>
         </button>
-        {/* [FEAT-12] — a porta da `/configuracoes`. Ela mora AQUI, ao lado do
+        {/* [FEAT-12] — a porta das Configurações. Ela mora AQUI, ao lado do
             tema e do sair, e não nas abas da NavBar: não é destino diário, e
             seria a 8ª aba numa linha de 7 (dono, 2026-09-08). No celular os três
             viram ícone puro no canto, junto do ☰ — o rótulo sai por CSS, como o
-            do tema. */}
-        <Link
+            do tema. Frente 2 (2026-09-17): abre um MODAL, não navega — a
+            `/configuracoes` deixou de ser rota. */}
+        <button
           className="icon-label-button"
-          href="/configuracoes"
+          type="button"
+          onClick={() => openSettings()}
           aria-label="Configurações e registro de alterações de preço"
           title="Configurações e registro de alterações de preço"
         >
           <Settings size={15} aria-hidden="true" />
           <span className="header-utils-label">Config</span>
-        </Link>
+        </button>
         <LogoutButton />
       </div>
     </header>

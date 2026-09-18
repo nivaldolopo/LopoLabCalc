@@ -193,7 +193,7 @@ export function SalesPage() {
   const { products } = useProducts();
   const { machines } = useMachines();
   const { fixedCostRate } = useBusinessSettings();
-  const { fees, saveFees, error: feesError } = useFees();
+  const { fees } = useFees();
   // Passo 8: dados vivos para a reconciliação (custo real + baixa por caminho).
   const { filaments: stock } = useStock();
   // 7e: insumos — o estorno da venda devolve também os acessórios da encomenda.
@@ -969,8 +969,6 @@ export function SalesPage() {
           editRecibo={editRecibo}
           catalogItems={catalogItems}
           fees={fees}
-          onFeesChange={saveFees}
-          feesError={feesError}
           goods={goods}
           stock={stock}
           supplies={supplies}
@@ -991,8 +989,6 @@ export function SalesPage() {
           seed={null}
           catalogItems={catalogItems}
           fees={fees}
-          onFeesChange={saveFees}
-          feesError={feesError}
           goods={goods}
           stock={stock}
           supplies={supplies}

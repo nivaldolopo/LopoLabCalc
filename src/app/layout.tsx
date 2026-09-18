@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { AuthGate } from "@/features/pricing-calculator/components/AuthGate";
 import { BackToTop } from "@/features/pricing-calculator/components/BackToTop";
+import { SettingsModalProvider } from "@/features/pricing-calculator/components/SettingsModalHost";
 import "./globals.css";
 
 const inter = Inter({
@@ -43,8 +44,10 @@ export default function RootLayout({
           <a className="skip-link" href="#conteudo">
             Pular para o conteúdo
           </a>
-          {children}
-          <BackToTop />
+          <SettingsModalProvider>
+            {children}
+            <BackToTop />
+          </SettingsModalProvider>
         </AuthGate>
       </body>
     </html>

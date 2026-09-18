@@ -5,28 +5,34 @@ import { useState } from "react";
 import { machinesProposal, type RepriceProposal } from "../lib/changeLog";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import type { Machine } from "../types";
-import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
 import { RepriceGate } from "./RepriceGate";
 
-type MachineManagerModalProps = {
-  open: boolean;
+type MachinesSettingsPanelProps = {
   machines: Machine[];
   // AUD-18 — a versão do doc de onde `machines` veio.
   rev: number;
-  onClose: () => void;
   // TD-020: devolve a mensagem de erro da gravação, ou `null` se deu certo —
-  // é o que permite ao modal NÃO fechar em cima de um save que não aconteceu.
+  // é o que permite ao painel NÃO limpar o rascunho em cima de um save que
+  // não aconteceu.
   onSave: (machines: Machine[], revEsperado: number) => Promise<string | null>;
 };
 
-export function MachineManagerModal({
-  open,
+/**
+ * A aba "Máquinas" do modal de Configurações.
+ *
+ * ⚠ Era `MachineManagerModal` — um `<Modal>` próprio, aberto por cima da
+ * calculadora. Virou aba (frente 2 do plano 2026-09-15): o conteúdo é o
+ * mesmo, só perdeu a casca de diálogo (título/rodapé/✕/overlay), que agora é
+ * do `SettingsModal` que o hospeda. O `RepriceGate` continua empilhando POR
+ * CIMA — isso já era assim quando isto era um modal (confirmação sobre
+ * diálogo é padrão aceito no app), e não muda com a mudança de casa.
+ */
+export function MachinesSettingsPanel({
   machines,
   rev,
-  onClose,
   onSave,
-}: MachineManagerModalProps) {
+}: MachinesSettingsPanelProps) {
   const [draft, setDraft] = useState<Machine[]>(machines);
   // [FEAT-12] — o "ANTES" da prévia. Congelado no MESMO `useState` do rascunho e
   // da `rev`, porque os três descrevem o mesmo instante (AUD-18): usar o
@@ -48,15 +54,13 @@ export function MachineManagerModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  if (!open) return null;
-
-  // Calculados no render (a lista é de 2-4 itens): memoizar aqui esconderia a
-  // conta atrás de um hook que não pode existir antes do `return null` acima.
+  // Calculados no render (a lista é de 2-4 itens): não vale memoizar.
   const zeradas = draft.filter((machine) => !(machine.weight > 0));
   const somaPesos = draft.reduce(
     (sum, machine) => sum + Math.max(0, machine.weight || 0),
     0,
   );
+  const sujo = JSON.stringify(draft) !== JSON.stringify(base);
 
   function updateMachine(index: number, patch: Partial<Machine>) {
     setDraft((current) =>
@@ -96,7 +100,7 @@ export function MachineManagerModal({
     );
   }
 
-  async function saveDraft() {
+  function saveDraft() {
     for (const machine of draft) {
       if (!machine.name.trim()) {
         setError("Toda máquina precisa de um nome.");
@@ -122,9 +126,7 @@ export function MachineManagerModal({
     const proposal = machinesProposal(base, draft, fixedCostRate);
     if (proposal.details.length === 0) {
       // Nada mudou de verdade (ou uma máquina foi adicionada e removida no mesmo
-      // rascunho). Gravar mesmo assim só queimaria uma `rev` e um documento de
-      // registro descrevendo mudança nenhuma.
-      onClose();
+      // rascunho). Não há o que aplicar.
       return;
     }
     setProposta(proposal);
@@ -142,34 +144,17 @@ export function MachineManagerModal({
   }
 
   return (
-    // UX-44/[FROTA] Fase 2 — `machine-modal`: a 6ª coluna (Peso) não cabia nos
-    // 560px da casca padrão, o campo Nome ficaria com 76px. A caixa alarga para
-    // 680; abaixo de 640 a fileira já vira cartão e a largura deixa de importar.
-    <Modal
-      title="Gerenciar Máquinas"
-      sub="Adicione, edite ou remova impressoras. Preço e vida útil calculam a depreciação; watts calcula a energia; manutenção/hora cobre bicos, placa, correias e demais consumíveis. O peso é a fatia de uso de cada uma na taxa de frota que precifica os produtos."
-      onClose={onClose}
-      className="machine-modal"
-      footer={
-        <>
-          <button
-            className="btn primary"
-            type="button"
-            onClick={saveDraft}
-            disabled={saving}
-          >
-            {saving ? "Salvando..." : "Salvar"}
-          </button>
-          <button className="btn btn-secondary" type="button" onClick={onClose}>
-            Cancelar
-          </button>
-        </>
-      }
-    >
-      {/* UX-44: no celular esta faixa some e cada campo carrega o próprio
-          rótulo (o `.me-label` abaixo) — a linha vira CARTÃO. Aqui ela é
-          decorativa: quem nomeia o campo para leitor de tela é o `aria-label`
-          de cada input, que existe nos dois modos. */}
+    <div>
+      <p className="settings-tab-intro">
+        Adicione, edite ou remova impressoras. Preço e vida útil calculam a
+        depreciação; watts calcula a energia; manutenção/hora cobre bicos,
+        placa, correias e demais consumíveis. O peso é a fatia de uso de cada
+        uma na taxa de frota que precifica os produtos.
+      </p>
+      {/* UX-44/[FROTA] Fase 2 — no celular esta faixa some e cada campo carrega
+          o próprio rótulo (o `.me-label` abaixo) — a linha vira CARTÃO. Aqui
+          ela é decorativa: quem nomeia o campo para leitor de tela é o
+          `aria-label` de cada input, que existe nos dois modos. */}
       <div className="machine-edit-header" aria-hidden="true">
         <span>Nome</span>
         <span>Preço (R$)</span>
@@ -305,6 +290,35 @@ export function MachineManagerModal({
       </div>
       {error ? <div className="form-error">{error}</div> : null}
 
+      {/* [FEAT-12] — a barra de aplicar, no mesmo molde do `FixedCostRatePanel`:
+          só existe quando o rascunho realmente difere do que está em vigor. */}
+      {sujo ? (
+        <div className="fc-apply" role="group" aria-label="Alteração pendente da frota">
+          <span className="fc-apply-text">
+            Esta alteração reprecifica <strong>todos os produtos</strong> que
+            usam as máquinas mexidas, em todos os aparelhos.
+          </span>
+          <button
+            className="btn primary"
+            type="button"
+            onClick={saveDraft}
+            disabled={saving}
+          >
+            {saving ? "Salvando..." : "Revisar e aplicar"}
+          </button>
+          <button
+            className="btn btn-secondary"
+            type="button"
+            onClick={() => {
+              setDraft(base);
+              setError(null);
+            }}
+          >
+            Descartar
+          </button>
+        </div>
+      ) : null}
+
       {proposta ? (
         <RepriceGate
           proposal={proposta}
@@ -312,12 +326,9 @@ export function MachineManagerModal({
           confirmLabel="Salvar e aplicar"
           onCommit={commit}
           onCancel={() => setProposta(null)}
-          // TD-020 continua valendo do outro lado: quem fecha este diálogo é o
-          // sucesso da gravação, não o clique. Com a prévia, o sucesso chega
-          // pelo `onDone`.
-          onDone={onClose}
+          onDone={() => setProposta(null)}
         />
       ) : null}
-    </Modal>
+    </div>
   );
 }

@@ -17,6 +17,22 @@
   max-width: 720px;
 }
 
+/* O modal de Configurações (frente 2, 2026-09-17) hospeda a aba Máquinas, cuja
+   grade de 7 colunas (`.machine-edit-row`, `modal.css`) já pedia 680px sozinha
+   — 860 sobra espaço pra faixa de abas sem apertar a tabela. */
+.modal-box.settings-modal {
+  max-width: 860px;
+}
+
+/* A linha de contexto no topo de cada aba — o que os `sub` dos modais que
+   viraram aba faziam antes da casca sumir. */
+.settings-tab-intro {
+  margin: 0 0 var(--space-16);
+  color: var(--muted);
+  font-size: var(--text-lg);
+  line-height: 1.5;
+}
+
 /* --- o que mudou, campo a campo ------------------------------------------ */
 
 .rp-details {

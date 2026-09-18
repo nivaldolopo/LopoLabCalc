@@ -165,10 +165,6 @@ export function QuotePage() {
     [items],
   );
 
-  function updateBusiness(patch: Partial<QuoteBusiness>) {
-    setBusiness((current) => ({ ...current, ...patch }));
-  }
-
   function updateItem(key: string, patch: Partial<QuoteItem>) {
     setItems((current) =>
       current.map((item) => (item.key === key ? { ...item, ...patch } : item)),
@@ -332,13 +328,6 @@ export function QuotePage() {
     }
   }
 
-  // TD-029 — os quatro campos do negócio gravam ao sair do campo, e a falha era
-  // engolida pelo `void`: offline o dado ficava só na tela, com o app calado.
-  async function persistBusiness(next: QuoteBusiness) {
-    const failure = await saveBusiness(next);
-    if (failure) fail(`Dados do negócio não foram salvos: ${failure}`);
-  }
-
   function reDownload(quote: QuoteRecord) {
     generateQuotePdf({
       business: quote.business,
@@ -393,138 +382,62 @@ export function QuotePage() {
       />
       <NavBar />
 
-      <div className="quote-grid">
-        <div className="card quote-card">
-          {/* UX-29 — os 4 títulos de cartão desta rota são `<h2>`. */}
-          <h2 className="section-label">
-            Dados do negócio <span className="label-hint">(saem no PDF)</span>
-          </h2>
+      <div className="card quote-card">
+        <h2 className="section-label">Dados do orçamento</h2>
+        <div className="two-col">
           <div className="field-block compact">
-            {/* UX-22 — este campo era o ÚNICO da tela sem rótulo visível (só um
-                `aria-label`), e era ele quem desalinhava os dois cartões: o da
-                direita começa com rótulo, este não, e os 15px de diferença
-                desciam por todas as linhas seguintes. O rótulo também resolve o
-                nome acessível de verdade — o placeholder some ao digitar. */}
-            <label className="section-label" htmlFor={`${fieldId}-business`}>
-              Nome do negócio
+            <label className="section-label" htmlFor={`${fieldId}-number`}>
+              Número
             </label>
-            <input
-              id={`${fieldId}-business`}
+            <NumberInput
+              id={`${fieldId}-number`}
               className="field-input"
-              type="text"
-              value={business.name}
-              onChange={(event) => updateBusiness({ name: event.target.value })}
-              onBlur={() => void persistBusiness(business)}
-              placeholder="Nome do negócio"
+              min={1}
+              value={quoteNumber}
+              onChange={(next) => {
+                numberEdited.current = true;
+                setQuoteNumber(next);
+              }}
             />
           </div>
-          <div className="two-col">
-            <div className="field-block compact">
-              <label className="section-label" htmlFor={`${fieldId}-phone`}>
-                Telefone / WhatsApp
-              </label>
-              <input
-                id={`${fieldId}-phone`}
-                className="field-input"
-                type="text"
-                value={business.phone}
-                onChange={(event) =>
-                  updateBusiness({ phone: event.target.value })
-                }
-                onBlur={() => void persistBusiness(business)}
-                placeholder="(00) 00000-0000"
-              />
-            </div>
-            <div className="field-block compact">
-              <label className="section-label" htmlFor={`${fieldId}-instagram`}>
-                Instagram
-              </label>
-              <input
-                id={`${fieldId}-instagram`}
-                className="field-input"
-                type="text"
-                value={business.instagram}
-                onChange={(event) =>
-                  updateBusiness({ instagram: event.target.value })
-                }
-                onBlur={() => void persistBusiness(business)}
-                placeholder="@lopolab"
-              />
-            </div>
-          </div>
           <div className="field-block compact">
-            <label className="section-label" htmlFor={`${fieldId}-email`}>
-              E-mail
+            <label className="section-label" htmlFor={`${fieldId}-customer`}>
+              Cliente <span className="label-hint">(opcional)</span>
             </label>
             <input
-              id={`${fieldId}-email`}
+              id={`${fieldId}-customer`}
               className="field-input"
               type="text"
-              value={business.email}
-              onChange={(event) => updateBusiness({ email: event.target.value })}
-              onBlur={() => void persistBusiness(business)}
-              placeholder="contato@lopolab.com.br"
+              value={customer}
+              onChange={(event) => setCustomer(event.target.value)}
+              placeholder="Nome do cliente"
             />
           </div>
         </div>
-
-        <div className="card quote-card">
-          <h2 className="section-label">Dados do orçamento</h2>
-          <div className="two-col">
-            <div className="field-block compact">
-              <label className="section-label" htmlFor={`${fieldId}-number`}>
-                Número
-              </label>
-              <NumberInput
-                id={`${fieldId}-number`}
-                className="field-input"
-                min={1}
-                value={quoteNumber}
-                onChange={(next) => {
-                  numberEdited.current = true;
-                  setQuoteNumber(next);
-                }}
-              />
-            </div>
-            <div className="field-block compact">
-              <label className="section-label" htmlFor={`${fieldId}-customer`}>
-                Cliente <span className="label-hint">(opcional)</span>
-              </label>
-              <input
-                id={`${fieldId}-customer`}
-                className="field-input"
-                type="text"
-                value={customer}
-                onChange={(event) => setCustomer(event.target.value)}
-                placeholder="Nome do cliente"
-              />
-            </div>
+        <div className="two-col">
+          <div className="field-block compact">
+            <label className="section-label" htmlFor={`${fieldId}-date`}>
+              Data
+            </label>
+            <input
+              id={`${fieldId}-date`}
+              className="field-input"
+              type="date"
+              value={dateStr}
+              onChange={(event) => setDateStr(event.target.value)}
+            />
           </div>
-          <div className="two-col">
-            <div className="field-block compact">
-              <label className="section-label" htmlFor={`${fieldId}-date`}>
-                Data
-              </label>
-              <input
-                id={`${fieldId}-date`}
-                className="field-input"
-                type="date"
-                value={dateStr}
-                onChange={(event) => setDateStr(event.target.value)}
-              />
-            </div>
-            <div className="field-block compact">
-              <label className="section-label" htmlFor={`${fieldId}-validity`}>
-                Validade (dias)
-              </label>
-              <NumberInput
-                id={`${fieldId}-validity`}
-                className="field-input"
-                min={1}
-                value={validityDays}
-                onChange={setValidityDays}
-              />
-            </div>
+          <div className="field-block compact">
+            <label className="section-label" htmlFor={`${fieldId}-validity`}>
+              Validade (dias)
+            </label>
+            <NumberInput
+              id={`${fieldId}-validity`}
+              className="field-input"
+              min={1}
+              value={validityDays}
+              onChange={setValidityDays}
+            />
           </div>
         </div>
       </div>

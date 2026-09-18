@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { TrendingUp, X } from "lucide-react";
 import { useChangeLog } from "../hooks/useChangeLog";
+import { useSettingsModal } from "./SettingsModalHost";
 
 /**
  * [FEAT-12] peça 3 — o AVISO PÓS-FATO, nas portas do estoque.
@@ -16,11 +16,12 @@ import { useChangeLog } from "../hooks/useChangeLog";
  * ⚠ UM aviso que ACUMULA. Cadastrar quatro rolos seguidos não pode virar quatro
  * caixas empilhadas; vira uma, com a soma. Ele FICA até ser dispensado (dono), a
  * dispensa é por entrada e persistida no localStorage, e ele vive só no aparelho
- * que fez a mudança — os outros ficam com o registro em `/configuracoes`, que é
+ * que fez a mudança — os outros ficam com o registro em Configurações, que é
  * permanente e não interrompe ninguém no meio de outra tarefa.
  */
 export function RepriceNotice() {
   const { pending, dismissPending } = useChangeLog();
+  const { openSettings } = useSettingsModal();
 
   if (pending.length === 0) return null;
 
@@ -45,12 +46,13 @@ export function RepriceNotice() {
           mais caro, na hora, em todos os aparelhos.
         </span>
       </div>
-      <Link
+      <button
         className="btn btn-secondary reprice-notice-link"
-        href={`/configuracoes?entrada=${pending[0].id}`}
+        type="button"
+        onClick={() => openSettings({ entrada: pending[0].id })}
       >
         Ver quais
-      </Link>
+      </button>
       <button
         className="icon-button"
         type="button"

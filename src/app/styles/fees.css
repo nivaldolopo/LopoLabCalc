@@ -45,39 +45,6 @@
   font-weight: 400;
 }
 
-/* AUD-15 [E3] — medido 82,5×23 a 1280px: abaixo da régua de DESKTOP (32) também,
-   não só da do dedo. O piso não move nada porque ele é `align-self: center` numa
-   `.fee-row` de 54px, cuja altura vem do `.fee-toggle` ao lado. */
-.fee-edit-link {
-  flex-shrink: 0;
-  align-self: center;
-  background: none;
-  border: none;
-  color: var(--accent-text);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  padding: var(--space-4);
-  min-height: var(--space-32);
-}
-
-.fee-editor {
-  margin-bottom: var(--space-8);
-  padding: var(--space-12);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--details-bg);
-}
-
-.fee-editor-title {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--muted2);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: var(--space-8);
-}
-
 .fee-editor-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -141,18 +108,10 @@
    8º carrega o próprio regime de 44.
 --------------------------------------------------------------------------- */
 @media (max-width: 760px) {
-  /* Medido 84,5×23 — "Ajustar taxas". Sem devolução de propósito: ele é
-     `align-self: center` numa `.fee-row` de 68px (a altura vem do `.fee-toggle`
-     ao lado), então crescer para 44 não move um pixel do fluxo. */
-  .fee-edit-link {
-    min-height: 44px;
-  }
-
   /* Medido 81×38 nos 12 campos de taxa (Pix/Dinheiro/Outro + as 4 parcelas de
-     cada bandeira) — o editor só aparece depois do "Ajustar taxas", e por isso
-     nem a varredura de ontem nem a [E3] tinham chegado nele. Aqui a devolução
-     NÃO cabe: são campos de digitação em grade, o mesmo caso do `.field-input`,
-     que já sobe a 44 sem margem negativa. */
+     cada bandeira). Aqui a devolução NÃO cabe: são campos de digitação em
+     grade, o mesmo caso do `.field-input`, que já sobe a 44 sem margem
+     negativa. */
   .fee-editor-item input {
     min-height: 44px;
   }

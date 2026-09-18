@@ -9,18 +9,20 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-15): frente 1 (pedido ao designer) fechada, sem código** — aguardando a
-  entrega da arte final. O que vira código quando ela chegar está nas seções **1** e **1b** do
-  [`BACKLOG.md`](.claude/BACKLOG.md). Última de código: **[DEC-07]** (2026-09-17) — local e
-  Preview passaram a usar banco de teste do Firestore, `AuthGate` sem login em `localhost`
-  (Diretrizes 1 e 3).
+- **Última mudança (2026-09-17): frente 2 (Configurações) — movimentação de UI fechada.** As 4
+  seções (máquinas, custo fixo, taxas, dados do negócio) saíram das telas de origem e viraram
+  abas de **um modal único** (`SettingsModal.tsx`, aberto via `SettingsModalHost`) — o dono pediu
+  explicitamente que não abra página nem outro modal, só esse; a `/configuracoes` foi removida. A
+  calculadora ficou só com o TOGGLE de custo fixo. Sem mudança de schema/cálculo (1014 testes
+  passam sem alteração). Detalhe em `BACKLOG.md` seção 2.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
-- **▶ PRÓXIMA TAREFA DESTE PROJETO — frente 2: a aba de Configurações** (seção **2** do
-  `BACKLOG.md`): juntar o `config/` num lugar só, em `/configuracoes`. ⚠ **Novidade pra essa
-  frente:** a 1ª conta de energia real da loja já está disponível (dono, 2026-09-16) — calibrar a
-  tarifa de energia da precificação por ela em vez da estimativa; ler a fatura na hora de desenhar.
+- **▶ PRÓXIMA TAREFA DESTE PROJETO — fechar a frente 2: tarifa de energia vira GLOBAL** (hoje é
+  campo por-produto). Decisões já tomadas (não reabrir) e o tamanho real do impacto no código estão
+  na seção **2** do [`BACKLOG.md`](.claude/BACKLOG.md) — inclui trocar a assinatura de
+  `calculatePricing`, o congelamento em `productionPlan.ts` e tirar a coluna do CSV de carga em
+  massa.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
   SISTEMA gera na hora pro `wa.me/...?text=`. Regra completa (e "sem iPhone") na seção do
   `BACKLOG.md` — ainda não codado.

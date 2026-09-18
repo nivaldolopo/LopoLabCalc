@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { errorMessage, guardOnline } from "@/lib/errors";
 import { DEFAULT_FIXED_COSTS } from "../constants";
 import type {
   CapacitySettings,
-  FixedCostRate,
   FixedCostSettings,
   ProductPayload,
   SavedProduct,
@@ -19,22 +18,17 @@ import { useProducts } from "../hooks/useProducts";
 import { useStock } from "../hooks/useStock";
 import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
-import {
-  calculateFixedCostSummary,
-  calculatePricing,
-} from "../lib/calculatePricing";
+import { calculatePricing } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { buildProductPayload } from "../lib/productPayload";
 import { validateProduct } from "../lib/validateProduct";
-import { fixedCostProposal, type RepriceProposal } from "../lib/changeLog";
 import { FixedCostsPanel } from "./FixedCostsPanel";
-import { RepriceGate } from "./RepriceGate";
 import { Header } from "./Header";
-import { MachineManagerModal } from "./MachineManagerModal";
 import { MobilePriceBar } from "./MobilePriceBar";
 import { PricingResultCard } from "./PricingResultCard";
 import { ProductForm } from "./ProductForm";
 import { SaleFlow } from "./SaleFlow";
+import { useSettingsModal } from "./SettingsModalHost";
 import {
   saleContextFromResult,
   type SaleModalContext,
@@ -42,12 +36,8 @@ import {
 
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
-  const { machines, rev: machinesRev, saveMachines } = useMachines();
-  const {
-    fixedCostRate,
-    saveFixedCostRate,
-    error: fixedCostError,
-  } = useBusinessSettings();
+  const { machines } = useMachines();
+  const { fixedCostRate } = useBusinessSettings();
   // UX-10: exibição da margem líquida no card de preço. Não entra no cálculo.
   const { fees } = useFees();
   // 7c: cores do Estoque para o dropdown de filamento e o preço vivo (D3). O
@@ -91,7 +81,7 @@ export function PricingCalculator() {
     [fixedCostRate],
   );
   const capacitySettings = capacityOverride ?? capacityFromRate;
-  const [machineModalOpen, setMachineModalOpen] = useState(false);
+  const { openSettings } = useSettingsModal();
   // Modal de venda: aberto/fechado + a semente (produto que abriu). Semente null
   // = recibo vazio ("Nova venda"), preenchido só pelo seletor do catálogo.
   const [saleOpen, setSaleOpen] = useState(false);
@@ -140,45 +130,14 @@ export function PricingCalculator() {
     [capacitySettings, form.product, pricingResult],
   );
 
-  const fixedCostShare =
-    fixedCosts.enabled && pricingResult.totalCost > 0
-      ? (pricingResult.fixedCost / pricingResult.totalCost) * 100
-      : 0;
-
   // [FEAT-12] — só o TOGGLE passa por aqui. Ele é por-produto (`includeFixed`) e
-  // não move preço de mais ninguém, então continua imediato. A TAXA saiu deste
-  // caminho: ela é global, reprecifica o catálogo inteiro, e agora passa pelo
-  // rascunho do painel e pela prévia (`aplicarTaxa` abaixo).
-  function updateFixedCosts(patch: Partial<FixedCostSettings>) {
-    if (patch.enabled !== undefined) {
-      setFixedToggles({ enabled: patch.enabled });
-      form.updateProduct({ includeFixed: patch.enabled });
-    }
+  // não move preço de mais ninguém, então continua imediato. A TAXA é global,
+  // reprecifica o catálogo inteiro e mora em Configurações → Custo fixo
+  // (frente 2, 2026-09-17) — a calculadora não edita mais o valor dela.
+  function setIncludeFixed(enabled: boolean) {
+    setFixedToggles({ enabled });
+    form.updateProduct({ includeFixed: enabled });
   }
-
-  // O resumo do RASCUNHO do painel: mesma conta do que está em vigor, com a taxa
-  // que o dono está digitando. As horas da impressão são daqui, por isso a
-  // função desce como prop em vez de o painel refazer a conta.
-  const summaryFor = useCallback(
-    (rate: FixedCostRate) =>
-      calculateFixedCostSummary(
-        { ...rate, enabled: fixedToggles.enabled },
-        totalPrintHours,
-      ),
-    [fixedToggles.enabled, totalPrintHours],
-  );
-
-  // Grava a taxa. Devolve a mensagem de erro, ou `null` — o contrato do
-  // `RepriceGate` (molde do TD-020). ⚠ O `saveFixedCostRate` não LANÇA (ele
-  // reporta pelo `fixedCostError`, TD-029), então a falha é lida de lá: sem
-  // isto, uma escrita recusada fecharia a prévia como se tivesse valido.
-  async function commitTaxa(rate: FixedCostRate): Promise<string | null> {
-    await saveFixedCostRate(rate);
-    return null;
-  }
-
-  // [FEAT-12] — a proposta de taxa na mesa. `null` = nada pendente.
-  const [taxaProposta, setTaxaProposta] = useState<RepriceProposal | null>(null);
 
   function applyLoadedFixedCosts(patch: Partial<FixedCostSettings>) {
     // loadProduct só passa o toggle `enabled` do produto.
@@ -350,19 +309,20 @@ export function PricingCalculator() {
     if (handledLoad) window.history.replaceState(null, "", "/");
   }, [handledLoad]);
 
-  async function handleSaveMachines(
-    nextMachines: typeof machines,
-    revEsperado: number,
-  ) {
-    // TD-020: repassa a falha ao modal, que a mostra em vez de fechar.
-    const falha = await saveMachines(nextMachines, revEsperado);
-    if (falha) return falha;
-    // [FROTA] Fase 2 — máquina REMOVIDA some do conjunto do produto e de cada
-    // etapa; o que sobra continua valendo. Antes isto trocava o escalar pelo
-    // fallback (a 1ª da lista), o que reprecificava o produto por uma impressora
-    // que ninguém escolheu. Esvaziar o conjunto é um resultado possível (removeu
-    // a única elegível) e o `validateProduct` avisa na hora de salvar.
-    const vivos = new Set(nextMachines.map((machine) => machine.id));
+  // [FROTA] Fase 2 — máquina REMOVIDA some do conjunto do produto e de cada
+  // etapa; o que sobra continua valendo. Sem isto o escalar cairia no fallback
+  // (a 1ª da lista), o que reprecificaria o produto por uma impressora que
+  // ninguém escolheu. Esvaziar o conjunto é um resultado possível (removeu a
+  // única elegível) e o `validateProduct` avisa na hora de salvar.
+  //
+  // ⚠ Virou EFEITO (frente 2, 2026-09-17) — antes era código dentro do "salvar"
+  // do `MachineManagerModal`, que morava nesta mesma tela. Com a frota editada
+  // em Configurações (outro componente), o único jeito de o formulário aberto
+  // reagir é observar `machines` reativamente — o que de quebra corrige também
+  // o caso que o código antigo não cobria: máquina apagada de OUTRO aparelho
+  // enquanto este continua com o formulário aberto.
+  useEffect(() => {
+    const vivos = new Set(machines.map((machine) => machine.id));
     const filtrar = (ids: string[]) => ids.filter((id) => vivos.has(id));
     const atuais = form.product.machineIds ?? [];
     if (atuais.some((id) => !vivos.has(id))) {
@@ -374,8 +334,12 @@ export function PricingCalculator() {
         form.updateStage(stage.id ?? "", { machineIds: filtrar(daEtapa) });
       }
     }
-    return null;
-  }
+    // Só reage à FROTA mudar — reler `form` a cada keystroke re-rodaria isto
+    // sem motivo (nenhum campo do formulário além dos ids de máquina importa
+    // aqui, e esses só mudam por esta própria correção ou pela escolha do
+    // dono, que não introduz um id morto).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [machines]);
 
   // UX-11: as 3 ações de destino (vender/produzir/orçar) precisam de um produto
   // SALVO. Vender sem id até funcionava, mas a reconciliação não acha o produto
@@ -466,7 +430,7 @@ export function PricingCalculator() {
             stock={stock}
             supplies={supplies}
             onChange={handleProductChange}
-            onManageMachines={() => setMachineModalOpen(true)}
+            onManageMachines={() => openSettings({ tab: "maquinas" })}
             onAddStage={() => form.addStage(undefined, allMachineIds)}
             onRemoveStage={form.removeStage}
             onUpdateStage={form.updateStage}
@@ -480,23 +444,7 @@ export function PricingCalculator() {
             onUpdateSubitem={form.updateSubitem}
             onToggleStageInSubitem={form.toggleStageInSubitem}
           />
-          {/* ⚠ [FEAT-12] — o `key` REMONTA o painel quando a taxa em vigor muda
-              (outra aba, outro aparelho). O rascunho dele nasce do que está em
-              vigor, e um rascunho calculado contra o valor velho já não descreve
-              o "antes" de ninguém — é a mesma disciplina da `rev` do modal de
-              máquinas, resolvida por remontagem porque `setState` dentro de
-              efeito é erro de lint aqui. */}
-          <FixedCostsPanel
-            key={`${fixedCostRate.rent}-${fixedCostRate.other}-${fixedCostRate.machines}-${fixedCostRate.hoursDay}-${fixedCostRate.daysMonth}`}
-            fixedCosts={fixedCosts}
-            summaryFor={summaryFor}
-            fixedCostShare={fixedCostShare}
-            onChange={updateFixedCosts}
-            onApplyRate={(rate) =>
-              setTaxaProposta(fixedCostProposal(fixedCostRate, rate, machines))
-            }
-            saveError={fixedCostError}
-          />
+          <FixedCostsPanel enabled={fixedCosts.enabled} onChange={setIncludeFixed} />
         </div>
         <PricingResultCard
           result={pricingResult}
@@ -527,27 +475,6 @@ export function PricingCalculator() {
           onQuote={quoteFromForm}
         />
       </div>
-
-      {machineModalOpen ? (
-        <MachineManagerModal
-          open={machineModalOpen}
-          machines={machines}
-          rev={machinesRev}
-          onClose={() => setMachineModalOpen(false)}
-          onSave={handleSaveMachines}
-        />
-      ) : null}
-
-      {taxaProposta && taxaProposta.after.fixedCostRate ? (
-        <RepriceGate
-          proposal={taxaProposta}
-          title="Aplicar o custo fixo"
-          confirmLabel="Aplicar ao catálogo"
-          onCommit={() => commitTaxa(taxaProposta.after.fixedCostRate!)}
-          onCancel={() => setTaxaProposta(null)}
-          onDone={() => setTaxaProposta(null)}
-        />
-      ) : null}
 
       {saleOpen ? (
         <SaleFlow

@@ -49,7 +49,7 @@ export function SaleFlow({
   pricingByProduct,
   onClose,
 }: SaleFlowProps) {
-  const { fees, saveFees, error: feesError } = useFees();
+  const { fees } = useFees();
   const { goods } = useFinishedGoods();
   // 7e: insumos para a baixa dos acessórios na encomenda. Assinado aqui (e não
   // vindo por prop) pelo mesmo motivo dos outros 3 hooks: é do modal, não da
@@ -96,8 +96,6 @@ export function SaleFlow({
       seed={seed}
       catalogItems={catalogItems}
       fees={fees}
-      onFeesChange={saveFees}
-          feesError={feesError}
       goods={goods}
       stock={stock}
       supplies={supplies}
