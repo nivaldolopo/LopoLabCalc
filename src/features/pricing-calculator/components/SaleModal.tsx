@@ -81,6 +81,7 @@ import type {
   PaymentMethod,
   PricingResult,
   ProductionEvent,
+  QuoteRecord,
   ReciboUpsert,
   SaleChannel,
   SaleItemOrigin,
@@ -124,6 +125,10 @@ export type EditReciboSeed = {
   channel: SaleChannel;
   feePassedToCustomer: boolean;
   notes: string;
+  // Link para o orçamento de origem (ver a nota em `SaleInput.quoteId`) —
+  // compartilhado no recibo, como `customer`/`channel`.
+  quoteId?: string;
+  quoteNumber?: string;
   items: SaleModalEditItem[];
 };
 
@@ -185,6 +190,10 @@ type SaleModalProps = {
   // Eventos de produção — para resolver os `stockMoves` das encomendas do recibo
   // antigo ao editar (o doc da venda só guarda os `productionEventIds`).
   production: ProductionEvent[];
+  // Histórico de orçamentos, para o seletor "veio de qual orçamento" (link
+  // opcional orçamento → venda). Mais recente primeiro é decisão da UI, não
+  // deste tipo.
+  quotes: QuoteRecord[];
   onClose: () => void;
   // Recebe o plano de escrita atômico completo (vendas + producao + estoque +
   // acabados). O call site liga em `reconcileRecibo`.
@@ -276,6 +285,16 @@ function DiscountInput({
           %
         </button>
       </div>
+      {/* Motivo livre ("cliente fidelidade", "sobra de mesa"...) — opcional,
+          vive no PRÓPRIO desconto (ver a nota em `Discount.reason`). */}
+      <input
+        className="field-input discount-reason"
+        type="text"
+        aria-label="Motivo do desconto"
+        placeholder="Motivo (opcional)"
+        value={value.reason ?? ""}
+        onChange={(event) => onChange({ ...value, reason: event.target.value })}
+      />
     </div>
   );
 }
@@ -309,6 +328,7 @@ export function SaleModal({
   fixedCosts,
   energyTariff,
   production,
+  quotes,
   onClose,
   onConfirm,
 }: SaleModalProps) {
@@ -523,6 +543,13 @@ export function SaleModal({
     editRecibo?.feePassedToCustomer ?? false,
   );
   const [notes, setNotes] = useState(editRecibo?.notes ?? "");
+  // Link opcional para o orçamento de origem — vazio = venda sem orçamento (o
+  // caso comum). `""` é a sentinela de "nenhum" no `<select>`.
+  const [quoteId, setQuoteId] = useState(editRecibo?.quoteId ?? "");
+  const quotesRecentes = useMemo(
+    () => [...quotes].sort((a, b) => b.date - a.date),
+    [quotes],
+  );
   // FEAT-09: modo de desconto (XOR) + o desconto do modo "total". Reconstruídos do
   // recibo salvo ao editar (o desconto por item já voltou pras linhas acima).
   const [discountMode, setDiscountMode] = useState<DiscountMode>(() => {
@@ -901,6 +928,16 @@ export function SaleModal({
         paymentMethod,
         channel,
         notes: notes.trim(),
+        // Link opcional para o orçamento de origem — ver a nota em
+        // `SaleInput.quoteId`. `quoteNumber` denormalizado do orçamento vivo
+        // (ele não muda depois de emitido, mas o doc pode ser apagado).
+        ...(quoteId
+          ? {
+              quoteId,
+              quoteNumber:
+                quotesRecentes.find((q) => q.id === quoteId)?.number ?? "",
+            }
+          : {}),
         status: "concluida",
         productId: item.source.productId,
         // FEAT-01: qual subitem foi vendido (só quando é venda de parte). Condi-
@@ -1101,6 +1138,29 @@ export function SaleModal({
           />
         </div>
       </div>
+
+      {quotesRecentes.length > 0 ? (
+        <div className="field-block compact">
+          <label className="section-label" htmlFor={`${fieldId}-quote`}>
+            Veio de orçamento <span className="label-hint">(opcional)</span>
+          </label>
+          <select
+            id={`${fieldId}-quote`}
+            className="field-input"
+            value={quoteId}
+            onChange={(event) => setQuoteId(event.target.value)}
+          >
+            <option value="">Nenhum</option>
+            {quotesRecentes.map((quote) => (
+              <option key={quote.id} value={quote.id}>
+                Nº {quote.number}
+                {quote.customer ? ` — ${quote.customer}` : ""} —{" "}
+                {new Date(quote.date).toLocaleDateString("pt-BR")}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       <div className="two-col">
         <div className="field-block compact">

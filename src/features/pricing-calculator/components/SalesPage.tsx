@@ -16,6 +16,7 @@ import { useFees } from "../hooks/useFees";
 import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useMachines } from "../hooks/useMachines";
 import { useProducts } from "../hooks/useProducts";
+import { useQuotes } from "../hooks/useQuotes";
 import { useSalesPage } from "../hooks/useSalesPage";
 import { useStock } from "../hooks/useStock";
 import { useSupplies } from "../hooks/useSupplies";
@@ -202,6 +203,8 @@ export function SalesPage() {
   // 7e: insumos — o estorno da venda devolve também os acessórios da encomenda.
   const { supplies } = useSupplies();
   const { goods } = useFinishedGoods();
+  // Link opcional orçamento → venda (ver `SaleInput.quoteId`).
+  const { quotes } = useQuotes();
   const [editRecibo, setEditRecibo] = useState<EditReciboSeed | null>(null);
   // TD-006: eventos de produção da encomenda do recibo em edição, resolvidos por
   // id ao abrir (a coleção não é mais assinada inteira). Alimentam o estorno do
@@ -479,6 +482,14 @@ export function SalesPage() {
       feePassedToCustomer: recibo.items[0]?.feePassedToCustomer ?? false,
       // notes é compartilhado no recibo — pega o primeiro item que tiver.
       notes: recibo.items.find((item) => item.notes)?.notes ?? "",
+      // Link orçamento → venda, também compartilhado no recibo.
+      ...(recibo.items.find((item) => item.quoteId)
+        ? {
+            quoteId: recibo.items.find((item) => item.quoteId)?.quoteId,
+            quoteNumber: recibo.items.find((item) => item.quoteId)
+              ?.quoteNumber,
+          }
+        : {}),
       items: recibo.items.map((sale) => ({
         id: sale.id,
         // O snapshot da venda não guarda o modo de arredondamento; usa o do
@@ -983,6 +994,7 @@ export function SalesPage() {
           fixedCosts={fixedCosts}
           energyTariff={energyTariff}
           production={editEvents}
+          quotes={quotes}
           onClose={() => {
             setEditRecibo(null);
             setEditEvents([]);
@@ -1005,6 +1017,7 @@ export function SalesPage() {
           energyTariff={energyTariff}
           // Venda nova não estorna produção — o `production` só serve à edição.
           production={[]}
+          quotes={quotes}
           onClose={() => setNewSale(false)}
           onConfirm={reconcileRecibo}
         />

@@ -146,11 +146,20 @@
 .discount-input {
   display: flex;
   align-items: stretch;
+  flex-wrap: wrap;
   gap: var(--space-6);
 }
 
 .discount-input .field-input {
   width: 90px;
+}
+
+/* Motivo do desconto: texto livre, não uma célula de número — cresce para
+   ocupar o que sobrar da fileira em vez de herdar os 90px do irmão. */
+.discount-input .discount-reason {
+  width: auto;
+  flex: 1 1 140px;
+  min-width: 0;
 }
 
 .discount-unit-toggle {
@@ -931,6 +940,13 @@
 
   .discount-unit-toggle button {
     min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Motivo ganha linha própria abaixo de ~300px úteis, mesma receita do
+     UX-38/40 — em vez de espremer ao lado de "R$ / %" até truncar sem avisar. */
+  .discount-input .discount-reason {
+    flex: 1 1 100%;
     min-height: 44px;
   }
 }

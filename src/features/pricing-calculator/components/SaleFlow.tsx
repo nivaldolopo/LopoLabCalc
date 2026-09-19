@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { reconcileRecibo } from "@/lib/firebase/salesRepository";
 import { useFees } from "../hooks/useFees";
 import { useFinishedGoods } from "../hooks/useFinishedGoods";
+import { useQuotes } from "../hooks/useQuotes";
 import { calculatePricing } from "../lib/calculatePricing";
 import {
   productPrintHours,
@@ -57,6 +58,8 @@ export function SaleFlow({
   // vindo por prop) pelo mesmo motivo dos outros 3 hooks: é do modal, não da
   // página, e só sobe quando o modal abre.
   const { supplies } = useSupplies();
+  // Link opcional orçamento → venda (ver `SaleInput.quoteId`) — mesmo motivo.
+  const { quotes } = useQuotes();
 
   // Produtos do catálogo prontos como itens de cesta (para adicionar mais de um
   // produto ao mesmo recibo dentro do modal de venda).
@@ -110,6 +113,7 @@ export function SaleFlow({
       // Venda NOVA não estorna produção existente — o `production` só serve ao
       // caminho de edição (SalesPage), que resolve os eventos por id. Vazio aqui.
       production={[]}
+      quotes={quotes}
       onClose={onClose}
       onConfirm={reconcileRecibo}
     />

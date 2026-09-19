@@ -101,10 +101,23 @@ export function toSale(id: string, data: DocumentData): Sale {
       : "outro",
     channel: CHANNEL_VALUES.includes(data.channel) ? data.channel : "outro",
     notes: data.notes ?? "",
+    // Link opcional para o orçamento de origem. Ausente = venda sem orçamento
+    // (o caso comum) ou anterior ao campo.
+    ...(data.quoteId
+      ? {
+          quoteId: String(data.quoteId),
+          quoteNumber: data.quoteNumber ? String(data.quoteNumber) : "",
+        }
+      : {}),
     status: "concluida",
     productId: data.productId ?? "",
     // FEAT-01: subitem vendido (só em vendas de parte; ausente nas de inteiro).
     ...(data.subitemId ? { subitemId: String(data.subitemId) } : {}),
+    // O `kind` do produto CONGELADO na venda — ver a nota em
+    // `SaleInput.productKind`. Ausente em venda anterior ao campo.
+    ...(data.productKind === "geral" || data.productKind === "personalizado"
+      ? { productKind: data.productKind }
+      : {}),
     productName: data.productName ?? "",
     printHours: num(data.printHours),
     machineUsage,
