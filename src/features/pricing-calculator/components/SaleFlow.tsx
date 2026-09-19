@@ -76,6 +76,7 @@ export function SaleFlow({
             result,
             productPrintHours(product),
             product.roundingMode,
+            product.kind ?? "geral",
           );
           const subs = (result.subitems ?? []).map((subitem) =>
             saleContextFromSubitem(
@@ -83,6 +84,7 @@ export function SaleFlow({
               product.id,
               subitem,
               product.roundingMode,
+              product.kind ?? "geral",
             ),
           );
           return [whole, ...subs];

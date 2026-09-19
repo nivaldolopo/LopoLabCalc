@@ -29,6 +29,7 @@ const salvo: SavedProduct = {
   roundingMode: "0.90",
   piecesCount: 3,
   sellBySubitems: true,
+  kind: "personalizado",
   linkModel: "https://makerworld.com/model/1",
   linkCompetitor: "https://concorrente.com/x",
   linkFile: "https://drive.google.com/file/abc",

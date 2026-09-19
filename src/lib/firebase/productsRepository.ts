@@ -66,6 +66,8 @@ function toSavedProduct(id: string, data: DocumentData): SavedProduct {
     // só-inteiro (comportamento de hoje).
     sellBySubitems: Boolean(data.sellBySubitems),
     subitems: Array.isArray(data.subitems) ? data.subitems : [],
+    // Ausente em doc anterior ao campo → "geral" (Diretriz 7, sem migração).
+    kind: data.kind === "personalizado" ? "personalizado" : "geral",
     linkModel: data.linkModel ?? "",
     linkCompetitor: data.linkCompetitor ?? "",
     linkFile: data.linkFile ?? "",

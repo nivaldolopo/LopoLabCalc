@@ -4,6 +4,7 @@ import { roundPrice } from "./roundPrice";
 import type {
   FilamentUsage,
   PricingResult,
+  ProductKind,
   RoundingMode,
   SaleCostBreakdown,
   SavedProduct,
@@ -35,6 +36,9 @@ export type SaleModalContext = {
   // FEAT-02: consumo por cor (pesos por impressão) para congelar no snapshot da
   // venda. mono vs multicolor = `filaments.length`.
   filaments: FilamentUsage[];
+  // O `ProductKind` do produto no momento em que o modal abriu — o SaleModal só
+  // repassa para o snapshot congelado (`Sale.productKind`).
+  kind: ProductKind;
 };
 
 // Monta a foto congelada de UM produto a partir do resultado de precificação.
@@ -45,6 +49,7 @@ export function saleContextFromResult(
   result: PricingResult,
   printHours: number,
   roundingMode: RoundingMode,
+  kind: ProductKind,
 ): SaleModalContext {
   return {
     defaultProductName: productName,
@@ -64,6 +69,7 @@ export function saleContextFromResult(
       fixed: result.fixedCost,
     },
     filaments: result.filaments,
+    kind,
   };
 }
 
@@ -76,6 +82,7 @@ export function saleContextFromSubitem(
   productId: string,
   subitem: SubitemPrice,
   roundingMode: RoundingMode,
+  kind: ProductKind,
 ): SaleModalContext {
   const subName = subitem.name?.trim();
   return {
@@ -88,6 +95,7 @@ export function saleContextFromSubitem(
     unitCost: subitem.cost,
     costBreakdown: subitem.costBreakdown,
     filaments: subitem.filaments,
+    kind,
   };
 }
 

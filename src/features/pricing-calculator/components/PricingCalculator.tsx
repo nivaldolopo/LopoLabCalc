@@ -397,6 +397,7 @@ export function PricingCalculator() {
         pricingResult,
         totalPrintHours,
         form.product.roundingMode,
+        form.product.kind ?? "geral",
       ),
     );
     setSaleOpen(true);

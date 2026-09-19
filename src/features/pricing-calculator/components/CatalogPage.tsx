@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { DEFAULT_FIXED_COSTS } from "../constants";
+import { DEFAULT_FIXED_COSTS, PRODUCT_KINDS } from "../constants";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useFees } from "../hooks/useFees";
 import { useMachines } from "../hooks/useMachines";
@@ -22,6 +22,7 @@ import type {
   CapacitySettings,
   FixedCostSettings,
   PricingResult,
+  ProductKind,
   SavedProduct,
   SortMode,
 } from "../types";
@@ -58,6 +59,24 @@ export function CatalogPage() {
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [saleOpen, setSaleOpen] = useState(false);
   const [saleSeed, setSaleSeed] = useState<SaleModalContext | null>(null);
+  // Duas "gavetas" do mesmo catálogo — dia a dia × sob medida (ver `ProductKind`
+  // em types.ts). Cada aba é um catálogo próprio: busca, ordenação e export/
+  // import operam só sobre o que está na aba aberta.
+  const [activeKind, setActiveKind] = useState<ProductKind>("geral");
+  const productsInKind = useMemo(
+    () =>
+      productsApi.products.filter(
+        (product) => (product.kind ?? "geral") === activeKind,
+      ),
+    [productsApi.products, activeKind],
+  );
+  const kindCounts = useMemo(() => {
+    const counts: Record<ProductKind, number> = { geral: 0, personalizado: 0 };
+    productsApi.products.forEach((product) => {
+      counts[product.kind ?? "geral"] += 1;
+    });
+    return counts;
+  }, [productsApi.products]);
 
   // O `enabled` daqui é só o piso: todo produto SALVO traz o próprio
   // `includeFixed`, que o `calculatePricing` usa por cima deste (ver a NOTA em
@@ -136,6 +155,7 @@ export function CatalogPage() {
             product.id,
             subitem,
             product.roundingMode,
+            product.kind ?? "geral",
           )
         : saleContextFromResult(
             baseName,
@@ -143,6 +163,7 @@ export function CatalogPage() {
             result,
             productPrintHours(product),
             product.roundingMode,
+            product.kind ?? "geral",
           ),
     );
     setSaleOpen(true);
@@ -178,27 +199,57 @@ export function CatalogPage() {
           </Link>
         </div>
       ) : (
-        <ProductCatalog
-          products={productsApi.products}
-          machines={machines}
-          stock={stock}
-          supplies={supplies}
-          fixedCosts={fixedCosts}
-          energyTariff={energyTariff}
-          pricingByProduct={pricingByProduct}
-          capacitySettings={capacitySettings}
-          fees={fees}
-          initialOpenId={focusId}
-          sortMode={sortMode}
-          onSortModeChange={setSortMode}
-          onLoadProduct={editProduct}
-          onDeleteProduct={productsApi.deleteProduct}
-          onImportProducts={productsApi.importProducts}
-          onRegisterSale={openSaleFromCatalog}
-          onProduce={produceProduct}
-          onQuote={quoteProduct}
-          onNewSale={openNewSale}
-        />
+        <>
+          {/* Duas gavetas do mesmo catálogo (ver `ProductKind`) — dia a dia ×
+              sob medida. Cada uma é um catálogo próprio: busca, ordenação e
+              export/import da `ProductCatalog` operam só sobre a aba aberta. */}
+          <div className="stock-tabs" role="tablist">
+            {PRODUCT_KINDS.map((option) => (
+              <button
+                key={option.value}
+                className={`stock-tab ${activeKind === option.value ? "active" : ""}`}
+                type="button"
+                role="tab"
+                aria-selected={activeKind === option.value}
+                onClick={() => setActiveKind(option.value)}
+              >
+                {option.label} ({kindCounts[option.value]})
+              </button>
+            ))}
+          </div>
+
+          {productsInKind.length === 0 ? (
+            <div className="catalog-card catalog-empty">
+              <p>
+                Nenhum produto{" "}
+                {activeKind === "personalizado" ? "personalizado" : "geral"}{" "}
+                ainda.
+              </p>
+            </div>
+          ) : (
+            <ProductCatalog
+              products={productsInKind}
+              machines={machines}
+              stock={stock}
+              supplies={supplies}
+              fixedCosts={fixedCosts}
+              energyTariff={energyTariff}
+              pricingByProduct={pricingByProduct}
+              capacitySettings={capacitySettings}
+              fees={fees}
+              initialOpenId={focusId}
+              sortMode={sortMode}
+              onSortModeChange={setSortMode}
+              onLoadProduct={editProduct}
+              onDeleteProduct={productsApi.deleteProduct}
+              onImportProducts={productsApi.importProducts}
+              onRegisterSale={openSaleFromCatalog}
+              onProduce={produceProduct}
+              onQuote={quoteProduct}
+              onNewSale={openNewSale}
+            />
+          )}
+        </>
       )}
 
       {saleOpen ? (

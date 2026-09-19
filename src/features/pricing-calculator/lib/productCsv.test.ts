@@ -119,6 +119,7 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
       { desc: "Pintura", qty: 1, unitPrice: 5, supplyId: null, subitemId: null },
     ],
     sellBySubitems: true,
+    kind: "personalizado",
     subitems: [
       { id: "sub_A", name: "Peça base", stageKeys: ["main"], markup: 3.2 },
       {

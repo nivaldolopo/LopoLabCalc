@@ -73,6 +73,8 @@ export function buildProductPayload(
       stageKeys: subitem.stageKeys ?? [],
       ...(subitem.markup !== undefined ? { markup: subitem.markup } : {}),
     })),
+    // Campo novo (kind): explícito aqui, não só de carona no spread — FORM-01.
+    kind: product.kind ?? "geral",
     linkModel: product.linkModel.trim(),
     linkCompetitor: product.linkCompetitor.trim(),
     linkFile: product.linkFile.trim(),

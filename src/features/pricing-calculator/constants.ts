@@ -5,6 +5,7 @@ import type {
   PaymentFeeSettings,
   PaymentMethod,
   ProductInput,
+  ProductKind,
   QuoteBusiness,
   SaleChannel,
 } from "./types";
@@ -128,6 +129,7 @@ export const DEFAULT_PRODUCT_INPUT: ProductInput = {
   accessories: [],
   sellBySubitems: false,
   subitems: [],
+  kind: "geral",
   linkModel: "",
   linkCompetitor: "",
   linkFile: "",
@@ -162,6 +164,11 @@ export const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "debito", label: "Cartão de débito" },
   { value: "credito", label: "Cartão de crédito" },
   { value: "outro", label: "Outro" },
+];
+
+export const PRODUCT_KINDS: { value: ProductKind; label: string }[] = [
+  { value: "geral", label: "Geral (dia a dia)" },
+  { value: "personalizado", label: "Personalizado (sob medida)" },
 ];
 
 export const SALE_CHANNELS: { value: SaleChannel; label: string }[] = [

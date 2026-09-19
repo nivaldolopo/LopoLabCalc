@@ -826,6 +826,7 @@ export function StockPage() {
         result,
         productPrintHours(product),
         product.roundingMode,
+        product.kind ?? "geral",
       ),
     );
     setSaleOpen(true);
@@ -842,7 +843,13 @@ export function StockPage() {
     if (!subitem) return;
     const baseName = product.name || product.mainStageName || "";
     setSaleSeed(
-      saleContextFromSubitem(baseName, product.id, subitem, product.roundingMode),
+      saleContextFromSubitem(
+        baseName,
+        product.id,
+        subitem,
+        product.roundingMode,
+        product.kind ?? "geral",
+      ),
     );
     setSaleOpen(true);
   }

@@ -107,6 +107,9 @@ function contextFromSale(
     costBreakdown: sale.costBreakdown,
     // FEAT-02: preserva o consumo por cor congelado (vazio nas vendas antigas).
     filaments: sale.filaments ?? [],
+    // O `kind` CONGELADO na venda original — não o do produto vivo, que pode
+    // ter mudado desde então. Ausente em venda anterior ao campo → "geral".
+    kind: sale.productKind ?? "geral",
   };
 }
 
@@ -246,6 +249,7 @@ export function SalesPage() {
             result,
             productPrintHours(product),
             product.roundingMode,
+            product.kind ?? "geral",
           );
           const subs = (result.subitems ?? []).map((subitem) =>
             saleContextFromSubitem(
@@ -253,6 +257,7 @@ export function SalesPage() {
               product.id,
               subitem,
               product.roundingMode,
+              product.kind ?? "geral",
             ),
           );
           return [whole, ...subs];

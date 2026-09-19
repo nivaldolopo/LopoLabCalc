@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { PRODUCT_KINDS } from "../constants";
 import type {
   Machine,
   PrintStage,
@@ -79,6 +80,26 @@ export function ProductForm({
           onChange={(event) => onChange({ name: event.target.value })}
           placeholder="Ex: Insert para Wingspan"
         />
+      </div>
+
+      <div className="field-block compact">
+        <label className="section-label" htmlFor={`${fieldId}-kind`}>
+          Tipo de produto
+        </label>
+        <select
+          id={`${fieldId}-kind`}
+          className="field-input"
+          value={product.kind ?? "geral"}
+          onChange={(event) =>
+            onChange({ kind: event.target.value as ProductInput["kind"] })
+          }
+        >
+          {PRODUCT_KINDS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <MachineSelector

@@ -3,6 +3,13 @@ import type { MarginTier } from "./lib/marginTier";
 
 export type { RoundingMode, MarginTier };
 
+// Recorrência esperada do produto: "geral" é o dia a dia (prateleira, vende de
+// novo), "personalizado" é sob medida para UM orçamento/cliente (raramente
+// repete). Eixo ORTOGONAL a `archived` — personalizado é ativo, só que raro.
+// Congelado na venda (`SaleInput.productKind`) para o dashboard futuro separar
+// receita pelo corte sem depender do cadastro vivo (que pode mudar/sumir).
+export type ProductKind = "geral" | "personalizado";
+
 export type Machine = {
   id: string;
   name: string;
@@ -148,6 +155,9 @@ export type ProductInput = {
   // etapas), não só inteiro. OFF (default) = comportamento de hoje (só inteiro).
   sellBySubitems: boolean;
   subitems: Subitem[];
+  // Recorrência esperada — ver `ProductKind`. Ausente em documento anterior ao
+  // campo é lido como "geral" (Diretriz 7, sem migração).
+  kind: ProductKind;
   linkModel: string;
   linkCompetitor: string;
   linkFile: string;
@@ -464,7 +474,12 @@ export type SaleItemOrigin = "acabado" | "encomenda";
 // `value` é o número cru. O R$ efetivo (o que de fato sai do preço) é derivado e
 // CONGELADO na venda (`discountAmount` abaixo) — não recalculado depois.
 export type DiscountMode = "abs" | "pct";
-export type Discount = { mode: DiscountMode; value: number };
+// `reason` é opcional e livre ("cliente fidelidade", "sobra de mesa"...) — vive
+// no PRÓPRIO desconto (não um campo à parte na venda) para acompanhar o mesmo
+// modo item/total sem precisar de fiação nova: onde `Discount` já viaja
+// (`CestaItem.discount`, `totalDiscount`, `SaleInput.discountInput`), o motivo
+// viaja junto, de graça.
+export type Discount = { mode: DiscountMode; value: number; reason?: string };
 
 // FEAT-09: onde o desconto foi aplicado no recibo — por LINHA (item) ou no TOTAL
 // (rateado entre as linhas na proporção da receita). Um modo XOR o outro por
@@ -481,6 +496,14 @@ export type SaleInput = {
   paymentMethod: PaymentMethod;
   channel: SaleChannel;
   notes: string;
+  // Link opcional para o orçamento (`orcamentos`) que deu origem a esta venda —
+  // permite ao dashboard futuro calcular taxa de conversão orçamento → venda e
+  // o tempo entre os dois, algo que não dá para reconstruir depois (os dois
+  // documentos não têm nenhum outro elo). `quoteNumber` é denormalizado (como
+  // `productName`) para exibir sem precisar achar um orçamento que pode ter
+  // sido apagado. Ausente = venda sem orçamento de origem (o caso comum).
+  quoteId?: string;
+  quoteNumber?: string;
   status: "concluida";
   // Snapshot congelado do produto/precificação:
   productId: string; // referência (informativa) ao produto do catálogo
@@ -488,6 +511,11 @@ export type SaleInput = {
   // parte e não do produto inteiro. Ausente = venda do produto inteiro (ou item
   // livre). Informativo aqui; vira a SKU do estoque de acabados no FEAT-05.
   subitemId?: string;
+  // O `kind` do produto no momento da venda (ver `ProductKind`) — CONGELADO,
+  // não lido do cadastro vivo: editar/arquivar o produto depois não pode mudar
+  // como uma venda passada é somada por um dashboard futuro. Ausente em venda
+  // anterior a este campo (Diretriz 7, sem migração).
+  productKind?: ProductKind;
   productName: string;
   printHours: number; // horas TOTAIS (principal + etapas), por unidade
   // [FROTA] Fase 1 — a repartição REAL por máquina, POR UNIDADE ATRIBUÍDA. Ela

@@ -90,6 +90,9 @@ const CSV_HEADERS = [
   // sem estas duas o produto entra como só-inteiro, que é o default de sempre.
   "Vende por Subitens",
   "Subitens JSON",
+  // `ProductKind`: coluna nova, no fim, pela mesma razão. Booleana (sim/nao),
+  // como "Vende por Subitens" — CSV sem ela importa como "geral", o default.
+  "Personalizado",
 ];
 
 function csvCell(value: unknown): string {
@@ -459,6 +462,7 @@ const COLUMN_SPECS = {
   filaments: { exact: "Filamentos JSON", needle: "filamentos" },
   sellBySubitems: { exact: "Vende por Subitens", needle: "vende por subitens" },
   subitems: { exact: "Subitens JSON", needle: "subitens json" },
+  kind: { exact: "Personalizado", needle: "personalizado" },
   // CSV-03: as duas colunas calculadas que alguém de fato tentaria editar para
   // "definir" o preço. As outras 10 são detalhamento — ninguém mexe no
   // "Desgaste (R$)" esperando mudar o resultado, e avisar sobre 12 colunas ×
@@ -1195,6 +1199,7 @@ export function exportProductsCsv(
       // guardadas" é um estado real que inferir de `subitems.length` perderia.
       product.sellBySubitems ? "sim" : "nao",
       csvCell(JSON.stringify(exportedSubitems)),
+      product.kind === "personalizado" ? "sim" : "nao",
     ].join(";");
   });
 
@@ -1347,6 +1352,7 @@ export function parseProductsCsv(
   const indexFilaments = col.filaments;
   const indexSellBySubitems = col.sellBySubitems;
   const indexSubitems = col.subitems;
+  const indexKind = col.kind;
   const indexPrice = col.price;
   const indexTotalCost = col.totalCost;
 
@@ -1844,6 +1850,13 @@ export function parseProductsCsv(
               )
             : false,
         subitems,
+        // `ProductKind`: booleana no CSV (ver a coluna "Personalizado"), enum no
+        // documento. Coluna ausente ou "nao" entra como "geral", o default.
+        kind:
+          indexKind >= 0 &&
+          parseBool(columns[indexKind], "Personalizado", reportBool)
+            ? "personalizado"
+            : "geral",
         // FEAT-02: com as cores na linha, elas são a fonte da verdade — e os
         // escalares "Peso (g)"/"Filamento (R$/kg)" NÃO entram no documento.
         // Gravá-los junto fazia o produto da carga em massa nascer com os dois

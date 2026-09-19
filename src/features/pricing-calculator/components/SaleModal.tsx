@@ -909,6 +909,8 @@ export function SaleModal({
           ? { subitemId: item.source.subitemId }
           : {}),
         productName: item.productName.trim(),
+        // Congelado no momento da venda — ver a nota em `SaleInput.productKind`.
+        productKind: item.source.kind,
         printHours: item.source.printHours,
         // [FROTA] Fase 1 — quem imprimiu vem da RECONCILIAÇÃO, não do snapshot
         // do catálogo: dos eventos criados (encomenda) ou das camadas drenadas

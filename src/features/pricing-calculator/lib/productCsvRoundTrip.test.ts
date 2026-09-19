@@ -53,6 +53,7 @@ const cobaia: SavedProduct = {
   roundingMode: "0.90",        // != exact
   piecesCount: 3,              // != 1
   sellBySubitems: true,
+  kind: "personalizado",          // != geral
   linkModel: "https://makerworld.com/model/1",
   linkCompetitor: "https://concorrente.com/x",
   linkFile: "https://drive.google.com/file/abc",
@@ -136,12 +137,13 @@ describe("round-trip do CSV — export -> import -> export", () => {
   const imported = reimport(csvA);
   const csvB = exportProductsCsv([asSaved(imported[0], "prod_copia")], machines, fixedCosts, ENERGY_TARIFF, stock);
 
-  it("A e B: celula por celula, 33 colunas", () => {
+  it("A e B: celula por celula, 34 colunas", () => {
     const A = rows(csvA), B = rows(csvB);
     const { diffs, compared } = diffRows(A.headers, A.body[0], B.body[0]);
     // Coluna nova sem cobertura aqui é um buraco silencioso: o diff só prova o
-    // que ele percorre. 33 = 34 - "Tarifa Energia" (saiu do CSV, frente 2).
-    expect(compared).toBe(33);
+    // que ele percorre. 34 = 35 - "Tarifa Energia" (saiu do CSV, frente 2) +
+    // "Personalizado" (ProductKind, entrou nesta rodada).
+    expect(compared).toBe(34);
     expect(diffs).toEqual([]);
   });
 
@@ -155,7 +157,7 @@ describe("round-trip do CSV — export -> import -> export", () => {
     };
     (["name", "mainStageName", "machineIds", "printHours", "laborMinutes",
       "laborRate", "markup", "failureRate", "includeFixed", "roundingMode", "piecesCount",
-      "linkModel", "linkCompetitor", "linkFile", "sellBySubitems"] as const)
+      "linkModel", "linkCompetitor", "linkFile", "sellBySubitems", "kind"] as const)
       .forEach((k) => eq(k, cobaia[k], p[k]));
     eq("filaments", cobaia.filaments, p.filaments);
     eq("stages", cobaia.stages, p.stages);
