@@ -765,7 +765,7 @@ export function ProductionPage() {
   const canSave = rows.length > 0 && semMaquina.length === 0 && !saving;
 
   return (
-    <main className="wrap" id="conteudo">
+    <main className="wrap" id="conteudo" tabIndex={-1}>
       <PageHeader
         icon={<Factory size={18} />}
         title="Produção"

@@ -373,7 +373,7 @@ export function QuotePage() {
   }
 
   return (
-    <main className="wrap" id="conteudo">
+    <main className="wrap" id="conteudo" tabIndex={-1}>
       {/* Sem `status`: o /orcamento não assina coleção nenhuma em tempo real. */}
       <PageHeader
         title="Orçamento"

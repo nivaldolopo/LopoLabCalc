@@ -154,7 +154,7 @@ export function CatalogPage() {
   }
 
   return (
-    <main className="wrap" id="conteudo">
+    <main className="wrap" id="conteudo" tabIndex={-1}>
       <PageHeader
         title="Catálogo"
         meta="Produtos cadastrados — Lopo Lab"

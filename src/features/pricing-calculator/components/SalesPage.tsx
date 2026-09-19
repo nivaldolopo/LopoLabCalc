@@ -507,7 +507,7 @@ export function SalesPage() {
   }
 
   return (
-    <main className="wrap" id="conteudo">
+    <main className="wrap" id="conteudo" tabIndex={-1}>
       <PageHeader
         title="Vendas"
         meta="Histórico de vendas — Lopo Lab"

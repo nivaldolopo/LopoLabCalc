@@ -1255,7 +1255,7 @@ export function StockPage() {
   }
 
   return (
-    <main className="wrap" id="conteudo">
+    <main className="wrap" id="conteudo" tabIndex={-1}>
       <PageHeader
         title="Estoque"
         meta="Filamento, insumos e produtos — Lopo Lab"

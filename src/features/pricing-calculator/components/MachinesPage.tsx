@@ -118,7 +118,7 @@ export function MachinesPage() {
   }, [rois]);
 
   return (
-    <main className="wrap" id="conteudo">
+    <main className="wrap" id="conteudo" tabIndex={-1}>
       <PageHeader
         title="Impressoras"
         meta="ROI e payback — Lopo Lab"
