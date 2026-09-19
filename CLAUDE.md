@@ -9,14 +9,12 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-18): banco de TESTE (`lopo-lab-calculadora-test`) virou clone exato da
-  produção** — export/import nativo do Firestore (Console → Import/Export, bucket GCS temporário
-  criado e apagado na hora), 281 documentos. Era só `config/machines`+`config/negocio`+2 docs de
-  `alteracoes` (sobra de dev local pós-DEC-07); zerado antes do import pra não sobrar mistura. Serve
-  de rede de segurança pro dado de teste rico continuar disponível em local/Preview depois que a
-  produção for limpa pro cadastro real (frente 3). Checklist do que se apaga na produção também
-  ficou pronto, conferido coleção por coleção — seção **3** do [`BACKLOG.md`](.claude/BACKLOG.md).
-  O backup diário (98 dias) da produção já está ligado desde mais cedo hoje.
+- **Última mudança (2026-09-19): catálogo separado em Geral × Personalizado** — `ProductKind`
+  (toggle no formulário, duas abas no `/catalogo`, coluna no CSV), **congelado em cada venda**
+  (`Sale.productKind`). Junto: link opcional `Sale.quoteId` (orçamento → venda, taxa de conversão
+  futura) e `Discount.reason` (motivo do desconto). As três vieram de auditar o que o `/painel`
+  futuro vai precisar nascer sabendo — o resto já está congelado no dado de hoje, seção
+  `[Dashboard]` do [`BACKLOG.md`](.claude/BACKLOG.md).
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.

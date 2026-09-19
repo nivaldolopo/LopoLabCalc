@@ -314,6 +314,26 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
     eventos de `producao` que o geraram (as camadas da SKU têm `sourceEventId`). Puxa buscar `producao`
     por `productId` sob demanda (pós-TD-006 a coleção não é mais assinada inteira) = a mesma agregação
     server-side do painel. Sai da aba Produtos do estoque e entra aqui.
+  - **Brainstorm de métricas (2026-09-19), pra este painel nascer rico** — auditado contra o dado que
+    o app já congela: nenhuma das ideias abaixo pede campo novo, é agregação pura sobre o que já
+    existe (`Sale`/`ProductionEvent`/`FilamentUsage.material` já carregam tudo).
+    - **Financeiro:** ticket médio por venda · receita por forma de pagamento (líquida da taxa) ·
+      total de desconto concedido no período · receita **geral × personalizado** (`ProductKind`,
+      já congelado em `Sale.productKind` desde 2026-09-19) · **taxa de conversão orçamento → venda**
+      e tempo médio entre os dois (`Sale.quoteId`, idem).
+    - **Produção/máquinas:** material/R$ perdido em falha · custo do que virou teste/brinde (nunca
+      gerou receita) · desperdício de purga/torre acumulado · ranking de produto mais IMPRESSO
+      (≠ mais vendido).
+    - **Estoque:** consumo de filamento por material/marca · valor parado (filamento+insumo+acabado)
+      · giro de estoque / previsão de "vai faltar em N dias" · peças acabadas paradas há muito tempo.
+    - **Catálogo:** produto mais lucrativo / menor margem · produtos "zumbis" (nunca vendidos) ·
+      curva ABC · preço sugerido × preço praticado.
+    - **Esdrúxulas:** mapa de calor dia da semana × hora de venda · lucro por hora de mão de obra ·
+      kWh total consumido no período.
+  - **Ideias que pedem campo novo, sem pressa** (config que liga quando quiser — diferente das duas
+    acima, não perde histórico por ter chegado depois): meta de faturamento do mês (barra de
+    progresso) · alerta de manutenção preventiva por horas de máquina · preço NUMÉRICO do
+    concorrente (hoje `linkCompetitor` é só um link de referência) pra markup médio comparável.
 
 ## Decisões já marteladas que ainda são tarefa de CÓDIGO
 
