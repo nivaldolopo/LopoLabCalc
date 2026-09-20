@@ -5,14 +5,18 @@ import {
   applyConsumption,
   balanceG,
   brandCandidates,
+  brandOptionsFor,
   catalogPricePerKg,
+  colorOptionsForMaterial,
   colorStatement,
   filamentLabel,
   filamentReferences,
   isBelowMin,
   materialOptions,
+  matchStockByBrand,
   maxCandidatePrice,
   newestRoll,
+  relinkFilament,
   reverseConsumption,
   rollNumbers,
   saleCost,
@@ -201,6 +205,149 @@ describe("brandCandidates / maxCandidatePrice (Item 1)", () => {
 
   it("maxCandidatePrice é 0 sem candidata nenhuma", () => {
     expect(maxCandidatePrice([])).toBe(0);
+  });
+});
+
+// Refinamento do Item 1 (2026-09-20) — a cascata Material → Cor → Marca do
+// formulário.
+describe("colorOptionsForMaterial / brandOptionsFor / matchStockByBrand", () => {
+  function cor(over: Partial<StockFilament> & { id: string }): StockFilament {
+    return {
+      material: "PLA",
+      brand: "Bambu",
+      colorName: "Preto",
+      minG: 0,
+      archived: false,
+      rolls: [makeRoll({ id: `${over.id}_r1`, pricePerKg: 100 })],
+      adjustments: [],
+      createdAt: 0,
+      ...over,
+    };
+  }
+
+  describe("colorOptionsForMaterial", () => {
+    it("só as cores do material digitado, sem repetir", () => {
+      const stock = [
+        cor({ id: "a", material: "PLA", colorName: "Preto" }),
+        cor({ id: "b", material: "PLA", colorName: "Azul" }),
+        cor({ id: "c", material: "PETG", colorName: "Verde" }),
+      ];
+      expect(colorOptionsForMaterial(stock, "PLA")).toEqual(["Azul", "Preto"]);
+    });
+
+    it("sem material digitado, mostra as cores de toda a base ativa", () => {
+      const stock = [
+        cor({ id: "a", material: "PLA", colorName: "Preto" }),
+        cor({ id: "b", material: "PETG", colorName: "Verde" }),
+      ];
+      expect(colorOptionsForMaterial(stock, "")).toEqual(["Preto", "Verde"]);
+    });
+
+    it("arquivada não entra na lista", () => {
+      const stock = [cor({ id: "a", archived: true, colorName: "Preto" })];
+      expect(colorOptionsForMaterial(stock, "PLA")).toEqual([]);
+    });
+  });
+
+  describe("brandOptionsFor", () => {
+    it("só as marcas de material+cor batendo", () => {
+      const stock = [
+        cor({ id: "a", material: "PLA", colorName: "Preto", brand: "Bambu" }),
+        cor({ id: "b", material: "PLA", colorName: "Preto", brand: "Voolt" }),
+        cor({ id: "c", material: "PLA", colorName: "Azul", brand: "3DFila" }),
+      ];
+      expect(brandOptionsFor(stock, "PLA", "Preto")).toEqual(["Bambu", "Voolt"]);
+    });
+
+    it("sem cor digitada, mostra as marcas do material inteiro", () => {
+      const stock = [
+        cor({ id: "a", material: "PLA", colorName: "Preto", brand: "Bambu" }),
+        cor({ id: "b", material: "PLA", colorName: "Azul", brand: "Voolt" }),
+      ];
+      expect(brandOptionsFor(stock, "PLA", "")).toEqual(["Bambu", "Voolt"]);
+    });
+  });
+
+  describe("matchStockByBrand", () => {
+    it("bateu com exatamente uma marca ativa → liga", () => {
+      const stock = [cor({ id: "bambu", brand: "Bambu" }), cor({ id: "voolt", brand: "Voolt" })];
+      expect(matchStockByBrand(stock, "PLA", "Preto", "bambu")?.id).toBe("bambu");
+    });
+
+    it("marca digitada sem correspondência → null (fica só rótulo)", () => {
+      const stock = [cor({ id: "bambu", brand: "Bambu" })];
+      expect(matchStockByBrand(stock, "PLA", "Preto", "Marca Inexistente")).toBeNull();
+    });
+
+    it("marca vazia → null (nenhuma marca fixada)", () => {
+      const stock = [cor({ id: "bambu", brand: "Bambu" })];
+      expect(matchStockByBrand(stock, "PLA", "Preto", "")).toBeNull();
+    });
+
+    it("duas cores com a MESMA marca (caso raro) → ambíguo, null", () => {
+      const stock = [
+        cor({ id: "a", brand: "Bambu" }),
+        cor({ id: "b", brand: "Bambu" }),
+      ];
+      expect(matchStockByBrand(stock, "PLA", "Preto", "Bambu")).toBeNull();
+    });
+
+    it("marca de outra cor/material não bate", () => {
+      const stock = [cor({ id: "a", material: "PETG", brand: "Bambu" })];
+      expect(matchStockByBrand(stock, "PLA", "Preto", "Bambu")).toBeNull();
+    });
+  });
+
+  // Regressão do code review (--high) — `relinkFilament` é o ponto ÚNICO que
+  // os dois formulários (cadastro e /producao) usam pra decidir se o link
+  // atual ainda vale depois de uma edição.
+  describe("relinkFilament", () => {
+    it("link SEM brand gravado (linha de antes do refinamento) sobrevive a uma edição não relacionada", () => {
+      // O bug: a linha está ligada a "bambu" (marca real "Bambu"), mas o
+      // `brand` da FilamentUsage nunca foi gravado (`""`/undefined) — caso de
+      // TODO produto salvo pelo <select> antigo. Editar SÓ o peso/outro campo
+      // não deveria mexer no link.
+      const stock = [cor({ id: "bambu", material: "PLA", colorName: "Preto", brand: "Bambu" })];
+      expect(relinkFilament(stock, "bambu", "PLA", "Preto", "")).toBe("bambu");
+    });
+
+    it("marca digitada DIVERGENTE da marca real ligada perde o link e busca um novo", () => {
+      const stock = [
+        cor({ id: "bambu", material: "PLA", colorName: "Preto", brand: "Bambu" }),
+        cor({ id: "voolt", material: "PLA", colorName: "Preto", brand: "Voolt" }),
+      ];
+      expect(relinkFilament(stock, "bambu", "PLA", "Preto", "Voolt")).toBe("voolt");
+    });
+
+    it("marca digitada divergente sem correspondência nenhuma perde o link (vira null)", () => {
+      const stock = [cor({ id: "bambu", material: "PLA", colorName: "Preto", brand: "Bambu" })];
+      expect(relinkFilament(stock, "bambu", "PLA", "Preto", "Marca Inexistente")).toBeNull();
+    });
+
+    it("material/cor mudaram: perde o link mesmo com a marca igual", () => {
+      const stock = [
+        cor({ id: "bambu-preto", material: "PLA", colorName: "Preto", brand: "Bambu" }),
+        cor({ id: "bambu-azul", material: "PLA", colorName: "Azul", brand: "Bambu" }),
+      ];
+      expect(relinkFilament(stock, "bambu-preto", "PLA", "Azul", "Bambu")).toBe("bambu-azul");
+    });
+
+    it("marca arquivada já ligada sobrevive (arquivada não é removida)", () => {
+      const stock = [
+        cor({ id: "bambu", material: "PLA", colorName: "Preto", brand: "Bambu", archived: true }),
+      ];
+      expect(relinkFilament(stock, "bambu", "PLA", "Preto", "Bambu")).toBe("bambu");
+    });
+
+    it("sem link nenhum antes, acha um NOVO pela marca digitada", () => {
+      const stock = [cor({ id: "bambu", material: "PLA", colorName: "Preto", brand: "Bambu" })];
+      expect(relinkFilament(stock, null, "PLA", "Preto", "Bambu")).toBe("bambu");
+    });
+
+    it("sem link antes e sem marca digitada, continua sem link", () => {
+      const stock = [cor({ id: "bambu", material: "PLA", colorName: "Preto", brand: "Bambu" })];
+      expect(relinkFilament(stock, null, "PLA", "Preto", "")).toBeNull();
+    });
   });
 });
 

@@ -34,7 +34,7 @@ const salvo: SavedProduct = {
   linkCompetitor: "https://concorrente.com/x",
   linkFile: "https://drive.google.com/file/abc",
   filaments: [
-    { filamentId: "fil_azul", colorName: 'Azul "Royal"', material: "PLA", pricePerKg: 118.9, totalG: 143.53 },
+    { filamentId: "fil_azul", colorName: 'Azul "Royal"', material: "PLA", brand: "Bambu", pricePerKg: 118.9, totalG: 143.53 },
     {
       filamentId: "fil_branco", colorName: "Branco; Neve", material: "PETG", pricePerKg: 99.5,
       totalG: 60, modelG: 40, supportG: 8, purgedG: 7, towerG: 5,

@@ -128,6 +128,26 @@ describe("filaments — stripFilamentIds (persistência)", () => {
     expect(clean.supportG).toBe(4);
     expect(clean.totalG).toBe(19);
   });
+
+  // Refinamento do Item 1 (2026-09-20) — `brand` virou texto livre do
+  // CADASTRO (não só do snapshot da venda).
+  it("persiste a marca digitada, mesmo sem link (rótulo só)", () => {
+    const [clean] = stripFilamentIds([
+      makeFilament({ colorName: "Preto", material: "PLA", brand: "Bambu", totalG: 40 }),
+    ]);
+    expect(clean.brand).toBe("Bambu");
+  });
+
+  it("marca vazia/em branco não entra no documento", () => {
+    const [semMarca] = stripFilamentIds([
+      makeFilament({ colorName: "Preto", material: "PLA", brand: "", totalG: 40 }),
+    ]);
+    expect("brand" in semMarca).toBe(false);
+    const [comEspaco] = stripFilamentIds([
+      makeFilament({ colorName: "Preto", material: "PLA", brand: "   ", totalG: 40 }),
+    ]);
+    expect("brand" in comEspaco).toBe(false);
+  });
 });
 
 describe("freezeFilaments (D7 — congela material/marca da cor)", () => {

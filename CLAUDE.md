@@ -9,14 +9,17 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-20): 3 itens do mesmo pedido, todos fechados.**
-  **(1) Cor virou SUGESTÃO no cadastro, marca só se decide na produção** — `FilamentUsage.material`
-  é campo PRÓPRIO e obrigatório (independente da marca); `filamentId` virou "marca sugerida"
-  opcional. Sem marca fixada, `resolveFilamentPrices`/`resolveFilRow` usam a MAIOR `pricePerKg`
-  entre as marcas ATIVAS de mesma cor+material (`brandCandidates`/`maxCandidatePrice`, novos em
-  `lib/stock.ts`) — marca REMOVIDA continua caindo no salvo, nunca nessas candidatas.
-  `FilamentColorsSection` e o seletor da `/producao` reformulados. Sem migração (Diretriz 6):
-  produto carregado sem material fica vazio até o dono confirmar.
+- **Última mudança (2026-09-20): refinamento do item 1 (feedback do dono) + itens 2 e 3 do mesmo
+  pedido, todos fechados.**
+  **(1) Material/Cor/Marca em CASCATA, marca digitável livre** — `FilamentColorsSection` (cadastro)
+  e o seletor da `/producao` trocam o antigo `<select>` de marca (só cadastradas) por 3 campos de
+  texto livre com `<datalist>` (Material filtra Cor, que filtra Marca —
+  `colorOptionsForMaterial`/`brandOptionsFor`, `lib/stock.ts`). Marca digitada sem bater no Estoque
+  vira só rótulo salvo (`FilamentUsage.brand`) — preço fica no salvo/editável, **sem mudança em
+  `calculatePricing.ts`** (decisão do dono). `filamentId` é DERIVADO a cada tecla por
+  `relinkFilament()` (`lib/stock.ts`, as duas telas) — link antigo sem `brand` gravado sobrevive a
+  edição não relacionada (achado do `/code-review --high`: sem essa trava, editar QUALQUER campo já
+  derrubava o link calado).
   **(2) `productIdTable()`** + botão "Copiar de-para" no `/catalogo`, mesmo padrão de
   `colorIdTable`/`supplyIdTable`.
   **(3) Importar histórico de produção** — botão "Importar histórico" na `/producao`: cola/sobe o
@@ -25,7 +28,7 @@
   Idempotente por `"bambu:<task_id>"` no início de `notes` (`fetchBambuImportedTaskIds`, novo em
   `productionRepository.ts`) — reimportar o mesmo arquivo não duplica, inclusive `task_id` repetido
   dentro do PRÓPRIO arquivo. Toda a lógica em `lib/productionImport.ts`, pura e testada.
-  Os `/code-review --high` dos três itens acharam e corrigiram bugs reais antes do commit (detalhe
+  Os `/code-review --high` de cada rodada acharam e corrigiram bugs reais antes do commit (detalhe
   no `HISTORICO.md` se precisar revisitar) — nenhum ficou pendente.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e

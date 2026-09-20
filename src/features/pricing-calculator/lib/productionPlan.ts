@@ -64,6 +64,12 @@ export type FilRow = {
   // da marca escolhida aqui. É o que filtra as "marcas candidatas" no seletor
   // da `/producao` (mesma cor+material do produto).
   material: string;
+  // Refinamento do Item 1 — a marca, texto livre em cascata com material/cor
+  // (ver `FilamentColorsSection`). Vem do cadastro quando há uma sugestão
+  // digitada, ou da marca REAL quando a linha está ligada a uma
+  // `StockFilament` (`filamentId`). `filamentId` é DERIVADO dela — bateu com
+  // exatamente uma marca ativa → liga; senão fica só rótulo.
+  brand?: string;
   totalG: number;
   pricePerKg: number;
   // FEAT-11: a ETAPA de origem (`MAIN_STAGE_KEY` ou o id/índice da extra, as
@@ -142,6 +148,7 @@ export function resolveFilRow(
         label,
         colorName: color.colorName,
         material,
+        brand: color.brand,
         totalG: total,
         pricePerKg,
         stageKey,
@@ -160,6 +167,7 @@ export function resolveFilRow(
       label,
       colorName: f.colorName ?? "",
       material,
+      brand: f.brand,
       totalG: total,
       pricePerKg,
       stageKey,
@@ -179,6 +187,7 @@ export function resolveFilRow(
     label,
     colorName: f.colorName ?? "",
     material,
+    brand: f.brand,
     totalG: total,
     pricePerKg,
     stageKey,
@@ -190,19 +199,22 @@ export function resolveFilRow(
 
 // Converte uma FilRow em FilamentUsage congelável. `material` vem da MARCA
 // efetivamente escolhida na produção quando há uma (fonte mais forte); sem
-// marca, do que a linha já carregava (o material do cadastro — Item 1). `brand`
-// só existe quando há marca ligada (D7).
+// marca, do que a linha já carregava (o material do cadastro — Item 1).
+// `brand` prefere a marca REAL da `StockFilament` ligada; sem link, cai no
+// texto que a linha já carregava (refinamento do Item 1 — a marca digitada
+// sem corresponder a nada continua sendo um rótulo válido pra congelar).
 export function filRowToUsage(f: FilRow, stock: StockFilament[]): FilamentUsage {
   const color = f.filamentId
     ? stock.find((c) => c.id === f.filamentId)
     : undefined;
+  const brand = color?.brand || f.brand;
   return {
     filamentId: f.filamentId ?? null,
     colorName: color ? color.colorName : f.colorName,
     material: color?.material || f.material,
     pricePerKg: num(f.pricePerKg),
     totalG: num(f.totalG),
-    ...(color?.brand ? { brand: color.brand } : {}),
+    ...(brand ? { brand } : {}),
   };
 }
 

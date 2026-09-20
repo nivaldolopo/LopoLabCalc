@@ -665,6 +665,15 @@ function parseFilamentList(
       // leitura), e é o `validateProduct` quem barra o SAVE de uma linha sem
       // material — o mesmo aviso que a tela dá para quem digita à mão.
       material: textoJson(item.material, campo("material"), report),
+      // Refinamento do Item 1 (2026-09-20) — `brand` virou texto livre do
+      // CADASTRO (antes só existia no snapshot congelado da venda/produção,
+      // que não passa por aqui). Mesmo padrão do detalhe: OPCIONAL, ausente
+      // continua ausente — FORM-01, o campo que a leitura esquece é o que o
+      // save seguinte apaga calado. Junto dos outros campos de IDENTIDADE da
+      // cor (não da quantidade), como em `stripFilamentIds`.
+      ...(item.brand !== undefined
+        ? { brand: textoJson(item.brand, campo("brand"), report) }
+        : {}),
       pricePerKg: numFromJson(item.pricePerKg, campo("pricePerKg"), report),
       totalG: numFromJson(item.totalG, campo("totalG"), report),
       // Detalhe é OPCIONAL: ausente continua ausente (`makeFilament` distingue

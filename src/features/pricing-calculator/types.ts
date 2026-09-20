@@ -49,10 +49,13 @@ export type Machine = {
 // `material` é campo PRÓPRIO e obrigatório do cadastro (a proteção real contra
 // imprimir ABS onde o cadastro diz PLA); `colorName` é sugestão de cor, sempre
 // texto livre. `filamentId` deixou de ser a única marca aceita: ainda aponta
-// para uma `StockFilament` específica (a "marca sugerida" no cadastro), mas a
-// `/producao` pode escolher qualquer marca da mesma cor+material — ou fugir
-// para outra cor. Sem `filamentId`, o preço do catálogo (`resolveFilamentPrices`)
-// usa a MAIOR `pricePerKg` entre as marcas ativas de mesma cor+material.
+// para uma `StockFilament` específica, mas é DERIVADO — o formulário o
+// recalcula toda vez que material/cor/marca mudam (`matchStockByBrand`, em
+// `lib/stock.ts`), casando com o Estoque quando os três batem com exatamente
+// uma marca cadastrada. A `/producao` pode escolher qualquer marca da mesma
+// cor+material, ou fugir para outra cor. Sem `filamentId`, o preço do
+// catálogo (`resolveFilamentPrices`) usa a MAIOR `pricePerKg` entre as marcas
+// ativas de mesma cor+material.
 export type FilamentUsage = {
   id?: string;
   filamentId: string | null;
@@ -64,10 +67,13 @@ export type FilamentUsage = {
   supportG?: number;
   purgedG?: number;
   towerG?: number;
-  // D7: a MARCA de fato usada, só no SNAPSHOT congelado (venda/produção) — nunca
-  // no cadastro (Item 1). Preenchida a partir da marca escolhida na produção (ou
-  // da marca sugerida, quando a venda congela direto do cadastro) e nunca
-  // presente numa `ProductInput`/`PrintStage` salva.
+  // Refinamento do Item 1 (2026-09-20) — `brand` passou a existir TAMBÉM no
+  // cadastro/produção (antes só no snapshot congelado da venda): texto livre
+  // que o dono digita mesmo sem a marca estar no Estoque ("colocar qual é a
+  // marca" mesmo avulsa). Bateu com EXATAMENTE uma `StockFilament` de mesma
+  // cor+material → vira o `filamentId` (preço vivo); sem bater com nenhuma
+  // (ou com mais de uma), fica só RÓTULO — o preço continua no salvo/digitado,
+  // nunca tenta adivinhar de qual marca se trata.
   brand?: string;
 };
 

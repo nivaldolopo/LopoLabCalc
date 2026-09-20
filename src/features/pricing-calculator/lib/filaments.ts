@@ -68,6 +68,7 @@ export function makeFilament(data: Partial<FilamentUsage> = {}): FilamentUsage {
     supportG: data.supportG,
     purgedG: data.purgedG,
     towerG: data.towerG,
+    brand: data.brand,
   };
 }
 
@@ -107,9 +108,15 @@ export function filamentsMaterialCost(filaments: FilamentUsage[]): number {
 export function mergeFilaments(filaments: FilamentUsage[]): FilamentUsage[] {
   const map = new Map<string, FilamentUsage>();
   for (const f of filaments) {
-    const key = `${f.filamentId ?? ""}|${(f.colorName ?? "")
-      .trim()
-      .toLowerCase()}|${(f.material ?? "").trim().toLowerCase()}|${num(f.pricePerKg)}`;
+    // ⚠ Code review — `.toLowerCase()` sozinho não casava "Bambú"/"Bambu" (só
+    // a caixa, não o acento): duas linhas com o MESMO `filamentId` (logo, a
+    // mesma StockFilament) deixavam de casar por causa de como cada uma
+    // digitou a marca, e a tela mostrava "2 cores" onde era uma só.
+    // `normalizeText` (acento + caixa, o mesmo padrão da UX-05) é tolerante
+    // aos dois.
+    const key = `${f.filamentId ?? ""}|${normalizeText(f.colorName ?? "")}|${normalizeText(
+      f.material ?? "",
+    )}|${normalizeText(f.brand ?? "")}|${num(f.pricePerKg)}`;
     const total = filamentTotalG(f);
     const prev = map.get(key);
     if (prev) {
@@ -131,6 +138,7 @@ export function mergeFilaments(filaments: FilamentUsage[]): FilamentUsage[] {
         supportG: f.supportG,
         purgedG: f.purgedG,
         towerG: f.towerG,
+        ...(f.brand ? { brand: f.brand } : {}),
       });
     }
   }
@@ -149,6 +157,13 @@ export function stripFilamentIds(
       filamentId: f.filamentId,
       colorName: f.colorName,
       material: f.material,
+      // Refinamento do Item 1 — `brand` agora é texto livre do CADASTRO (não
+      // só do snapshot da venda), por isso persiste junto dos outros campos de
+      // IDENTIDADE da cor (filamentId/colorName/material), antes da
+      // quantidade. Vazio não entra (Firestore aceita a ausência, e uma
+      // string vazia só inflaria o documento sem dizer nada que a ausência já
+      // não diz).
+      ...(f.brand?.trim() ? { brand: f.brand.trim() } : {}),
       pricePerKg: f.pricePerKg,
       totalG: f.totalG,
     };
@@ -163,8 +178,9 @@ export function stripFilamentIds(
 // D7: congela as cores da VENDA resolvendo marca/nome/material da COR viva do
 // Estoque (pelo `filamentId`), quando há uma marca de fato ligada — mais
 // autoritativa que a sugestão do cadastro (Item 1). Sem `filamentId` (venda que
-// não passou pela produção, ou marca nunca fixada), mantém o `material` que já
-// veio na `FilamentUsage` (obrigatório desde o cadastro) e fica sem `brand`.
+// não passou pela produção, ou marca nunca fixada), mantém `material` (sempre
+// presente) e o `brand` TEXTO LIVRE que já veio da `FilamentUsage`, quando
+// houver (refinamento do Item 1 — a marca digitada sem link vira rótulo).
 export function freezeFilaments(
   filaments: FilamentUsage[] | undefined,
   stock: Pick<StockFilament, "id" | "material" | "brand" | "colorName">[],

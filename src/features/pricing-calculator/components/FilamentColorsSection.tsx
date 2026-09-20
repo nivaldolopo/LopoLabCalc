@@ -3,16 +3,17 @@
 import { useId } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { round2 } from "@/lib/number";
-import { normalizeText } from "@/lib/text";
 import { formatCurrency } from "@/lib/formatting/currency";
 import type { FilamentUsage, StockFilament } from "../types";
 import { filamentTotalG, makeFilament } from "../lib/filaments";
 import {
   brandCandidates,
+  brandOptionsFor,
   catalogPricePerKg,
-  filamentLabel,
+  colorOptionsForMaterial,
   materialOptions,
   maxCandidatePrice,
+  relinkFilament,
 } from "../lib/stock";
 import { NumberInput } from "./NumberInput";
 
@@ -21,13 +22,13 @@ import { NumberInput } from "./NumberInput";
 // o Total passa a ser a soma (travado). É usada na etapa principal (ProductForm)
 // e nas etapas extras (ExtraStagesSection).
 //
-// Item 1 (2026-09-20) — COR virou sugestão, MARCA só se decide na `/producao`.
-// "Material" é campo PRÓPRIO e obrigatório (dropdown dos já cadastrados no
-// Estoque + digitar novo, D8); "Cor" é texto livre, sempre editável; "Marca
-// sugerida" é OPCIONAL — um ponteiro para uma `StockFilament` específica, só
-// para o preço do catálogo ter de onde partir e a `/producao` ter uma sugestão
-// pronta. Sem marca fixada, o preço vivo usa a MAIOR `pricePerKg` entre as
-// marcas ativas de mesma cor+material (`resolveFilamentPrices`).
+// Item 1 (2026-09-20) + refinamento no mesmo dia — COR virou sugestão, MARCA só
+// se decide na `/producao`, mas os TRÊS campos são texto livre em CASCATA:
+// Material filtra as sugestões de Cor, que filtram as de Marca (dropdown via
+// `<datalist>`, nunca trava a digitação — cor/marca podem ser algo que ainda
+// não está no Estoque). `filamentId` é DERIVADO: bateu com EXATAMENTE uma
+// `StockFilament` de mesma material+cor+marca → liga (preço vivo); sem bater
+// com nenhuma (ou mais de uma) → a marca digitada fica só RÓTULO, sem link.
 type FilamentColorsSectionProps = {
   filaments: FilamentUsage[];
   onChange: (filaments: FilamentUsage[]) => void;
@@ -57,57 +58,63 @@ export function FilamentColorsSection({
   const multi = filaments.length > 1;
 
   const stockById = new Map(stock.map((color) => [color.id, color]));
-  const activeColors = stock.filter((color) => !color.archived);
   const materials = materialOptions(stock);
 
-  // Atualiza uma cor mantendo o Total coerente: `makeFilament` recalcula
-  // `totalG` = model+purga+torre quando há detalhamento; senão usa o Total dado.
-  //
-  // Cor/material mudaram por baixo de uma marca fixada? A marca deixa de
-  // corresponder e a sugestão é descartada — ela não pode ficar apontando para
-  // uma cor/material que o dono não digita mais (a marca é SÓ sugestão, nunca
-  // trava o texto livre).
-  // ⚠ A checagem compara com a PRÓPRIA cor vinculada (`stock.find`), nunca com
-  // `brandCandidates` (que exclui arquivada de propósito): comparar com as
-  // candidatas desligava toda marca arquivada no primeiro toque no campo, arquivada
-  // nunca aparece lá mesmo quando cor/material continuam idênticos.
-  function updateAt(index: number, patch: Partial<FilamentUsage>) {
+  // Atualiza uma cor mantendo o Total coerente (`makeFilament`) e o
+  // `filamentId` em dia com o que Material/Cor/Marca dizem AGORA.
+  // `relinkFilament` (lib/stock.ts) é o ponto ÚNICO da decisão "ainda bate?" —
+  // compartilhado com a `/producao`, pra não divergir a mesma regra em dois
+  // lugares (foi assim que o bug do code review nasceu da primeira vez).
+  function updateAt(
+    index: number,
+    patch: Partial<Pick<FilamentUsage, "colorName" | "material" | "brand">>,
+  ) {
     onChange(
       filaments.map((f, i) => {
         if (i !== index) return f;
         const merged = { ...makeFilament({ ...f, ...patch }), id: f.id };
         if (
-          merged.filamentId &&
-          (patch.colorName !== undefined || patch.material !== undefined)
+          patch.colorName !== undefined ||
+          patch.material !== undefined ||
+          patch.brand !== undefined
         ) {
-          const linked = stock.find((c) => c.id === merged.filamentId);
-          const stillMatches =
-            linked !== undefined &&
-            normalizeText(linked.colorName ?? "") === normalizeText(merged.colorName) &&
-            normalizeText(linked.material ?? "") === normalizeText(merged.material);
-          if (!stillMatches) merged.filamentId = null;
+          merged.filamentId = relinkFilament(
+            stock,
+            merged.filamentId,
+            merged.material,
+            merged.colorName,
+            merged.brand ?? "",
+          );
+          // O preço segue a MESMA regra do cálculo (`resolveFilamentPrices`,
+          // que só olha `filamentId` — a marca digitada é só rótulo pra ele):
+          // ligou → preço vivo da marca; não ligou (com ou sem marca
+          // digitada) → a MAIOR entre as candidatas de cor+material.
+          const linked = merged.filamentId
+            ? stock.find((c) => c.id === merged.filamentId)
+            : undefined;
+          if (linked) {
+            const live = catalogPricePerKg(linked);
+            if (live > 0) merged.pricePerKg = live;
+          } else {
+            const max = maxCandidatePrice(
+              brandCandidates(stock, merged.colorName, merged.material),
+            );
+            if (max > 0) merged.pricePerKg = max;
+          }
         }
         return merged;
       }),
     );
   }
 
-  // Escolha da marca sugerida. "" = nenhuma (decide na produção); uma cor do
-  // Estoque semeia material/cor/preço — conveniência para quem prefere partir
-  // do Estoque em vez de digitar do zero.
-  function selectBrand(index: number, value: string) {
-    if (!value) {
-      updateAt(index, { filamentId: null });
-      return;
-    }
-    const color = stockById.get(value);
-    if (!color) return;
-    updateAt(index, {
-      filamentId: color.id,
-      colorName: color.colorName,
-      material: color.material,
-      pricePerKg: catalogPricePerKg(color),
-    });
+  // Total (g) e preço digitado à mão passam batido pela recomputação do link
+  // (não mudam material/cor/marca) — ficam num updater à parte, mais simples.
+  function updateField(index: number, patch: Partial<FilamentUsage>) {
+    onChange(
+      filaments.map((f, i) =>
+        i === index ? { ...makeFilament({ ...f, ...patch }), id: f.id } : f,
+      ),
+    );
   }
 
   function addColor() {
@@ -135,7 +142,7 @@ export function FilamentColorsSection({
   // 0), sem mudar o Total.
   function openDetail(index: number) {
     const f = filaments[index];
-    updateAt(index, {
+    updateField(index, {
       modelG: filamentTotalG(f),
       supportG: 0,
       purgedG: 0,
@@ -157,6 +164,7 @@ export function FilamentColorsSection({
               material: item.material,
               pricePerKg: item.pricePerKg,
               totalG: total,
+              ...(item.brand ? { brand: item.brand } : {}),
             }
           : item,
       ),
@@ -196,27 +204,30 @@ export function FilamentColorsSection({
           const linkedColor = f.filamentId
             ? stockById.get(f.filamentId)
             : undefined;
-          const isLinked = Boolean(f.filamentId);
-          const missing = isLinked && !linkedColor; // marca removida do estoque
+          const missing = Boolean(f.filamentId) && !linkedColor; // marca removida do estoque
+          // Code review — o antigo <select> tinha uma opção "(arquivada)"
+          // própria; virando texto livre, essa informação não tinha mais
+          // onde aparecer (arquivada não é removida — `linkedColor` continua
+          // achando ela, `missing` fica false, e nada mais avisava).
+          const archived = Boolean(linkedColor?.archived);
+          // Cascata: cor sugere pelo material já digitado; marca sugere pelos
+          // dois. Datalist vazio (nada bate) degrada sozinho a campo de texto
+          // simples — é o que deixa o avulso "mais simples" sem um caminho
+          // separado pra ele.
+          const colorListId = `${fieldId}-${index}-colors`;
+          const brandListId = `${fieldId}-${index}-brands`;
+          const colorOptions = colorOptionsForMaterial(stock, f.material);
+          const brandOptions = brandOptionsFor(stock, f.material, f.colorName);
           const candidates = brandCandidates(stock, f.colorName, f.material);
-          const otherColors = activeColors.filter(
-            (color) => !candidates.some((c) => c.id === color.id),
-          );
-          // ⚠ A ramificação é por `f.filamentId` (a INTENÇÃO), não por
-          // `linkedColor` (o resultado da busca) — marca FIXADA que sumiu do
-          // Estoque é `missing`, e o preço fica no salvo, nunca nas candidatas
-          // por coincidência de cor+material (mesmo fallback de
-          // `resolveFilamentPrices`/`resolveFilRow`). Só a marca NUNCA fixada
-          // (`filamentId` nulo) tenta as candidatas.
           const livePrice = f.filamentId
             ? linkedColor
               ? catalogPricePerKg(linkedColor)
               : 0
             : maxCandidatePrice(candidates);
-          // Só-leitura quando há preço vivo (marca fixada com rolo, ou
-          // correspondência de cor+material no Estoque). Sem nenhum dos dois, o
-          // preço salvo continua editável (fallback D3) — inclusive quando a
-          // marca fixada sumiu (o badge acima já avisa).
+          // Só-leitura quando há preço vivo (marca ligada com rolo, ou
+          // correspondência de cor+material no Estoque sem marca fixada). Sem
+          // nenhum dos dois — inclusive marca digitada que não bate com nada —
+          // o preço salvo continua editável (fallback D3).
           const showLivePrice = livePrice > 0;
           const rowId = `${fieldId}-${index}`;
           return (
@@ -246,12 +257,18 @@ export function FilamentColorsSection({
                     id={`${rowId}-color`}
                     className="field-input"
                     type="text"
+                    list={colorListId}
                     value={f.colorName}
                     onChange={(event) =>
                       updateAt(index, { colorName: event.target.value })
                     }
                     placeholder="Preto, Vermelho... (sugestão)"
                   />
+                  <datalist id={colorListId}>
+                    {colorOptions.map((option) => (
+                      <option key={option} value={option} />
+                    ))}
+                  </datalist>
                   {missing ? (
                     <div className="filament-missing-badge">
                       ⚠ marca removida do estoque — usando o preço salvo
@@ -260,60 +277,29 @@ export function FilamentColorsSection({
                 </div>
                 <div className="filament-cell grow">
                   <label className="section-label" htmlFor={`${rowId}-brand`}>
-                    Marca sugerida
+                    Marca
                   </label>
-                  <select
+                  <input
                     id={`${rowId}-brand`}
                     className="field-input"
-                    value={f.filamentId ?? ""}
-                    onChange={(event) => selectBrand(index, event.target.value)}
-                  >
-                    <option value="">Nenhuma (decide na produção)</option>
-                    {candidates.length > 0 ? (
-                      <optgroup label="Cor/material batem">
-                        {candidates
-                          .slice()
-                          .sort((a, b) =>
-                            filamentLabel(a).localeCompare(filamentLabel(b), "pt-BR"),
-                          )
-                          .map((color) => (
-                            <option key={color.id} value={color.id}>
-                              {filamentLabel(color)}
-                            </option>
-                          ))}
-                      </optgroup>
-                    ) : null}
-                    {otherColors.length > 0 ? (
-                      <optgroup
-                        label={
-                          candidates.length > 0
-                            ? "Outras cores do Estoque"
-                            : "Estoque"
-                        }
-                      >
-                        {otherColors
-                          .slice()
-                          .sort((a, b) =>
-                            filamentLabel(a).localeCompare(filamentLabel(b), "pt-BR"),
-                          )
-                          .map((color) => (
-                            <option key={color.id} value={color.id}>
-                              {filamentLabel(color)}
-                            </option>
-                          ))}
-                      </optgroup>
-                    ) : null}
-                    {linkedColor && linkedColor.archived ? (
-                      <option value={linkedColor.id}>
-                        {filamentLabel(linkedColor)} (arquivada)
-                      </option>
-                    ) : null}
-                    {missing ? (
-                      <option value={f.filamentId ?? ""}>
-                        ⚠ marca removida do estoque
-                      </option>
-                    ) : null}
-                  </select>
+                    type="text"
+                    list={brandListId}
+                    value={f.brand ?? ""}
+                    onChange={(event) =>
+                      updateAt(index, { brand: event.target.value })
+                    }
+                    placeholder="Bambu, Voolt... (opcional)"
+                  />
+                  <datalist id={brandListId}>
+                    {brandOptions.map((option) => (
+                      <option key={option} value={option} />
+                    ))}
+                  </datalist>
+                  {archived ? (
+                    <div className="filament-missing-badge">
+                      ⚠ marca arquivada — ainda em uso, mas some das sugestões
+                    </div>
+                  ) : null}
                 </div>
                 <div className="filament-cell">
                   {/* Com preço vivo o valor é um <div> só-leitura — aí o rótulo
@@ -341,7 +327,7 @@ export function FilamentColorsSection({
                       className="field-input"
                       min={0}
                       value={f.pricePerKg}
-                      onChange={(pricePerKg) => updateAt(index, { pricePerKg })}
+                      onChange={(pricePerKg) => updateField(index, { pricePerKg })}
                     />
                   )}
                 </div>
@@ -367,7 +353,7 @@ export function FilamentColorsSection({
                       className="field-input"
                       min={0}
                       value={f.totalG}
-                      onChange={(totalG) => updateAt(index, { totalG })}
+                      onChange={(totalG) => updateField(index, { totalG })}
                     />
                   </div>
                 )}
@@ -396,7 +382,7 @@ export function FilamentColorsSection({
                         className="field-input"
                         min={0}
                         value={f.modelG ?? 0}
-                        onChange={(modelG) => updateAt(index, { modelG })}
+                        onChange={(modelG) => updateField(index, { modelG })}
                       />
                     </div>
                     <div className="filament-cell">
@@ -411,7 +397,7 @@ export function FilamentColorsSection({
                         className="field-input"
                         min={0}
                         value={f.supportG ?? 0}
-                        onChange={(supportG) => updateAt(index, { supportG })}
+                        onChange={(supportG) => updateField(index, { supportG })}
                       />
                     </div>
                     <div className="filament-cell">
@@ -423,7 +409,7 @@ export function FilamentColorsSection({
                         className="field-input"
                         min={0}
                         value={f.purgedG ?? 0}
-                        onChange={(purgedG) => updateAt(index, { purgedG })}
+                        onChange={(purgedG) => updateField(index, { purgedG })}
                       />
                     </div>
                     <div className="filament-cell">
@@ -435,7 +421,7 @@ export function FilamentColorsSection({
                         className="field-input"
                         min={0}
                         value={f.towerG ?? 0}
-                        onChange={(towerG) => updateAt(index, { towerG })}
+                        onChange={(towerG) => updateField(index, { towerG })}
                       />
                     </div>
                   </div>

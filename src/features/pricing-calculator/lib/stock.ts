@@ -97,6 +97,107 @@ export function maxCandidatePrice(candidates: StockFilament[]): number {
   return Math.max(...candidates.map((c) => catalogPricePerKg(c)));
 }
 
+// ---------------------------------------------------------------------------
+// Item 1 (refinamento, 2026-09-20) — a cascata Material → Cor → Marca do
+// formulário: cada campo filtra o próximo pelo que já foi digitado, sempre
+// tolerante a acento/caixa. As três continuam texto livre (a cor É sugestão,
+// a marca pode ser um rolo que o dono ainda não cadastrou) — isto só
+// alimenta o `<datalist>` de cada uma com o que já existe na base ATIVA.
+// ---------------------------------------------------------------------------
+
+// As cores já usadas para o material em edição (cascata 1/3). Sem material
+// digitado ainda, mostra as cores da base ativa inteira — ponto de partida
+// antes de a primeira escolha filtrar qualquer coisa.
+export function colorOptionsForMaterial(
+  stock: StockFilament[],
+  material: string,
+): string[] {
+  const mat = normalizeText(material ?? "");
+  const seen = new Map<string, string>();
+  for (const color of stock) {
+    if (color.archived) continue;
+    if (mat && normalizeText(color.material ?? "") !== mat) continue;
+    const name = (color.colorName ?? "").trim();
+    if (!name) continue;
+    const key = normalizeText(name);
+    if (!seen.has(key)) seen.set(key, name);
+  }
+  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+// As marcas já usadas para material+cor em edição (cascata 2/3) — a lista que
+// alimenta o `<datalist>` da Marca. Filtra só pelo que já foi digitado: sem
+// cor ainda, mostra as marcas do material inteiro; sem nenhum dos dois, as da
+// base ativa inteira.
+export function brandOptionsFor(
+  stock: StockFilament[],
+  material: string,
+  colorName: string,
+): string[] {
+  const mat = normalizeText(material ?? "");
+  const cor = normalizeText(colorName ?? "");
+  const seen = new Map<string, string>();
+  for (const color of stock) {
+    if (color.archived) continue;
+    if (mat && normalizeText(color.material ?? "") !== mat) continue;
+    if (cor && normalizeText(color.colorName ?? "") !== cor) continue;
+    const brand = (color.brand ?? "").trim();
+    if (!brand) continue;
+    const key = normalizeText(brand);
+    if (!seen.has(key)) seen.set(key, brand);
+  }
+  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+// Cascata 3/3 — a marca digitada bate com EXATAMENTE uma `StockFilament` desta
+// cor+material? É o que liga o `filamentId` sem precisar de um dropdown
+// travado: bateu com uma só, vira link (preço vivo); bateu com nenhuma ou com
+// mais de uma (duas cores cadastradas com a mesma marca, caso raro), o texto
+// fica só um RÓTULO — sem link, sem inventar de qual das duas se trata.
+export function matchStockByBrand(
+  stock: StockFilament[],
+  material: string,
+  colorName: string,
+  brand: string,
+): StockFilament | null {
+  const alvo = normalizeText(brand ?? "");
+  if (!alvo) return null;
+  const candidatos = brandCandidates(stock, colorName, material).filter(
+    (c) => normalizeText(c.brand ?? "") === alvo,
+  );
+  return candidatos.length === 1 ? candidatos[0] : null;
+}
+
+// A recomputação do `filamentId` depois de uma edição em Material/Cor/Marca —
+// PURA, usada pelos dois formulários (`FilamentColorsSection`, `ProductionPage`)
+// pra não duplicar (e não divergir) a mesma decisão.
+//
+// ⚠ Code review — a marca só entra na comparação com o link atual quando FOI
+// digitada. `brand` é campo novo (refinamento do Item 1): uma linha ligada
+// pelo <select> antigo, ou qualquer link sem `brand` gravado, chega aqui com
+// marca vazia mesmo tendo uma marca REAL ligada — exigir os dois batendo
+// desligava o link no primeiro toque em QUALQUER dos três campos, mesmo sem
+// nada que de fato tivesse divergido.
+export function relinkFilament(
+  stock: StockFilament[],
+  currentFilamentId: string | null,
+  material: string,
+  colorName: string,
+  brand: string,
+): string | null {
+  const linked = currentFilamentId
+    ? stock.find((c) => c.id === currentFilamentId)
+    : undefined;
+  const stillMatches =
+    linked !== undefined &&
+    normalizeText(linked.material ?? "") === normalizeText(material) &&
+    normalizeText(linked.colorName ?? "") === normalizeText(colorName) &&
+    (!brand?.trim() || normalizeText(linked.brand ?? "") === normalizeText(brand));
+  if (stillMatches) return currentFilamentId;
+  const matched = matchStockByBrand(stock, material, colorName, brand);
+  return matched ? matched.id : null;
+}
+
 // Alerta de estoque mínimo. `minG` 0 = sem alerta.
 export function isBelowMin(color: StockFilament): boolean {
   return num(color.minG) > 0 && balanceG(color) < num(color.minG);
