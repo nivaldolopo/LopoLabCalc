@@ -9,7 +9,27 @@ function makeProduct(overrides: Partial<ProductInput> = {}): ProductInput {
   // passou a ser erro de validação. A cobaia declara uma máquina para os DEMAIS
   // testes continuarem provando o que provavam — o conjunto vazio tem teste
   // próprio, logo abaixo.
-  return { ...DEFAULT_PRODUCT_INPUT, machineIds: ["a1"], ...overrides };
+  const product: ProductInput = {
+    ...DEFAULT_PRODUCT_INPUT,
+    machineIds: ["a1"],
+    ...overrides,
+  };
+  // Item 1 — material é obrigatório por cor. Sem `filaments` explícito no
+  // overrides, monta uma cor válida a partir do (possível) `weightG`/
+  // `filamentPricePerKg` sobrepostos — é o que deixa `weightG: -1` etc. ainda
+  // chegarem à validação, exatamente como antes do material existir.
+  if (!overrides.filaments) {
+    product.filaments = [
+      {
+        filamentId: null,
+        colorName: "",
+        material: "PLA",
+        pricePerKg: product.filamentPricePerKg ?? 110,
+        totalG: product.weightG ?? 40,
+      },
+    ];
+  }
+  return product;
 }
 
 describe("validateProduct", () => {

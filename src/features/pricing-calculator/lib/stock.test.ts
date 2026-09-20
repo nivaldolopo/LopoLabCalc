@@ -4,12 +4,14 @@ import {
   adjustRoll,
   applyConsumption,
   balanceG,
+  brandCandidates,
   catalogPricePerKg,
   colorStatement,
   filamentLabel,
   filamentReferences,
   isBelowMin,
   materialOptions,
+  maxCandidatePrice,
   newestRoll,
   reverseConsumption,
   rollNumbers,
@@ -139,6 +141,66 @@ describe("isBelowMin", () => {
     expect(isBelowMin(makeColor([makeRoll({ id: "a", remainingG: 0 })], 0))).toBe(
       false,
     );
+  });
+});
+
+// Item 1 — a busca por MARCAS candidatas (mesma cor+material) quando nenhuma
+// marca está fixada no cadastro/produção.
+describe("brandCandidates / maxCandidatePrice (Item 1)", () => {
+  function cor(over: Partial<StockFilament> & { id: string }): StockFilament {
+    return {
+      material: "PLA",
+      brand: "Bambu",
+      colorName: "Preto",
+      minG: 0,
+      archived: false,
+      rolls: [makeRoll({ id: `${over.id}_r1`, pricePerKg: 100 })],
+      adjustments: [],
+      createdAt: 0,
+      ...over,
+    };
+  }
+
+  it("acha marcas com mesma cor+material, tolerante a acento/caixa", () => {
+    const bambu = cor({ id: "bambu", brand: "Bambu" });
+    const voolt = cor({ id: "voolt", brand: "Voolt" });
+    const stock = [bambu, voolt];
+    expect(brandCandidates(stock, "preto", "pla").map((c) => c.id)).toEqual([
+      "bambu",
+      "voolt",
+    ]);
+    expect(brandCandidates(stock, "Prêto", "PLA").map((c) => c.id)).toEqual([
+      "bambu",
+      "voolt",
+    ]);
+  });
+
+  it("material diferente não é candidata, mesmo com a mesma cor", () => {
+    const stock = [cor({ id: "pla", material: "PLA" }), cor({ id: "petg", material: "PETG" })];
+    expect(brandCandidates(stock, "Preto", "PLA").map((c) => c.id)).toEqual(["pla"]);
+  });
+
+  it("arquivada nunca é candidata", () => {
+    const stock = [cor({ id: "ativa" }), cor({ id: "arquivada", archived: true })];
+    expect(brandCandidates(stock, "Preto", "PLA").map((c) => c.id)).toEqual(["ativa"]);
+  });
+
+  it("cor ou material vazio não casa com nada", () => {
+    const stock = [cor({ id: "bambu" })];
+    expect(brandCandidates(stock, "", "PLA")).toEqual([]);
+    expect(brandCandidates(stock, "Preto", "")).toEqual([]);
+  });
+
+  it("maxCandidatePrice usa a MAIOR entre as candidatas (pior caso de custo)", () => {
+    const stock = [
+      cor({ id: "barata", rolls: [makeRoll({ id: "r1", pricePerKg: 90 })] }),
+      cor({ id: "cara", rolls: [makeRoll({ id: "r2", pricePerKg: 130 })] }),
+    ];
+    expect(maxCandidatePrice(brandCandidates(stock, "Preto", "PLA"))).toBe(130);
+  });
+
+  it("maxCandidatePrice é 0 sem candidata nenhuma", () => {
+    expect(maxCandidatePrice([])).toBe(0);
   });
 });
 
@@ -501,7 +563,9 @@ describe("colorStatement (extrato — D6.1)", () => {
 
 describe("filamentReferences (guarda do excluir)", () => {
   const usa = (id: string | null) => ({
-    filaments: [{ filamentId: id, colorName: "", pricePerKg: 0, totalG: 100 }],
+    filaments: [
+      { filamentId: id, colorName: "", material: "PLA", pricePerKg: 0, totalG: 100 },
+    ],
   });
 
   it("acha a cor usada no produto e na etapa", () => {

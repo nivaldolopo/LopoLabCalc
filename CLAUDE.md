@@ -9,16 +9,20 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-19): catálogo separado em Geral × Personalizado** — `ProductKind`
-  (toggle no formulário, duas abas no `/catalogo`, coluna no CSV), **congelado em cada venda**
-  (`Sale.productKind`). Junto: link opcional `Sale.quoteId` (orçamento → venda, taxa de conversão
-  futura) e `Discount.reason` (motivo do desconto). As três vieram de auditar o que o `/painel`
-  futuro vai precisar nascer sabendo — o resto já está congelado no dado de hoje, seção
-  `[Dashboard]` do [`BACKLOG.md`](.claude/BACKLOG.md).
+- **Última mudança (2026-09-20): cor virou SUGESTÃO no cadastro, marca só se decide na produção
+  (Item 1 de 3)** — `FilamentUsage.material` é campo PRÓPRIO e obrigatório (independente da marca);
+  `filamentId` virou "marca sugerida" opcional. Sem marca fixada, `resolveFilamentPrices`/
+  `resolveFilRow` usam a MAIOR `pricePerKg` entre as marcas ATIVAS de mesma cor+material
+  (`brandCandidates`/`maxCandidatePrice`, novos em `lib/stock.ts`) — marca REMOVIDA continua caindo
+  no salvo, nunca nessas candidatas (bug achado e corrigido pelo `/code-review --high` antes do
+  commit). `FilamentColorsSection` e o seletor da `/producao` reformulados (Material/Cor texto
+  livre + Marca sugerida agrupada por candidatas). Sem migração (Diretriz 6): produto carregado sem
+  material fica vazio até o dono confirmar. **▶ Itens 2 (`productIdTable`) e 3 (importar histórico
+  de produção via JSON da Bambu) do mesmo pedido ainda faltam** — detalhe no `BACKLOG.md`.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
-- **▶ PRÓXIMA TAREFA DESTE PROJETO — frente 3: uso real.** Checklist do que apaga pronto; falta só
+- **PRÓXIMA TAREFA DESTE PROJETO — frente 3: uso real.** Checklist do que apaga pronto; falta só
   executar (o dono aciona quando decidir o marco — Diretriz 6 expira nesse ponto) e seguir a ordem
   do recadastro, também na seção 3. Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o

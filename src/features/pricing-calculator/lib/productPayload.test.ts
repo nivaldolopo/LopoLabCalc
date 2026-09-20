@@ -34,9 +34,9 @@ const salvo: SavedProduct = {
   linkCompetitor: "https://concorrente.com/x",
   linkFile: "https://drive.google.com/file/abc",
   filaments: [
-    { filamentId: "fil_azul", colorName: 'Azul "Royal"', pricePerKg: 118.9, totalG: 143.53 },
+    { filamentId: "fil_azul", colorName: 'Azul "Royal"', material: "PLA", pricePerKg: 118.9, totalG: 143.53 },
     {
-      filamentId: "fil_branco", colorName: "Branco; Neve", pricePerKg: 99.5,
+      filamentId: "fil_branco", colorName: "Branco; Neve", material: "PETG", pricePerKg: 99.5,
       totalG: 60, modelG: 40, supportG: 8, purgedG: 7, towerG: 5,
     },
   ],
@@ -44,12 +44,12 @@ const salvo: SavedProduct = {
     {
       id: "stage_extra_1", name: "Tampa (outra maquina)", machineIds: ["a1"],
       printHours: 1.25, laborMinutes: 12,
-      filaments: [{ filamentId: "fil_verde", colorName: "Verde", pricePerKg: 105, totalG: 22.4 }],
+      filaments: [{ filamentId: "fil_verde", colorName: "Verde", material: "PLA", pricePerKg: 105, totalG: 22.4 }],
     },
     {
       id: "stage_extra_2", name: "Encaixe (mesma maquina)", machineIds: ["x2d"],
       printHours: 0.6, laborMinutes: 5,
-      filaments: [{ filamentId: null, colorName: "Preto avulso", pricePerKg: 89.9, totalG: 11 }],
+      filaments: [{ filamentId: null, colorName: "Preto avulso", material: "ABS", pricePerKg: 89.9, totalG: 11 }],
     },
   ],
   accessories: [
@@ -201,7 +201,7 @@ describe("RT-02 — etapa salva sem id", () => {
     stages: [
       {
         name: "Etapa antiga", machineIds: ["a1"], printHours: 1, laborMinutes: 5,
-        filaments: [{ filamentId: null, colorName: "Cinza", pricePerKg: 100, totalG: 20 }],
+        filaments: [{ filamentId: null, colorName: "Cinza", material: "PLA", pricePerKg: 100, totalG: 20 }],
       },
     ],
     subitems: [

@@ -19,7 +19,12 @@ import {
   type SupplyPlan,
   ZERO_FROZEN,
 } from "./production";
-import { catalogPricePerKg, filamentLabel } from "./stock";
+import {
+  brandCandidates,
+  catalogPricePerKg,
+  filamentLabel,
+  maxCandidatePrice,
+} from "./stock";
 import { resolveFleet } from "./fleet";
 import type {
   DebtLot,
@@ -55,6 +60,10 @@ export type FilRow = {
   filamentId: string | null;
   label: string; // exibição (cor do estoque) ou texto livre
   colorName: string;
+  // Item 1 — material do CADASTRO (ou digitado na linha avulsa), independente
+  // da marca escolhida aqui. É o que filtra as "marcas candidatas" no seletor
+  // da `/producao` (mesma cor+material do produto).
+  material: string;
   totalG: number;
   pricePerKg: number;
   // FEAT-11: a ETAPA de origem (`MAIN_STAGE_KEY` ou o id/índice da extra, as
@@ -110,15 +119,18 @@ export function nextRowKey(): string {
   return `row_${Date.now()}_${(rowSeq += 1)}`;
 }
 
-// FilamentUsage (do produto/etapa) → FilRow, resolvendo nome/preço/material da COR
-// viva do Estoque quando ligada. Sem `filamentId` = avulso (mantém texto/preço).
-// `stageKey` é a etapa de onde a cor veio (FEAT-11) — vazio quando não se aplica.
+// FilamentUsage (do produto/etapa) → FilRow, resolvendo nome/preço da MARCA
+// viva do Estoque quando fixada. Sem `filamentId` (o caso normal desde o Item
+// 1: cor é sugestão) resolve pelo mesmo critério do preço do catálogo — a MAIOR
+// `pricePerKg` entre as marcas ativas de mesma cor+material. `stageKey` é a
+// etapa de onde a cor veio (FEAT-11) — vazio quando não se aplica.
 export function resolveFilRow(
   f: FilamentUsage,
   stock: StockFilament[],
   stageKey = "",
 ): FilRow {
   const total = filamentTotalG(f);
+  const material = f.material ?? "";
   if (f.filamentId) {
     const color = stock.find((c) => c.id === f.filamentId);
     if (color) {
@@ -129,28 +141,57 @@ export function resolveFilRow(
         filamentId: color.id,
         label,
         colorName: color.colorName,
+        material,
         totalG: total,
         pricePerKg,
         stageKey,
         origin: { filamentId: color.id, label, pricePerKg },
       };
     }
+    // Marca REMOVIDA do Estoque — não é "nunca teve marca fixada". Mantém o
+    // preço salvo, sem cair nas candidatas por coincidência de cor+material:
+    // mesmo fallback do `missing` de `resolveFilamentPrices` (TD-009) — a
+    // troca de cor/preço só é DECISÃO do dono, nunca efeito colateral de uma
+    // marca sumida bater com outra qualquer.
+    const label = f.colorName || "Avulso";
+    const pricePerKg = num(f.pricePerKg);
+    return {
+      filamentId: null,
+      label,
+      colorName: f.colorName ?? "",
+      material,
+      totalG: total,
+      pricePerKg,
+      stageKey,
+      origin: { filamentId: null, label, pricePerKg },
+    };
   }
+  // Item 1 — nunca teve marca fixada: mesma resolução do
+  // `resolveFilamentPrices` — a maior entre as candidatas ativas de mesma
+  // cor+material. É o que faz a "troca de cor" da tela comparar com o que a
+  // precificação de fato cobrou.
+  const candidates = brandCandidates(stock, f.colorName, material);
+  const candidatePrice = maxCandidatePrice(candidates);
+  const pricePerKg = candidatePrice > 0 ? candidatePrice : num(f.pricePerKg);
   const label = f.colorName || "Avulso";
   return {
     filamentId: null,
     label,
     colorName: f.colorName ?? "",
+    material,
     totalG: total,
-    pricePerKg: num(f.pricePerKg),
+    pricePerKg,
     stageKey,
     // Cor avulsa do PRODUTO ainda é uma origem (o preço veio do cadastro); só a
     // linha criada à mão na tela nasce sem.
-    origin: { filamentId: null, label, pricePerKg: num(f.pricePerKg) },
+    origin: { filamentId: null, label, pricePerKg },
   };
 }
 
-// Converte uma FilRow em FilamentUsage congelável (material/brand da COR — D7).
+// Converte uma FilRow em FilamentUsage congelável. `material` vem da MARCA
+// efetivamente escolhida na produção quando há uma (fonte mais forte); sem
+// marca, do que a linha já carregava (o material do cadastro — Item 1). `brand`
+// só existe quando há marca ligada (D7).
 export function filRowToUsage(f: FilRow, stock: StockFilament[]): FilamentUsage {
   const color = f.filamentId
     ? stock.find((c) => c.id === f.filamentId)
@@ -158,9 +199,9 @@ export function filRowToUsage(f: FilRow, stock: StockFilament[]): FilamentUsage 
   return {
     filamentId: f.filamentId ?? null,
     colorName: color ? color.colorName : f.colorName,
+    material: color?.material || f.material,
     pricePerKg: num(f.pricePerKg),
     totalG: num(f.totalG),
-    ...(color?.material ? { material: color.material } : {}),
     ...(color?.brand ? { brand: color.brand } : {}),
   };
 }
@@ -558,6 +599,7 @@ export function submissionColors(
     fils.map((f) => ({
       filamentId: f.filamentId,
       colorName: f.colorName,
+      material: f.material,
       pricePerKg: f.pricePerKg,
       totalG: f.totalG,
     }));

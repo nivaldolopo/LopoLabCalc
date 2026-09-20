@@ -13,6 +13,10 @@ type FilamentSource = {
   filaments?: FilamentUsage[] | null;
   weightG?: number | null;
   filamentPricePerKg?: number | null;
+  // Item 1 — só usado na migração do escalar legado (sem `filaments`). Uma
+  // etapa/produto NOVO passa aqui para nascer com o material já preenchido;
+  // documento antigo de verdade não o declara e cai no "" de sempre.
+  material?: string;
 };
 
 // true quando ao menos um campo de detalhe (model/suporte/purga/torre) foi
@@ -57,6 +61,7 @@ export function makeFilament(data: Partial<FilamentUsage> = {}): FilamentUsage {
     ...(data.id ? { id: data.id } : {}),
     filamentId: data.filamentId ?? null,
     colorName: data.colorName ?? "",
+    material: data.material ?? "",
     pricePerKg: num(data.pricePerKg),
     totalG: detailed ? detailSum : num(data.totalG),
     modelG: data.modelG,
@@ -77,6 +82,7 @@ export function normalizeFilaments(source: FilamentSource): FilamentUsage[] {
     makeFilament({
       totalG: num(source.weightG),
       pricePerKg: num(source.filamentPricePerKg),
+      material: source.material,
     }),
   ];
 }
@@ -103,7 +109,7 @@ export function mergeFilaments(filaments: FilamentUsage[]): FilamentUsage[] {
   for (const f of filaments) {
     const key = `${f.filamentId ?? ""}|${(f.colorName ?? "")
       .trim()
-      .toLowerCase()}|${num(f.pricePerKg)}`;
+      .toLowerCase()}|${(f.material ?? "").trim().toLowerCase()}|${num(f.pricePerKg)}`;
     const total = filamentTotalG(f);
     const prev = map.get(key);
     if (prev) {
@@ -118,6 +124,7 @@ export function mergeFilaments(filaments: FilamentUsage[]): FilamentUsage[] {
       map.set(key, {
         filamentId: f.filamentId ?? null,
         colorName: f.colorName ?? "",
+        material: f.material ?? "",
         pricePerKg: num(f.pricePerKg),
         totalG: total,
         modelG: f.modelG,
@@ -141,6 +148,7 @@ export function stripFilamentIds(
     const clean: FilamentUsage = {
       filamentId: f.filamentId,
       colorName: f.colorName,
+      material: f.material,
       pricePerKg: f.pricePerKg,
       totalG: f.totalG,
     };
@@ -152,10 +160,11 @@ export function stripFilamentIds(
   });
 }
 
-// D7: congela as cores da VENDA resolvendo material/marca/nome da COR viva do
-// Estoque (pelo `filamentId`) — o produto guarda só o id; material vive na cor. É
-// o que deixa o histórico agrupar por material sem consultar a cor (que pode ser
-// arquivada depois). Avulso (sem `filamentId`) fica sem material, como esperado.
+// D7: congela as cores da VENDA resolvendo marca/nome/material da COR viva do
+// Estoque (pelo `filamentId`), quando há uma marca de fato ligada — mais
+// autoritativa que a sugestão do cadastro (Item 1). Sem `filamentId` (venda que
+// não passou pela produção, ou marca nunca fixada), mantém o `material` que já
+// veio na `FilamentUsage` (obrigatório desde o cadastro) e fica sem `brand`.
 export function freezeFilaments(
   filaments: FilamentUsage[] | undefined,
   stock: Pick<StockFilament, "id" | "material" | "brand" | "colorName">[],

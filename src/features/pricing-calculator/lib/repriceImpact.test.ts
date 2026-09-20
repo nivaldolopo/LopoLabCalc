@@ -63,7 +63,7 @@ function produto(
     laborMinutes: 10,
     failureRate: 0,
     filaments: [
-      { filamentId: null, colorName: "Azul", pricePerKg: 110, totalG: 40 },
+      { filamentId: null, colorName: "Azul", material: "PLA", pricePerKg: 110, totalG: 40 },
     ],
     ...over,
   };
@@ -200,7 +200,7 @@ describe("[FEAT-12] as alavancas que reprecificam", () => {
     const produtos = [
       produto("ligado", {
         filaments: [
-          { filamentId: "cor1", colorName: "Azul", pricePerKg: 110, totalG: 40 },
+          { filamentId: "cor1", colorName: "Azul", material: "PLA", pricePerKg: 110, totalG: 40 },
         ],
       }),
     ];
@@ -256,7 +256,7 @@ describe("[FEAT-12] as alavancas que reprecificam", () => {
     const produtos = [
       produto("ligado", {
         filaments: [
-          { filamentId: "cor1", colorName: "Azul", pricePerKg: 999, totalG: 40 },
+          { filamentId: "cor1", colorName: "Azul", material: "PLA", pricePerKg: 999, totalG: 40 },
         ],
       }),
     ];

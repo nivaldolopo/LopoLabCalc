@@ -75,7 +75,7 @@ function produto(over: Partial<ProductInput> = {}): ProductInput {
     laborMinutes: 10,
     failureRate: 0,
     filaments: [
-      { filamentId: null, colorName: "Azul", pricePerKg: 110, totalG: 40 },
+      { filamentId: null, colorName: "Azul", material: "PLA", pricePerKg: 110, totalG: 40 },
     ],
     ...over,
   };

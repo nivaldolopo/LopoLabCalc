@@ -147,14 +147,14 @@ const saldoG = (color: StockFilament) =>
 
 // A cor como a TELA a tem (entrada do planejamento).
 const filamentosForm = (): FilamentUsage[] => [
-  { filamentId: COR, colorName: "Laranja", pricePerKg: 100, totalG: GRAMAS },
+  { filamentId: COR, colorName: "Laranja", material: "PLA", pricePerKg: 100, totalG: GRAMAS },
 ];
 
 // A mesma cor já CONGELADA no evento: AUD-14 [D9] — no documento o preço é o de
 // CADASTRO, e o nome do campo passou a dizer isso (o custo real é FIFO e mora no
 // `frozenBreakdown.material`).
 const filamentos = (): ProductionFilament[] => [
-  { filamentId: COR, colorName: "Laranja", catalogPricePerKg: 100, totalG: GRAMAS },
+  { filamentId: COR, colorName: "Laranja", material: "PLA", catalogPricePerKg: 100, totalG: GRAMAS },
 ];
 
 const eventoPayload = (

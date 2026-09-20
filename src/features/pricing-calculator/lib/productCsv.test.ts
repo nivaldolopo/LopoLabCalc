@@ -62,6 +62,7 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
       {
         filamentId: "sc9LAy9TUcbslnZpEZLb",
         colorName: "PLA · Bege · Bambu",
+        material: "PLA",
         pricePerKg: 41,
         totalG: 40,
         modelG: 30,
@@ -72,6 +73,7 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
       {
         filamentId: null,
         colorName: "cor avulsa",
+        material: "PETG",
         pricePerKg: 110,
         totalG: 15,
       },
@@ -87,6 +89,7 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
           {
             filamentId: "US6B9aheebWtn9NMXhUQ",
             colorName: "PLA · Laranja · Bambu",
+            material: "PLA",
             pricePerKg: 85,
             totalG: 11,
           },
@@ -102,6 +105,7 @@ function makeProduct(overrides: Partial<SavedProduct> = {}): SavedProduct {
           {
             filamentId: null,
             colorName: "cor avulsa 2",
+            material: "ABS",
             pricePerKg: 110,
             totalG: 15,
           },

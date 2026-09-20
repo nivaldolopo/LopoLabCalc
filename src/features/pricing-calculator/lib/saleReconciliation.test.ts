@@ -235,7 +235,7 @@ describe("planReciboReconciliation — inteiro de produto com subitens (BUG-05)"
 describe("planReciboReconciliation — encomenda (dispara produção)", () => {
   const product = makeProduct({
     filaments: [
-      { filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 },
+      { filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 },
     ],
   });
 
@@ -283,7 +283,7 @@ describe("planReciboReconciliation — encomenda (dispara produção)", () => {
     const mesa = makeProduct({
       piecesCount: 4,
       filaments: [
-        { filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 },
+        { filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 },
       ],
     });
     const recon = planReciboReconciliation(
@@ -388,7 +388,7 @@ describe("planReciboReconciliation — composição do COGS (FEAT-06)", () => {
   it("encomenda com qty 3: composição por unidade, nunca parcial", () => {
     const product = makeProduct({
       filaments: [
-        { filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 },
+        { filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 },
       ],
     });
     const recon = planReciboReconciliation(
@@ -406,7 +406,7 @@ describe("planReciboReconciliation — composição do COGS (FEAT-06)", () => {
     const mesa = makeProduct({
       piecesCount: 4,
       filaments: [
-        { filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 },
+        { filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 },
       ],
     });
     const recon = planReciboReconciliation(
@@ -438,7 +438,7 @@ describe("recibo misto + estorno (round-trip)", () => {
   const product = makeProduct({
     id: "p2",
     filaments: [
-      { filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 },
+      { filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 },
     ],
   });
 
@@ -559,7 +559,7 @@ describe("UX-42 — preview de edição bate com a gravação", () => {
     // O outro lado do item: sem estorno, a encomenda editada parecia atravessar
     // rolo e faltar filamento que na verdade volta.
     const product = makeProduct({
-      filaments: [{ filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 }],
+      filaments: [{ filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 }],
     });
     const currentColor = makeColor("preto", [{ remainingG: 60 }]);
     const old = {
@@ -643,7 +643,7 @@ describe("reconcileReciboWrite — estornar-e-reaplicar (edição)", () => {
 
   it("editar encomenda estorna o evento antigo (delete + filamento de volta) e cria o novo", () => {
     const product = makeProduct({
-      filaments: [{ filamentId: "preto", colorName: "Preto", totalG: 100, pricePerKg: 100 }],
+      filaments: [{ filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 }],
     });
     // Cor ATUAL já decrementada pela encomenda antiga (900); o evento antigo tirou 100.
     const currentColor = makeColor("preto", [{ remainingG: 900 }]);

@@ -9,6 +9,12 @@ function filamentError(
   context: string,
 ): string | null {
   for (const f of filaments) {
+    // Item 1 — material é campo próprio e obrigatório do cadastro (a proteção
+    // real contra imprimir ABS onde o cadastro diz PLA); antes era implícito
+    // via a marca escolhida, que agora é só sugestão.
+    if (!f.material?.trim()) {
+      return `⚠️ Informe o material do filamento${context}.`;
+    }
     if (num(f.pricePerKg) < 0) {
       return `⚠️ Preço do filamento${context} não pode ser negativo.`;
     }

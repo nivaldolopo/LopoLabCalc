@@ -61,6 +61,9 @@ const MODE_VALUES: ProductionMode[] = ["real", "historico"];
 // Serializa uma cor congelada campo a campo (o Firestore rejeita `undefined`, e
 // material/brand são congelados aqui — D7). Espelha `stripFilamentIds`, mas
 // MANTÉM material/brand (a venda os congela só no passo 8; a produção já aqui).
+// Item 1 — `material` é campo OBRIGATÓRIO (AUD-02: opcional num tipo de escrita
+// é omissão silenciosa esperando acontecer), gravado sempre; `brand` continua
+// opcional (só existe quando uma marca de fato foi ligada).
 function usageToDocument(f: ProductionFilament): DocumentData {
   return {
     filamentId: f.filamentId ?? null,
@@ -69,11 +72,11 @@ function usageToDocument(f: ProductionFilament): DocumentData {
     // pagou é FIFO e mora no `frozenBreakdown.material` do mesmo documento.
     catalogPricePerKg: num(f.catalogPricePerKg),
     totalG: num(f.totalG),
+    material: f.material ?? "",
     ...(f.modelG !== undefined ? { modelG: num(f.modelG) } : {}),
     ...(f.supportG !== undefined ? { supportG: num(f.supportG) } : {}),
     ...(f.purgedG !== undefined ? { purgedG: num(f.purgedG) } : {}),
     ...(f.towerG !== undefined ? { towerG: num(f.towerG) } : {}),
-    ...(f.material ? { material: f.material } : {}),
     ...(f.brand ? { brand: f.brand } : {}),
   };
 }
@@ -87,11 +90,13 @@ function usageFromDocument(data: DocumentData): ProductionFilament {
     // só com o nome novo.
     catalogPricePerKg: num(data.catalogPricePerKg ?? data.pricePerKg),
     totalG: num(data.totalG),
+    // Documento anterior ao Item 1 não tem `material` — lido como "" (Diretriz
+    // 7, sem migração; o dono recadastra).
+    material: data.material ? String(data.material) : "",
     ...(data.modelG !== undefined ? { modelG: num(data.modelG) } : {}),
     ...(data.supportG !== undefined ? { supportG: num(data.supportG) } : {}),
     ...(data.purgedG !== undefined ? { purgedG: num(data.purgedG) } : {}),
     ...(data.towerG !== undefined ? { towerG: num(data.towerG) } : {}),
-    ...(data.material ? { material: String(data.material) } : {}),
     ...(data.brand ? { brand: String(data.brand) } : {}),
   };
 }

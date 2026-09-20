@@ -46,6 +46,7 @@ describe("filaments — makeFilament / totalG", () => {
     const f: ReturnType<typeof makeFilament> = {
       filamentId: null,
       colorName: "",
+      material: "",
       pricePerKg: 100,
       totalG: 0,
       modelG: 10,
@@ -141,7 +142,15 @@ describe("freezeFilaments (D7 — congela material/marca da cor)", () => {
 
   it("resolve material/marca/nome da cor viva pelo filamentId", () => {
     const [f] = freezeFilaments(
-      [{ filamentId: "preto", colorName: "antigo", pricePerKg: 100, totalG: 50 }],
+      [
+        {
+          filamentId: "preto",
+          colorName: "antigo",
+          material: "ignorado",
+          pricePerKg: 100,
+          totalG: 50,
+        },
+      ],
       stock,
     );
     expect(f.material).toBe("PLA Basic");
@@ -150,22 +159,41 @@ describe("freezeFilaments (D7 — congela material/marca da cor)", () => {
     expect(f.totalG).toBe(50);
   });
 
-  it("avulso (sem filamentId) fica sem material", () => {
+  // Item 1 — avulso (sem marca fixada) MANTÉM o material que já veio no
+  // cadastro (obrigatório desde o Item 1); só não ganha `brand` (não há marca
+  // ligada de onde tirar uma).
+  it("avulso (sem filamentId) mantém o material do cadastro, sem marca", () => {
     const [f] = freezeFilaments(
-      [{ filamentId: null, colorName: "Verde", pricePerKg: 90, totalG: 30 }],
+      [
+        {
+          filamentId: null,
+          colorName: "Verde",
+          material: "PETG",
+          pricePerKg: 90,
+          totalG: 30,
+        },
+      ],
       stock,
     );
-    expect(f.material).toBeUndefined();
+    expect(f.material).toBe("PETG");
     expect(f.brand).toBeUndefined();
     expect(f.colorName).toBe("Verde");
   });
 
-  it("cor removida do Estoque cai no fallback (sem material), sem quebrar", () => {
+  it("marca removida do Estoque mantém o material do cadastro, sem quebrar", () => {
     const [f] = freezeFilaments(
-      [{ filamentId: "sumida", colorName: "X", pricePerKg: 100, totalG: 10 }],
+      [
+        {
+          filamentId: "sumida",
+          colorName: "X",
+          material: "ABS",
+          pricePerKg: 100,
+          totalG: 10,
+        },
+      ],
       stock,
     );
-    expect(f.material).toBeUndefined();
+    expect(f.material).toBe("ABS");
     expect(f.colorName).toBe("X");
   });
 });
@@ -191,7 +219,9 @@ describe("materialsLabel (D8 — material derivado)", () => {
 
   it("vazio quando nenhuma cor tem material (avulso)", () => {
     expect(
-      materialsLabel([{ filamentId: null, colorName: "", pricePerKg: 0, totalG: 1 }]),
+      materialsLabel([
+        { filamentId: null, colorName: "", material: "", pricePerKg: 0, totalG: 1 },
+      ]),
     ).toBe("");
   });
 });
@@ -201,7 +231,13 @@ describe("colorKeyOf (FEAT-11 — identidade de cor da peça)", () => {
     filamentId: string | null,
     colorName: string,
     totalG = 10,
-  ): FilamentUsage => ({ filamentId, colorName, pricePerKg: 110, totalG });
+  ): FilamentUsage => ({
+    filamentId,
+    colorName,
+    material: "PLA",
+    pricePerKg: 110,
+    totalG,
+  });
 
   it("uma cor do estoque: a chave é o filamentId, o rótulo é o nome", () => {
     expect(colorKeyOf([cor("fil_azul", "Azul")])).toEqual({

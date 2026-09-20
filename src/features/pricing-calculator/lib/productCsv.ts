@@ -28,7 +28,7 @@ import {
   normalizeFilaments,
   stripFilamentIds,
 } from "./filaments";
-import { catalogPricePerKg } from "./stock";
+import { brandCandidates, catalogPricePerKg } from "./stock";
 import { ROUNDING_OPTIONS } from "./roundPrice";
 import { DEFAULT_FAILURE_RATE } from "../constants";
 import { num } from "@/lib/number";
@@ -660,6 +660,11 @@ function parseFilamentList(
       ...(id ? { id } : {}),
       filamentId: filamentId || null,
       colorName: textoJson(item.colorName, campo("colorName"), report),
+      // Item 1 — material próprio e obrigatório do cadastro. CSV anterior à
+      // mudança não tem a chave: `textoJson` devolve "" (ausente não é erro de
+      // leitura), e é o `validateProduct` quem barra o SAVE de uma linha sem
+      // material — o mesmo aviso que a tela dá para quem digita à mão.
+      material: textoJson(item.material, campo("material"), report),
       pricePerKg: numFromJson(item.pricePerKg, campo("pricePerKg"), report),
       totalG: numFromJson(item.totalG, campo("totalG"), report),
       // Detalhe é OPCIONAL: ausente continua ausente (`makeFilament` distingue
@@ -2128,10 +2133,19 @@ export function parseProductsCsv(
       lista.forEach((cor, i) => {
         if (filamentTotalG(cor) <= 0) return;
         // Preço EFETIVO, na mesma ordem que o `resolveFilamentPrices` usa no
-        // cálculo: o rolo mais novo manda; sem rolo (ou sem estoque para
-        // consultar), vale o que a planilha escreveu.
+        // cálculo: marca FIXADA → o rolo mais novo DELA manda; sem marca
+        // fixada (o normal desde o Item 1) → a MAIOR entre as candidatas
+        // ativas de mesma cor+material; sem nenhum dos dois, vale o que a
+        // planilha escreveu.
         const viva = cor.filamentId ? estoquePorId.get(cor.filamentId) : undefined;
-        const vivo = viva ? catalogPricePerKg(viva) : 0;
+        const candidatos = cor.filamentId
+          ? []
+          : brandCandidates(options?.stock ?? [], cor.colorName, cor.material);
+        const vivo = viva
+          ? catalogPricePerKg(viva)
+          : candidatos.length > 0
+            ? Math.max(...candidatos.map((c) => catalogPricePerKg(c)))
+            : 0;
         if (vivo > 0 || num(cor.pricePerKg) > 0) return;
         const quem = cor.colorName.trim() || `cor ${i + 1}`;
         // CSV-27: a cor SEM ROLO e a cor COM ROLO A ZERO são o mesmo sintoma
@@ -2141,7 +2155,9 @@ export function parseProductsCsv(
         // que já está lá, ele cadastra, o preço continua 0 e o aviso continua
         // acendendo. O `catalogPricePerKg` lê o rolo MAIS NOVO, então é ele que
         // a frase precisa nomear.
-        const temRolo = (viva?.rolls?.length ?? 0) > 0;
+        const temRolo = viva
+          ? (viva.rolls?.length ?? 0) > 0
+          : candidatos.some((c) => (c.rolls?.length ?? 0) > 0);
         addIssue(
           "cor-sem-preco",
           "Cor com peso mas SEM preço — o material fica ZERADO e o preço sai muito " +
@@ -2152,7 +2168,9 @@ export function parseProductsCsv(
               ? temRolo
                 ? ` (cor "${viva.colorName}" existe e TEM rolo, mas o rolo mais novo está com preço 0 — corrija no Estoque)`
                 : ` (cor "${viva.colorName}" existe, mas não tem rolo)`
-              : ""),
+              : candidatos.length > 0
+                ? ` (${candidatos.length} marca(s) no Estoque com esta cor+material, mas nenhuma com rolo de preço — corrija no Estoque)`
+                : ""),
         );
       });
     });

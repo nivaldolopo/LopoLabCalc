@@ -10,6 +10,13 @@ import type {
   SaleChannel,
 } from "./types";
 
+// Item 1 (2026-09-20) — material é campo obrigatório do cadastro (não mais
+// implícito via a marca escolhida). PLA é o mesmo material que o
+// `filamentPricePerKg` abaixo já assumia — só o produto NOVO nasce com ele; um
+// produto CARREGADO sem material (Diretriz 7, sem migração) chega vazio de
+// propósito, para o dono confirmar em vez de herdar um palpite.
+export const DEFAULT_PRODUCT_MATERIAL = "PLA";
+
 // Reserva de falha padrão (%) para produtos sem valor próprio (antigos/importados).
 // Baseado em benchmarks reais: <5% = "excelente", 5-10% = hobbyista típico; Bambu
 // bem calibrada ~2%; operador experiente <5% (muitas vezes <1% em peças simples).

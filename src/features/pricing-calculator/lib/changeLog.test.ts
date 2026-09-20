@@ -56,7 +56,7 @@ function produto(id: string, over: Partial<SavedProduct> = {}): SavedProduct {
     printHours: 3,
     failureRate: 0,
     filaments: [
-      { filamentId: null, colorName: "Azul", pricePerKg: 110, totalG: 40 },
+      { filamentId: null, colorName: "Azul", material: "PLA", pricePerKg: 110, totalG: 40 },
     ],
     ...over,
   };

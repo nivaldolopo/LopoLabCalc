@@ -58,9 +58,9 @@ const cobaia: SavedProduct = {
   linkCompetitor: "https://concorrente.com/x",
   linkFile: "https://drive.google.com/file/abc",
   filaments: [
-    { filamentId: "fil_azul", colorName: 'Azul "Royal"', pricePerKg: 118.9, totalG: 143.53 },
+    { filamentId: "fil_azul", colorName: 'Azul "Royal"', material: "PLA", pricePerKg: 118.9, totalG: 143.53 },
     {
-      filamentId: "fil_branco", colorName: "Branco; Neve", pricePerKg: 99.5,
+      filamentId: "fil_branco", colorName: "Branco; Neve", material: "PETG", pricePerKg: 99.5,
       totalG: 60, modelG: 40, supportG: 8, purgedG: 7, towerG: 5,
     },
   ],
@@ -68,12 +68,12 @@ const cobaia: SavedProduct = {
     {
       id: "stage_extra_1", name: "Tampa (outra maquina)", machineIds: ["a1"],
       printHours: 1.25, laborMinutes: 12,
-      filaments: [{ filamentId: "fil_verde", colorName: "Verde", pricePerKg: 105, totalG: 22.4 }],
+      filaments: [{ filamentId: "fil_verde", colorName: "Verde", material: "PLA", pricePerKg: 105, totalG: 22.4 }],
     },
     {
       id: "stage_extra_2", name: "Encaixe (mesma maquina)", machineIds: ["x2d"],
       printHours: 0.6, laborMinutes: 5,
-      filaments: [{ filamentId: null, colorName: "Preto avulso", pricePerKg: 89.9, totalG: 11 }],
+      filaments: [{ filamentId: null, colorName: "Preto avulso", material: "ABS", pricePerKg: 89.9, totalG: 11 }],
     },
   ],
   accessories: [
@@ -295,7 +295,7 @@ describe("round-trip do CSV — bordas", () => {
     const csv = exportProductsCsv([legado], machines, fixedCosts, ENERGY_TARIFF, stock);
     const back = reimport(csv)[0];
     expect(back.stages[0].filaments).toEqual([
-      { filamentId: null, colorName: "", pricePerKg: 110, totalG: 30 },
+      { filamentId: null, colorName: "", material: "", pricePerKg: 110, totalG: 30 },
     ]);
     // E o round-trip segue estavel: reexportar da o mesmo CSV.
     const csv2 = exportProductsCsv(

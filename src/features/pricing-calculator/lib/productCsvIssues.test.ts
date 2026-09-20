@@ -47,7 +47,13 @@ const LINHA_BOA: Record<string, string> = {
   "Tempo (h)": "2",
   Markup: "3x",
   "Filamentos JSON": JSON.stringify([
-    { filamentId: "cor_laranja", colorName: "Laranja", pricePerKg: 110, totalG: 50 },
+    {
+      filamentId: "cor_laranja",
+      colorName: "Laranja",
+      material: "PLA",
+      pricePerKg: 110,
+      totalG: 50,
+    },
   ]),
 };
 
@@ -190,7 +196,18 @@ describe("CSV-05 — a importação conta o que engoliu", () => {
 
   it("linha que o formulário recusaria (sem peso e sem tempo)", () => {
     const r = parseProductsCsv(
-      csv({ Produto: "Vazio", Maquina: "A1 Combo", "Peso (g)": "0", "Tempo (h)": "0", Markup: "3" }),
+      csv({
+        Produto: "Vazio",
+        Maquina: "A1 Combo",
+        "Peso (g)": "0",
+        "Tempo (h)": "0",
+        Markup: "3",
+        // Item 1 — material próprio é checado ANTES do peso/tempo; a linha
+        // precisa de um pra exercitar o aviso que este teste mede.
+        "Filamentos JSON": JSON.stringify([
+          { filamentId: null, colorName: "", material: "PLA", pricePerKg: 0, totalG: 0 },
+        ]),
+      }),
       machines,
       opcoes,
     );
@@ -1055,7 +1072,14 @@ describe("AUD-11/D-2 — cor que PESA mas não CUSTA", () => {
   const semRolo = { ...cor, rolls: [] } as unknown as StockFilament;
   const corDe = (over: Record<string, unknown>) =>
     JSON.stringify([
-      { filamentId: "cor_laranja", colorName: "Laranja", pricePerKg: 110, totalG: 50, ...over },
+      {
+        filamentId: "cor_laranja",
+        colorName: "Laranja",
+        material: "PLA",
+        pricePerKg: 110,
+        totalG: 50,
+        ...over,
+      },
     ]);
 
   it("cor cadastrada SEM ROLO e preço 0 na planilha: acende", () => {

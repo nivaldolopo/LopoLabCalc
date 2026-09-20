@@ -280,8 +280,8 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
     const r = calculatePricing(
       makeProduct({
         filaments: [
-          { filamentId: null, colorName: "Preto", totalG: 40, pricePerKg: 110 },
-          { filamentId: null, colorName: "Vermelho", totalG: 20, pricePerKg: 200 },
+          { filamentId: null, colorName: "Preto", material: "PLA", totalG: 40, pricePerKg: 110 },
+          { filamentId: null, colorName: "Vermelho", material: "PLA", totalG: 20, pricePerKg: 200 },
         ],
       }),
       DEFAULT_MACHINES,
@@ -298,6 +298,7 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
           {
             filamentId: null,
             colorName: "Preto",
+            material: "PLA",
             modelG: 80,
             supportG: 22,
             purgedG: 68,
@@ -318,7 +319,7 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
     const r = calculatePricing(
       makeProduct({
         filaments: [
-          { filamentId: null, colorName: "Preto", totalG: 40, pricePerKg: 110 },
+          { filamentId: null, colorName: "Preto", material: "PLA", totalG: 40, pricePerKg: 110 },
         ],
         stages: [
           {
@@ -326,7 +327,7 @@ describe("calculatePricing — filamento por cor (FEAT-02)", () => {
             printHours: 1,
             laborMinutes: 0,
             filaments: [
-              { filamentId: null, colorName: "Preto", totalG: 20, pricePerKg: 110 },
+              { filamentId: null, colorName: "Preto", material: "PLA", totalG: 20, pricePerKg: 110 },
             ],
           },
         ],
@@ -362,7 +363,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
           printHours: 1,
           laborMinutes: 0,
           filaments: [
-            { filamentId: null, colorName: "X", totalG: 20, pricePerKg: 110 },
+            { filamentId: null, colorName: "X", material: "PLA", totalG: 20, pricePerKg: 110 },
           ],
         },
       ],
@@ -425,7 +426,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
             printHours: 1,
             laborMinutes: 0,
             filaments: [
-              { filamentId: null, colorName: "X", totalG: 20, pricePerKg: 110 },
+              { filamentId: null, colorName: "X", material: "PLA", totalG: 20, pricePerKg: 110 },
             ],
           },
           {
@@ -434,7 +435,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
             printHours: 2,
             laborMinutes: 0,
             filaments: [
-              { filamentId: null, colorName: "Y", totalG: 30, pricePerKg: 110 },
+              { filamentId: null, colorName: "Y", material: "PLA", totalG: 30, pricePerKg: 110 },
             ],
           },
         ],
@@ -503,7 +504,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
         printHours: 0,
         laborMinutes: 0,
         weightG: 0,
-        filaments: [{ filamentId: null, colorName: "X", totalG: 0, pricePerKg: 0 }],
+        filaments: [{ filamentId: null, colorName: "X", material: "PLA", totalG: 0, pricePerKg: 0 }],
         stages: [
           {
             id: "s1",
@@ -511,7 +512,7 @@ describe("calculatePricing — subitens / rateio aditivo (FEAT-01)", () => {
             printHours: 0,
             laborMinutes: 0,
             filaments: [
-              { filamentId: null, colorName: "X", totalG: 0, pricePerKg: 0 },
+              { filamentId: null, colorName: "X", material: "PLA", totalG: 0, pricePerKg: 0 },
             ],
           },
         ],
@@ -579,7 +580,7 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
     const r = calculatePricing(
       makeProduct({
         filaments: [
-          { filamentId: "cor1", colorName: "Preto", totalG: 100, pricePerKg: 50 },
+          { filamentId: "cor1", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 50 },
         ],
       }),
       DEFAULT_MACHINES,
@@ -595,7 +596,7 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
     const r = calculatePricing(
       makeProduct({
         filaments: [
-          { filamentId: "cor1", colorName: "Preto", totalG: 100, pricePerKg: 80 },
+          { filamentId: "cor1", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 80 },
         ],
       }),
       DEFAULT_MACHINES,
@@ -609,7 +610,7 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
     const r = calculatePricing(
       makeProduct({
         filaments: [
-          { filamentId: "sumiu", colorName: "Preto", totalG: 100, pricePerKg: 70 },
+          { filamentId: "sumiu", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 70 },
         ],
       }),
       DEFAULT_MACHINES,
@@ -624,7 +625,7 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
     const r = calculatePricing(
       makeProduct({
         filaments: [
-          { filamentId: null, colorName: "Avulso", totalG: 100, pricePerKg: 60 },
+          { filamentId: null, colorName: "Avulso", material: "PLA", totalG: 100, pricePerKg: 60 },
         ],
       }),
       DEFAULT_MACHINES,
@@ -632,6 +633,60 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
       [makeColor("cor1", [{ pricePerKg: 999 }])]);
     expect(r.materialCost).toBeCloseTo(6, 6); // 100/1000*60
     expect(r.filamentMissing).toBe(false);
+  });
+
+  // Item 1 — sem marca fixada (o caso normal), o preço do catálogo usa a
+  // MAIOR pricePerKg entre as marcas ATIVAS de mesma cor+material.
+  it("sem marca fixada, usa a MAIOR pricePerKg entre as marcas candidatas", () => {
+    const stock = [
+      makeColor("barata", [{ pricePerKg: 90 }]),
+      makeColor("cara", [{ pricePerKg: 130 }]),
+    ];
+    const r = calculatePricing(
+      makeProduct({
+        filaments: [
+          { filamentId: null, colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 50 },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED, ENERGY_TARIFF,
+      stock);
+    // Usa 130 (a marca mais cara), ignorando o pricePerKg salvo (50).
+    expect(r.materialCost).toBeCloseTo(13, 6);
+    expect(r.filamentMissing).toBe(false);
+  });
+
+  it("sem marca fixada e sem correspondência no Estoque, cai no preço salvo", () => {
+    const r = calculatePricing(
+      makeProduct({
+        filaments: [
+          { filamentId: null, colorName: "Roxo", material: "ABS", totalG: 100, pricePerKg: 77 },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED, ENERGY_TARIFF,
+      [makeColor("cor1", [{ pricePerKg: 999 }])]); // "Preto"/"PLA" — não casa
+    expect(r.materialCost).toBeCloseTo(7.7, 6); // 100/1000*77 (salvo)
+    expect(r.filamentMissing).toBe(false);
+  });
+
+  // Regressão do code review (--high): a marca REMOVIDA não pode cair nas
+  // candidatas por coincidência de cor+material com outra marca ativa — o
+  // preço tem de continuar no salvo, como o "cor removida" de cima.
+  it("marca removida NÃO cai nas candidatas mesmo com outra marca de mesma cor+material", () => {
+    const stock = [makeColor("outraMarca", [{ pricePerKg: 999 }])];
+    const r = calculatePricing(
+      makeProduct({
+        filaments: [
+          { filamentId: "sumiu", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 70 },
+        ],
+      }),
+      DEFAULT_MACHINES,
+      NO_FIXED, ENERGY_TARIFF,
+      stock);
+    // Fica no salvo (70), nunca no 999 de "outraMarca".
+    expect(r.materialCost).toBeCloseTo(7, 6);
+    expect(r.filamentMissing).toBe(true);
   });
 
   it("cor removida numa etapa extra também sinaliza", () => {
@@ -643,7 +698,7 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
             printHours: 1,
             laborMinutes: 0,
             filaments: [
-              { filamentId: "sumiu", colorName: "X", totalG: 10, pricePerKg: 100 },
+              { filamentId: "sumiu", colorName: "X", material: "PLA", totalG: 10, pricePerKg: 100 },
             ],
           },
         ],

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DEFAULT_PRODUCT_INPUT } from "../constants";
+import { DEFAULT_PRODUCT_INPUT, DEFAULT_PRODUCT_MATERIAL } from "../constants";
 import { makeFilament, normalizeFilaments } from "../lib/filaments";
 import type {
   Accessory,
@@ -32,7 +32,15 @@ function cloneDefaultProduct(): ProductInput {
     ...DEFAULT_PRODUCT_INPUT,
     stages: [],
     accessories: [],
-    filaments: withFilamentIds(normalizeFilaments(DEFAULT_PRODUCT_INPUT)),
+    // Item 1 — produto NOVO nasce com o material já preenchido (mesma lógica
+    // do `createStage` abaixo); `DEFAULT_PRODUCT_INPUT` continua sem o campo
+    // para não mudar o caminho legado que os testes de migração exercitam.
+    filaments: withFilamentIds(
+      normalizeFilaments({
+        ...DEFAULT_PRODUCT_INPUT,
+        material: DEFAULT_PRODUCT_MATERIAL,
+      }),
+    ),
   };
 }
 
@@ -55,7 +63,9 @@ export function createStage(
     printHours: data?.printHours ?? 0,
     laborMinutes: data?.laborMinutes ?? 0,
     filaments: withFilamentIds(
-      normalizeFilaments(data ?? { filamentPricePerKg: 110 }),
+      normalizeFilaments(
+        data ?? { filamentPricePerKg: 110, material: DEFAULT_PRODUCT_MATERIAL },
+      ),
     ),
   };
 }

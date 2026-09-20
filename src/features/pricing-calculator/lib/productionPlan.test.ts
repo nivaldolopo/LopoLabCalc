@@ -4,6 +4,7 @@ import {
   accessoryRows,
   buildProductionPayloads,
   planEventRows,
+  resolveFilRow,
   scaleRow,
   submissionColors,
   wholeEventRows,
@@ -289,7 +290,7 @@ describe("AUD-14 [D9] — preço de catálogo × custo FIFO no evento", () => {
     // O preço aqui é irrelevante de propósito: a linha-evento resolve o preço
     // VIVO da cor (o do rolo mais novo). O que o produto guarda é só o vínculo.
     filaments: [
-      { filamentId: "fil_laranja", colorName: "Laranja", pricePerKg: 0, totalG: 40 },
+      { filamentId: "fil_laranja", colorName: "Laranja", material: "PLA", pricePerKg: 0, totalG: 40 },
     ],
   });
 
@@ -361,8 +362,8 @@ describe("AUD-14 [D9] — preço de catálogo × custo FIFO no evento", () => {
 // partes — que é justamente o produto multicor de projeto que se quer suportar.
 
 describe("submissionColors (FEAT-11)", () => {
-  const AZUL = { filamentId: "fil_azul", colorName: "Azul", pricePerKg: 100, totalG: 40 };
-  const VERMELHO = { filamentId: "fil_verm", colorName: "Vermelho", pricePerKg: 100, totalG: 10 };
+  const AZUL = { filamentId: "fil_azul", colorName: "Azul", material: "PLA", pricePerKg: 100, totalG: 40 };
+  const VERMELHO = { filamentId: "fil_verm", colorName: "Vermelho", material: "PLA", pricePerKg: 100, totalG: 10 };
 
   // Corpo (etapa principal) em azul; tampa (etapa extra) em vermelho.
   const kit = makeProduct({
@@ -469,5 +470,51 @@ describe("submissionColors (FEAT-11)", () => {
       [],
     );
     expect(colors.whole).toEqual({ key: "livre:azul", label: "Azul" });
+  });
+});
+
+// Item 1 — resolveFilRow: cor é sugestão, marca só se decide na produção.
+describe("resolveFilRow (Item 1)", () => {
+  function marca(over: Partial<StockFilament> & { id: string }): StockFilament {
+    return {
+      material: "PLA",
+      brand: "Bambu",
+      colorName: "Azul",
+      minG: 0,
+      archived: false,
+      rolls: [
+        { id: `${over.id}_r1`, purchaseDate: 0, initialG: 1000, remainingG: 1000, pricePerKg: 100 },
+      ],
+      adjustments: [],
+      createdAt: 0,
+      ...over,
+    };
+  }
+
+  it("sem marca fixada, resolve pela MAIOR entre as candidatas de mesma cor+material", () => {
+    const stock = [
+      marca({ id: "barata", rolls: [{ id: "r1", purchaseDate: 0, initialG: 1000, remainingG: 1000, pricePerKg: 90 }] }),
+      marca({ id: "cara", rolls: [{ id: "r2", purchaseDate: 0, initialG: 1000, remainingG: 1000, pricePerKg: 130 }] }),
+    ];
+    const row = resolveFilRow(
+      { filamentId: null, colorName: "Azul", material: "PLA", pricePerKg: 50, totalG: 40 },
+      stock,
+    );
+    expect(row.filamentId).toBeNull();
+    expect(row.pricePerKg).toBe(130);
+  });
+
+  // Regressão do code review (--high): marca REMOVIDA do Estoque não pode
+  // cair nas candidatas por coincidência de cor+material com outra marca
+  // ativa — a produção tem de continuar cobrando o preço SALVO, exatamente
+  // como o `resolveFilamentPrices` da precificação já fazia.
+  it("marca removida NÃO cai nas candidatas mesmo com outra marca de mesma cor+material", () => {
+    const stock = [marca({ id: "outraMarca", colorName: "Azul" })]; // pricePerKg 100
+    const row = resolveFilRow(
+      { filamentId: "sumiu", colorName: "Azul", material: "PLA", pricePerKg: 70, totalG: 40 },
+      stock,
+    );
+    expect(row.filamentId).toBeNull();
+    expect(row.pricePerKg).toBe(70); // o salvo, nunca o 100 de "outraMarca"
   });
 });

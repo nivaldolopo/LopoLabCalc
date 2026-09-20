@@ -1,4 +1,5 @@
 import { num } from "@/lib/number";
+import { normalizeText } from "@/lib/text";
 import { fifoSort, shiftLots, simulateFifo } from "./fifo";
 import type {
   ConsumptionMove,
@@ -61,6 +62,39 @@ export function newestRoll(color: StockFilament): FilamentRoll | null {
 // `FilamentUsage.pricePerKg`).
 export function catalogPricePerKg(color: StockFilament): number {
   return num(newestRoll(color)?.pricePerKg);
+}
+
+// Item 1 — as MARCAS candidatas de uma cor+material do cadastro/produção: cor
+// virou sugestão, marca só se decide na produção. Ativas (arquivada não é
+// candidata a novo uso), mesma cor+material, comparação tolerante a
+// acento/caixa (mesmo padrão da busca da UX-05). Cor ou material vazio não tem
+// o que casar — devolve nada, em vez de "casar tudo" por engano.
+export function brandCandidates(
+  stock: StockFilament[],
+  colorName: string,
+  material: string,
+): StockFilament[] {
+  const color = normalizeText(colorName ?? "");
+  const mat = normalizeText(material ?? "");
+  if (!color || !mat) return [];
+  return stock.filter(
+    (c) =>
+      !c.archived &&
+      normalizeText(c.colorName ?? "") === color &&
+      normalizeText(c.material ?? "") === mat,
+  );
+}
+
+// Item 1 — o preço de referência quando NENHUMA marca está fixada: a MAIOR
+// `pricePerKg` entre as candidatas (o pior caso de custo, já que a marca real
+// só se decide na produção). Ponto ÚNICO da regra — `resolveFilamentPrices`,
+// `resolveFilRow`, `FilamentColorsSection` e o `cor-sem-preco` do CSV chamam
+// esta função em vez de reescrever `Math.max(...)` cada um a seu jeito, que é
+// exatamente o que deixou um deles cair no fallback errado sem que os outros
+// notassem. 0 sem candidata nenhuma (o chamador cai no salvo).
+export function maxCandidatePrice(candidates: StockFilament[]): number {
+  if (candidates.length === 0) return 0;
+  return Math.max(...candidates.map((c) => catalogPricePerKg(c)));
 }
 
 // Alerta de estoque mínimo. `minG` 0 = sem alerta.

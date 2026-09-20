@@ -40,7 +40,12 @@ import {
   type EventRow,
   type FilRow,
 } from "../lib/productionPlan";
-import { catalogPricePerKg, filamentLabel } from "../lib/stock";
+import {
+  brandCandidates,
+  catalogPricePerKg,
+  filamentLabel,
+  maxCandidatePrice,
+} from "../lib/stock";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useFinishedGoods } from "../hooks/useFinishedGoods";
 import { useMachines } from "../hooks/useMachines";
@@ -200,6 +205,7 @@ export function ProductionPage() {
           filamentId: null,
           label: "",
           colorName: "",
+          material: "",
           totalG: 0,
           pricePerKg: DEFAULT_PRODUCT_INPUT.filamentPricePerKg ?? 110,
           stageKey: "",
@@ -299,6 +305,41 @@ export function ProductionPage() {
     );
   }
 
+  // Item 1 — cor/material digitados à mão (linha sem marca fixada). Sem marca,
+  // o preço segue a MESMA resolução do cadastro: a maior entre as candidatas
+  // ativas de cor+material (`resolveFilRow`) — aqui refeita a cada tecla porque
+  // é este valor que vai para o custo congelado do evento, não recalculado de
+  // novo no save.
+  function updateFilFree(
+    rowKeyId: string,
+    index: number,
+    patch: Partial<Pick<FilRow, "colorName" | "material">>,
+  ) {
+    setRows((current) =>
+      current.map((row) =>
+        row.key === rowKeyId
+          ? {
+              ...row,
+              filaments: row.filaments.map((f, i) => {
+                if (i !== index) return f;
+                const next = { ...f, ...patch };
+                if (!next.filamentId) {
+                  const candidates = brandCandidates(
+                    stock,
+                    next.colorName,
+                    next.material,
+                  );
+                  const max = maxCandidatePrice(candidates);
+                  if (max > 0) next.pricePerKg = max;
+                }
+                return next;
+              }),
+            }
+          : row,
+      ),
+    );
+  }
+
   // AUD-16 [E7]: o aviso do lote de acerto nomeia o que ficou devendo. O id vem
   // do plano e pode ser de COR ou de INSUMO (a dívida é a mesma nos dois
   // estoques) — procura nos dois, nessa ordem.
@@ -308,12 +349,17 @@ export function ProductionPage() {
     return supplies.find((sup) => sup.id === stockId)?.name ?? stockId;
   }
 
+  // Item 1 — trocar a marca aqui NÃO troca cor/material (que continuam do
+  // cadastro/linha); ela só aponta a linha para a `StockFilament` escolhida
+  // (mesma lógica do FEAT-11, agora explícita: o dono pode "fugir" para uma
+  // marca de outra cor/material, e a linha assume o material dela de fato).
   function setFilColor(rowKeyId: string, index: number, filamentId: string) {
     const color = stock.find((c) => c.id === filamentId);
     updateFil(rowKeyId, index, {
       filamentId: color ? color.id : null,
       label: color ? filamentLabel(color) : "",
       colorName: color ? color.colorName : "",
+      material: color ? color.material : "",
       pricePerKg: color
         ? catalogPricePerKg(color) || DEFAULT_PRODUCT_INPUT.filamentPricePerKg || 110
         : DEFAULT_PRODUCT_INPUT.filamentPricePerKg ?? 110,
@@ -332,6 +378,7 @@ export function ProductionPage() {
                   filamentId: null,
                   label: "",
                   colorName: "",
+                  material: "",
                   totalG: 0,
                   pricePerKg: DEFAULT_PRODUCT_INPUT.filamentPricePerKg ?? 110,
                   stageKey: "",
@@ -717,8 +764,16 @@ export function ProductionPage() {
   // FEAT-11 — o que a troca de cor custou, por linha. A baixa FIFO e o custo real
   // já seguem a cor escolhida; o PREÇO do produto, não (ele veio do cadastro).
   // Sem este aviso o efeito só apareceria depois, congelado na venda.
+  //
+  // ⚠ Item 1 — o gatilho é o PREÇO ter mudado (`pricePerKg`), não o
+  // `filamentId`: desde que cor/material viram texto livre (`updateFilFree`),
+  // o preço pode mudar com os dois `filamentId` em null (o dono digita uma
+  // cor/material que casa com outra marca candidata) — `filamentId` igual não
+  // é mais garantia de "nada mudou".
   function swapOf(fil: FilRow): { deltaKg: number; perPiece: number } | null {
-    if (!fil.origin || fil.filamentId === fil.origin.filamentId) return null;
+    if (!fil.origin || num(fil.pricePerKg) === num(fil.origin.pricePerKg)) {
+      return null;
+    }
     const deltaKg = num(fil.pricePerKg) - num(fil.origin.pricePerKg);
     const submission = ((num(fil.totalG) * Math.max(1, plates)) / 1000) * deltaKg;
     return { deltaKg, perPiece: submission / Math.max(1, finishedUnits) };
@@ -730,7 +785,9 @@ export function ProductionPage() {
       (sum, row) =>
         sum +
         row.filaments.reduce((s, fil) => {
-          if (!fil.origin || fil.filamentId === fil.origin.filamentId) return s;
+          if (!fil.origin || num(fil.pricePerKg) === num(fil.origin.pricePerKg)) {
+            return s;
+          }
           const deltaKg = num(fil.pricePerKg) - num(fil.origin.pricePerKg);
           return s + ((num(fil.totalG) * Math.max(1, plates)) / 1000) * deltaKg;
         }, 0),
@@ -883,26 +940,58 @@ export function ProductionPage() {
                   (decisão do dono) para filamento que não está no Estoque. */}
               {row.filaments.map((fil, index) => {
                 const swap = swapOf(fil);
+                // Item 1 — as marcas candidatas (mesma cor+material do
+                // cadastro/linha) vêm primeiro no seletor; o resto do Estoque
+                // segue disponível para quem quer fugir para outra cor.
+                const candidates = brandCandidates(stock, fil.colorName, fil.material);
+                const otherColors = stock
+                  .filter((c) => !c.archived)
+                  .filter((c) => !candidates.some((cand) => cand.id === c.id));
                 return (
                 <div className="prod-fil-wrap" key={index}>
                 <div className="prod-fil">
                   <select
                     className="field-input"
-                    aria-label="Cor do filamento"
+                    aria-label="Marca do filamento"
                     value={fil.filamentId ?? ""}
                     onChange={(event) =>
                       setFilColor(row.key, index, event.target.value)
                     }
                   >
                     <option value="">Avulso (livre)</option>
-                    {stock
-                      .filter((c) => !c.archived)
-                      .map((color) => (
+                    {candidates.length > 0 ? (
+                      <optgroup label="Cor/material batem">
+                        {candidates.map((color) => (
+                          <option key={color.id} value={color.id}>
+                            {filamentLabel(color)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null}
+                    <optgroup
+                      label={candidates.length > 0 ? "Outras cores do Estoque" : "Estoque"}
+                    >
+                      {otherColors.map((color) => (
                         <option key={color.id} value={color.id}>
                           {filamentLabel(color)}
                         </option>
                       ))}
+                    </optgroup>
                   </select>
+                  {!fil.filamentId ? (
+                    <input
+                      className="field-input prod-fil-free"
+                      type="text"
+                      aria-label="Material da cor avulsa"
+                      value={fil.material}
+                      onChange={(event) =>
+                        updateFilFree(row.key, index, {
+                          material: event.target.value,
+                        })
+                      }
+                      placeholder="Material (PLA, PETG...)"
+                    />
+                  ) : null}
                   {!fil.filamentId ? (
                     <input
                       className="field-input prod-fil-free"
@@ -910,7 +999,7 @@ export function ProductionPage() {
                       aria-label="Nome da cor avulsa"
                       value={fil.colorName}
                       onChange={(event) =>
-                        updateFil(row.key, index, {
+                        updateFilFree(row.key, index, {
                           colorName: event.target.value,
                         })
                       }

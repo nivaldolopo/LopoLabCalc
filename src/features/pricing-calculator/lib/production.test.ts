@@ -55,6 +55,7 @@ function usage(over: Partial<FilamentUsage>): FilamentUsage {
   return {
     filamentId: null,
     colorName: "",
+    material: "PLA",
     pricePerKg: 0,
     totalG: 0,
     ...over,

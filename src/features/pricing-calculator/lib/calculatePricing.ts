@@ -20,7 +20,7 @@ import {
   mergeFilaments,
   normalizeFilaments,
 } from "./filaments";
-import { catalogPricePerKg } from "./stock";
+import { brandCandidates, catalogPricePerKg, maxCandidatePrice } from "./stock";
 import { catalogUnitPrice } from "./supplies";
 import { resolveFleet, unionEligible } from "./fleet";
 import { num } from "@/lib/number";
@@ -41,26 +41,39 @@ export function stageKeyFor(stage: PrintStage, index: number): string {
 // custo já calculado (com preço vivo resolvido) e as horas de impressão.
 type StageDetail = { key: string; cost: StageCost; printHours: number };
 
-// 7c — preço VIVO do filamento. Um filamento ligado ao Estoque (`filamentId`)
+// 7c — preço VIVO do filamento. Um filamento com MARCA fixada (`filamentId`)
 // tira o preço da COR na hora do cálculo (D3, lado catálogo: rolo mais novo =
 // custo de repor), não do valor salvo — igual às máquinas, que guardam só o
-// `machineId` e leem os watts vivos. Sem rolo na cor, ou cor removida, cai no
-// `pricePerKg` salvo (fallback D3); a cor removida ainda marca `missing` para a
-// UI avisar (badge, molde do TD-009).
+// `machineId` e leem os watts vivos. Marca removida do Estoque cai no
+// `pricePerKg` salvo (fallback D3) e marca `missing` para a UI avisar (badge,
+// molde do TD-009).
+//
+// Item 1 (2026-09-20) — sem marca fixada (o caso normal: cor é sugestão, marca
+// só se decide na `/producao`), o preço do catálogo usa a MAIOR `pricePerKg`
+// entre as marcas ATIVAS de mesma cor+material (`brandCandidates`) — o pior
+// caso de custo, já que a precificação não sabe ainda qual marca vai imprimir.
+// Sem nenhuma correspondência no Estoque, cai no `pricePerKg` salvo, como um
+// avulso — sem acender `missing` (cor/material que nunca foi ligada ao Estoque
+// não é dado ÓRFÃO, é dado que nunca apontou para lá).
 function resolveFilamentPrices(
   filaments: FilamentUsage[],
   stockById: Map<string, StockFilament>,
 ): { filaments: FilamentUsage[]; missing: boolean } {
   let missing = false;
+  const stockList = Array.from(stockById.values());
   const resolved = filaments.map((f) => {
-    if (!f.filamentId) return f; // avulso: mantém o preço digitado
-    const color = stockById.get(f.filamentId);
-    if (!color) {
-      missing = true;
-      return f; // cor removida: fallback no preço salvo
+    if (f.filamentId) {
+      const color = stockById.get(f.filamentId);
+      if (!color) {
+        missing = true;
+        return f; // marca removida: fallback no preço salvo
+      }
+      const live = catalogPricePerKg(color);
+      return { ...f, pricePerKg: live > 0 ? live : num(f.pricePerKg) };
     }
-    const live = catalogPricePerKg(color);
-    return { ...f, pricePerKg: live > 0 ? live : num(f.pricePerKg) };
+    const candidates = brandCandidates(stockList, f.colorName, f.material);
+    const maxPrice = maxCandidatePrice(candidates);
+    return maxPrice > 0 ? { ...f, pricePerKg: maxPrice } : f;
   });
   return { filaments: resolved, missing };
 }

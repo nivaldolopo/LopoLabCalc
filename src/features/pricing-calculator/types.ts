@@ -42,26 +42,32 @@ export type Machine = {
 // CANÔNICO — é o que vale para custo e para a baixa de estoque (passo 8), e já
 // inclui torre + purga (o refugo da troca de cor). Model/Purga/Torre são
 // detalhe OPCIONAL: quando preenchidos, o form trava `totalG` = model+purga+torre;
-// quando ausentes, o usuário digita só o `totalG`. `filamentId` referencia a COR
-// cadastrada no Estoque (`StockFilament.id`, estável — ver D2) ou `null` = cor
-// avulsa. `id` só existe no estado do formulário (chave de lista) e é descartado
-// ao persistir.
+// quando ausentes, o usuário digita só o `totalG`. `id` só existe no estado do
+// formulário (chave de lista) e é descartado ao persistir.
+//
+// Item 1 (2026-09-20) — COR é sugestão, MARCA só se decide na produção.
+// `material` é campo PRÓPRIO e obrigatório do cadastro (a proteção real contra
+// imprimir ABS onde o cadastro diz PLA); `colorName` é sugestão de cor, sempre
+// texto livre. `filamentId` deixou de ser a única marca aceita: ainda aponta
+// para uma `StockFilament` específica (a "marca sugerida" no cadastro), mas a
+// `/producao` pode escolher qualquer marca da mesma cor+material — ou fugir
+// para outra cor. Sem `filamentId`, o preço do catálogo (`resolveFilamentPrices`)
+// usa a MAIOR `pricePerKg` entre as marcas ativas de mesma cor+material.
 export type FilamentUsage = {
   id?: string;
   filamentId: string | null;
   colorName: string;
+  material: string;
   pricePerKg: number;
   totalG: number;
   modelG?: number;
   supportG?: number;
   purgedG?: number;
   towerG?: number;
-  // D7: material/marca vivem na COR e no SNAPSHOT — nunca no rolo. Preenchidos
-  // automaticamente pela cor escolhida (7c) e congelados na venda (8), por cor.
-  // É o que permite agrupar "lucro por material" sem consultar a cor viva (que
-  // pode ter sido arquivada) nem parsear texto digitado à mão. Ausentes em cor
-  // avulsa e em todo dado anterior à 7c.
-  material?: string;
+  // D7: a MARCA de fato usada, só no SNAPSHOT congelado (venda/produção) — nunca
+  // no cadastro (Item 1). Preenchida a partir da marca escolhida na produção (ou
+  // da marca sugerida, quando a venda congela direto do cadastro) e nunca
+  // presente numa `ProductInput`/`PrintStage` salva.
   brand?: string;
 };
 
