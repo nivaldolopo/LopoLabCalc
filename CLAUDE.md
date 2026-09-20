@@ -9,17 +9,24 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-20): cor virou SUGESTÃO no cadastro, marca só se decide na produção
-  (Item 1 de 3)** — `FilamentUsage.material` é campo PRÓPRIO e obrigatório (independente da marca);
-  `filamentId` virou "marca sugerida" opcional. Sem marca fixada, `resolveFilamentPrices`/
-  `resolveFilRow` usam a MAIOR `pricePerKg` entre as marcas ATIVAS de mesma cor+material
-  (`brandCandidates`/`maxCandidatePrice`, novos em `lib/stock.ts`) — marca REMOVIDA continua caindo
-  no salvo, nunca nessas candidatas (bug achado e corrigido pelo `/code-review --high` antes do
-  commit). `FilamentColorsSection` e o seletor da `/producao` reformulados (Material/Cor texto
-  livre + Marca sugerida agrupada por candidatas). Sem migração (Diretriz 6): produto carregado sem
-  material fica vazio até o dono confirmar. Item 2 (`productIdTable` + botão "Copiar de-para" no
-  `/catalogo`) já fechado, mesmo padrão de `colorIdTable`/`supplyIdTable`. **▶ Item 3 (importar
-  histórico de produção via JSON da Bambu) do mesmo pedido ainda falta** — detalhe no `BACKLOG.md`.
+- **Última mudança (2026-09-20): 3 itens do mesmo pedido, todos fechados.**
+  **(1) Cor virou SUGESTÃO no cadastro, marca só se decide na produção** — `FilamentUsage.material`
+  é campo PRÓPRIO e obrigatório (independente da marca); `filamentId` virou "marca sugerida"
+  opcional. Sem marca fixada, `resolveFilamentPrices`/`resolveFilRow` usam a MAIOR `pricePerKg`
+  entre as marcas ATIVAS de mesma cor+material (`brandCandidates`/`maxCandidatePrice`, novos em
+  `lib/stock.ts`) — marca REMOVIDA continua caindo no salvo, nunca nessas candidatas.
+  `FilamentColorsSection` e o seletor da `/producao` reformulados. Sem migração (Diretriz 6):
+  produto carregado sem material fica vazio até o dono confirmar.
+  **(2) `productIdTable()`** + botão "Copiar de-para" no `/catalogo`, mesmo padrão de
+  `colorIdTable`/`supplyIdTable`.
+  **(3) Importar histórico de produção** — botão "Importar histórico" na `/producao`: cola/sobe o
+  JSON de uma ferramenta externa (fora deste repo) que lê o histórico da Bambu, prévia obrigatória
+  (por máquina/desfecho/produto, período), grava em lote como eventos `mode: "historico"`.
+  Idempotente por `"bambu:<task_id>"` no início de `notes` (`fetchBambuImportedTaskIds`, novo em
+  `productionRepository.ts`) — reimportar o mesmo arquivo não duplica, inclusive `task_id` repetido
+  dentro do PRÓPRIO arquivo. Toda a lógica em `lib/productionImport.ts`, pura e testada.
+  Os `/code-review --high` dos três itens acharam e corrigiram bugs reais antes do commit (detalhe
+  no `HISTORICO.md` se precisar revisitar) — nenhum ficou pendente.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
@@ -74,8 +81,8 @@ src/features/pricing-calculator/
                   #   CapacityPanel/MachineSelector/FixedCostsPanel/Accessories/ExtraStages/
                   #   Subitems/LinksSection + MachineCheckboxes (as elegíveis)
                   # uma por rota: CatalogPage(+ProductCatalog) · SalesPage · QuotePage ·
-                  #   MachinesPage · ProductionPage · StockPage (abas) + SuppliesTab ·
-                  #   SettingsPage
+                  #   MachinesPage · ProductionPage (+ ImportProductionModal, botão "Importar
+                  #   histórico") · StockPage (abas) + SuppliesTab · SettingsPage
                   # venda: SaleModal + SaleFlow (a fiação, usada pelas 2 páginas)
                   # casca: PageHeader · PageIntro · NavBar · MobilePriceBar · AuthGate ·
                   #   Modal (casca dos 9 diálogos) + os 8 que a consomem + ConfirmDialog
@@ -95,7 +102,9 @@ src/features/pricing-calculator/
                   #   fifo (ordem + overdraft D4) → stock (g) + supplies (unidades) ·
                   #   production (baixa por evento + custo congelado, em 3 escalas) ·
                   #   finishedGoods (camadas FIFO; SKU = subitem × cor) ·
-                  #   productionPlan (produto/subitem→eventos) · saleReconciliation (passo 8 +
+                  #   productionPlan (produto/subitem→eventos) · productionImport (JSON externo
+                  #   da Bambu → eventos historico, idempotente por "bambu:<task_id>" em `notes`) ·
+                  #   saleReconciliation (passo 8 +
                   #   reverse) · marginTier (régua DEC-04) · saleContext · filaments ·
                   #   generateQuotePdf · paymentFees (bandeira × parcela, gross-up, desconto,
                   #   margem líquida)     [+ constants.ts, types.ts na raiz da feature]

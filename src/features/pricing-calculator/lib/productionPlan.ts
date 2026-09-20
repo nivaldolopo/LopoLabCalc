@@ -239,8 +239,9 @@ export function accessoryRows(
 }
 
 // Labor congelado de uma etapa: min/60 × o valor-hora do PRODUTO (a etapa não
-// tem taxa própria — ver `PrintStage`).
-function stageLabor(laborMinutes: number, productRate: number): number {
+// tem taxa própria — ver `PrintStage`). Exportada: a importação de histórico
+// (item 3) reusa a MESMA conta para o labor herdado do cadastro.
+export function stageLabor(laborMinutes: number, productRate: number): number {
   return (num(laborMinutes) / 60) * num(productRate);
 }
 
@@ -831,7 +832,9 @@ export function planEventRows(
 // o `id` de estado sai (mesma disciplina do `stripFilamentIds`) e o preço muda de
 // nome, porque no documento ele é o preço de CADASTRO da cor, não o que a
 // impressão pagou. O custo pago é o FIFO, e vai no `frozenBreakdown.material`.
-function toEventFilament(f: FilamentUsage): ProductionFilament {
+// Exportada: a importação de histórico (item 3) congela a mesma troca de nome
+// para os filamentos que ela mesma resolve (sem passar pelo `resolveFilRow`).
+export function toEventFilament(f: FilamentUsage): ProductionFilament {
   const { id: _id, pricePerKg, ...rest } = f;
   void _id;
   return { ...rest, catalogPricePerKg: num(pricePerKg) };

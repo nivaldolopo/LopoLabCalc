@@ -4,6 +4,14 @@
 /* UX-23 — `.prod-intro` saiu: o texto de introdução virou `PageIntro`, com o
    espaçamento vindo do componente e não de um ajuste por página. */
 
+/* Item 3 — a barra acima do form, só com "Importar histórico" por enquanto
+   (mesmo `.icon-label-button` do Importar/Exportar do /catalogo). */
+.prod-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-12);
+}
+
 .prod-form {
   display: flex;
   flex-direction: column;
@@ -13,6 +21,24 @@
   border-radius: var(--radius-xl);
   background: var(--card-bg);
   margin-bottom: var(--space-24);
+}
+
+/* A prévia da importação de histórico (item 3) — mesma linguagem visual do
+   `.import-warnings` do /catalogo, sem ser aviso (é resumo neutro; só as
+   linhas de "não importado" ganham `--warn`). */
+.import-preview-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-14);
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.import-preview-warn {
+  color: var(--warn);
+  font-weight: 600;
 }
 
 .prod-empty {

@@ -22,6 +22,7 @@ import { serializeRolls } from "./stockRepository";
 import { serializeLots } from "./suppliesRepository";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import { frozenFromDocument, frozenToDocument } from "./frozenCost";
+import { bambuTaskIdOf } from "@/features/pricing-calculator/lib/productionImport";
 import type {
   FinishedGoodPayload,
   ProductionEvent,
@@ -341,6 +342,29 @@ export async function fetchProductionEventsByIds(
     }),
   );
   return events.filter((event): event is ProductionEvent => event !== null);
+}
+
+// Item 3 — os `task_id` já importados do histórico da Bambu, para o passo 6
+// (idempotência: reimportar o mesmo arquivo não duplica). `notes` sempre
+// começa com "bambu:<task_id>" nesses eventos (`bambuNotePrefix`) — um range
+// de PREFIXO no próprio campo, sem índice composto (mesmo truque do período
+// em `periodConstraints`, um campo só). `` é o topo da faixa Unicode
+// privada — maior que qualquer string real que comece com o prefixo.
+const BAMBU_PREFIX = "bambu:";
+export async function fetchBambuImportedTaskIds(): Promise<Set<string>> {
+  const snap = await getDocs(
+    query(
+      productionCollection,
+      where("notes", ">=", BAMBU_PREFIX),
+      where("notes", "<", `${BAMBU_PREFIX}`),
+    ),
+  );
+  const ids = new Set<string>();
+  for (const item of snap.docs) {
+    const taskId = bambuTaskIdOf(item.data().notes);
+    if (taskId) ids.add(taskId);
+  }
+  return ids;
 }
 
 // Grava N eventos de produção e dá baixa dos rolos ATOMICAMENTE (ou entra tudo,

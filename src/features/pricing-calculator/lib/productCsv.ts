@@ -968,7 +968,10 @@ function parseSubitems(
 // E o desempate deixa de ser a ordem do array: vence o id MAIS LONGO que couber
 // no nome, o mesmo critério do CSV-10 (needle mais longo é o mais específico).
 // "Maquina X2D e A1" casava com a1 só porque a1 vem primeiro.
-function machineNameToId(
+// Exportada: a importação de histórico de produção (item 3) reusa o MESMO
+// casamento nome→id para `maquina_sugerida` (um nome só, não a célula "|" do
+// CSV) — evita um segundo critério de "o que conta como a mesma máquina".
+export function machineNameToId(
   name: string | undefined,
   machines: Machine[],
   onFallback?: (nome: string) => void,

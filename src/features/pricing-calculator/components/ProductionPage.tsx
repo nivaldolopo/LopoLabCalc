@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Factory, Plus, Trash2 } from "lucide-react";
+import { Factory, Plus, Trash2, Upload } from "lucide-react";
 import { errorMessage, guardOnline } from "@/lib/errors";
 import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
 import {
@@ -66,6 +66,7 @@ import { CostBreakdownTable, CostDetail } from "./CostDetail";
 import { FeedbackNote, useFeedback } from "./FeedbackNote";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { NavBar } from "./NavBar";
+import { ImportProductionModal } from "./ImportProductionModal";
 import { PageHeader } from "./PageHeader";
 import { PageIntro } from "./PageIntro";
 import { NumberInput } from "./NumberInput";
@@ -146,6 +147,9 @@ export function ProductionPage() {
   const [dateStr, setDateStr] = useState(todayInputValue());
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  // Item 3 — "Importar histórico": arquivo JSON externo (Bambu) → N eventos
+  // `mode: "historico"`, fora do fluxo manual de cima.
+  const [importOpen, setImportOpen] = useState(false);
   const { note, ok, fail, clear } = useFeedback();
   const { ask, dialog } = useConfirm();
 
@@ -839,6 +843,36 @@ export function ProductionPage() {
         Registre TODA impressão — vire venda ou não. É daqui que sai a baixa de
         filamento e as horas de máquina. Teste, falha e brinde também contam.
       </PageIntro>
+
+      <div className="prod-toolbar">
+        <button
+          className="icon-label-button"
+          type="button"
+          onClick={() => setImportOpen(true)}
+        >
+          <Upload size={15} />
+          Importar histórico
+        </button>
+      </div>
+
+      {importOpen ? (
+        <ImportProductionModal
+          machines={machines}
+          products={products}
+          stock={stock}
+          supplies={supplies}
+          energyTariff={energyTariff}
+          goods={goods}
+          onClose={() => setImportOpen(false)}
+          onImported={(count) => {
+            ok(
+              count === 1
+                ? "1 produção importada."
+                : `${count} produções importadas.`,
+            );
+          }}
+        />
+      ) : null}
 
       <div className="prod-form">
         <div className="field-block">
