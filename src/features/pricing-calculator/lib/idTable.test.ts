@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { colorIdTable, supplyIdTable } from "./idTable";
-import type { StockFilament, Supply } from "../types";
+import { colorIdTable, productIdTable, supplyIdTable } from "./idTable";
+import type { SavedProduct, StockFilament, Supply } from "../types";
 
 const cor = (over: Partial<StockFilament>): StockFilament =>
   ({
@@ -26,6 +26,14 @@ const insumo = (over: Partial<Supply>): Supply =>
     adjustments: [],
     ...over,
   }) as unknown as Supply;
+
+const produto = (over: Partial<SavedProduct>): SavedProduct =>
+  ({
+    id: "prod_1",
+    name: "Chaveiro",
+    mainStageName: "",
+    ...over,
+  }) as unknown as SavedProduct;
 
 describe("idTable — o de-para que a carga em massa precisa", () => {
   it("cores: cabeçalho + uma linha por cor, separado por TAB", () => {
@@ -78,5 +86,27 @@ describe("idTable — o de-para que a carga em massa precisa", () => {
     expect(linhas[0]).toBe("Insumo\tUnidade\tArquivado\tid");
     expect(linhas[1]).toBe("Ímã 8mm\tun\tnao\tsup_ima");
     expect(linhas[2]).toBe("Caixa\tcx\tsim\tsup_caixa");
+  });
+
+  it("produtos: cabeçalho + uma linha por produto, separado por TAB", () => {
+    const linhas = productIdTable([
+      produto({ id: "p1", name: "Chaveiro Gatinho" }),
+      produto({ id: "p2", name: "Vaso Espiral" }),
+    ]).split("\n");
+
+    expect(linhas[0]).toBe("Produto\tid");
+    expect(linhas[1]).toBe("Chaveiro Gatinho\tp1");
+    expect(linhas[2]).toBe("Vaso Espiral\tp2");
+  });
+
+  it("produtos: nome vazio cai no nome da etapa principal", () => {
+    const linha = productIdTable([
+      produto({ id: "p1", name: "", mainStageName: "Corpo" }),
+    ]).split("\n")[1];
+    expect(linha).toBe("Corpo\tp1");
+  });
+
+  it("produtos: lista vazia devolve só o cabeçalho", () => {
+    expect(productIdTable([])).toBe("Produto\tid");
   });
 });

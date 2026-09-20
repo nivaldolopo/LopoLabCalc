@@ -17,8 +17,9 @@
   no salvo, nunca nessas candidatas (bug achado e corrigido pelo `/code-review --high` antes do
   commit). `FilamentColorsSection` e o seletor da `/producao` reformulados (Material/Cor texto
   livre + Marca sugerida agrupada por candidatas). Sem migração (Diretriz 6): produto carregado sem
-  material fica vazio até o dono confirmar. **▶ Itens 2 (`productIdTable`) e 3 (importar histórico
-  de produção via JSON da Bambu) do mesmo pedido ainda faltam** — detalhe no `BACKLOG.md`.
+  material fica vazio até o dono confirmar. Item 2 (`productIdTable` + botão "Copiar de-para" no
+  `/catalogo`) já fechado, mesmo padrão de `colorIdTable`/`supplyIdTable`. **▶ Item 3 (importar
+  histórico de produção via JSON da Bambu) do mesmo pedido ainda falta** — detalhe no `BACKLOG.md`.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.

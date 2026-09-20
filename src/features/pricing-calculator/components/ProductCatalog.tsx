@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Copy,
   Download,
   Edit3,
   FileText,
@@ -25,6 +26,7 @@ import type {
   StockFilament,
   Supply,
 } from "../types";
+import { copyText } from "@/lib/clipboard";
 import { errorMessage, guardOnline } from "@/lib/errors";
 import { matchesQuery } from "@/lib/text";
 import {
@@ -33,6 +35,7 @@ import {
 } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { filamentsTotalG, normalizeFilaments } from "../lib/filaments";
+import { productIdTable } from "../lib/idTable";
 import { marginTierClass, marginTierTitle } from "../lib/marginTier";
 import {
   downloadCsv,
@@ -237,6 +240,18 @@ export function ProductCatalog({
     downloadCsv("catalogo-precos-3d.csv", csv);
   }
 
+  // O mesmo de-para (nome → id) que `colorIdTable`/`supplyIdTable` já dão no
+  // Estoque/Insumos — aqui é o `productId` que a ferramenta externa de
+  // importação de histórico (item 3) e o link de "produzir de novo" precisam.
+  async function copiarDePara() {
+    try {
+      await copyText(productIdTable(products));
+      ok(`Tabela de ${products.length} produto(s) copiada — cole no Sheets/Excel.`);
+    } catch (err) {
+      fail(errorMessage(err));
+    }
+  }
+
   function importCsv(file: File) {
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -403,6 +418,17 @@ export function ProductCatalog({
             <Download size={15} />
             Exportar
           </button>
+          {products.length > 0 ? (
+            <button
+              className="icon-label-button"
+              type="button"
+              onClick={copiarDePara}
+              title="Copia nome e ID de cada produto — para colar na planilha de importação"
+            >
+              <Copy size={15} />
+              Copiar de-para
+            </button>
+          ) : null}
           <input
             ref={fileInputRef}
             accept=".csv"

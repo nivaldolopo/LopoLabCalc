@@ -1,4 +1,4 @@
-import type { StockFilament, Supply } from "../types";
+import type { SavedProduct, StockFilament, Supply } from "../types";
 
 /**
  * A tabela de-para "nome → id" das cores e dos insumos, em TSV.
@@ -42,6 +42,16 @@ export function colorIdTable(stock: StockFilament[]): string {
       cell(color.brand),
       color.archived ? "sim" : "nao",
       color.id,
+    ]),
+  );
+}
+
+export function productIdTable(products: SavedProduct[]): string {
+  return tsv(
+    ["Produto", "id"],
+    products.map((product) => [
+      cell(product.name || product.mainStageName),
+      product.id,
     ]),
   );
 }
