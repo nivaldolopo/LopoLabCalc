@@ -198,6 +198,34 @@ export function relinkFilament(
   return matched ? matched.id : null;
 }
 
+// ---------------------------------------------------------------------------
+// Item 1 (Estoque agrupado, 2026-09-20) — a tela do /estoque agrupa os cards
+// por COR+MATERIAL (várias marcas por baixo do mesmo grupo). Isto é só
+// apresentação: `StockFilament` continua um doc por cor+material+MARCA (D7) —
+// juntar o dado quebraria a proteção contra um rolo do material errado cair no
+// balde certo por engano.
+// ---------------------------------------------------------------------------
+
+// Chave de agrupamento, tolerante a acento/caixa (mesmo padrão do resto da
+// busca/cascata).
+export function filamentGroupKey(
+  color: Pick<StockFilament, "material" | "colorName">,
+): string {
+  return `${normalizeText(color.material ?? "")}::${normalizeText(color.colorName ?? "")}`;
+}
+
+// Rótulo do grupo — cor + material (ex.: "Branco PLA"), sem a marca (que é o
+// que distingue os cards DENTRO do grupo). Parte vazia é omitida, como no
+// `filamentLabel`.
+export function filamentGroupLabel(
+  color: Pick<StockFilament, "material" | "colorName">,
+): string {
+  const parts = [color.colorName, color.material]
+    .map((part) => (part ?? "").trim())
+    .filter((part) => part.length > 0);
+  return parts.length > 0 ? parts.join(" ") : "(sem nome)";
+}
+
 // Alerta de estoque mínimo. `minG` 0 = sem alerta.
 export function isBelowMin(color: StockFilament): boolean {
   return num(color.minG) > 0 && balanceG(color) < num(color.minG);

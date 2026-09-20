@@ -31,6 +31,8 @@ import {
   balanceG,
   catalogPricePerKg,
   colorStatement,
+  filamentGroupKey,
+  filamentGroupLabel,
   filamentLabel,
   filamentReferences,
   isBelowMin,
@@ -102,6 +104,27 @@ import { SuppliesTab } from "./SuppliesTab";
 
 function grams(value: number): string {
   return `${Math.round(num(value))} g`;
+}
+
+// Item 1 (Estoque agrupado) — agrupa os cards por cor+material, preservando a
+// ordem de chegada (já vem ordenada por `filamentLabel`, então as marcas dentro
+// de cada grupo saem em ordem alfabética de graça).
+function groupFilaments(
+  list: StockFilament[],
+): { key: string; label: string; items: StockFilament[] }[] {
+  const map = new Map<string, { label: string; items: StockFilament[] }>();
+  for (const color of list) {
+    const key = filamentGroupKey(color);
+    const group = map.get(key);
+    if (group) {
+      group.items.push(color);
+    } else {
+      map.set(key, { label: filamentGroupLabel(color), items: [color] });
+    }
+  }
+  return Array.from(map.entries())
+    .map(([key, group]) => ({ key, ...group }))
+    .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
 }
 
 // Nota do rodapé da composição do custo na /estoque. O default do
@@ -1391,7 +1414,14 @@ export function StockPage() {
               Nenhuma cor encontrada para “{colorQuery.trim()}”.
             </div>
           ) : (
-            <div className="stock-list">{activeShown.map(renderCard)}</div>
+            <div className="stock-groups">
+              {groupFilaments(activeShown).map((group) => (
+                <div className="stock-group" key={group.key}>
+                  <h2 className="stock-group-title">{group.label}</h2>
+                  <div className="stock-list">{group.items.map(renderCard)}</div>
+                </div>
+              ))}
+            </div>
           )}
         </>
       )}
@@ -1399,7 +1429,14 @@ export function StockPage() {
       {archivedShown.length > 0 ? (
         <details className="stock-archived-box">
           <summary>Cores arquivadas ({archivedShown.length})</summary>
-          <div className="stock-list">{archivedShown.map(renderCard)}</div>
+          <div className="stock-groups">
+            {groupFilaments(archivedShown).map((group) => (
+              <div className="stock-group" key={group.key}>
+                <h2 className="stock-group-title">{group.label}</h2>
+                <div className="stock-list">{group.items.map(renderCard)}</div>
+              </div>
+            ))}
+          </div>
         </details>
       ) : null}
         </>

@@ -9,6 +9,8 @@ import {
   catalogPricePerKg,
   colorOptionsForMaterial,
   colorStatement,
+  filamentGroupKey,
+  filamentGroupLabel,
   filamentLabel,
   filamentReferences,
   isBelowMin,
@@ -544,6 +546,30 @@ describe("filamentLabel / materialOptions (D8)", () => {
     ];
     // "pla" some (mesmo material) e a grafia da 1ª cadastrada é a que fica.
     expect(materialOptions(cores)).toEqual(["PETG", "PLA"]);
+  });
+});
+
+describe("filamentGroupKey / filamentGroupLabel (Item 1 — Estoque agrupado)", () => {
+  it("rótulo do grupo é cor + material, sem a marca", () => {
+    expect(filamentGroupLabel(doisRolos())).toBe("Preto PLA Basic");
+  });
+
+  it("omite parte vazia em vez de deixar espaço solto", () => {
+    expect(filamentGroupLabel({ material: "PETG", colorName: "" })).toBe(
+      "PETG",
+    );
+  });
+
+  it("chave tolerante a acento/caixa — mesma cor+material bate", () => {
+    expect(filamentGroupKey({ material: "PLA", colorName: "Preto" })).toBe(
+      filamentGroupKey({ material: "pla", colorName: "PRETO" }),
+    );
+  });
+
+  it("material ou cor diferentes viram chaves diferentes", () => {
+    expect(
+      filamentGroupKey({ material: "PLA", colorName: "Preto" }),
+    ).not.toBe(filamentGroupKey({ material: "PETG", colorName: "Preto" }));
   });
 });
 

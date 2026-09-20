@@ -37,6 +37,21 @@
   max-width: 340px;
 }
 
+/* Item 1 (Estoque agrupado) — cada grupo é cor+material; o `.stock-list`
+   (grade de cards por marca) segue igual, só que agora um por grupo em vez de
+   um só pra tela inteira. */
+.stock-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+}
+
+.stock-group-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin: 0 0 var(--space-10);
+}
+
 .stock-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
