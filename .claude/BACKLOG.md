@@ -242,6 +242,24 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
 - **O custo fixo fica DESLIGADO como está.** Tirar não simplificaria: o trio
   `hoursDay`/`daysMonth`/`machines` é da capacidade e ficaria de qualquer jeito.
 
+## ▶ Ajuste de estoque de acabados sem venda (brinde/perda/quebra)
+
+> Achado numa conversa de análise (2026-09-20) sobre importar histórico de produção — não bloqueia
+> nada, é item próprio, sem prompt escrito ainda.
+
+Hoje uma peça já pronta (`acabados`) só sai do estoque por **venda** — `StockPage.tsx` só tem os
+botões Vender/Produzir/Ver no catálogo, e `SaleItemOrigin` só aceita `"acabado"`/`"encomenda"`.
+Não existe caminho para "essa peça pronta virou brinde", "perdi/quebrei", ou "dei" — a única saída
+hoje seria registrar uma venda fantasma (receita 0), que polui contagem/métricas de venda com algo
+que não foi vendido.
+- **O que falta:** um "ajuste de acabado", no mesmo espírito do `StockAdjustModal`/
+  `SupplyAdjustModal` que já existem para rolo de filamento e insumo (D6, "ajuste com rastro") —
+  decrementa a `FinishedLayer` com um **motivo** (brinde, perda, quebra, uso interno, doação,
+  outro), registra o custo congelado que estava saindo (pra saber quanto isso custou), e **não
+  gera `Sale` nenhuma**.
+- Mexe só em `acabados`/`StockPage.tsx` — não tem relação com produção, catálogo, cor/marca ou
+  importação de histórico.
+
 ## ⚠ A frente do DONO (bloqueia a carga em massa)
 
 

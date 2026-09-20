@@ -9,6 +9,95 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Cor vira sugestão, marca só se decide na produção + importar histórico de produção (2026-09-20)
+
+Três itens de um mesmo pedido, planejados numa conversa de análise (fora deste chat, com duas
+ferramentas locais próprias — `BambuHistoryExporter` e `BambuLopoLabAdapter`, ambas fora deste
+repo, que leem o histórico de impressão da Bambu Cloud) e implementados em commits separados.
+
+**Item 1 — Material fica obrigatório no cadastro; cor é sugestão; marca só se decide na
+`/producao`.** Antes, `FilamentUsage.filamentId` amarrava cor+material+marca numa `StockFilament`
+só (D7), e a marca ficava travada desde o cadastro — mas na prática a marca usada de fato só se
+sabe na hora de imprimir (o rolo fisicamente na impressora pode não ser o mais antigo comprado, e
+FIFO por ordem de compra não reflete isso). `material` virou campo próprio e obrigatório (é ele
+que protege contra imprimir ABS onde o cadastro diz PLA — a proteção real da D7, que não muda);
+`colorName` continua texto livre, agora como sugestão; `filamentId` passou a ser DERIVADO
+(`relinkFilament`, `lib/stock.ts`), recalculado a cada tecla, casando com o Estoque só quando
+material+cor+marca batem com EXATAMENTE uma `StockFilament` ativa.
+- **Refinamento durante a implementação (decisão do dono):** em vez de um `<select>` de marca
+  travado nas já cadastradas, virou cascata de 3 campos de texto livre com `<datalist>` (Material
+  filtra Cor, que filtra Marca — `colorOptionsForMaterial`/`brandOptionsFor`). Marca digitada sem
+  bater no Estoque vira só rótulo salvo (`FilamentUsage.brand`); o preço fica no salvo/editável.
+- **Preço do catálogo sem marca fixada** (o caso normal agora): `resolveFilamentPrices`
+  (`calculatePricing.ts`) usa a MAIOR `pricePerKg` entre as `StockFilament` ATIVAS de mesma
+  cor+material (`brandCandidates`/`maxCandidatePrice`, `lib/stock.ts`) — o pior caso de custo,
+  já que a marca real só se decide depois. Sem nenhuma correspondência, cai no salvo, como um
+  avulso comum — não acende `missing` (cor que nunca apontou para o Estoque não é dado órfão).
+  Mesma regra propagada ao `cor-sem-preco` do CSV (`productCsv.ts`) e ao congelamento da venda
+  (`freezeFilaments`, D7 — resolve pelo `filamentId` quando há; sem ele, mantém `material` sempre
+  presente e o `brand` texto livre que já veio da `FilamentUsage`).
+- **Dois bugs achados pelo `/code-review --high` de cada rodada, corrigidos antes do commit:**
+  `mergeFilaments` comparava marca só por `.toLowerCase()` — "Bambú"/"Bambu" não casavam (só a
+  caixa, não o acento) e a mesma `StockFilament` virava "2 cores" na tela; trocado por
+  `normalizeText` (acento+caixa, padrão UX-05). E `relinkFilament` exigia a marca bater mesmo
+  quando ela não tinha sido digitada — um link antigo (do `<select>` anterior, sem `brand`
+  gravado) caía fora do link no primeiro toque em QUALQUER dos três campos, mesmo sem nada
+  divergente de fato; a comparação de marca só entra quando ela foi de fato digitada.
+- Sem migração (Diretriz 6 — não existe produto real cadastrado ainda).
+
+**Item 2 — `productIdTable()`.** Terceira cópia do padrão de `colorIdTable`/`supplyIdTable`
+(`lib/idTable.ts`): nome do produto → id, TSV, botão "Copiar de-para" no `/catalogo`. Serve para
+religar produtos do catálogo a ferramentas externas (a `/producao` de agora, e qualquer coisa
+futura que precise do id sem abrir o Firestore).
+
+**Item 3 — Importar histórico de produção.** Botão "Importar histórico" na `/producao`: cola/sobe
+um JSON gerado pela ferramenta externa (`BambuLopoLabAdapter`) a partir do histórico da Bambu, com
+uma linha por impressão real. Motivo: `machineRoi.ts` (o ROI de `/maquinas`) já soma `printHours`
+de QUALQUER evento de produção (real ou `historico`) para calcular `lifeUsedFraction` (vida útil
+real da máquina) — e essa conta estava zerada, porque o site nunca teve dado de produção anterior
+ao seu próprio uso. Toda a lógica pura mora em `lib/productionImport.ts`, testada
+(`productionImport.test.ts`); o componente (`ImportProductionModal.tsx`) só orquestra
+arquivo → prévia → Firestore.
+- **`at`/`printHours` vêm prontos do arquivo, sem recálculo.** `printHours` é o `costTime` do
+  fatiador da Bambu — checado em conversa contra o tempo de relógio real (`endTime - startTime`)
+  de casos extremos: divergência de −28,6% a +1.295,9%, com `pauseType: 0` em todos (nenhuma pausa
+  real registrada) e um caso com ~3 dias de intervalo de relógio para <5h de `costTime` — muito
+  mais consistente com "a nuvem fechou a tarefa tarde" do que com uma pausa física. Por isso o
+  arquivo de entrada nem carrega `startTime`/`endTime` crus — só `at_ms` (epoch ms, pronto) e
+  `printHours` — evitando que a implementação "descobrisse" o relógio bruto e o usasse por parecer
+  mais real.
+- **Máquina por nome, reaproveitando `machineNameToId`** (antes só do CSV, agora exportada) — sem
+  bater, a linha específica fica FORA do lote (não tem `machineId` válido pra satisfazer o tipo),
+  contada à parte na prévia; o resto do lote segue.
+- **`productId` opcional por linha** (a ferramenta externa religa manualmente, fora deste repo):
+  presente, herda a receita ATUAL do produto — acessórios, mão de obra (`laborMinutes`/`laborRate`)
+  e até uma marca de filamento sugerida (`productFilamentBrandIndex`, quando a linha não trouxe
+  `filamentId` mas o produto já tem uma marca ligada para aquela cor+material) — como snapshot
+  congelado, nunca fato confirmado por evento (a receita pode ter mudado desde a impressão). Sem
+  `productId`, nada é inventado: sem acessório, sem mão de obra, filamento fica avulso (preço =
+  o "R$/kg padrão desta importação" que a tela pede uma vez, editável, sugestão 110).
+- **`outcome: "estoque"` exige produto religado** (avulso não vira acabado — regra de sempre do
+  sistema); reaproveita `addProductionLayers`, a MESMA função da tela manual, para empilhar a
+  camada. Sem produto, a linha fica FORA do lote, com o motivo.
+- **`notes` faz dois trabalhos, sem colidir:** sempre começa com `"bambu:<task_id>"`
+  (`bambuNotePrefix`); o aviso de herança (quando há) vem depois de `" | "`. A idempotência
+  (`fetchBambuImportedTaskIds`, `productionRepository.ts`) usa uma query de INTERVALO no Firestore
+  (`>= "bambu:"`, `< "bambu:"`) — o truque padrão de "começa com" sem precisar de índice
+  composto — e nunca compara a nota inteira, só o prefixo. `dedupeByTaskId` cobre o caso de
+  `task_id` repetido DENTRO do mesmo arquivo (a idempotência do Firestore só sabe o que já está
+  gravado).
+- **`frozenBreakdown` com os SEIS componentes**, iguais a um evento real (`material`, `energy`,
+  `depreciation`, `maintenance`, `labor`, `supplies`) — reaproveita `productionCost`, a mesma
+  função pura da produção manual, calculada pela MÁQUINA ESPECÍFICA do evento (não a frota
+  ponderada — aqui a máquina é um fato conhecido, não uma etapa multi-máquina). `labor` é 0 sem
+  produto religado (não existe fonte nenhuma para isso na Bambu) e vem do cadastro quando há.
+- **Lote respeitando os limites reais do Firestore:** `bulkImportChunks` (300 por chunk, sob o
+  teto de ~500 mutações por transação) para as linhas sem `estoque`; `estoqueGroupsByProduct`
+  agrupa as `estoque` uma transação por PRODUTO (o `saveProduction` só aceita um acabado por
+  transação).
+- `mode: "historico"` sempre; `stockMoves: []` sempre, mesmo nas linhas `estoque` — nunca deduz
+  rolo/lote real, só empilha o acabado ou registra a hora/custo.
+
 ## ✅ Tarifa de energia virou GLOBAL — frente 2 fechada de vez (2026-09-18)
 
 Última peça da frente 2 (a movimentação de UI para o modal de Configurações já tinha fechado em
