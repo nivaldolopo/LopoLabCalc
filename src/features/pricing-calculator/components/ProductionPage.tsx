@@ -1091,16 +1091,16 @@ export function ProductionPage() {
                 </div>
                 {archived ? (
                   <div className="prod-fil-swap">⚠ marca arquivada — ainda em uso</div>
-                ) : !fil.filamentId &&
-                  (fil.colorName.trim() || num(fil.totalG) > 0) ? (
+                ) : !fil.filamentId ? (
                   // Item 3 (2026-09-20) — hoje o preço mostrado é sempre um
                   // (o fallback D3 já cobre), mas SEM link nenhum rolo é
                   // debitado do Estoque. Antes disso era silencioso — o campo
                   // de preço aparecia sem dizer por quê.
-                  // Achado do dono (2026-09-20) — sem cor nem peso digitado a
-                  // linha ainda não tem dado pra avaliar; o aviso nascia com
-                  // a fileira em branco (padrão do resto do site é avisar só
-                  // sobre dado real, nunca campo vazio).
+                  // ⚠ Fica ATIVO até em linha ainda vazia de propósito
+                  // (achado do dono, 2026-09-20, revertendo uma tentativa de
+                  // só mostrar com cor/peso digitado): dá pra registrar a
+                  // produção sem preencher a linha, e aí o aviso silencioso
+                  // seria exatamente o furo que este item existe pra fechar.
                   <div className="prod-fil-swap">
                     ⚠ sem marca ligada — esse consumo entra no custo, mas não
                     desconta rolo nenhum do Estoque

@@ -31,8 +31,10 @@
   leitura sem quebrar CSV antigo.
   **(3) Aviso de consumo avulso na `/producao`** — filamento sem `filamentId` ganha aviso inline
   ("sem marca ligada — não desconta rolo nenhum do Estoque"), mesmo estilo do aviso de marca
-  arquivada. Só torna visível o fallback de custo que já existia; nenhum comportamento mudou. ⚠ Só
-  aparece com cor OU peso já digitado (achado do dono: nascia até na fileira em branco do "Avulso").
+  arquivada. Só torna visível o fallback de custo que já existia; nenhum comportamento mudou. ⚠
+  Fica ATIVO até em linha vazia de propósito — dá pra registrar produção sem preencher a linha, e um
+  aviso condicionado a "já digitou algo" deixaria passar exatamente esse caso (revertido 2026-09-20:
+  uma tentativa de só mostrar com cor/peso digitado era furada por isso).
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
