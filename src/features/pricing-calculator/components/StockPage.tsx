@@ -98,7 +98,11 @@ import { PageIntro } from "./PageIntro";
 import { SaleFlow } from "./SaleFlow";
 import { SearchBox } from "./SearchBox";
 import { StockAdjustModal } from "./StockAdjustModal";
-import { StockColorModal, type StockColorDraft } from "./StockColorModal";
+import {
+  StockColorModal,
+  type StockColorDraft,
+  type StockColorGroupPreset,
+} from "./StockColorModal";
 import { StockRollModal } from "./StockRollModal";
 import { SuppliesTab } from "./SuppliesTab";
 
@@ -206,6 +210,11 @@ export function StockPage() {
   const [colorQuery, setColorQuery] = useState("");
   const [goodQuery, setGoodQuery] = useState("");
   const [creating, setCreating] = useState(false);
+  // Item 1 (refinamento) — "+ Marca" de um grupo já existente: guarda o
+  // material+cor (travados no modal) pra não confundir com "Nova cor" (grupo
+  // do zero, os 3 campos livres) — a ambiguidade que o dono relatou.
+  const [creatingForGroup, setCreatingForGroup] =
+    useState<StockColorGroupPreset | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [rollForId, setRollForId] = useState<string | null>(null);
   const [adjustForId, setAdjustForId] = useState<string | null>(null);
@@ -728,6 +737,47 @@ export function StockPage() {
             ))}
           </div>
         ) : null}
+      </div>
+    );
+  }
+
+  // Item 1 (refinamento) — um grupo cor+material: título com a bolinha +
+  // "+ Marca" (abre o modal já travado neste material/cor, ver
+  // `StockColorModal`) e os cards de marca de sempre. Sem botão nos grupos
+  // ARQUIVADOS (`addBrand = false`): a marca nova nasce ativa e sairia deste
+  // mesmo grupo assim que salva — o botão ali só confundiria de novo.
+  function renderGroup(
+    group: ReturnType<typeof groupFilaments>[number],
+    addBrand = true,
+  ) {
+    return (
+      <div className="stock-group" key={group.key}>
+        <div className="stock-group-head">
+          <h2 className="stock-group-title">
+            <span
+              className="stock-dot"
+              style={{ background: group.colorHex || "var(--muted2)" }}
+              aria-hidden="true"
+            />
+            {group.label}
+          </h2>
+          {addBrand ? (
+            <button
+              className="btn btn-secondary btn-sm"
+              type="button"
+              onClick={() =>
+                setCreatingForGroup({
+                  material: group.items[0].material,
+                  colorName: group.items[0].colorName,
+                  colorHex: group.colorHex,
+                })
+              }
+            >
+              <Plus size={14} /> Marca
+            </button>
+          ) : null}
+        </div>
+        <div className="stock-list">{group.items.map(renderCard)}</div>
       </div>
     );
   }
@@ -1425,19 +1475,7 @@ export function StockPage() {
             </div>
           ) : (
             <div className="stock-groups">
-              {groupFilaments(activeShown).map((group) => (
-                <div className="stock-group" key={group.key}>
-                  <h2 className="stock-group-title">
-                    <span
-                      className="stock-dot"
-                      style={{ background: group.colorHex || "var(--muted2)" }}
-                      aria-hidden="true"
-                    />
-                    {group.label}
-                  </h2>
-                  <div className="stock-list">{group.items.map(renderCard)}</div>
-                </div>
-              ))}
+              {groupFilaments(activeShown).map((group) => renderGroup(group))}
             </div>
           )}
         </>
@@ -1447,19 +1485,9 @@ export function StockPage() {
         <details className="stock-archived-box">
           <summary>Cores arquivadas ({archivedShown.length})</summary>
           <div className="stock-groups">
-            {groupFilaments(archivedShown).map((group) => (
-              <div className="stock-group" key={group.key}>
-                <h2 className="stock-group-title">
-                  <span
-                    className="stock-dot"
-                    style={{ background: group.colorHex || "var(--muted2)" }}
-                    aria-hidden="true"
-                  />
-                  {group.label}
-                </h2>
-                <div className="stock-list">{group.items.map(renderCard)}</div>
-              </div>
-            ))}
+            {groupFilaments(archivedShown).map((group) =>
+              renderGroup(group, false),
+            )}
           </div>
         </details>
       ) : null}
@@ -1571,13 +1599,15 @@ export function StockPage() {
         </>
       )}
 
-      {creating || editing ? (
+      {creating || editing || creatingForGroup ? (
         <StockColorModal
           color={editing}
           materials={materials}
+          presetGroup={creatingForGroup ?? undefined}
           onClose={() => {
             setCreating(false);
             setEditingId(null);
+            setCreatingForGroup(null);
           }}
           onSave={saveColor}
         />

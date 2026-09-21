@@ -16,9 +16,20 @@ export type StockColorDraft = {
   minG: number;
 };
 
+// Item 1 (Estoque agrupado, refinamento) — adicionar uma MARCA a uma cor
+// (material+colorName) que já existe como grupo na tela: material e cor vêm
+// TRAVADOS do grupo (evita o typo que criaria um grupo quase-igual, e some com
+// a ambiguidade "pra onde vai" que o dono relatou), só a marca é nova.
+export type StockColorGroupPreset = {
+  material: string;
+  colorName: string;
+  colorHex?: string;
+};
+
 type StockColorModalProps = {
   color: StockFilament | null; // null = criar
   materials: string[]; // D8: os já cadastrados
+  presetGroup?: StockColorGroupPreset; // criar DENTRO de um grupo existente
   onClose: () => void;
   onSave: (draft: StockColorDraft) => Promise<void>;
 };
@@ -28,14 +39,21 @@ const NEW_MATERIAL = "__novo__";
 export function StockColorModal({
   color,
   materials,
+  presetGroup,
   onClose,
   onSave,
 }: StockColorModalProps) {
   const fieldId = useId();
-  const [material, setMaterial] = useState(color?.material ?? "");
+  const [material, setMaterial] = useState(
+    color?.material ?? presetGroup?.material ?? "",
+  );
   const [brand, setBrand] = useState(color?.brand ?? "");
-  const [colorName, setColorName] = useState(color?.colorName ?? "");
-  const [colorHex, setColorHex] = useState(color?.colorHex ?? "#888888");
+  const [colorName, setColorName] = useState(
+    color?.colorName ?? presetGroup?.colorName ?? "",
+  );
+  const [colorHex, setColorHex] = useState(
+    color?.colorHex ?? presetGroup?.colorHex ?? "#888888",
+  );
   const [minG, setMinG] = useState(color?.minG ?? 0);
   // D8: o input é dropdown dos já cadastrados + digitar um novo. Sem lista não
   // há o que escolher (primeira cor do sistema), então já abre digitando.
@@ -50,6 +68,13 @@ export function StockColorModal({
     }
     if (!colorName.trim()) {
       setError("Dê um nome à cor (Preto, Vermelho...).");
+      return;
+    }
+    // Dentro de um grupo existente o ponto é justamente registrar uma marca —
+    // em branco criaria um segundo card "sem marca" no mesmo grupo, tão
+    // ambíguo quanto o problema que este modo resolve.
+    if (presetGroup && !brand.trim()) {
+      setError("Digite o nome da marca (Bambu, Voolt...).");
       return;
     }
 
@@ -72,8 +97,18 @@ export function StockColorModal({
 
   return (
     <Modal
-      title={color ? "Editar cor" : "Nova cor"}
-      sub="A cor é o que o produto vai apontar — os rolos vivem dentro dela, cada um com o preço que você pagou. O nome exibido é montado a partir de material, cor e marca."
+      title={
+        color
+          ? "Editar cor"
+          : presetGroup
+            ? `Nova marca — ${presetGroup.colorName} ${presetGroup.material}`
+            : "Nova cor"
+      }
+      sub={
+        presetGroup
+          ? "Fica na mesma cor, como um card separado com os próprios rolos — a produção escolhe entre as marcas na hora de imprimir."
+          : "A cor é o que o produto vai apontar — os rolos vivem dentro dela, cada um com o preço que você pagou. O nome exibido é montado a partir de material, cor e marca."
+      }
       onClose={onClose}
       footer={
         <>
@@ -95,10 +130,21 @@ export function StockColorModal({
         <div className="field-block">
           {/* UX-16: os dois ramos são o MESMO campo (texto livre × lista) e só
               um renderiza por vez — daí o mesmo id nos dois. */}
-          <label className="section-label" htmlFor={`${fieldId}-material`}>
+          {/* Travado (presetGroup): a caixa vira um <div> sem id — igual ao
+              padrão do preço vivo em FilamentColorsSection, `htmlFor`
+              undefined em vez de apontar para um id que não existe mais. */}
+          <label
+            className="section-label"
+            htmlFor={presetGroup ? undefined : `${fieldId}-material`}
+          >
             Material
           </label>
-          {typingMaterial ? (
+          {presetGroup ? (
+            // Travado: é o material do GRUPO em que a marca está entrando —
+            // reescrever aqui criaria um grupo quase-igual em vez de somar
+            // marca no mesmo.
+            <div className="field-input stock-locked-field">{material}</div>
+          ) : typingMaterial ? (
             <div className="stock-material-new">
               <input
                 id={`${fieldId}-material`}
@@ -156,23 +202,33 @@ export function StockColorModal({
             className="field-input"
             type="text"
             value={brand}
-            placeholder="Bambu, Voolt... (opcional)"
+            autoFocus={Boolean(presetGroup)}
+            placeholder={
+              presetGroup ? "Bambu, Voolt..." : "Bambu, Voolt... (opcional)"
+            }
             onChange={(event) => setBrand(event.target.value)}
           />
         </div>
 
         <div className="field-block">
-          <label className="section-label" htmlFor={`${fieldId}-color-name`}>
+          <label
+            className="section-label"
+            htmlFor={presetGroup ? undefined : `${fieldId}-color-name`}
+          >
             Cor
           </label>
-          <input
-            id={`${fieldId}-color-name`}
-            className="field-input"
-            type="text"
-            value={colorName}
-            placeholder="Preto, Vermelho..."
-            onChange={(event) => setColorName(event.target.value)}
-          />
+          {presetGroup ? (
+            <div className="field-input stock-locked-field">{colorName}</div>
+          ) : (
+            <input
+              id={`${fieldId}-color-name`}
+              className="field-input"
+              type="text"
+              value={colorName}
+              placeholder="Preto, Vermelho..."
+              onChange={(event) => setColorName(event.target.value)}
+            />
+          )}
         </div>
 
         <div className="field-block">

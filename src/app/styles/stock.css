@@ -46,13 +46,24 @@
   gap: var(--space-24);
 }
 
+/* Item 1 (refinamento) — título + "+ Marca" na mesma fileira; a margem que
+   separava o título da grade de cards mudou de dono pra cá (o título sozinho
+   não precisa mais dela). */
+.stock-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  margin: 0 0 var(--space-10);
+}
+
 .stock-group-title {
   display: flex;
   align-items: center;
   gap: var(--space-8);
   font-size: var(--text-lg);
   font-weight: 700;
-  margin: 0 0 var(--space-10);
 }
 
 /* A bolinha do título herda o tamanho/borda do `.stock-dot` dos cards — só
@@ -344,6 +355,16 @@
   border-radius: var(--radius-md);
   background: var(--field-bg);
   cursor: pointer;
+}
+
+/* Item 1 (refinamento) — Material/Cor travados no modal "Nova marca" de um
+   grupo já existente: mesma caixa do `.field-input`, mas tracejada e sem cor
+   de texto plena — o mesmo sinal visual de "só-leitura" do
+   `.filament-total-value`, pra não parecer um campo digitável comum. */
+.stock-locked-field {
+  border-style: dashed;
+  color: var(--muted);
+  background: var(--chip-bg);
 }
 
 /* AUD-14 — 37px no celular, 7px abaixo da régua do dedo. Os campos vizinhos do
