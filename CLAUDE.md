@@ -12,10 +12,14 @@
 - **Última mudança (2026-09-20): 3 itens do pedido seguinte (Estoque agrupado / tirar Marca do
   cadastro / avisar avulso), todos fechados, cada um seu commit.**
   **(1) Estoque de filamento agrupado por cor+material** — a aba Filamentos do `/estoque` agrupa os
-  cards visualmente (ex.: "Branco PLA"), com as marcas cadastradas daquela cor como cards dentro do
-  grupo (`filamentGroupKey`/`filamentGroupLabel`, `lib/stock.ts`). Mudança de TELA, não de dado:
-  `StockFilament` continua um doc por cor+material+MARCA (D7). Busca já funcionava através dos
-  grupos de graça (`filamentLabel` já junta material+cor+marca no mesmo texto buscável).
+  cards visualmente (ex.: "Branco PLA"), com a bolinha de amostra também no título do grupo e as
+  marcas cadastradas daquela cor como cards dentro dele (`filamentGroupKey`/`filamentGroupLabel`,
+  `lib/stock.ts`). Mudança de TELA, não de dado: `StockFilament` continua um doc por cor+material+
+  MARCA (D7). Busca já funcionava através dos grupos de graça (`filamentLabel` já junta material+
+  cor+marca no mesmo texto buscável). Refinamento no mesmo dia (feedback do dono: ficou confuso "pra
+  onde vai" cadastrar um rolo) — **"+ Marca" por grupo** (`StockColorModal`, prop `presetGroup`)
+  trava Material/Cor e só pede a marca nova, separado do **"+ Nova cor"** global (cor do zero, os 3
+  campos livres, como sempre foi).
   **(2) Marca saiu do cadastro do produto** — `FilamentColorsSection` (usada no `ProductForm` e nas
   etapas extras) fica só com Material e Cor; sem marca pra desambiguar, o cadastro NUNCA cria
   `filamentId` novo (só preserva um link herdado de fora), e o preço mostrado é sempre a MAIOR entre
