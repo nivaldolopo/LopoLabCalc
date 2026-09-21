@@ -19,7 +19,10 @@
   cor+marca no mesmo texto buscável). Refinamento no mesmo dia (feedback do dono: ficou confuso "pra
   onde vai" cadastrar um rolo) — **"+ Marca" por grupo** (`StockColorModal`, prop `presetGroup`)
   trava Material/Cor e só pede a marca nova, separado do **"+ Nova cor"** global (cor do zero, os 3
-  campos livres, como sempre foi).
+  campos livres). ⚠ **Marca é OBRIGATÓRIA em qualquer criação** (`!color` no `save()`), não só no
+  `presetGroup` — sem isso "Nova cor" em branco criava um card "genérico" (sem marca nenhuma)
+  ambíguo dentro do grupo; um único formulário resolve, sem precisar de 2 passos nem mudar o
+  Firestore (StockFilament sempre exigiu `brand: string` no tipo — só a validação não cobria).
   **(2) Marca saiu do cadastro do produto** — `FilamentColorsSection` (usada no `ProductForm` e nas
   etapas extras) fica só com Material e Cor; sem marca pra desambiguar, o cadastro NUNCA cria
   `filamentId` novo (só preserva um link herdado de fora), e o preço mostrado é sempre a MAIOR entre
