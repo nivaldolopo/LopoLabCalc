@@ -1091,6 +1091,15 @@ export function ProductionPage() {
                 </div>
                 {archived ? (
                   <div className="prod-fil-swap">⚠ marca arquivada — ainda em uso</div>
+                ) : !fil.filamentId ? (
+                  // Item 3 (2026-09-20) — hoje o preço mostrado é sempre um
+                  // (o fallback D3 já cobre), mas SEM link nenhum rolo é
+                  // debitado do Estoque. Antes disso era silencioso — o campo
+                  // de preço aparecia sem dizer por quê.
+                  <div className="prod-fil-swap">
+                    ⚠ sem marca ligada — esse consumo entra no custo, mas não
+                    desconta rolo nenhum do Estoque
+                  </div>
                 ) : null}
                 {swap ? (
                   <div
