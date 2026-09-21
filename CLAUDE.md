@@ -38,6 +38,11 @@
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
+- ⚠ **O pipeline de importação (histórico de impressão → CSV/JSON) virou projeto próprio em
+  2026-09-21** (`LopoLabPrintPipeline`, fora deste repo — writeup em
+  [`HISTORICO.md`](.claude/HISTORICO.md)). Daqui só se conhece o **formato que ele entrega** (o CSV
+  que o `/catalogo` importa, o JSON que o "Importar histórico" da `/producao` lê) — o funcionamento
+  interno dele não é documentado aqui, e não se mexe nele a partir daqui.
 - **PRÓXIMA TAREFA DESTE PROJETO — frente 3: uso real.** Checklist do que apaga pronto; falta só
   executar (o dono aciona quando decidir o marco — Diretriz 6 expira nesse ponto) e seguir a ordem
   do recadastro, também na seção 3. Frente 2 (Configurações) está inteira fechada.

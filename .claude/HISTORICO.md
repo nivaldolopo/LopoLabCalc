@@ -9,11 +9,25 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Ferramenta externa de importação virou projeto próprio: `LopoLabPrintPipeline` (2026-09-21)
+
+A ferramenta externa citada na entrada abaixo (que lê o histórico de impressão da Bambu Cloud e gera
+o CSV do `/catalogo` e o JSON do "Importar histórico" da `/producao`) tinha crescido bastante numa
+conversa de análise separada — grande o bastante pra merecer projeto e repositório GitHub próprios
+(`LopoLabPrintPipeline`, privado), em vez de continuar como scripts soltos sem controle de versão.
+
+Essa separação não muda nada do lado do LopoLabCalc: nenhum código daqui foi tocado, o CSV e o JSON
+continuam no mesmo formato de sempre. O que muda é só onde o *porquê* daquela ferramenta mora — a
+partir de agora, é o `HISTORICO.md` do próprio `LopoLabPrintPipeline`, não este arquivo. Este repo
+passa a tratar aquele pipeline como fronteira externa (mesmo espírito do "site do designer", no
+`CLAUDE.md`): conhece o formato que ele entrega, não o funcionamento interno dele.
+
 ## ✅ Cor vira sugestão, marca só se decide na produção + importar histórico de produção (2026-09-20)
 
-Três itens de um mesmo pedido, planejados numa conversa de análise (fora deste chat, com duas
-ferramentas locais próprias — `BambuHistoryExporter` e `BambuLopoLabAdapter`, ambas fora deste
-repo, que leem o histórico de impressão da Bambu Cloud) e implementados em commits separados.
+Três itens de um mesmo pedido, planejados numa conversa de análise (fora deste chat, apoiada numa
+ferramenta externa própria — projeto e repositório à parte, não documentado aqui — que lê o
+histórico de impressão da Bambu Cloud e gera os arquivos que os itens abaixo passaram a importar)
+e implementados em commits separados.
 
 **Item 1 — Material fica obrigatório no cadastro; cor é sugestão; marca só se decide na
 `/producao`.** Antes, `FilamentUsage.filamentId` amarrava cor+material+marca numa `StockFilament`
@@ -51,7 +65,7 @@ religar produtos do catálogo a ferramentas externas (a `/producao` de agora, e 
 futura que precise do id sem abrir o Firestore).
 
 **Item 3 — Importar histórico de produção.** Botão "Importar histórico" na `/producao`: cola/sobe
-um JSON gerado pela ferramenta externa (`BambuLopoLabAdapter`) a partir do histórico da Bambu, com
+um JSON gerado por uma ferramenta externa (fora deste repo) a partir do histórico da Bambu, com
 uma linha por impressão real. Motivo: `machineRoi.ts` (o ROI de `/maquinas`) já soma `printHours`
 de QUALQUER evento de produção (real ou `historico`) para calcular `lifeUsedFraction` (vida útil
 real da máquina) — e essa conta estava zerada, porque o site nunca teve dado de produção anterior
