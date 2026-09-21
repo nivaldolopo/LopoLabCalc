@@ -9,27 +9,22 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-20): refinamento do item 1 (feedback do dono) + itens 2 e 3 do mesmo
-  pedido, todos fechados.**
-  **(1) Material/Cor/Marca em CASCATA, marca digitável livre** — `FilamentColorsSection` (cadastro)
-  e o seletor da `/producao` trocam o antigo `<select>` de marca (só cadastradas) por 3 campos de
-  texto livre com `<datalist>` (Material filtra Cor, que filtra Marca —
-  `colorOptionsForMaterial`/`brandOptionsFor`, `lib/stock.ts`). Marca digitada sem bater no Estoque
-  vira só rótulo salvo (`FilamentUsage.brand`) — preço fica no salvo/editável, **sem mudança em
-  `calculatePricing.ts`** (decisão do dono). `filamentId` é DERIVADO a cada tecla por
-  `relinkFilament()` (`lib/stock.ts`, as duas telas) — link antigo sem `brand` gravado sobrevive a
-  edição não relacionada (achado do `/code-review --high`: sem essa trava, editar QUALQUER campo já
-  derrubava o link calado).
-  **(2) `productIdTable()`** + botão "Copiar de-para" no `/catalogo`, mesmo padrão de
-  `colorIdTable`/`supplyIdTable`.
-  **(3) Importar histórico de produção** — botão "Importar histórico" na `/producao`: cola/sobe o
-  JSON de uma ferramenta externa (fora deste repo) que lê o histórico da Bambu, prévia obrigatória
-  (por máquina/desfecho/produto, período), grava em lote como eventos `mode: "historico"`.
-  Idempotente por `"bambu:<task_id>"` no início de `notes` (`fetchBambuImportedTaskIds`, novo em
-  `productionRepository.ts`) — reimportar o mesmo arquivo não duplica, inclusive `task_id` repetido
-  dentro do PRÓPRIO arquivo. Toda a lógica em `lib/productionImport.ts`, pura e testada.
-  Os `/code-review --high` de cada rodada acharam e corrigiram bugs reais antes do commit (detalhe
-  no `HISTORICO.md` se precisar revisitar) — nenhum ficou pendente.
+- **Última mudança (2026-09-20): 3 itens do pedido seguinte (Estoque agrupado / tirar Marca do
+  cadastro / avisar avulso), todos fechados, cada um seu commit.**
+  **(1) Estoque de filamento agrupado por cor+material** — a aba Filamentos do `/estoque` agrupa os
+  cards visualmente (ex.: "Branco PLA"), com as marcas cadastradas daquela cor como cards dentro do
+  grupo (`filamentGroupKey`/`filamentGroupLabel`, `lib/stock.ts`). Mudança de TELA, não de dado:
+  `StockFilament` continua um doc por cor+material+MARCA (D7). Busca já funcionava através dos
+  grupos de graça (`filamentLabel` já junta material+cor+marca no mesmo texto buscável).
+  **(2) Marca saiu do cadastro do produto** — `FilamentColorsSection` (usada no `ProductForm` e nas
+  etapas extras) fica só com Material e Cor; sem marca pra desambiguar, o cadastro NUNCA cria
+  `filamentId` novo (só preserva um link herdado de fora), e o preço mostrado é sempre a MAIOR entre
+  as marcas candidatas da cor+material. A marca real só se decide na `/producao` (não mexida).
+  `productCsv.ts` para de escrever `brand` nas colunas Etapas/Filamentos JSON e ignora a chave na
+  leitura sem quebrar CSV antigo.
+  **(3) Aviso de consumo avulso na `/producao`** — filamento sem `filamentId` ganha aviso inline
+  ("sem marca ligada — não desconta rolo nenhum do Estoque"), mesmo estilo do aviso de marca
+  arquivada. Só torna visível o fallback de custo que já existia; nenhum comportamento mudou.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
