@@ -111,15 +111,25 @@ function grams(value: number): string {
 // de cada grupo saem em ordem alfabética de graça).
 function groupFilaments(
   list: StockFilament[],
-): { key: string; label: string; items: StockFilament[] }[] {
-  const map = new Map<string, { label: string; items: StockFilament[] }>();
+): { key: string; label: string; colorHex?: string; items: StockFilament[] }[] {
+  const map = new Map<
+    string,
+    { label: string; colorHex?: string; items: StockFilament[] }
+  >();
   for (const color of list) {
     const key = filamentGroupKey(color);
     const group = map.get(key);
     if (group) {
       group.items.push(color);
     } else {
-      map.set(key, { label: filamentGroupLabel(color), items: [color] });
+      // A bolinha do grupo usa a amostra da 1ª marca — cada `StockFilament`
+      // guarda a própria (por doc, D7); marcas da mesma cor podem divergir um
+      // pouco no tom, mas o grupo precisa de UMA só pra representar o título.
+      map.set(key, {
+        label: filamentGroupLabel(color),
+        colorHex: color.colorHex,
+        items: [color],
+      });
     }
   }
   return Array.from(map.entries())
@@ -1417,7 +1427,14 @@ export function StockPage() {
             <div className="stock-groups">
               {groupFilaments(activeShown).map((group) => (
                 <div className="stock-group" key={group.key}>
-                  <h2 className="stock-group-title">{group.label}</h2>
+                  <h2 className="stock-group-title">
+                    <span
+                      className="stock-dot"
+                      style={{ background: group.colorHex || "var(--muted2)" }}
+                      aria-hidden="true"
+                    />
+                    {group.label}
+                  </h2>
                   <div className="stock-list">{group.items.map(renderCard)}</div>
                 </div>
               ))}
@@ -1432,7 +1449,14 @@ export function StockPage() {
           <div className="stock-groups">
             {groupFilaments(archivedShown).map((group) => (
               <div className="stock-group" key={group.key}>
-                <h2 className="stock-group-title">{group.label}</h2>
+                <h2 className="stock-group-title">
+                  <span
+                    className="stock-dot"
+                    style={{ background: group.colorHex || "var(--muted2)" }}
+                    aria-hidden="true"
+                  />
+                  {group.label}
+                </h2>
                 <div className="stock-list">{group.items.map(renderCard)}</div>
               </div>
             ))}

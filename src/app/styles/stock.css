@@ -47,9 +47,19 @@
 }
 
 .stock-group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
   font-size: var(--text-lg);
   font-weight: 700;
   margin: 0 0 var(--space-10);
+}
+
+/* A bolinha do título herda o tamanho/borda do `.stock-dot` dos cards — só
+   sem a margem de topo, que ali compensava a 1ª linha do texto ao lado dela
+   ser mais alta (`.stock-title strong`); aqui os dois têm a mesma altura. */
+.stock-group-title .stock-dot {
+  margin-top: 0;
 }
 
 .stock-list {
