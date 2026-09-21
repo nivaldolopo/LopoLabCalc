@@ -70,10 +70,11 @@ export function StockColorModal({
       setError("Dê um nome à cor (Preto, Vermelho...).");
       return;
     }
-    // Dentro de um grupo existente o ponto é justamente registrar uma marca —
-    // em branco criaria um segundo card "sem marca" no mesmo grupo, tão
-    // ambíguo quanto o problema que este modo resolve.
-    if (presetGroup && !brand.trim()) {
+    // Achado do dono (2026-09-20) — marca em branco criava um card
+    // "genérico" (sem marca nenhuma) ambíguo dentro do grupo. TODA marca
+    // NOVA precisa de nome — "Nova cor" e "+ Marca" são as duas formas de
+    // criar uma; só EDITAR um doc já existente não reforça isso de volta.
+    if (!color && !brand.trim()) {
       setError("Digite o nome da marca (Bambu, Voolt...).");
       return;
     }
@@ -203,9 +204,7 @@ export function StockColorModal({
             type="text"
             value={brand}
             autoFocus={Boolean(presetGroup)}
-            placeholder={
-              presetGroup ? "Bambu, Voolt..." : "Bambu, Voolt... (opcional)"
-            }
+            placeholder="Bambu, Voolt..."
             onChange={(event) => setBrand(event.target.value)}
           />
         </div>
