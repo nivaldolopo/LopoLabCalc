@@ -8,7 +8,6 @@ import type { FilamentUsage, StockFilament } from "../types";
 import { filamentTotalG, makeFilament } from "../lib/filaments";
 import {
   brandCandidates,
-  brandOptionsFor,
   catalogPricePerKg,
   colorOptionsForMaterial,
   materialOptions,
@@ -23,12 +22,16 @@ import { NumberInput } from "./NumberInput";
 // e nas etapas extras (ExtraStagesSection).
 //
 // Item 1 (2026-09-20) + refinamento no mesmo dia — COR virou sugestão, MARCA só
-// se decide na `/producao`, mas os TRÊS campos são texto livre em CASCATA:
-// Material filtra as sugestões de Cor, que filtram as de Marca (dropdown via
-// `<datalist>`, nunca trava a digitação — cor/marca podem ser algo que ainda
-// não está no Estoque). `filamentId` é DERIVADO: bateu com EXATAMENTE uma
-// `StockFilament` de mesma material+cor+marca → liga (preço vivo); sem bater
-// com nenhuma (ou mais de uma) → a marca digitada fica só RÓTULO, sem link.
+// se decide na `/producao`. Item 2 (mesmo dia) tirou a Marca DESTE formulário:
+// o cadastro só pede Material e Cor, texto livre em cascata (Material filtra as
+// sugestões de Cor via `<datalist>`, nunca trava a digitação — cor pode ser algo
+// que ainda não está no Estoque). Sem marca para desambiguar, o cadastro NUNCA
+// liga um `filamentId` NOVO (`relinkFilament` chamado com marca "" — só
+// PRESERVA um link herdado de fora, ex.: importação, enquanto cor+material
+// baterem); o preço mostrado é sempre a MAIOR `pricePerKg` entre as marcas
+// candidatas da cor+material (`maxCandidatePrice`) quando não há link — a
+// marca real só se decide na `/producao`, que é quem de fato desconta o rolo
+// do Estoque.
 type FilamentColorsSectionProps = {
   filaments: FilamentUsage[];
   onChange: (filaments: FilamentUsage[]) => void;
@@ -67,40 +70,42 @@ export function FilamentColorsSection({
   // lugares (foi assim que o bug do code review nasceu da primeira vez).
   function updateAt(
     index: number,
-    patch: Partial<Pick<FilamentUsage, "colorName" | "material" | "brand">>,
+    patch: Partial<Pick<FilamentUsage, "colorName" | "material">>,
   ) {
     onChange(
       filaments.map((f, i) => {
         if (i !== index) return f;
-        const merged = { ...makeFilament({ ...f, ...patch }), id: f.id };
-        if (
-          patch.colorName !== undefined ||
-          patch.material !== undefined ||
-          patch.brand !== undefined
-        ) {
-          merged.filamentId = relinkFilament(
-            stock,
-            merged.filamentId,
-            merged.material,
-            merged.colorName,
-            merged.brand ?? "",
+        // Item 2 — sem campo de Marca aqui, `brand` explícito `undefined`
+        // impede que um valor herdado de fora (importação, dado antigo)
+        // sobreviva a uma edição de Material/Cor neste formulário sem ter
+        // sido tocado por ele.
+        const merged = {
+          ...makeFilament({ ...f, ...patch, brand: undefined }),
+          id: f.id,
+        };
+        // Marca sempre "" — `relinkFilament` só PRESERVA um link herdado
+        // (cor+material batendo), nunca cria um novo (isso exige marca).
+        merged.filamentId = relinkFilament(
+          stock,
+          merged.filamentId,
+          merged.material,
+          merged.colorName,
+          "",
+        );
+        // O preço segue a MESMA regra do cálculo (`resolveFilamentPrices`):
+        // ligou (link herdado) → preço vivo dele; sem link → a MAIOR entre as
+        // candidatas de cor+material.
+        const linked = merged.filamentId
+          ? stock.find((c) => c.id === merged.filamentId)
+          : undefined;
+        if (linked) {
+          const live = catalogPricePerKg(linked);
+          if (live > 0) merged.pricePerKg = live;
+        } else {
+          const max = maxCandidatePrice(
+            brandCandidates(stock, merged.colorName, merged.material),
           );
-          // O preço segue a MESMA regra do cálculo (`resolveFilamentPrices`,
-          // que só olha `filamentId` — a marca digitada é só rótulo pra ele):
-          // ligou → preço vivo da marca; não ligou (com ou sem marca
-          // digitada) → a MAIOR entre as candidatas de cor+material.
-          const linked = merged.filamentId
-            ? stock.find((c) => c.id === merged.filamentId)
-            : undefined;
-          if (linked) {
-            const live = catalogPricePerKg(linked);
-            if (live > 0) merged.pricePerKg = live;
-          } else {
-            const max = maxCandidatePrice(
-              brandCandidates(stock, merged.colorName, merged.material),
-            );
-            if (max > 0) merged.pricePerKg = max;
-          }
+          if (max > 0) merged.pricePerKg = max;
         }
         return merged;
       }),
@@ -204,30 +209,25 @@ export function FilamentColorsSection({
           const linkedColor = f.filamentId
             ? stockById.get(f.filamentId)
             : undefined;
-          const missing = Boolean(f.filamentId) && !linkedColor; // marca removida do estoque
+          const missing = Boolean(f.filamentId) && !linkedColor; // link herdado, removido do estoque
           // Code review — o antigo <select> tinha uma opção "(arquivada)"
           // própria; virando texto livre, essa informação não tinha mais
           // onde aparecer (arquivada não é removida — `linkedColor` continua
           // achando ela, `missing` fica false, e nada mais avisava).
           const archived = Boolean(linkedColor?.archived);
-          // Cascata: cor sugere pelo material já digitado; marca sugere pelos
-          // dois. Datalist vazio (nada bate) degrada sozinho a campo de texto
-          // simples — é o que deixa o avulso "mais simples" sem um caminho
-          // separado pra ele.
+          // Cascata: cor sugere pelo material já digitado. Datalist vazio
+          // (nada bate) degrada sozinho a campo de texto simples.
           const colorListId = `${fieldId}-${index}-colors`;
-          const brandListId = `${fieldId}-${index}-brands`;
           const colorOptions = colorOptionsForMaterial(stock, f.material);
-          const brandOptions = brandOptionsFor(stock, f.material, f.colorName);
           const candidates = brandCandidates(stock, f.colorName, f.material);
           const livePrice = f.filamentId
             ? linkedColor
               ? catalogPricePerKg(linkedColor)
               : 0
             : maxCandidatePrice(candidates);
-          // Só-leitura quando há preço vivo (marca ligada com rolo, ou
-          // correspondência de cor+material no Estoque sem marca fixada). Sem
-          // nenhum dos dois — inclusive marca digitada que não bate com nada —
-          // o preço salvo continua editável (fallback D3).
+          // Só-leitura quando há preço vivo (link herdado com rolo, ou
+          // candidata de cor+material no Estoque). Sem nenhum dos dois o
+          // preço salvo continua editável (fallback D3).
           const showLivePrice = livePrice > 0;
           const rowId = `${fieldId}-${index}`;
           return (
@@ -271,33 +271,13 @@ export function FilamentColorsSection({
                   </datalist>
                   {missing ? (
                     <div className="filament-missing-badge">
-                      ⚠ marca removida do estoque — usando o preço salvo
+                      ⚠ link herdado removido do estoque — usando o preço
+                      salvo
                     </div>
-                  ) : null}
-                </div>
-                <div className="filament-cell grow">
-                  <label className="section-label" htmlFor={`${rowId}-brand`}>
-                    Marca
-                  </label>
-                  <input
-                    id={`${rowId}-brand`}
-                    className="field-input"
-                    type="text"
-                    list={brandListId}
-                    value={f.brand ?? ""}
-                    onChange={(event) =>
-                      updateAt(index, { brand: event.target.value })
-                    }
-                    placeholder="Bambu, Voolt... (opcional)"
-                  />
-                  <datalist id={brandListId}>
-                    {brandOptions.map((option) => (
-                      <option key={option} value={option} />
-                    ))}
-                  </datalist>
-                  {archived ? (
+                  ) : archived ? (
                     <div className="filament-missing-badge">
-                      ⚠ marca arquivada — ainda em uso, mas some das sugestões
+                      ⚠ link herdado está arquivado — ainda em uso, mas some
+                      das sugestões
                     </div>
                   ) : null}
                 </div>

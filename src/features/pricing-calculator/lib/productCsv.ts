@@ -665,15 +665,9 @@ function parseFilamentList(
       // leitura), e é o `validateProduct` quem barra o SAVE de uma linha sem
       // material — o mesmo aviso que a tela dá para quem digita à mão.
       material: textoJson(item.material, campo("material"), report),
-      // Refinamento do Item 1 (2026-09-20) — `brand` virou texto livre do
-      // CADASTRO (antes só existia no snapshot congelado da venda/produção,
-      // que não passa por aqui). Mesmo padrão do detalhe: OPCIONAL, ausente
-      // continua ausente — FORM-01, o campo que a leitura esquece é o que o
-      // save seguinte apaga calado. Junto dos outros campos de IDENTIDADE da
-      // cor (não da quantidade), como em `stripFilamentIds`.
-      ...(item.brand !== undefined
-        ? { brand: textoJson(item.brand, campo("brand"), report) }
-        : {}),
+      // Item 2 (2026-09-20) — o cadastro não tem mais campo de Marca; uma
+      // célula `"brand"` de um CSV exportado antes da mudança é IGNORADA aqui
+      // (sem erro, sem aviso — a coluna só não existe mais deste lado).
       pricePerKg: numFromJson(item.pricePerKg, campo("pricePerKg"), report),
       totalG: numFromJson(item.totalG, campo("totalG"), report),
       // Detalhe é OPCIONAL: ausente continua ausente (`makeFilament` distingue
@@ -692,6 +686,24 @@ function parseFilamentList(
         : {}),
     }];
   });
+}
+
+// Item 2 (2026-09-20) — o cadastro não tem mais campo de Marca; o CSV para
+// de escrever `brand` nas colunas de filamento (mesmo quando o documento
+// ainda traz um valor residual de antes da mudança — a coluna simplesmente
+// não existe mais deste lado). A leitura já ignora a chave (`parseFilamentList`).
+function stripBrandForCsv(filaments: FilamentUsage[]): FilamentUsage[] {
+  return filaments.map((f) => ({
+    filamentId: f.filamentId,
+    colorName: f.colorName,
+    material: f.material,
+    pricePerKg: f.pricePerKg,
+    totalG: f.totalG,
+    ...(f.modelG !== undefined ? { modelG: f.modelG } : {}),
+    ...(f.supportG !== undefined ? { supportG: f.supportG } : {}),
+    ...(f.purgedG !== undefined ? { purgedG: f.purgedG } : {}),
+    ...(f.towerG !== undefined ? { towerG: f.towerG } : {}),
+  }));
 }
 
 function parseFilaments(
@@ -1112,7 +1124,9 @@ export function exportProductsCsv(
     const includeFixed = Boolean(product.includeFixed);
     // FEAT-02: cores da etapa principal (mono = 1). Os escalares "Peso (g)" e
     // "Filamento (R$/kg)" viram resumo humano; o round-trip exato vai no JSON.
-    const mainFilaments = stripFilamentIds(normalizeFilaments(product));
+    const mainFilaments = stripBrandForCsv(
+      stripFilamentIds(normalizeFilaments(product)),
+    );
     // As etapas saem NORMALIZADAS, não cruas. Dumpar `product.stages` direto
     // fazia o CSV carregar o lixo inerte dos documentos antigos — 47 das 51
     // etapas ainda trazem `energyTariff`/`laborRate`, que o `parseStages`
@@ -1127,7 +1141,7 @@ export function exportProductsCsv(
       machineIds: [...(stage.machineIds ?? [])],
       printHours: stage.printHours,
       laborMinutes: stage.laborMinutes,
-      filaments: stripFilamentIds(normalizeFilaments(stage)),
+      filaments: stripBrandForCsv(stripFilamentIds(normalizeFilaments(stage))),
     }));
 
     // AUD-14/D8 (e o `[CSV-30]`, agora com número) — a mesma disciplina das

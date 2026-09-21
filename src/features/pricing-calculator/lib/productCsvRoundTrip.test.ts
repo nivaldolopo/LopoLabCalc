@@ -58,7 +58,7 @@ const cobaia: SavedProduct = {
   linkCompetitor: "https://concorrente.com/x",
   linkFile: "https://drive.google.com/file/abc",
   filaments: [
-    { filamentId: "fil_azul", colorName: 'Azul "Royal"', material: "PLA", brand: "Bambu", pricePerKg: 118.9, totalG: 143.53 },
+    { filamentId: "fil_azul", colorName: 'Azul "Royal"', material: "PLA", pricePerKg: 118.9, totalG: 143.53 },
     {
       filamentId: "fil_branco", colorName: "Branco; Neve", material: "PETG", pricePerKg: 99.5,
       totalG: 60, modelG: 40, supportG: 8, purgedG: 7, towerG: 5,
@@ -411,6 +411,25 @@ describe("importação — a forma do documento importado", () => {
     expect("weightG" in produto).toBe(false);
     expect("filamentPricePerKg" in produto).toBe(false);
     expect(produto.filaments).toEqual(cobaia.filaments);
+  });
+
+  // Item 2 (2026-09-20) — CSV escrito ANTES da mudança ainda pode trazer
+  // "brand" na cor (coluna que existiu entre o refinamento do Item 1 e o
+  // Item 2). A leitura ignora a chave — sem erro, sem sobrar no documento.
+  it("marca de um CSV escrito antes do Item 2 é ignorada, sem quebrar a linha", () => {
+    const csv = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock);
+    const comMarcaAntiga = csv.replace(
+      '""material"":""PLA"",""pricePerKg"":118.9',
+      '""material"":""PLA"",""brand"":""Bambu"",""pricePerKg"":118.9',
+    );
+    expect(comMarcaAntiga).not.toBe(csv);
+    const { products } = parseProductsCsv(comMarcaAntiga, machines);
+    expect(products[0].filaments?.[0]).not.toHaveProperty("brand");
+    expect(products[0].filaments?.[0]).toMatchObject({
+      colorName: 'Azul "Royal"',
+      material: "PLA",
+      pricePerKg: 118.9,
+    });
   });
 
   it("sem as cores, os escalares seguem entrando — são o peso/preço de verdade", () => {
