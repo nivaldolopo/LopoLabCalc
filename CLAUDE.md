@@ -9,12 +9,11 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-23): escopo da frente 3a — dados da impressora — FECHADO, sem código.**
-  Brainstorm de 6 rodadas decidiu: o dado da impressora **complementa, nunca é requisito**; tudo que
-  grava dado vai **antes do marco**. Itens S1–S13 + processo das fases A e B no `BACKLOG.md` (seção
-  3a); o porquê, o descartado e os fatos medidos no `HISTORICO.md` ("📐 Brainstorm"); o pedido pro
-  pipeline em [`.claude/handoff/PEDIDO_PRINTPIPELINE.md`](.claude/handoff/PEDIDO_PRINTPIPELINE.md)
-  (o dono leva pra lá). Os itens de 2026-09-20 que estavam aqui foram pro `HISTORICO.md`.
+- **Última mudança (2026-09-23): varredura só de código do que entrou pós-AUD-18 — 8 achados,
+  NENHUM corrigido ainda** (seção 3b do `BACKLOG.md`, V1–V8). O mais grave (V1): falha ao gravar
+  custo fixo/energia vira rastro de mudança que não aconteceu. V2 anda com o S11, V3/V5 com o S1.
+  Antes disso, fechou-se o escopo da frente 3a (S1–S13, brainstorm no `HISTORICO.md`, pedido pro
+  pipeline em [`.claude/handoff/PEDIDO_PRINTPIPELINE.md`](.claude/handoff/PEDIDO_PRINTPIPELINE.md)).
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
@@ -24,7 +23,7 @@
   que o `/catalogo` importa, o JSON que o "Importar histórico" da `/producao` lê) — o funcionamento
   interno dele não é documentado aqui, e não se mexe nele a partir daqui.
 - **PRÓXIMA TAREFA DESTE PROJETO — frente 3a (dados da impressora), depois frente 3 (uso real).**
-  Código S1–S13 do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o marco pode atrasar
+  Código S1–S13 + V1–V8 do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o marco pode atrasar
   um pouco, não muito). Depois, a carga pelo "Processo da fase A" e o marco (Diretriz 6 expira).
   Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o

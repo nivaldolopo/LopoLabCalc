@@ -33,6 +33,7 @@
 | 2 | ✅ **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
 | 3a | **Dados da impressora** (2026-09-23) | código S1–S13 + pipeline → fase A | tudo antes do marco |
+| 3b | **Achados da varredura** (2026-09-23) | V1–V8, código | antes do marco (V2 c/ S11, V3/V5 c/ S1) |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
 | — | **Drive (LopoLabCalc)** | organização da pasta do projeto | só o que é do projeto, sem código |
 
@@ -253,6 +254,44 @@ a fase A: corrigir o `repetitions`, o formato de export definitivo e a contagem 
 próprio salvo com o código no nome) · registrar produção **na hora** pela `/producao` **ou em lote**
 pelo import com revisão · venda sempre do acabado · real × cadastro + "conferido" que volta quando o
 real diverge · feed parado = faixa avisa, segue manual.
+
+### 3b · Varredura de 2026-09-23 — 8 achados, todos antes do marco (nenhum corrigido ainda)
+
+> Leitura só de código (Diretriz 9) do que entrou depois da AUD-18 e que a frente 3a NÃO reescreve:
+> FEAT-12, TD-033, modal de Configurações, energia global, `ProductKind`, orçamento↔venda, Estoque
+> agrupado. `typecheck`/`lint`/`test` verdes (1077). Fora de propósito: import de histórico,
+> de-para de ids, produção criada pela venda, cor/marca na produção (a 3a reescreve).
+
+- [ ] **V1 🔴 Custo fixo/energia: gravação que FALHA vira rastro de mudança que não aconteceu.**
+  `saveFixedCostRate`/`saveEnergyTariff` engolem o erro (`useBusinessSettings.ts:111-134`) e o
+  `commitTaxa`/`commitTarifa` (`SettingsModal.tsx:105-113`) devolvem `null` → o `RepriceGate` grava
+  a entrada em `alteracoes` e fecha; a tela mostra o valor novo até o snapshot. Quebra "alavanca
+  primeiro, rastro depois". Máquinas não têm o problema (o erro volta). Independente — pode já.
+- [ ] **V2 🟠 Estoque: arquivar/excluir/renomear marca reprecifica calado.** Desde o item 1
+  (2026-09-20) produto sem marca fixada cobra a MAIOR cotação entre as marcas ATIVAS de mesma
+  cor+material (`brandCandidates`), mas o rastro só olha rolo novo (`StockPage.tsx:373`, o
+  `registrarCotacao` compara a cotação DA marca). Arquivar/excluir a mais cara baixa o catálogo sem
+  entrada nem aviso; **renomear** cor/material desliga os produtos do Estoque e eles voltam ao
+  `pricePerKg` salvo **sem badge** (`resolveFilamentPrices` trata como "nunca apontou"). → junto do
+  **S11** (mesma chave cor+material).
+- [ ] **V3 🟠 Motivo do desconto é só-escrita.** Grava pelo spread (`discountInput.reason`), mas o
+  `toSale` (`salesRepository.ts:172-179`) lê só `mode`/`value`: não aparece em tela nenhuma e
+  **some ao editar** a venda (RT-01). → junto do **S1**.
+- [ ] **V4 🟡 Aba Máquinas: 2ª edição após salvar é recusada.** O painel não remonta depois do save
+  (`SettingsModal.tsx:166`, sem `key` pela `rev`) → `base`/`revDoRascunho` velhos: a barra "Revisar
+  e aplicar" continua, a próxima edição cai na recusa de `rev` ("outra aba"), e "Descartar" mostra a
+  frota antiga. Sem perda de dado; trocar de aba resolve. Independente.
+- [ ] **V5 🟡 Venda com orçamento APAGADO:** ao editar, o `<select>` mostra "Nenhum" mas o
+  `quoteId` segue no estado, e o `quoteNumber` (denormalizado justamente pra sobreviver à exclusão)
+  é regravado `""` (`SaleModal.tsx:934-939`). → junto do **S1**.
+- [ ] **V6 🟢** Estoque aceita cor+material+marca **duplicada** sem aviso (`saveColor`, "Nova cor"
+  e "+ Marca") — a produção fica com dois cartões de mesmo nome.
+- [ ] **V7 🟢** Validação/exibição da config: tarifa em 2 casas (`formatCurrency`) → rastro pode
+  dizer "R$ 0,85 → R$ 0,85"; "máquinas operando 0" grava 0 e lê 1 (rastro diz 1 → 0); horas/dia 0
+  zera o fixo sem validação (a prévia mostra).
+- [ ] **V8 🟢** Taxas (`PaymentFeesPanel`) gravam no Firestore **a cada tecla**, com
+  `<input type="number">` cru em vez do `NumberInput`. Não move etiqueta (decisão registrada) — só
+  inconsistência e escrita à toa.
 
 ### Airtable e Drive (LopoLabCalc)
 - **✅ Airtable (2026-09-15, conferido em 2026-09-18):** o projeto **LopoLabCalc** tem 13 cartões na
