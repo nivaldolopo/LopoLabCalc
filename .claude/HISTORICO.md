@@ -9,6 +9,42 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Lote 1 da frente 3a — `config/negocio`: V1 + W2 + W3 + V4 + V7 + V8 (2026-09-23)
+
+Primeiro lote da "Ordem de execução do código". W2 e W3 foram confirmados no código antes da
+correção (Diretriz 9); o diff passou por `/code-review --high` (3 achados de correção, corrigidos no
+mesmo commit). Testes: 1077 → 1087.
+
+- **[V1] Rastro de mudança que não aconteceu.** `saveFixedCostRate`/`saveEnergyTariff` engoliam o
+  erro num estado do hook e o `SettingsModal` devolvia `null` ao `RepriceGate`, que então gravava a
+  entrada em `alteracoes`. Agora os saves devolvem `string | null` (molde do `saveMachines`) e não
+  adiantam o estado local — o valor novo chega pelo snapshot.
+- **[W3] Trava de `rev` no `config/negocio`.** Mesma receita da AUD-18: `persist*` numa transação que
+  confere a versão (`proximaRevDoNegocio`, recusa com `NegocioDesatualizadoError`). **UMA `rev` pro
+  doc inteiro**, não uma por campo: a prévia do custo fixo conta a tarifa dos dois lados, e
+  vice-versa. A `rev` é capturada NO MESMO `setState` da proposta (custo fixo, tarifa e desfazer —
+  o desfazer leva as duas, máquinas e negócio). ⚠ A `rev` NÃO entra na chave dos painéis: a tarifa
+  mudada em outra aba apagaria o rascunho do custo fixo (achado do review).
+- **[W2] Leitura calada + semeadura sobre cache.** A assinatura passou a `COM_METADATA`; "doc não
+  existe" vindo do CACHE não semeia nem avisa (é o estado de toda carga a frio). A semeadura virou
+  `seedBusinessSettings`, transação que grava SÓ o campo que o SERVIDOR não tem — é ela que fecha o
+  "lie-fi", não o `fromCache`. Erro de leitura/semeadura vira aviso no `PageHeader` (o único lugar
+  presente nas 7 rotas) e na aba do modal (que cobre o cabeçalho).
+- **[V4] 2ª edição das máquinas recusada.** O painel não remonta depois do save; agora ele mesmo
+  avança a foto no sucesso: `base = draft` e `revDoRascunho + 1` (o que ELE gravou). Não relê a `rev`
+  viva — a de outra aba que gravou no meio tem de continuar sendo recusada. `key={rev}` foi
+  descartado: apagaria o rascunho a cada save de outra aba, o oposto da AUD-18.
+- **[V7]** Tarifa com até 4 casas (`formatUnitCurrency`) no rastro e no "Em vigor"; "máquinas
+  operando" com piso 1 (o repositório sempre leu `max(1, …)`); horas/dia ou dias/mês em 0 travam o
+  "Revisar e aplicar" com o motivo (zeravam o custo fixo/hora do catálogo).
+- **[V8]** Taxas viraram rascunho + `NumberInput` + "Salvar"/"Descartar" (sem `RepriceGate` — só
+  movem a margem líquida). ⚠ O erro do save mora no `SettingsModal`, não no painel: o `setDoc`
+  aplica no cache na hora, o painel remonta pela chave ANTES do save voltar, e um erro guardado nele
+  cairia numa instância morta (achado do review).
+
+Não feito (limpeza, anotado pelo review): a regra `proximaRev*` já existe 3× (revGuard, máquinas,
+negócio) e o wrapper `guardOnline`/`errorMessage` dos saves, 3× também.
+
 ## 📐 Brainstorm: dados da impressora → LopoLabCalc — escopo fechado (2026-09-22 → 23)
 
 > **Não é item concluído — é o REGISTRO DE DECISÃO de um brainstorm de 6 rodadas** com o dono, sem

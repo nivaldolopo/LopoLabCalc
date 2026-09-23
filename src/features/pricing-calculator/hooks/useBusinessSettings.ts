@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   persistEnergyTariff,
   persistFixedCostRate,
+  seedBusinessSettings,
   subscribeBusinessSettings,
 } from "@/lib/firebase/businessSettingsRepository";
 import { errorMessage, guardOnline } from "@/lib/errors";
@@ -20,116 +21,118 @@ const DEFAULT_RATE: FixedCostRate = {
   daysMonth: DEFAULT_FIXED_COSTS.daysMonth,
 };
 
+// [W2] O que a tela diz quando o que está nela é o PADRÃO do código, e não o
+// custo fixo/tarifa do negócio. Antes, erro de leitura era um `() => {}`: as
+// 7 rotas precificavam pelo padrão sem nada na tela contar.
+const SEM_LEITURA =
+  "Não foi possível ler o custo fixo e a tarifa de energia do servidor — os " +
+  "preços na tela estão usando os valores PADRÃO, não os do negócio.";
+
 /**
  * Configurações do negócio, persistidas no Firestore (config/negocio) e
  * compartilhadas entre aparelhos (TD-001): a taxa de custo fixo e, desde a
  * frente 2 (2026-09-17), a tarifa de energia GLOBAL (`energyTariff`, R$/kWh —
- * era por produto). Antes disso, cada tela usava o default em memória e o
- * preço divergia entre calculadora, orçamento e vendas.
+ * era por produto).
  *
- * ⚠ As duas semeiam de forma INDEPENDENTE: um doc que já tem `fixedCosts` mas
- * ainda não tem `energyTariff` (escrito antes da frente 2) semeia só o campo
- * que falta, sem regravar a taxa de custo fixo já em vigor.
+ * ⚠ A semeadura é CONDICIONAL no servidor (`seedBusinessSettings`): só grava o
+ * campo que o servidor não tem. E não parte de snapshot do cache — um "doc não
+ * existe" do cache não é prova de nada [W2].
  */
 export function useBusinessSettings() {
   const [fixedCostRate, setFixedCostRate] =
     useState<FixedCostRate>(DEFAULT_RATE);
   const [energyTariff, setEnergyTariff] = useState<number>(DEFAULT_ENERGY_TARIFF);
-  // TD-029: a última falha de gravação, para a tela poder dizer. `null` = ok.
+  // [W3] A versão do doc contra a qual os dois valores acima foram lidos. Vai
+  // para o ESTADO (e não para uma ref) pelo motivo do `useMachines`: quem abre
+  // uma prévia CAPTURA a versão junto dela; lida na hora de gravar, o snapshot
+  // da outra aba já a teria adiantado e a trava passaria batida.
+  const [rev, setRev] = useState(0);
+  // [W2] Falha de LEITURA (ou de semeadura): a tela está no padrão. `null` = ok.
+  // As falhas de GRAVAÇÃO não moram aqui — voltam no retorno do save, para o
+  // `RepriceGate` não gravar rastro de mudança que não aconteceu [V1].
   const [error, setError] = useState<string | null>(null);
-  const seededRateRef = useRef(false);
-  const seededTariffRef = useRef(false);
-  // O valor corrente também vive num ref: `saveFixedCostRate` recebe um PATCH e
-  // o merge precisa acontecer FORA do updater de estado — gravar de dentro dele
-  // é efeito colateral em função que o React pode chamar duas vezes.
-  const rateRef = useRef<FixedCostRate>(DEFAULT_RATE);
+  const semeandoRef = useRef(false);
 
   useEffect(() => {
+    function semear() {
+      if (semeandoRef.current) return;
+      semeandoRef.current = true;
+      void (async () => {
+        try {
+          guardOnline();
+          await seedBusinessSettings(DEFAULT_RATE, DEFAULT_ENERGY_TARIFF);
+        } catch (err) {
+          // Não semeou: a tela segue no padrão, e diz. Libera a próxima
+          // tentativa (o snapshot volta a chamar quando a conexão voltar).
+          setError(`${SEM_LEITURA} (${errorMessage(err)})`);
+        } finally {
+          semeandoRef.current = false;
+        }
+      })();
+    }
+
     const unsubscribe = subscribeBusinessSettings(
-      (next) => {
+      (next, revDoServidor, origin) => {
         if (next === null) {
-          // Doc ainda não existe → semeia os dois defaults (uma vez).
-          if (!seededRateRef.current) {
-            seededRateRef.current = true;
-            seededTariffRef.current = true;
-            void (async () => {
-              try {
-                guardOnline();
-                await persistFixedCostRate(DEFAULT_RATE);
-                await persistEnergyTariff(DEFAULT_ENERGY_TARIFF);
-              } catch (err) {
-                // Não semeou de verdade: libera a próxima tentativa (o snapshot
-                // volta a chamar quando a conexão voltar) e conta o motivo, em
-                // vez de deixar o app achando que o doc compartilhado existe.
-                seededRateRef.current = false;
-                seededTariffRef.current = false;
-                setError(errorMessage(err));
-              }
-            })();
-          }
+          // Do cache, "não existe" só quer dizer "ainda não sei" — semear aqui
+          // regravaria os padrões por cima do valor real [W2]. Espera o
+          // servidor, sem aviso: é o estado normal de toda carga a frio, e a
+          // falha de verdade chega pelo `onError` ou pela semeadura.
+          if (origin.fromCache) return;
+          setRev(revDoServidor);
+          semear();
           return;
         }
-        rateRef.current = next.fixedCostRate;
+        setRev(revDoServidor);
         setFixedCostRate(next.fixedCostRate);
+        setError(null);
         if (next.energyTariff === null) {
           // Doc existe (de antes da frente 2) mas sem a tarifa → semeia só ela.
-          if (!seededTariffRef.current) {
-            seededTariffRef.current = true;
-            void (async () => {
-              try {
-                guardOnline();
-                await persistEnergyTariff(DEFAULT_ENERGY_TARIFF);
-              } catch (err) {
-                seededTariffRef.current = false;
-                setError(errorMessage(err));
-              }
-            })();
-          }
+          if (!origin.fromCache) semear();
         } else {
           setEnergyTariff(next.energyTariff);
         }
       },
-      () => {
-        // Erro ao ler (offline/regras) → mantém o default local.
+      (err) => {
+        setError(`${SEM_LEITURA} (${err.message})`);
       },
     );
     return unsubscribe;
   }, []);
 
   /**
-   * TD-029 — o painel de custo fixo chama isto só ao APLICAR (via RepriceGate),
-   * não a cada tecla. Molde do `saveFees` (TD-020): a falha NÃO é lançada, vira
-   * o `error`, que o painel mostra.
+   * Grava a taxa de custo fixo — chamada só ao APLICAR (via `RepriceGate`).
+   * Devolve a mensagem de erro, ou `null` se gravou [V1]: era `void`, e o
+   * `RepriceGate` gravava o rastro de uma mudança que tinha falhado.
    *
-   * O `guardOnline` vem antes do `await` pelo motivo de sempre: offline a
-   * Promise do Firestore fica pendente para sempre, e este era o caminho mais
-   * caro do app a gravar calado — `config/negocio` alimenta o custo fixo por
-   * hora do CATÁLOGO INTEIRO, e a tela mostrava o valor novo dizendo
-   * "Sincronizado". O valor local é aplicado do mesmo jeito, senão o campo
-   * travaria enquanto se digita.
+   * O estado local NÃO é adiantado: é o snapshot que traz o valor novo. Uma
+   * gravação recusada não pode deixar a tela mostrando um custo fixo que o
+   * servidor não tem.
    */
-  async function saveFixedCostRate(patch: Partial<FixedCostRate>) {
-    const next = { ...rateRef.current, ...patch };
-    rateRef.current = next;
-    setFixedCostRate(next);
+  async function saveFixedCostRate(
+    next: FixedCostRate,
+    revEsperado: number,
+  ): Promise<string | null> {
     try {
       guardOnline();
-      await persistFixedCostRate(next);
-      setError(null);
+      await persistFixedCostRate(next, revEsperado);
+      return null;
     } catch (err) {
-      setError(errorMessage(err));
+      return errorMessage(err);
     }
   }
 
-  /** Grava a tarifa de energia GLOBAL — chamada só ao APLICAR (RepriceGate). */
-  async function saveEnergyTariff(next: number) {
-    setEnergyTariff(next);
+  /** Grava a tarifa de energia GLOBAL — mesmo contrato do custo fixo. */
+  async function saveEnergyTariff(
+    next: number,
+    revEsperado: number,
+  ): Promise<string | null> {
     try {
       guardOnline();
-      await persistEnergyTariff(next);
-      setError(null);
+      await persistEnergyTariff(next, revEsperado);
+      return null;
     } catch (err) {
-      setError(errorMessage(err));
+      return errorMessage(err);
     }
   }
 
@@ -138,6 +141,7 @@ export function useBusinessSettings() {
     saveFixedCostRate,
     energyTariff,
     saveEnergyTariff,
+    rev,
     error,
   };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { formatCurrency } from "@/lib/formatting/currency";
+import { formatUnitCurrency } from "@/lib/formatting/currency";
 import { describeEnergyTariffChange } from "../lib/changeLog";
 import { NumberInput } from "./NumberInput";
 
@@ -54,7 +54,7 @@ export function EnergyTariffPanel({
       <div className="fc-result">
         <div className="fc-result-item">
           <span className="fclabel">Em vigor</span>
-          <span className="fcvalue accent">{formatCurrency(tariff)}/kWh</span>
+          <span className="fcvalue accent">{formatUnitCurrency(tariff)}/kWh</span>
         </div>
       </div>
       {mudancas.length > 0 ? (

@@ -9,7 +9,11 @@ import type {
 } from "../types";
 import type { RepriceImpact } from "./repriceImpact";
 import { REPRICE_TOP_LIMIT } from "./repriceImpact";
-import { formatCurrency, formatDecimal } from "@/lib/formatting/currency";
+import {
+  formatCurrency,
+  formatDecimal,
+  formatUnitCurrency,
+} from "@/lib/formatting/currency";
 
 /**
  * [FEAT-12] — a REDAÇÃO da mudança e a forma com que ela é gravada.
@@ -89,6 +93,9 @@ const FIXED_COST_FIELDS: {
 // vida útil sairia "7.500,00 h" e os dias do mês "26,00". Inteiro se escreve
 // inteiro; o resto mantém as duas casas.
 function valor(n: number, unit: string): string {
+  // [V7] A tarifa se cota em frações de centavo — com 2 casas a linha podia
+  // dizer "R$ 0,85 → R$ 0,85" de uma mudança real.
+  if (unit === "R$/kWh") return `${formatUnitCurrency(n)}${unit.slice(2)}`;
   if (unit.startsWith("R$")) return `${formatCurrency(n)}${unit.slice(2)}`;
   const texto = Number.isInteger(n) ? n.toLocaleString("pt-BR") : formatDecimal(n);
   return unit ? `${texto} ${unit}` : texto;

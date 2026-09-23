@@ -40,6 +40,13 @@ export function FixedCostRatePanel({
   const [draft, setDraft] = useState<FixedCostRate>(rate);
   const mudancas = describeFixedCostChanges(rate, draft);
   const summary = calculateFixedCostSummary({ ...draft, enabled: true }, 0);
+  // [V7] Horas/dia ou dias/mês em 0 zeram as horas do mês, e o custo fixo/hora
+  // cai a R$ 0 — o catálogo inteiro perderia o custo fixo por um campo vazio.
+  // A prévia mostrava a queda, mas nada impedia aplicar.
+  const invalido =
+    draft.hoursDay <= 0 || draft.daysMonth <= 0
+      ? "Horas de operação/dia e dias de operação/mês precisam ser maiores que zero — com zero, o custo fixo/hora vira R$ 0 no catálogo inteiro."
+      : null;
 
   function updateRate(patch: Partial<FixedCostRate>) {
     setDraft((current) => ({ ...current, ...patch }));
@@ -76,9 +83,11 @@ export function FixedCostRatePanel({
         </div>
         <div className="fc-item">
           <label htmlFor={`${fieldId}-machines`}>Máquinas operando</label>
+          {/* [V7] Piso 1: o repositório sempre leu `max(1, …)`, então gravar 0
+              deixava um rastro "1 → 0" de uma mudança que não mudava nada. */}
           <NumberInput
             id={`${fieldId}-machines`}
-            min={0}
+            min={1}
             value={draft.machines}
             onChange={(machines) => updateRate({ machines })}
           />
@@ -88,6 +97,7 @@ export function FixedCostRatePanel({
           <NumberInput
             id={`${fieldId}-hours-day`}
             min={0}
+            max={24}
             value={draft.hoursDay}
             onChange={(hoursDay) => updateRate({ hoursDay })}
           />
@@ -97,6 +107,7 @@ export function FixedCostRatePanel({
           <NumberInput
             id={`${fieldId}-days-month`}
             min={0}
+            max={31}
             value={draft.daysMonth}
             onChange={(daysMonth) => updateRate({ daysMonth })}
           />
@@ -137,6 +148,7 @@ export function FixedCostRatePanel({
             className="btn primary"
             type="button"
             onClick={() => onApplyRate(draft)}
+            disabled={invalido !== null}
           >
             Revisar e aplicar
           </button>
@@ -148,6 +160,11 @@ export function FixedCostRatePanel({
             Descartar
           </button>
         </div>
+      ) : null}
+      {mudancas.length > 0 && invalido ? (
+        <p className="form-error" role="alert">
+          {invalido}
+        </p>
       ) : null}
       {saveError ? (
         <p className="form-error" role="alert">

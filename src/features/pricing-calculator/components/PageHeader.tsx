@@ -2,6 +2,7 @@
 
 import { Settings } from "lucide-react";
 import type { ReactNode } from "react";
+import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import type { CloudStatus } from "../types";
 import { LogoutButton } from "./LogoutButton";
 import { useSettingsModal } from "./SettingsModalHost";
@@ -63,10 +64,14 @@ export function PageHeader({
   onToggleTheme,
 }: PageHeaderProps) {
   const { openSettings } = useSettingsModal();
+  // [W2] Se o `config/negocio` não foi lido, TODA rota precifica pelo padrão do
+  // código — o aviso mora aqui porque é o único lugar presente nas 7 rotas.
+  const { error: negocioError } = useBusinessSettings();
+  // UX-29 — `<header>` de verdade, não `<div>`: com o `<nav>` da NavBar e o
+  // `<main>` das 8 rotas, é o terceiro marco que faltava para a página ter
+  // regiões navegáveis. Um arquivo só, porque o UX-33 já unificou as 7 cópias.
   return (
-    // UX-29 — `<header>` de verdade, não `<div>`: com o `<nav>` da NavBar e o
-    // `<main>` das 8 rotas, é o terceiro marco que faltava para a página ter
-    // regiões navegáveis. Um arquivo só, porque o UX-33 já unificou as 7 cópias.
+    <>
     <header className="header">
       <div className="brand">
         {icon ? (
@@ -135,5 +140,11 @@ export function PageHeader({
         <LogoutButton />
       </div>
     </header>
+    {negocioError ? (
+      <div className="app-error" role="alert">
+        {negocioError}
+      </div>
+    ) : null}
+    </>
   );
 }

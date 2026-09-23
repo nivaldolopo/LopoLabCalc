@@ -33,8 +33,8 @@
 | 2 | ✅ **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
 | 3a | **Dados da impressora** (2026-09-23) | código S1–S13 + pipeline → fase A | tudo antes do marco |
-| 3b | **Achados da varredura** (2026-09-23) | V1–V8, código | antes do marco (V2 c/ S11, V3/V5 c/ S1) |
-| 3c | **Varredura geral** (2026-09-23) | W1–W10, código | antes do marco (W1/W4 c/ S1, W2/W3 c/ V1) |
+| 3b | **Achados da varredura** (2026-09-23) | V2, V3, V5, V6 (código) | antes do marco (V2 c/ S11, V3/V5 c/ S1) |
+| 3c | **Varredura geral** (2026-09-23) | W1, W4–W10 (código) | antes do marco (W1/W4 c/ S1) |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
 | — | **Drive (LopoLabCalc)** | organização da pasta do projeto | só o que é do projeto, sem código |
 
@@ -242,7 +242,7 @@ a fase A: corrigir o `repetitions`, o formato de export definitivo e a contagem 
 
 | # | Lote | Itens | Por que aqui |
 |---|---|---|---|
-| 1 | `config/negocio` | V1 + W2 + W3 (+ V4, V7, V8) | independente da 3a, pequeno, fecha o 🔴 V1 |
+| 1 | ✅ `config/negocio` (2026-09-23) | V1 + W2 + W3 + V4 + V7 + V8 | fechado — writeup no `HISTORICO.md` |
 | 2 | Venda | S1 + W1 + W4 + V3 + V5 + W6 (+ W5) | o maior; mesmo código (`saleReconciliation`/`SaleModal`/`finishedGoods`) |
 | 3 | Chave de cor | S11 + V2 + V6 | muda a chave cor+material → **antes** do dono cadastrar as cores reais |
 | 4 | Código + apelidos | S2 + S3 + colunas do CSV | fecha os nomes de coluna → destrava o item 8 do pedido ao pipeline |
@@ -274,18 +274,13 @@ próprio salvo com o código no nome) · registrar produção **na hora** pela `
 pelo import com revisão · venda sempre do acabado · real × cadastro + "conferido" que volta quando o
 real diverge · feed parado = faixa avisa, segue manual.
 
-### 3b · Varredura de 2026-09-23 — 8 achados, todos antes do marco (nenhum corrigido ainda)
+### 3b · Varredura de 2026-09-23 — 4 abertos, todos antes do marco (V1/V4/V7/V8 fechados no lote 1)
 
 > Leitura só de código (Diretriz 9) do que entrou depois da AUD-18 e que a frente 3a NÃO reescreve:
 > FEAT-12, TD-033, modal de Configurações, energia global, `ProductKind`, orçamento↔venda, Estoque
 > agrupado. `typecheck`/`lint`/`test` verdes (1077). Fora de propósito: import de histórico,
 > de-para de ids, produção criada pela venda, cor/marca na produção (a 3a reescreve).
 
-- [ ] **V1 🔴 Custo fixo/energia: gravação que FALHA vira rastro de mudança que não aconteceu.**
-  `saveFixedCostRate`/`saveEnergyTariff` engolem o erro (`useBusinessSettings.ts:111-134`) e o
-  `commitTaxa`/`commitTarifa` (`SettingsModal.tsx:105-113`) devolvem `null` → o `RepriceGate` grava
-  a entrada em `alteracoes` e fecha; a tela mostra o valor novo até o snapshot. Quebra "alavanca
-  primeiro, rastro depois". Máquinas não têm o problema (o erro volta). Independente — pode já.
 - [ ] **V2 🟠 Estoque: arquivar/excluir/renomear marca reprecifica calado.** Desde o item 1
   (2026-09-20) produto sem marca fixada cobra a MAIOR cotação entre as marcas ATIVAS de mesma
   cor+material (`brandCandidates`), mas o rastro só olha rolo novo (`StockPage.tsx:373`, o
@@ -296,23 +291,13 @@ real diverge · feed parado = faixa avisa, segue manual.
 - [ ] **V3 🟠 Motivo do desconto é só-escrita.** Grava pelo spread (`discountInput.reason`), mas o
   `toSale` (`salesRepository.ts:172-179`) lê só `mode`/`value`: não aparece em tela nenhuma e
   **some ao editar** a venda (RT-01). → junto do **S1**.
-- [ ] **V4 🟡 Aba Máquinas: 2ª edição após salvar é recusada.** O painel não remonta depois do save
-  (`SettingsModal.tsx:166`, sem `key` pela `rev`) → `base`/`revDoRascunho` velhos: a barra "Revisar
-  e aplicar" continua, a próxima edição cai na recusa de `rev` ("outra aba"), e "Descartar" mostra a
-  frota antiga. Sem perda de dado; trocar de aba resolve. Independente.
 - [ ] **V5 🟡 Venda com orçamento APAGADO:** ao editar, o `<select>` mostra "Nenhum" mas o
   `quoteId` segue no estado, e o `quoteNumber` (denormalizado justamente pra sobreviver à exclusão)
   é regravado `""` (`SaleModal.tsx:934-939`). → junto do **S1**.
 - [ ] **V6 🟢** Estoque aceita cor+material+marca **duplicada** sem aviso (`saveColor`, "Nova cor"
   e "+ Marca") — a produção fica com dois cartões de mesmo nome.
-- [ ] **V7 🟢** Validação/exibição da config: tarifa em 2 casas (`formatCurrency`) → rastro pode
-  dizer "R$ 0,85 → R$ 0,85"; "máquinas operando 0" grava 0 e lê 1 (rastro diz 1 → 0); horas/dia 0
-  zera o fixo sem validação (a prévia mostra).
-- [ ] **V8 🟢** Taxas (`PaymentFeesPanel`) gravam no Firestore **a cada tecla**, com
-  `<input type="number">` cru em vez do `NumberInput`. Não move etiqueta (decisão registrada) — só
-  inconsistência e escrita à toa.
 
-### 3c · Varredura GERAL de 2026-09-23 — 10 achados, todos antes do marco (nenhum corrigido ainda)
+### 3c · Varredura GERAL de 2026-09-23 — 8 abertos, todos antes do marco (W2/W3 fechados no lote 1)
 
 > `/code-review --high` sobre o `src/` inteiro (não um diff), foco na camada de escrita/estorno
 > (repositórios, produção, acabados, venda, config, orçamento). **Sem passe de verificação** — nada
@@ -323,13 +308,6 @@ real diverge · feed parado = faixa avisa, segue manual.
   `consumeFifo` (`finishedGoods.ts:673`) devolve 0 move/0 custo: a venda grava `unitCost` 0 (lucro =
   receita), o saldo não mexe, e a tela avisa "o saldo fica negativo" (falso). É o [E7] da AUD-16
   (lote de acerto) que nunca chegou ao acabado. → junto do **S1** (toda venda passa a drenar acabado).
-- [ ] **W2 🟠 `config/negocio`: erro de leitura calado + semeadura sobre snapshot de cache.** O
-  `onError` vazio (`useBusinessSettings.ts:93`) deixa as 10 telas no padrão sem aviso; a assinatura
-  não usa `COM_METADATA`, e um "doc não existe" do CACHE faz `setDoc(merge)` dos padrões por cima do
-  valor real (o `guardOnline` não pega "lie-fi"). Anda com o **V1** (mesmo hook).
-- [ ] **W3 🟠 Custo fixo/energia gravam sem trava de `rev`** (`businessSettingsRepository.ts:62`) —
-  só máquinas ganharam na AUD-18. Prévia/rastro/desfazer partem de foto velha: A abre em R0, B aplica
-  R1, A aplica R2 → rastro "R0→R2", R1 some, desfazer volta R0. Anda com **V1/W2**.
 - [ ] **W4 🟠 Acessório do produto INTEIRO some quando se produz por partes.** `accessoryRows`
   (`productionPlan.ts:242`) só dá baixa do acessório sem subitem na produção do inteiro; vender o
   conjunto montado (`consumeWholeFifo`) soma só as camadas das partes → insumo nunca sai e o COGS fica

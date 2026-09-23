@@ -38,7 +38,7 @@ export function MachinesSettingsPanel({
   // da `rev`, porque os três descrevem o mesmo instante (AUD-18): usar o
   // `machines` vivo mostraria um "antes" que é o de quem acabou de sobrescrever
   // deste diálogo, e a prévia afirmaria um movimento que nunca existiu.
-  const [base] = useState<Machine[]>(machines);
+  const [base, setBase] = useState<Machine[]>(machines);
   // O custo fixo não se move aqui — ele entra na conta dos DOIS lados, porque o
   // preço de um produto com `includeFixed` depende dele.
   const { fixedCostRate, energyTariff } = useBusinessSettings();
@@ -49,7 +49,7 @@ export function MachinesSettingsPanel({
   // corrente na hora do save deixava a trava passar — quando a outra aba grava,
   // o snapshot atualiza o número enquanto este rascunho continua velho, e a
   // conferência então casava contra a versão de quem acabara de sobrescrever.
-  const [revDoRascunho] = useState(rev);
+  const [revDoRascunho, setRevDoRascunho] = useState(rev);
   // Aviso de validação inline, no lugar do window.alert (TD-004).
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -140,6 +140,17 @@ export function MachinesSettingsPanel({
     setSaving(true);
     const falha = await onSave(draft, revDoRascunho);
     setSaving(false);
+    if (!falha) {
+      // [V4] O painel NÃO remonta depois do save (a aba segue aberta), então
+      // quem avança a foto é ele: o que acabou de gravar vira o "antes", e a
+      // versão é a que ELE gravou (`persistMachines` grava esperado + 1). Sem
+      // isto a barra "Revisar e aplicar" continuava acesa, a 2ª edição caía na
+      // recusa de `rev` como se fosse "outra aba", e "Descartar" voltava para a
+      // frota de antes do save. Não se re-lê a `rev` viva: a de outra aba que
+      // gravou no meio tem de continuar sendo recusada.
+      setBase(draft);
+      setRevDoRascunho((atual) => atual + 1);
+    }
     return falha;
   }
 

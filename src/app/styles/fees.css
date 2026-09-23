@@ -67,6 +67,13 @@
   color: var(--ink);
 }
 
+/* [V8] O campo virou `NumberInput`: o `padding` acima empata em especificidade
+   com o `.num-field input` do forms.css e ganha por ordem — o texto passaria
+   por baixo do stepper. Devolve o recuo dele. */
+.fee-editor-item .num-field input {
+  padding-right: 16px;
+}
+
 .fee-editor-item input:focus {
   outline: none;
   border-color: var(--accent);

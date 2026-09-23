@@ -9,10 +9,10 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-23): varredura GERAL do `src/` (só código, `/code-review --high`) — 10
-  achados, NENHUM corrigido** (seção 3c do `BACKLOG.md`, W1–W10), somando-se aos V1–V8 da 3b. O mais
-  grave (W1): venda de acabado sem camada grava custo 0. W1/W4 andam com o S1; W2/W3 com o V1.
-  Escopo da frente 3a (S1–S13) no `BACKLOG.md`; pedido pro pipeline em
+- **Última mudança (2026-09-23): lote 1 da frente 3a fechado (`config/negocio`)** — V1 + W2 + W3 +
+  V4 + V7 + V8. Custo fixo e energia agora gravam com trava de `rev` (UMA por doc) e o erro do save
+  volta pro `RepriceGate`; a semeadura só grava o que o servidor não tem. Writeup no `HISTORICO.md`.
+  Abertos: V2/V3/V5/V6 (3b) e W1, W4–W10 (3c) no `BACKLOG.md`; pedido pro pipeline em
   [`.claude/handoff/PEDIDO_PRINTPIPELINE.md`](.claude/handoff/PEDIDO_PRINTPIPELINE.md).
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
@@ -23,9 +23,10 @@
   que o `/catalogo` importa, o JSON que o "Importar histórico" da `/producao` lê) — o funcionamento
   interno dele não é documentado aqui, e não se mexe nele a partir daqui.
 - **PRÓXIMA TAREFA DESTE PROJETO — frente 3a (dados da impressora), depois frente 3 (uso real).**
-  Código S1–S13 + V1–V8 + W1–W10 do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o marco pode atrasar
-  um pouco, não muito). **Um chat por lote, na tabela "Ordem de execução do código" da seção 3a do
-  `BACKLOG.md`** (lote 1 = `config/negocio`: V1+W2+W3). Depois, a carga pelo "Processo da fase A"
+  Código S1–S13 + os V/W abertos do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o
+  marco pode atrasar um pouco, não muito). **Um chat por lote, na tabela "Ordem de execução do
+  código" da seção 3a do `BACKLOG.md`** (✅ lote 1; **próximo = lote 2, Venda**: S1+W1+W4+V3+V5+W6,
+  o maior). Depois, a carga pelo "Processo da fase A"
   (que começa APAGANDO o teste) e o marco (Diretriz 6 expira).
   Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o

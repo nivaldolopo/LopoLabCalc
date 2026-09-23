@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canUndo,
+  describeEnergyTariffChange,
   describeFixedCostChanges,
   describeMachineChanges,
   fixedCostProposal,
@@ -389,5 +390,21 @@ describe("[FEAT-12] cotação do estoque", () => {
     expect(payload.after.unitPrice).toBe(160);
     // E o registro que sai daqui não oferece desfazer.
     expect(canUndo({ ...payload, id: "x" })).toBe(false);
+  });
+});
+
+describe("[V7] a tarifa de energia no rastro", () => {
+  // Com 2 casas, 0,8543 → 0,8499 virava "R$ 0,85 → R$ 0,85": uma mudança real
+  // que o rastro descrevia como nenhuma.
+  it("mostra as frações de centavo que a tarifa tem", () => {
+    const [linha] = describeEnergyTariffChange(0.8543, 0.8499);
+    expect(linha).toContain("0,8543");
+    expect(linha).toContain("0,8499");
+  });
+
+  it("valor redondo continua com 2 casas", () => {
+    const [linha] = describeEnergyTariffChange(0.8, 0.85);
+    expect(linha).toContain("0,80");
+    expect(linha).toContain("0,85");
   });
 });

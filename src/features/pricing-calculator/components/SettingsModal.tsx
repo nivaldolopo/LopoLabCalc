@@ -79,59 +79,68 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
     saveFixedCostRate,
     energyTariff,
     saveEnergyTariff,
-    error: fixedCostError,
+    rev: revNegocio,
+    error: negocioError,
   } = useBusinessSettings();
-  const { fees, saveFees, error: feesError } = useFees();
+  const { fees, saveFees } = useFees();
+  // [V8] O erro do save das taxas mora AQUI, e não no painel: o `setDoc` aplica
+  // no cache na hora, o snapshot muda `fees` e o painel remonta pela chave
+  // ANTES do save voltar — um erro guardado nele cairia numa instância morta,
+  // e a tela mostraria as taxas novas como se tivessem gravado.
+  const [feesError, setFeesError] = useState<string | null>(null);
   const { business, saveBusiness } = useQuoteConfig();
 
   // A entrada que veio do aviso pós-fato já nasce aberta.
   const [aberta, setAberta] = useState<string | null>(entrada);
-  // A proposta de custo fixo na mesa. `null` = nada pendente.
-  const [taxaProposta, setTaxaProposta] = useState<RepriceProposal | null>(null);
-  // A proposta de tarifa de energia na mesa. `null` = nada pendente.
-  const [tarifaProposta, setTarifaProposta] = useState<RepriceProposal | null>(null);
-  // A proposta de DESFAZER na mesa, com a entrada de origem.
-  const [desfazer, setDesfazer] = useState<
-    { proposal: RepriceProposal; record: ChangeRecord } | null
+  // As propostas na mesa. `null` = nada pendente.
+  //
+  // [W3] Cada uma leva a `rev` do doc de onde o "antes" dela saiu, capturada no
+  // MESMO `setState` da proposta (AUD-18): se outra aba gravar enquanto a
+  // prévia está aberta, o save é recusado em vez de apagar o valor de lá e
+  // deixar um rastro "antes→depois" com o antes errado.
+  const [taxaProposta, setTaxaProposta] = useState<
+    { proposal: RepriceProposal; rev: number } | null
   >(null);
-  // AUD-18 — a versão é capturada JUNTO da proposta, no mesmo `useState`.
-  const [revDoDesfazer, setRevDoDesfazer] = useState(0);
+  const [tarifaProposta, setTarifaProposta] = useState<
+    { proposal: RepriceProposal; rev: number } | null
+  >(null);
+  // A proposta de DESFAZER, com a entrada de origem e as duas versões — o
+  // desfazer pode cair em `config/machines` ou em `config/negocio`.
+  const [desfazer, setDesfazer] = useState<
+    {
+      proposal: RepriceProposal;
+      record: ChangeRecord;
+      revMaquinas: number;
+      revNegocio: number;
+    } | null
+  >(null);
 
   const entradas = useMemo(
     () => [...changes].sort((a, b) => b.at - a.at),
     [changes],
   );
 
-  async function commitTaxa(rate: typeof fixedCostRate): Promise<string | null> {
-    await saveFixedCostRate(rate);
-    return null;
-  }
-
-  async function commitTarifa(tariff: number): Promise<string | null> {
-    await saveEnergyTariff(tariff);
-    return null;
-  }
-
+  // [V1] O `onCommit` do `RepriceGate` devolve o erro do save — e o gate só
+  // grava o rastro quando ele volta `null`. Era `await save(); return null`: a
+  // gravação que falhava virava entrada em `alteracoes` de uma mudança que não
+  // aconteceu, quebrando "alavanca primeiro, rastro depois".
   function abrirDesfazer(record: ChangeRecord) {
     const proposal = undoProposal(record, machines, fixedCostRate, energyTariff);
     if (!proposal) return;
-    setRevDoDesfazer(rev);
-    setDesfazer({ proposal, record });
+    setDesfazer({ proposal, record, revMaquinas: rev, revNegocio });
   }
 
   async function commitDesfazer(): Promise<string | null> {
     if (!desfazer) return "Nada a desfazer.";
     const { proposal } = desfazer;
     if (proposal.lever === "maquinas" && proposal.after.machines) {
-      return saveMachines(proposal.after.machines, revDoDesfazer);
+      return saveMachines(proposal.after.machines, desfazer.revMaquinas);
     }
     if (proposal.lever === "custo-fixo" && proposal.after.fixedCostRate) {
-      await saveFixedCostRate(proposal.after.fixedCostRate);
-      return null;
+      return saveFixedCostRate(proposal.after.fixedCostRate, desfazer.revNegocio);
     }
     if (proposal.lever === "energia" && proposal.after.energyTariff !== null) {
-      await saveEnergyTariff(proposal.after.energyTariff);
-      return null;
+      return saveEnergyTariff(proposal.after.energyTariff, desfazer.revNegocio);
     }
     return "Esta alteração não pode ser desfeita.";
   }
@@ -171,14 +180,19 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
 
         {tab === "custo-fixo" ? (
           <FixedCostRatePanel
+            // Só os VALORES na chave, não a `rev`: a tarifa mudada em outra aba
+            // adianta a `rev` e apagaria o rascunho do custo fixo. A trava [W3]
+            // não precisa dela aqui — a proposta captura valor vivo e `rev` viva
+            // no mesmo clique.
             key={`${fixedCostRate.rent}-${fixedCostRate.other}-${fixedCostRate.machines}-${fixedCostRate.hoursDay}-${fixedCostRate.daysMonth}`}
             rate={fixedCostRate}
             onApplyRate={(rate) =>
-              setTaxaProposta(
-                fixedCostProposal(fixedCostRate, rate, machines, energyTariff),
-              )
+              setTaxaProposta({
+                proposal: fixedCostProposal(fixedCostRate, rate, machines, energyTariff),
+                rev: revNegocio,
+              })
             }
-            saveError={fixedCostError}
+            saveError={negocioError}
           />
         ) : null}
 
@@ -187,16 +201,29 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
             key={energyTariff}
             tariff={energyTariff}
             onApplyTariff={(tariff) =>
-              setTarifaProposta(
-                energyTariffProposal(energyTariff, tariff, machines, fixedCostRate),
-              )
+              setTarifaProposta({
+                proposal: energyTariffProposal(energyTariff, tariff, machines, fixedCostRate),
+                rev: revNegocio,
+              })
             }
-            saveError={fixedCostError}
+            saveError={negocioError}
           />
         ) : null}
 
         {tab === "taxas" ? (
-          <PaymentFeesPanel fees={fees} onChange={saveFees} error={feesError} />
+          <PaymentFeesPanel
+            // Remonta quando as taxas em vigor mudam (o próprio save, ou outra
+            // aba): o rascunho parte sempre do que vale.
+            key={JSON.stringify(fees)}
+            fees={fees}
+            error={feesError}
+            onSave={async (next) => {
+              setFeesError(null);
+              const falha = await saveFees(next);
+              setFeesError(falha);
+              return falha;
+            }}
+          />
         ) : null}
 
         {tab === "negocio" ? (
@@ -304,23 +331,27 @@ export function SettingsModal({ initialTab, entrada, onClose }: SettingsModalPro
         ) : null}
       </Modal>
 
-      {taxaProposta && taxaProposta.after.fixedCostRate ? (
+      {taxaProposta && taxaProposta.proposal.after.fixedCostRate ? (
         <RepriceGate
-          proposal={taxaProposta}
+          proposal={taxaProposta.proposal}
           title="Aplicar o custo fixo"
           confirmLabel="Aplicar ao catálogo"
-          onCommit={() => commitTaxa(taxaProposta.after.fixedCostRate!)}
+          onCommit={() =>
+            saveFixedCostRate(taxaProposta.proposal.after.fixedCostRate!, taxaProposta.rev)
+          }
           onCancel={() => setTaxaProposta(null)}
           onDone={() => setTaxaProposta(null)}
         />
       ) : null}
 
-      {tarifaProposta && tarifaProposta.after.energyTariff !== null ? (
+      {tarifaProposta && tarifaProposta.proposal.after.energyTariff !== null ? (
         <RepriceGate
-          proposal={tarifaProposta}
+          proposal={tarifaProposta.proposal}
           title="Aplicar a tarifa de energia"
           confirmLabel="Aplicar ao catálogo"
-          onCommit={() => commitTarifa(tarifaProposta.after.energyTariff!)}
+          onCommit={() =>
+            saveEnergyTariff(tarifaProposta.proposal.after.energyTariff!, tarifaProposta.rev)
+          }
           onCancel={() => setTarifaProposta(null)}
           onDone={() => setTarifaProposta(null)}
         />
