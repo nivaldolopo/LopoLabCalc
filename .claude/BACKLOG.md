@@ -34,6 +34,7 @@
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
 | 3a | **Dados da impressora** (2026-09-23) | código S1–S13 + pipeline → fase A | tudo antes do marco |
 | 3b | **Achados da varredura** (2026-09-23) | V1–V8, código | antes do marco (V2 c/ S11, V3/V5 c/ S1) |
+| 3c | **Varredura geral** (2026-09-23) | W1–W10, código | antes do marco (W1/W4 c/ S1, W2/W3 c/ V1) |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
 | — | **Drive (LopoLabCalc)** | organização da pasta do projeto | só o que é do projeto, sem código |
 
@@ -292,6 +293,47 @@ real diverge · feed parado = faixa avisa, segue manual.
 - [ ] **V8 🟢** Taxas (`PaymentFeesPanel`) gravam no Firestore **a cada tecla**, com
   `<input type="number">` cru em vez do `NumberInput`. Não move etiqueta (decisão registrada) — só
   inconsistência e escrita à toa.
+
+### 3c · Varredura GERAL de 2026-09-23 — 10 achados, todos antes do marco (nenhum corrigido ainda)
+
+> `/code-review --high` sobre o `src/` inteiro (não um diff), foco na camada de escrita/estorno
+> (repositórios, produção, acabados, venda, config, orçamento). **Sem passe de verificação** — nada
+> reproduzido; W6–W10 são os menos certos. Leitura rasa em `productCsv`, `calculatePricing` e CSS/UI.
+> Fora de propósito: o que a 3a reescreve e os V1–V8.
+
+- [ ] **W1 🔴 Venda de ACABADO sem camada grava custo 0.** SKU sem camada (ou inexistente) →
+  `consumeFifo` (`finishedGoods.ts:673`) devolve 0 move/0 custo: a venda grava `unitCost` 0 (lucro =
+  receita), o saldo não mexe, e a tela avisa "o saldo fica negativo" (falso). É o [E7] da AUD-16
+  (lote de acerto) que nunca chegou ao acabado. → junto do **S1** (toda venda passa a drenar acabado).
+- [ ] **W2 🟠 `config/negocio`: erro de leitura calado + semeadura sobre snapshot de cache.** O
+  `onError` vazio (`useBusinessSettings.ts:93`) deixa as 10 telas no padrão sem aviso; a assinatura
+  não usa `COM_METADATA`, e um "doc não existe" do CACHE faz `setDoc(merge)` dos padrões por cima do
+  valor real (o `guardOnline` não pega "lie-fi"). Anda com o **V1** (mesmo hook).
+- [ ] **W3 🟠 Custo fixo/energia gravam sem trava de `rev`** (`businessSettingsRepository.ts:62`) —
+  só máquinas ganharam na AUD-18. Prévia/rastro/desfazer partem de foto velha: A abre em R0, B aplica
+  R1, A aplica R2 → rastro "R0→R2", R1 some, desfazer volta R0. Anda com **V1/W2**.
+- [ ] **W4 🟠 Acessório do produto INTEIRO some quando se produz por partes.** `accessoryRows`
+  (`productionPlan.ts:242`) só dá baixa do acessório sem subitem na produção do inteiro; vender o
+  conjunto montado (`consumeWholeFifo`) soma só as camadas das partes → insumo nunca sai e o COGS fica
+  sem ele (o preço o inclui). Decidir onde baixa: na venda do conjunto? (cruza com **S1**).
+- [ ] **W5 🟠 Produto excluído encalha o acabado e corrompe a reedição do recibo.** `catalogItems`
+  sai do catálogo vivo → peças prontas dele não vendem; reeditar recibo antigo reconcilia sem o
+  produto (`saleReconciliation.ts:322`): encomenda estorna filamento, apaga evento e grava custo 0;
+  conjunto por partes cai em shortfall, custo 0. A confirmação diz que nada disso é afetado.
+- [ ] **W6 🟡** `SaleModal.confirm` roda `reconcileReciboWrite` **fora do try** e depois do
+  `setSaving(true)` (`SaleModal.tsx:891`): exceção do `shiftLayers` ("camada não existe") trava o
+  botão em "Registrando…" sem mensagem; no preview (`useMemo`) derruba o modal.
+- [ ] **W7 🟡** `buildProductionPayloads` grava `machineId: e.machine?.id ?? e.row.machineId`
+  (`productionPlan.ts:879`) — máquina excluída noutra aba com a /producao aberta → evento com id
+  fantasma, nome "", custo de frota e horas órfãs ([E4]/[E5]).
+- [ ] **W8 🟢** Orçamento: número digitado (`preferred`) não confere duplicata
+  (`quotesRepository.ts:86`); e "Tente gerar de novo" após falha de gravação reserva outro número com
+  o PDF do primeiro já emitido.
+- [ ] **W9 🟢** Rolo de acerto pode virar a cotação: `catalogPricePerKg` = rolo mais novo por
+  `purchaseDate` (`stock.ts:35`); compra real lançada depois com data anterior à produção não move o
+  preço nem gera `registrarCotacao`.
+- [ ] **W10 🟢** `importProducts` (`useProducts.ts:53`) sem `finally`: falha antes do 1º lote deixa
+  o chip preso em "importando".
 
 ### Airtable e Drive (LopoLabCalc)
 - **✅ Airtable (2026-09-15, conferido em 2026-09-18):** o projeto **LopoLabCalc** tem 13 cartões na
