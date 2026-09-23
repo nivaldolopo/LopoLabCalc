@@ -32,6 +32,7 @@
 | 1 | ✅ **Designer: pedido do PDF + checklist da marca** | conversa, sem código | os dois no Drive |
 | 2 | ✅ **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
+| 3a | **Dados da impressora** (2026-09-23) | código S1–S13 + pipeline → fase A | tudo antes do marco |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
 | — | **Drive (LopoLabCalc)** | organização da pasta do projeto | só o que é do projeto, sem código |
 
@@ -169,12 +170,93 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
 
 - **Ordem do cadastro real:** máquinas (a frota real tem 3, já cadastrada) → custo fixo/capacidade →
   taxas → dados do negócio → cores e insumos → catálogo (planilha, ver "A frente do DONO") →
-  acessórios religados.
+  acessórios religados. ⚠ **Desde 2026-09-23 esta ordem vira o "Processo da fase A" da frente 3a
+  (logo abaixo)** — a frente 3a vem ANTES do marco.
 - **A Diretriz 6 expira aqui** — o dono anuncia o marco; a partir dele, migração é obrigatória.
 - Pendências de prova que o uso real exercita: import >500, Excel/LibreOffice real.
 
+### 3a · Dados da impressora — TUDO isto antes do marco (escopo fechado em 2026-09-23)
+
+> Saiu de um brainstorm de 6 rodadas. **O porquê de cada item, o que foi descartado e o motivo, e os
+> fatos medidos nos dados** estão no `HISTORICO.md`, seção **"📐 Brainstorm: dados da impressora"** —
+> ler ANTES de codar qualquer item daqui. O pedido pro pipeline está em
+> [`handoff/PEDIDO_PRINTPIPELINE.md`](handoff/PEDIDO_PRINTPIPELINE.md) (o dono leva pra lá).
+>
+> **Regra-mãe:** o dado da impressora **complementa, nunca é requisito** — campo opcional no
+> significado (gravado explícito, `null` quando vazio — AUD-02), entra só por upload do dono, grava
+> pelo MESMO caminho do registro manual (`planEventRows`/FIFO/acabados/estorno). Sem arquivo, o site
+> funciona igual. **Grava/define dado → antes do marco; só lê/mostra → antes ou depois.**
+> ⚠ O marco pode atrasar **um pouco** por isto (dono), não muito — não inflar o escopo.
+
+**Site — grava dado (obrigatório antes do marco):**
+- **S1 · Venda sem o caminho encomenda.** Toda venda drena o acabado; "encomenda" vira rótulo da
+  venda. Produção `encomenda` **junta com `estoque`**. Some a produção criada pela reconciliação
+  (`saleReconciliation.ts:318-378`) e a escolha de máquina no modal de venda (AUD-17 [E2]) — revisar
+  o bullet da `/producao`/VENDA no Status do `CLAUDE.md` quando fechar. A venda é lançada na entrega.
+- **S2 · Código do produto.** Gerado pelo site, sequencial (`LL-0001`), contador único em transação,
+  nunca reaproveitado, sem significado embutido, não editável. Salvar mantém; **"Salvar como novo"
+  gera novo** e nasce sem `conferidoEm` e sem apelidos. Par `buildLoadedProduct`/`buildProductPayload`
+  + CSV + teste de round-trip campo a campo.
+- **S3 · Apelidos de impressão.** Coleção própria, 1 doc por apelido `{fonte, chave, variante,
+  plate}` → produto + etapa + objetos por unidade. Busca em camadas (só a exata preenche); Link Modelo
+  como sugestão extra. O CSV do catálogo aceita a coluna de apelidos (vêm do curador na fase A).
+- **S4 · Evento de produção:** `origemExterna {fonte, id}` (substitui o prefixo `bambu:` no `notes`),
+  `fonteDosNumeros` (`impressora` | `estimativa` | `manual`), **unidades produzidas ≠ creditadas**
+  (custo por unidade = total ÷ produzidas), referência de imagem, **bloco de fatos crus
+  `impressao`** (objetos, filamentos por slot com cor planejada e carregada, tempos de plano e de
+  relógio, status cru, apelido/código/design/título, máquina física).
+- **S5 · Firebase Storage** ligado, mesmas regras de acesso (lista de e-mails) + teste de regra.
+  `impressoes/{task_id}/capa.png|foto.jpg`. ⚠ Cruza com a foto do orçamento (frente 1, "reabrir na
+  hora de codar"): com o Storage ligado, a comparação lá fica mais fácil.
+- **S6 · Import de impressões** (evolui o "Importar histórico" — um formato, um botão, não um
+  segundo): modo `historico` (carga: marcas de estoque do curador, produzidas ≠ creditadas, apelido
+  como referência de produto) e modo `real` (dia a dia). Upload das imagens que faltam junto.
+- **S7 · Revisão do modo `real`, linha a linha:** produto+etapa · unidades (sempre editáveis) ·
+  desfecho (cancelada → falha com consumo ≈ estimado `plano × min(1, relógio ÷ plano)`, editável) ·
+  **tabela máquina × cor+material → marca** com "a partir desta impressão, marca B" e "dividir entre
+  marcas" · **"já registrado?"** (máquina + horário batendo com evento manual → desmarcada) ·
+  **"criar produto a partir desta impressão"** (formulário normal preenchido; gera código e apelido).
+- **S11 · Prateleira do acabado = material + cor, sem marca** (`colorKeyOf`, `filaments.ts:247-253`,
+  passa a usar a chave de `filamentGroupKey`; o avulso deixa de ignorar o material). O Estoque não
+  muda (marca continua obrigatória no rolo).
+- **S12 · "Conferido" + pendências no `/catalogo`.** `conferidoEm` no produto; pendências
+  calculadas (sem mão de obra, acessório não ligado, cor fora do Estoque, sem máquina, sem código, e
+  **"real diverge > X% do cadastro depois da conferência"**, no mesmo tamanho de mesa). ⚠ **X% ainda
+  a decidir com o dono** na hora de codar.
+- **S13 · Ligar evento avulso a um produto depois** — só eventos sem efeito no acabado (histórico,
+  falha, teste), com sugestão pelo apelido.
+
+**Site — só lê (antes ou depois do marco, sem risco de migração):**
+- **S8 ·** faixa "última importação há X dias" na `/producao`.
+- **S9 ·** painel **real × cadastro por tamanho de mesa** no produto, com **"usar os valores reais"**
+  que só preenche o formulário (nunca salva sozinho).
+- **S10 ·** imagens nas telas (produto = capa da impressão mais recente ligada; por cor = foto real
+  mais recente daquela cor). Onde/como: decidir quando fizer.
+
+**Pipeline (fora deste repo — o dono executa lá):** ver `handoff/PEDIDO_PRINTPIPELINE.md`. Bloqueia
+a fase A: corrigir o `repetitions`, o formato de export definitivo e a contagem da prateleira.
+
+**Processo da fase A (carga, uma vez):**
+1. Site → Estoque: cadastrar cores e insumos reais; exportar a lista de cores.
+2. Pipeline → coletor: histórico completo.
+3. Curador: agrupar por apelido → ligar grupo a produto+etapa+objetos por unidade (ou avulso/teste)
+   → hex → cor do site → contar a prateleira por produto × cor (× parte) → revisar canceladas →
+   contador "sem destino" em zero.
+4. Curador exporta: CSV de catálogo (objetivo + apelidos) + arquivo de produção + imagens.
+5. Apagar o dado de teste (checklist acima).
+6. `/catalogo` → importar CSV (o site gera os códigos) → filtro de pendências: completar markup, mão
+   de obra, acessórios vendo o preço → "conferido".
+7. `/producao` → importar impressões (modo histórico) → o que a contagem não cobriu, lançar à mão.
+8. Lançar os rolos atuais → **declarar o marco**.
+
+**Dia a dia da fase B:** produto novo cadastrado no `/catalogo` pra orçar (código na hora; arquivo
+próprio salvo com o código no nome) · registrar produção **na hora** pela `/producao` **ou em lote**
+pelo import com revisão · venda sempre do acabado · real × cadastro + "conferido" que volta quando o
+real diverge · feed parado = faixa avisa, segue manual.
+
 ### Airtable e Drive (LopoLabCalc)
-- **✅ Airtable (2026-09-15, conferido em 2026-09-18):** o projeto **LopoLabCalc** tem 12 cartões na
+- **✅ Airtable (2026-09-15, conferido em 2026-09-18):** o projeto **LopoLabCalc** tem 13 cartões na
+  Work desde 2026-09-23 (o 13º, `recmgY5GsdZZAfCYg`, é a frente 3a — dados da impressora). Eram 12 na
   Work — um por frente, não por item técnico (lacunas de prova e ressalvas NÃO vão); o 12º
   (`rec8FnwaoUfKJMXwf`) nasceu em 2026-09-17, quando os créditos acabaram antes da sincronização
   final — fechado em 2026-09-18 junto com o resto. O projeto duplicado "Site Lopo Lab" foi
@@ -223,7 +305,8 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
 - **Pesos derivados do histórico REAL de produção — COM interruptor (dono, 2026-09-02).** Os
   30/40/30 são declaração do dono. Com venda real no banco dá para derivá-los das horas dos eventos.
   **A proporção continua sendo a forma armazenada**, então é compatível, sem migração. Volta depois
-  do recadastro. Cruza com o [Dashboard].
+  do recadastro. Cruza com o [Dashboard]. Com a frente 3a, as horas reais por máquina passam a vir
+  medidas pela impressora (`fonteDosNumeros: impressora`) — fonte melhor pra esta derivação.
   ⚠ **O dono pediu poder LIGAR/DESLIGAR a derivação** — então ela nasce com o modo, não ganha um
   depois. O que a spec precisa resolver, decidido AGORA para não virar retrabalho:
   - **Guardar os DOIS.** `weightMode: "manual" | "historico"` ao lado do `Machine.weight` digitado.
@@ -259,6 +342,8 @@ que não foi vendido.
   gera `Sale` nenhuma**.
 - Mexe só em `acabados`/`StockPage.tsx` — não tem relação com produção, catálogo, cor/marca ou
   importação de histórico.
+- ⚠ **Cruza com a frente 3a** (2026-09-23): o S1 tira a origem `"encomenda"` da venda e o S11 muda a
+  chave de cor do acabado — se este item vier depois, já nasce sobre o modelo novo.
 
 ## ⚠ A frente do DONO (bloqueia a carga em massa)
 

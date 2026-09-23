@@ -9,32 +9,12 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-20): 3 itens do pedido seguinte (Estoque agrupado / tirar Marca do
-  cadastro / avisar avulso), todos fechados, cada um seu commit.**
-  **(1) Estoque de filamento agrupado por cor+material** — a aba Filamentos do `/estoque` agrupa os
-  cards visualmente (ex.: "Branco PLA"), com a bolinha de amostra também no título do grupo e as
-  marcas cadastradas daquela cor como cards dentro dele (`filamentGroupKey`/`filamentGroupLabel`,
-  `lib/stock.ts`). Mudança de TELA, não de dado: `StockFilament` continua um doc por cor+material+
-  MARCA (D7). Busca já funcionava através dos grupos de graça (`filamentLabel` já junta material+
-  cor+marca no mesmo texto buscável). Refinamento no mesmo dia (feedback do dono: ficou confuso "pra
-  onde vai" cadastrar um rolo) — **"+ Marca" por grupo** (`StockColorModal`, prop `presetGroup`)
-  trava Material/Cor e só pede a marca nova, separado do **"+ Nova cor"** global (cor do zero, os 3
-  campos livres). ⚠ **Marca é OBRIGATÓRIA em qualquer criação** (`!color` no `save()`), não só no
-  `presetGroup` — sem isso "Nova cor" em branco criava um card "genérico" (sem marca nenhuma)
-  ambíguo dentro do grupo; um único formulário resolve, sem precisar de 2 passos nem mudar o
-  Firestore (StockFilament sempre exigiu `brand: string` no tipo — só a validação não cobria).
-  **(2) Marca saiu do cadastro do produto** — `FilamentColorsSection` (usada no `ProductForm` e nas
-  etapas extras) fica só com Material e Cor; sem marca pra desambiguar, o cadastro NUNCA cria
-  `filamentId` novo (só preserva um link herdado de fora), e o preço mostrado é sempre a MAIOR entre
-  as marcas candidatas da cor+material. A marca real só se decide na `/producao` (não mexida).
-  `productCsv.ts` para de escrever `brand` nas colunas Etapas/Filamentos JSON e ignora a chave na
-  leitura sem quebrar CSV antigo.
-  **(3) Aviso de consumo avulso na `/producao`** — filamento sem `filamentId` ganha aviso inline
-  ("sem marca ligada — não desconta rolo nenhum do Estoque"), mesmo estilo do aviso de marca
-  arquivada. Só torna visível o fallback de custo que já existia; nenhum comportamento mudou. ⚠
-  Fica ATIVO até em linha vazia de propósito — dá pra registrar produção sem preencher a linha, e um
-  aviso condicionado a "já digitou algo" deixaria passar exatamente esse caso (revertido 2026-09-20:
-  uma tentativa de só mostrar com cor/peso digitado era furada por isso).
+- **Última mudança (2026-09-23): escopo da frente 3a — dados da impressora — FECHADO, sem código.**
+  Brainstorm de 6 rodadas decidiu: o dado da impressora **complementa, nunca é requisito**; tudo que
+  grava dado vai **antes do marco**. Itens S1–S13 + processo das fases A e B no `BACKLOG.md` (seção
+  3a); o porquê, o descartado e os fatos medidos no `HISTORICO.md` ("📐 Brainstorm"); o pedido pro
+  pipeline em [`.claude/handoff/PEDIDO_PRINTPIPELINE.md`](.claude/handoff/PEDIDO_PRINTPIPELINE.md)
+  (o dono leva pra lá). Os itens de 2026-09-20 que estavam aqui foram pro `HISTORICO.md`.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
@@ -43,9 +23,10 @@
   [`HISTORICO.md`](.claude/HISTORICO.md)). Daqui só se conhece o **formato que ele entrega** (o CSV
   que o `/catalogo` importa, o JSON que o "Importar histórico" da `/producao` lê) — o funcionamento
   interno dele não é documentado aqui, e não se mexe nele a partir daqui.
-- **PRÓXIMA TAREFA DESTE PROJETO — frente 3: uso real.** Checklist do que apaga pronto; falta só
-  executar (o dono aciona quando decidir o marco — Diretriz 6 expira nesse ponto) e seguir a ordem
-  do recadastro, também na seção 3. Frente 2 (Configurações) está inteira fechada.
+- **PRÓXIMA TAREFA DESTE PROJETO — frente 3a (dados da impressora), depois frente 3 (uso real).**
+  Código S1–S13 do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o marco pode atrasar
+  um pouco, não muito). Depois, a carga pelo "Processo da fase A" e o marco (Diretriz 6 expira).
+  Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
   SISTEMA gera na hora pro `wa.me/...?text=`. Regra completa (e "sem iPhone") na seção do
   `BACKLOG.md` — ainda não codado.

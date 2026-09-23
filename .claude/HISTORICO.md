@@ -9,6 +9,294 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## 📐 Brainstorm: dados da impressora → LopoLabCalc — escopo fechado (2026-09-22 → 23)
+
+> **Não é item concluído — é o REGISTRO DE DECISÃO de um brainstorm de 6 rodadas** com o dono, sem
+> código. O a-fazer que saiu dele está no `BACKLOG.md`, seção **"▶ Frente 3a — Dados da
+> impressora"**; o pedido pro pipeline, em [`.claude/handoff/PEDIDO_PRINTPIPELINE.md`](handoff/PEDIDO_PRINTPIPELINE.md).
+> Aqui mora o **porquê**, incluindo **tudo que foi descartado e o motivo** (pedido explícito do dono:
+> "não perder nenhum detalhe"). Material de entrada: pacote do `LopoLabPrintPipeline`
+> (`handoff/printpipeline-para-lopolabcalc`: README, 11 impressões reais em formato cru, feed
+> rascunho e export atual, cópias do coletor e do curador).
+
+### O pedido e como a conversa andou (pra não repetir o caminho)
+O dono percebeu que o dado da impressora (Bambu Cloud, 3 máquinas, 332 impressões de 11/06 a 20/09,
+291 concluídas / 41 canceladas) é melhor que registro manual e perguntou se valia usá-lo **de forma
+contínua**. A conversa oscilou de propósito e a oscilação é parte da decisão:
+1. **Rodada 1 — integração completa** (proposta minha): coleção `impressoes`, reconhecimento que
+   aprende, caixa de entrada virando a fonte da produção, script opcional escrevendo no Firestore.
+2. **Rodada 2 — o dono freou:** "vou ficar refém da Bambu", "o site tem que funcionar sozinho", a
+   API não é oficial e o token vence sem aviso. Contraproposta minha: **só conferência**, medir
+   antes de construir. O dono apontou que isso era "8 ou 80".
+3. **Rodadas 3–6 — o meio-termo que ficou:** o dado da impressora **complementa, nunca é
+   requisito**; tudo que grava dado vai **antes do marco** (a Diretriz 6 existe exatamente pra isso,
+   e o código sai em prompts, não em dias — o custo real é o tempo do dono testando).
+
+### Princípios que valem pra tudo abaixo
+- **Fronteira:** o pipeline entrega **fatos** da impressora; o site decide o **significado** (produto,
+  unidades, desfecho, marca). Nada de produto, preço ou marca decidido em Python.
+- **O site nunca depende do feed.** Todo campo novo é opcional no significado, entra só por ação do
+  dono (upload) e grava pelo **mesmo caminho** do registro manual (`planEventRows`, FIFO, acabados,
+  estorno por `submissionId`). Sem arquivo, o site funciona igual. O risco real de dependência não é
+  técnico, é de **hábito** (parar de registrar à mão e o feed morrer) — por isso a faixa de "última
+  importação há X dias".
+- **Formato neutro, adaptador no pipeline:** o site nunca conhece `amsDetailMapping`, `repetitions`,
+  `designId` como conceito Bambu — outra marca de impressora seria outro adaptador escrevendo o mesmo
+  arquivo.
+- **Grava/define dado → antes do marco, obrigatório. Só lê/mostra → antes ou depois, sem risco de
+  migração.**
+- **Guardar o FATO cru da impressão no evento, não só a interpretação** — resposta direta ao medo do
+  dono de "se eu tivesse o dado dessa forma…": toda análise futura se calcula dos fatos, sem migração
+  (e sem voltar à API, que só guarda ~3 meses).
+
+### Decidido
+- **Venda sempre drena o acabado; a venda por encomenda deixa de criar produção.** Riscos medidos no
+  código hoje (`saleReconciliation.ts:318-378`): baixa **fração da placa** (`qty/pieces`) — vender 1
+  de uma placa de 10 dá baixa de 1/10 do filamento e as outras 9 peças **somem** (não viram acabado,
+  decisão antiga do FEAT-11); cor e gramas vêm do cadastro, não do impresso; data = data da venda;
+  falha/reimpressão da encomenda não existe; editar/apagar a venda apaga a produção. **Encomenda vira
+  só rótulo da venda.** A produção `encomenda` **junta com `estoque`** (toda impressão boa credita o
+  acabado). O dono lança a venda **na entrega** — produção sempre existe antes, acabado não fica
+  negativo no fluxo normal (se ficar por engano, o D4 cobre). O orçamento continua saindo do
+  catálogo, antes da impressão.
+- **Personalizado é produto do catálogo** (`kind: personalizado`), mesmo fluxo impressão → acabado →
+  venda. **Personalizado antigo que nunca vai se repetir entra como AVULSO no histórico.**
+- **Fase A (carga, antes do marco):** tudo que foi impresso entra como `historico` (não mexe em rolo
+  — o dono não lembra as vendas antigas). **O estoque físico é marcado no curador** (ideia do dono,
+  melhor que a minha de lançar à mão): contar a prateleira por **produto × cor (× parte, se vende por
+  partes)**; o curador marca como `estoque` as impressões **mais recentes** até cobrir a contagem, o
+  resto `historico`. Quatro ajustes obrigatórios: (1) **produzidas ≠ creditadas** (10 produzidas, 7 na
+  prateleira) — custo por unidade = total **÷ produzidas**, não ÷ creditadas (hoje o import divide
+  pelo creditado e credita `product.piecesCount`, `productionImport.ts:313` — não serve); (2) por cor;
+  (3) mais recentes primeiro; (4) contagem sem impressão que a cubra (feita antes de 11/06) aparece
+  como "faltam N" e entra **à mão** no marco, com custo do cadastro.
+- **Fase B (uso real):** registro manual na `/producao` continua sendo o caminho principal; o import
+  de impressões é o complemento, **em lote, quando o dono quiser**, com revisão linha a linha.
+- **Controle "o que já fiz / o que falta":** (a) ligar impressões e contar prateleira → **no curador**
+  (trabalho único, progresso, arquivo salvo); (b) conferir cadastro → **no site**, visão de
+  **pendências** no `/catalogo` (calculadas + "conferido" manual); (c) fase B → a **própria
+  importação** é o controle: feito = já existe evento com aquele `task_id`, pendente = está no arquivo
+  e não no site. **Cada impressão tem task_id próprio** (idempotência da impressão); **código/apelido
+  repete** (reconhecimento do produto) — trabalhos diferentes.
+- **"Conferido" é um estado que VOLTA** (ideia do dono, pra fase B também): o produto guarda
+  `conferidoEm`; pendência calculada "impressões reais depois da conferência divergem > X% do
+  cadastro" (sempre no mesmo tamanho de mesa). Fluxo: cadastra com o fatiador pra orçar → imprime →
+  o real aparece → "usar os valores reais" → salva → conferido de novo. **X% ainda aberto.**
+- **Código do produto:** todo produto tem um, universal (MakerWorld, arquivo próprio, qualquer
+  origem). **Gerado pelo site**, sequencial, contador único no Firestore incrementado em transação na
+  criação, **nunca reaproveitado** (apagado/arquivado leva o número). **Sem significado embutido**
+  (categoria/cor/material mudam; código não). Formato `LL-0042` (zero à esquerda é visual; passa a
+  `LL-10000` sem quebrar); leitura tolerante (`LL0042`, `ll-42`). **Não editável.** **Salvar mantém o
+  código; "Salvar como novo" gera código novo** (confirmado pelo dono) — e o produto novo nasce **sem
+  `conferidoEm` e sem os apelidos do original** (precedente: `productPayload.ts:25`, campo que "nascia
+  apontando para o produto ORIGINAL"). Entra no par `buildLoadedProduct`/`buildProductPayload` e no
+  CSV com teste de round-trip campo a campo (FORM-01/RT-01). Uso: o dono põe o código **no nome do
+  projeto** ao salvar no Bambu Studio (`LL-0042 Quatto face`); o pipeline extrai por regex. Também
+  serve pra orçamento, etiqueta, QR. **Proteção contra digitação errada:** checagem de plausibilidade
+  (código diz produto X, mas objetos/peso não têm nada a ver → aviso). Dígito verificador
+  (`LL-0042-7`) considerado e **não adotado** — feio, e a plausibilidade cobre a maioria.
+- **Apelidos = impressão digital da ORIGEM de uma impressão, em CAMPOS, não texto único:**
+  `{fonte: mw|codigo|arquivo, chave (design/código/nome de arquivo normalizado), variante (instância
+  MakerWorld), plate}` → aponta pra **produto + etapa + objetos por unidade**. Coleção própria, um doc
+  por apelido (apelido nunca aponta pra dois produtos; o doc do produto não é reescrito a cada
+  impressão). Busca em camadas — **só a exata preenche sozinha**: tudo igual → preenche · mesma chave,
+  plate diferente → "produto X, qual etapa?" · mesmo design, instância diferente → sugestão · nome
+  parecido ("Rev J" × "Rev K") → sugestão · só nomes de objeto → pista fraca · nada → dono escolhe e
+  vira apelido novo. O **Link Modelo** do produto (já tem o designId) também sugere. **O código é o
+  apelido mais forte** (quem põe é o dono; funciona na 1ª impressão). **Mesmo mecanismo nas duas
+  fases:** na A o CSV do curador já traz os apelidos; na B se aprende na revisão (ou em "criar produto
+  a partir desta impressão"). Na fase A, o import de produção referencia produto **pelo apelido**
+  (gravado junto com o CSV) — some a ida e volta da tabela de ids.
+- **Apelido ligado à ETAPA, não só ao produto** (kit: plate 1 = corpo, plate 2 = tampa; no site 1
+  evento = 1 etapa).
+- **Unidades:** "objetos na mesa" é fato; "unidades vendáveis" é interpretação (1 puxador + 2 cursores
+  = quantos zippers?). **Objetos por unidade** se aprende uma vez por apelido (maioria = 1). Na fase A
+  erro de unidade só distorce média (a prateleira vem da contagem); na fase B vira estoque errado →
+  sempre visível e editável na revisão.
+- **Purga é fixa por mesa** (lembrete do dono — é o porquê do `piecesCount`): 1 peça/mesa leva a
+  purga toda, 10/mesa dividem. **Real × cadastro compara POR TAMANHO DE MESA**, nunca média misturada.
+- **Evento de produção ganha:** `origemExterna {fonte, id}` (no lugar do prefixo `bambu:` em `notes`);
+  `fonteDosNumeros: impressora | estimativa | manual` (três estados — "medido sim/não" não bastava);
+  **unidades produzidas ≠ creditadas**; referência de imagem; **bloco de fatos crus `impressao`**
+  (objetos com nomes originais e qtd, filamentos por slot com cor **planejada e carregada**, material,
+  gramas, tempo de plano e de relógio, status cru, apelido/código/design/título, máquina física). Tudo
+  gravado explícito, `null` quando vazio (AUD-02).
+- **Falha, três casos:** concluída mas descartada → números medidos, completos, dono marca falha ·
+  cancelada → só o PLANO vem da API → **estimativa `plano × min(1, relógio ÷ plano)`**, selo "≈
+  estimado", editável na revisão · falha manual → o digitado. Limites declarados: o relógio inclui
+  aquecimento/calibração (superestima cancelamento precoce) e grama não é linear com tempo — ainda
+  assim melhor que baixar o plano inteiro. **Rede de segurança = contagem física do rolo (D6).** Na
+  fase A a estimativa é só registro (histórico não mexe em rolo).
+- **Marca na fase B:** troca de rolo da **mesma marca** já é resolvida pelo FIFO (`crossesRoll`).
+  Marcas diferentes da mesma cor em impressões diferentes → **tabela máquina × cor+material → marca**
+  no topo da revisão, com **"a partir desta impressão, marca B"** (troca é um momento no tempo, e
+  duas máquinas podem ter marcas diferentes ao mesmo tempo). A mesma impressão com duas marcas (AMS
+  trocou sozinho — **a API não informa**, `amsDetailMapping` mostra o slot planejado) → **"dividir"**
+  X g A / resto B; sem saber, escolhe a principal e o D6 acerta. **Fase A não precisa de marca.**
+- **Prateleira do acabado passa a ser MATERIAL + COR, sem marca** (achado relendo `filaments.ts:247-253`:
+  a chave do FEAT-11 é o `filamentId` = cor+material+**marca** → Preto PLA Bambu e Preto PLA Sunlu
+  viravam dois saldos com o mesmo rótulo "Preto"; e o avulso `livre:preto` ignorava o material, PLA e
+  PETG pretos colidiam; e o estoque marcado no curador — sem marca — ficaria numa prateleira e a 1ª
+  produção real preta noutra). Chave = a do agrupamento que o Estoque já mostra (`filamentGroupKey`,
+  2026-09-20). **O Estoque NÃO muda:** marca continua obrigatória no `StockFilament`; a chave é
+  calculada. Custo aceito: renomear cor (raro) separa saldo antigo do novo — foi pra evitar isso que
+  o FEAT-11 usou o id. **Por que NÃO separar por mesa de impressão** (pergunta do dono): a mesa já
+  está guardada no lugar certo — cada impressão é uma **camada** FIFO dentro do saldo, com o custo
+  dela; como divisão, partiria peças idênticas e a venda teria de escolher "de qual impressão". O
+  cliente compra produto + cor. **Por que o FEAT-11 separou por cor** (13/08): 3 azuis + 2 vermelhos
+  apareciam como "5" e a venda não sabia de qual tirar; a cor mora na **parte**, a montagem ignora
+  cor (corpo azul + tampa vermelha forma conjunto).
+- **Cores na fase A:** cadastradas **no site primeiro** (Estoque = lista oficial); o site exporta a
+  lista; o curador traduz hex carregado → material + cor dessa lista (ex.: `161616`+PLA → "Preto PLA"),
+  sem marca. Com a chave nova, o estoque marcado e a produção futura caem na mesma prateleira.
+- **Produção avulsa (fora do catálogo) continua existindo, separada — está certo** (teste,
+  calibração, brinde, personalizado único antigo). Conta filamento/horas/custo/ROI, **não vira
+  acabado**. **Não há risco de perder histórico:** o evento congela o nome e não aponta pro produto
+  vivo (até apagar o produto preserva os eventos). O furo pequeno: produto criado **depois** não
+  herda as impressões avulsas nas estatísticas → **"ligar ao produto depois"**, só pra eventos sem
+  efeito no acabado (histórico/falha/teste), com sugestão pelo apelido.
+- **Destino explícito:** **toda impressão vira evento** (toda impressão gastou filamento e hora):
+  ligada a produto+etapa · avulsa · teste/calibração · falha. "Sem destino" = ainda não decidido; o
+  contador do curador zera quando as 332 têm um. "Nem todo grupo vira produto" é o destino avulso.
+- **Markup/mão de obra/acessórios são do PRODUTO** (formulário do site), não da impressão; o evento
+  puxa mão de obra e acessórios do produto sozinho (`accessoryRows`/`stageLabor` já fazem); markup nem
+  entra na produção. Na carga: o curador exporta só o **objetivo** (peso, tempo, etapas, máquinas,
+  cores, link, personalizado, imagem) + opcionalmente markup/taxa de falha **padrão em lote**; mão de
+  obra e acessórios **no site** (acessório precisa do insumo do site; no site o dono vê o preço com
+  frota e fixo). Fase B: **"criar produto a partir desta impressão"** abre o formulário normal
+  preenchido (peso, tempo, cores, máquina, imagem), gera código e grava o apelido.
+- **Imagens:** só **capa** (render 512×512, ~20 KB, **byte a byte igual ao `plate_N_thumbnail.png`**
+  nas 10 amostras com mídia — não guardar os dois) e **foto real** (876×324, ~16 KB, só X2D concluída
+  = 136). Firebase **Storage** `impressoes/{task_id}/capa.png|foto.jpg` (~13 MB/ano, dentro da cota do
+  Blaze); **nunca** no doc do Firestore (o listener carregaria todas). Imagem do **produto é
+  CALCULADA** (capa da impressão mais recente ligada) — sem campo no produto, evitando o par
+  `buildLoadedProduct`/`buildProductPayload`. **Imagem por cor:** a capa mostra as cores do ARQUIVO,
+  não as carregadas (Zipper: arquivo azul, saiu preto) → só a **foto** serve por cor, também
+  calculada ("foto mais recente daquela cor"). Onde/como exibir: decidir quando for fazer.
+- **Real × cadastro no produto:** painel por tamanho de mesa ("cadastro 5,0 g/un · real 5,3 g/un em
+  4 impressões de 10/mesa"); botão **"usar os valores reais" só PREENCHE o formulário** — prévia de
+  preço, salva normal, nunca muda sozinho. Catálogo é ferramenta de **analisar preço** e continua
+  funcionando só com o digitado; sem impressão ligada, o painel não aparece.
+- **Coleta:** uma vez por mês basta (janela da API ~3 meses); token vencido = login nesse dia. Aviso
+  de "última coleta" no coletor e "última importação há X dias" no site.
+- **Máquina:** o pipeline manda o NOME já mapeado (`maquinas_conhecidas.json` de lá) e o site casa
+  por `machineNameToId`, como hoje — **nenhum mapa de serial guardado no site**; o serial vai só no
+  bloco de fatos crus. Máquina que não bate fica fora do lote com o motivo (comportamento atual).
+- **"Já registrado?"** na revisão da fase B: impressão cuja máquina + horário batem com um evento
+  lançado à mão vem **desmarcada** — misturar manual e importado fica seguro.
+- **Revisão da fase B, o que cada linha decide:** produto+etapa (código/apelido/Link Modelo ou
+  escolha) · unidades (sugeridas pelos objetos, sempre editáveis) · desfecho (concluída → acabado,
+  cancelada → falha, concluída-mas-descartada → falha à mão) · marca por cor (tabela) · gramas
+  (medidas; canceladas estimadas) · já registrado?
+- **Curador (dicas aceitas):** capa em cada card · agrupar por apelido com juntar/separar · ordenar
+  por nº de impressões · destino explícito com contador · contagem da prateleira por produto × cor
+  (× parte) com marcação automática · cancelada com estimativa · sem marca · hex → cor do site ·
+  exportar o formato definitivo (o preview do import do site é o validador) · curadoria salva em
+  arquivo além do `localStorage` · não investir mais em markup/mão de obra/acessórios nele · na fase B
+  ele não é necessário (pode ficar como visualizador).
+- **Respostas do dono que fecham premissas:** imprime **só pela nuvem** (evita SD/LAN de propósito);
+  mesa com **produtos diferentes é rara** (comum é partes do mesmo produto na mesma mesa → v1 trata
+  impressão = 1 produto, exceção à mão); **só o dono usa o site** (o João só olha); não sabe quanto
+  dura o token; hex por marca no AMS é inviável (a impressora só oferece cores limitadas).
+
+### Pra depois (análise pura — o bloco de fatos crus garante que nada disso pede migração)
+- **Custo fixo da mesa × custo por peça** (purga, 1ª camada) separados comparando mesas de tamanhos
+  diferentes do mesmo produto → **a partir de quantas peças por mesa compensa**.
+- **Ocupação real por máquina × `hoursDay`** declarado (base da capacidade e do rateio do fixo).
+- **Pesos de frota derivados do histórico real, com interruptor** (item já no `BACKLOG.md`, [FROTA]).
+- **Falha observada × taxa digitada** — só informativo; **nunca realimenta** o preço (decisão de
+  2026-07-28, memória `failure-rate-vs-real-failure-decoupled`). Cruza com o [Dashboard].
+- **Ligar falha → reimpressão** do mesmo produto (tentativas; ex.: 1214307195 cancelada na A1 às
+  17:48, reimpressa na X2D 7 min depois como 1214377165).
+- **Código no orçamento, etiqueta e QR**; imagem do produto no catálogo e no orçamento.
+- **Adaptador pra outras impressoras** (ex.: Klipper/Moonraker tem histórico de job) escrevendo o
+  mesmo formato.
+- **Script escrevendo SÓ numa coleção de fatos, com identidade restrita** — só se o upload manual
+  virar dor; exigiria regra por coleção (hoje as regras liberam tudo pra qualquer e-mail da lista).
+
+### Descartado (e por quê)
+- **Integração completa** (caixa de entrada como FONTE da produção, regras que aplicam sozinhas,
+  automação): cria dependência de hábito; se o feed morre, some registro sem ninguém perceber.
+- **Script escrevendo direto no Firestore com credencial de serviço:** o Admin SDK **ignora as
+  regras** = acesso total ao banco guardado no PC, e duas bases de código (Python e TS) gravando custo
+  = duas verdades. Automação também é ilusória: o token vence e exige login manual.
+- **Agendamento automático do coletor:** mesmo motivo; mensal manual basta.
+- **Hex diferente por marca no AMS:** caro de manter a cada compra; a tabela máquina × cor resolve.
+- **Mapa de AMS por slot/estado carregado:** pesado demais pro ganho.
+- **Assinatura por `modelId`/`profileId`/"por arquivo" do rascunho:** muda a cada envio (o mesmo
+  Zipper tem `modelId` diferente na A1 e na X2D; 268 `profileId` distintos em 332).
+- **Assinatura só por `designId`+plate:** o mesmo design tem instâncias com peças diferentes
+  (Pokeball) → precisa da instância.
+- **Assinaturas calculadas pelo pipeline:** a regra e o comparador têm de ser o mesmo código, no site.
+- **Mesa como divisão da prateleira do acabado:** ver "Decidido" (a mesa já está nas camadas).
+- **Rateio de mesa mista por volume de peça:** exige o 3mf completo, que não vem; e mesa com
+  produtos diferentes é rara → v1 não trata, exceção à mão (se um dia precisar: rateio pelo custo de
+  catálogo, com selo "estimado").
+- **Conversão peso↔metragem / campo `metros` do feed:** já estava no NÃO REPROPOR.
+- **Etapa "medir a lacuna manual × impressora antes de construir"** (rodada 2): substituída pela
+  decisão de construir tudo antes do marco; a medição seria um cruzamento pontual feito numa conversa.
+- **"Exportar produção (JSON)" como pré-requisito da medição:** caiu junto com a medição (continua
+  boa ideia de backup, mas o backup diário do Firestore já existe).
+- **Aplicar valores reais no cadastro automaticamente:** o catálogo nunca muda sozinho.
+- **Configurações do slicer, chaves sobrescritas, vista de cima, máscara, render sem luz no feed/site:**
+  sem uso; render sem luz ainda dá 403 no MakerWorld.
+
+### Fatos medidos nos dados (valem pra qualquer import futuro)
+- **`repetitions` não multiplica** — objetos e peso já incluem as cópias (33 impressões com rep > 1);
+  o curador multiplica de novo (`build_review.py:84`, `* rep`) → catálogo com peças infladas e
+  g/h por unidade subestimados. **Corrigir antes do recadastro.**
+- **Peso, tempo e objetos sempre da API**, nunca do 3mf: em 22 das 109 `cloud_slice` o app refatiou
+  e o 3mf é do original (1191103713: 3mf 2 objetos/65 g, impresso 4/130 g).
+- **Concluída:** tempo = `costTime`, nunca relógio (já divergiu 1295%). **Cancelada:** peso e tempo
+  são do plano; o relógio é teto do que rodou (1214307195: 1358 s de 5824 s ≈ 23% → ~7 g de 31 g;
+  1248181266: 6611 s de 7527 s → ~93 g de 106 g).
+- **Cor planejada ≠ carregada em 211 de 503 slots;** a baixa usa a **carregada**. `filamentId` Bambu
+  vazio em 229 (genérico/terceiro). Várias cores planejadas podem cair no mesmo slot (1081441249:
+  3 planejadas → 1 verde) — somar por cor carregada (o export atual repete 3 linhas "verde vivo").
+- Nomes de objeto sujos (`Assembly` ×93, `Object_1`, `Body1`, hashes, `_1`/`_2` que nem sempre é
+  cópia); `skipObjects` já vem excluído da lista.
+- 60 impressões (11–23/06) **nunca** terão mídia (saíram da janela antes da coleta de mídia); A1 e
+  A1 mini nunca têm foto.
+- **CSV do `/catalogo` não substitui produto existente** — reimportar cria duplicata com aviso
+  `nome-duplicado`.
+- Slot `ams: 255` = carretel externo (1052570585: 0,15 g, planejado branco → carregado amarelo).
+  `detail.context.materials` parece listar o que estava carregado no AMS naquela hora (não usado).
+  Dado antigo (junho) traz todos os slots como `ams 0 / slot 0` — slot não é confiável ali.
+- Volume real: ~3,3 impressões/dia; 164 grupos por título, 40 personalizados; X2D 202 · A1 114 ·
+  A1 mini 16.
+
+## ✅ Estoque agrupado por cor+material, marca fora do cadastro, aviso de avulso (2026-09-20)
+
+> Movido do "Status atual" do `CLAUDE.md` em 2026-09-23 (Diretriz 7). Três itens de um mesmo pedido,
+> todos fechados, cada um seu commit.
+
+**(1) Estoque de filamento agrupado por cor+material** — a aba Filamentos do `/estoque` agrupa os
+cards visualmente (ex.: "Branco PLA"), com a bolinha de amostra também no título do grupo e as marcas
+cadastradas daquela cor como cards dentro dele (`filamentGroupKey`/`filamentGroupLabel`,
+`lib/stock.ts`). Mudança de TELA, não de dado: `StockFilament` continua um doc por cor+material+MARCA
+(D7). Busca já funcionava através dos grupos de graça (`filamentLabel` já junta material+cor+marca no
+mesmo texto buscável). Refinamento no mesmo dia (feedback do dono: ficou confuso "pra onde vai"
+cadastrar um rolo) — **"+ Marca" por grupo** (`StockColorModal`, prop `presetGroup`) trava
+Material/Cor e só pede a marca nova, separado do **"+ Nova cor"** global (cor do zero, os 3 campos
+livres). ⚠ **Marca é OBRIGATÓRIA em qualquer criação** (`!color` no `save()`), não só no
+`presetGroup` — sem isso "Nova cor" em branco criava um card "genérico" (sem marca nenhuma) ambíguo
+dentro do grupo; um único formulário resolve, sem precisar de 2 passos nem mudar o Firestore
+(StockFilament sempre exigiu `brand: string` no tipo — só a validação não cobria).
+
+**(2) Marca saiu do cadastro do produto** — `FilamentColorsSection` (usada no `ProductForm` e nas
+etapas extras) fica só com Material e Cor; sem marca pra desambiguar, o cadastro NUNCA cria
+`filamentId` novo (só preserva um link herdado de fora), e o preço mostrado é sempre a MAIOR entre as
+marcas candidatas da cor+material. A marca real só se decide na `/producao` (não mexida).
+`productCsv.ts` para de escrever `brand` nas colunas Etapas/Filamentos JSON e ignora a chave na
+leitura sem quebrar CSV antigo.
+
+**(3) Aviso de consumo avulso na `/producao`** — filamento sem `filamentId` ganha aviso inline ("sem
+marca ligada — não desconta rolo nenhum do Estoque"), mesmo estilo do aviso de marca arquivada. Só
+torna visível o fallback de custo que já existia; nenhum comportamento mudou. ⚠ Fica ATIVO até em
+linha vazia de propósito — dá pra registrar produção sem preencher a linha, e um aviso condicionado a
+"já digitou algo" deixaria passar exatamente esse caso (revertido 2026-09-20: uma tentativa de só
+mostrar com cor/peso digitado era furada por isso).
+
 ## ✅ Ferramenta externa de importação virou projeto próprio: `LopoLabPrintPipeline` (2026-09-21)
 
 A ferramenta externa citada na entrada abaixo (que lê o histórico de impressão da Bambu Cloud e gera
