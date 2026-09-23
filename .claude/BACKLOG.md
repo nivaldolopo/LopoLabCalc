@@ -238,14 +238,32 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
 **Pipeline (fora deste repo — o dono executa lá):** ver `handoff/PEDIDO_PRINTPIPELINE.md`. Bloqueia
 a fase A: corrigir o `repetitions`, o formato de export definitivo e a contagem da prateleira.
 
+**Ordem de execução do código (2026-09-23) — um chat por lote, nesta ordem:**
+
+| # | Lote | Itens | Por que aqui |
+|---|---|---|---|
+| 1 | `config/negocio` | V1 + W2 + W3 (+ V4, V7, V8) | independente da 3a, pequeno, fecha o 🔴 V1 |
+| 2 | Venda | S1 + W1 + W4 + V3 + V5 + W6 (+ W5) | o maior; mesmo código (`saleReconciliation`/`SaleModal`/`finishedGoods`) |
+| 3 | Chave de cor | S11 + V2 + V6 | muda a chave cor+material → **antes** do dono cadastrar as cores reais |
+| 4 | Código + apelidos | S2 + S3 + colunas do CSV | fecha os nomes de coluna → destrava o item 8 do pedido ao pipeline |
+| 5 | Evento + import | S4 + S5 + S6 + S7 (+ W7) | fecha o formato do arquivo de produção → destrava a seção 3 do pedido |
+| 6 | Fechamento | S12 + S13, depois W8–W10 | S12 pede o X% do dono |
+| — | Depois do marco, se quiser | S8 · S9 · S10 | só leem/mostram |
+
+⚠ **Os W não foram reproduzidos** (varredura sem passe de verificação): cada lote começa confirmando
+os W dele no código (Diretriz 9) antes de corrigir. **Em paralelo, no pipeline:** o `repetitions` e o
+curador (itens 1–5, 7, 9 do pedido) já podem andar; o item 6 (cor) espera o lote 3 + o cadastro de
+cores, o item 8 espera o lote 4, a seção 3 espera o lote 5.
+
 **Processo da fase A (carga, uma vez):**
-1. Site → Estoque: cadastrar cores e insumos reais; exportar a lista de cores.
-2. Pipeline → coletor: histórico completo.
-3. Curador: agrupar por apelido → ligar grupo a produto+etapa+objetos por unidade (ou avulso/teste)
+1. **Apagar o dado de teste** (checklist acima) — PRIMEIRO, porque `estoque` e `insumos` estão na
+   lista do que se apaga: fazer depois do cadastro real apagaria as cores e insumos recém-cadastrados.
+2. Site → Estoque: cadastrar cores e insumos reais; exportar a lista de cores.
+3. Pipeline → coletor: histórico completo.
+4. Curador: agrupar por apelido → ligar grupo a produto+etapa+objetos por unidade (ou avulso/teste)
    → hex → cor do site → contar a prateleira por produto × cor (× parte) → revisar canceladas →
    contador "sem destino" em zero.
-4. Curador exporta: CSV de catálogo (objetivo + apelidos) + arquivo de produção + imagens.
-5. Apagar o dado de teste (checklist acima).
+5. Curador exporta: CSV de catálogo (objetivo + apelidos) + arquivo de produção + imagens.
 6. `/catalogo` → importar CSV (o site gera os códigos) → filtro de pendências: completar markup, mão
    de obra, acessórios vendo o preço → "conferido".
 7. `/producao` → importar impressões (modo histórico) → o que a contagem não cobriu, lançar à mão.

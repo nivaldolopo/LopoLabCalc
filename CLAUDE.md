@@ -24,7 +24,9 @@
   interno dele não é documentado aqui, e não se mexe nele a partir daqui.
 - **PRÓXIMA TAREFA DESTE PROJETO — frente 3a (dados da impressora), depois frente 3 (uso real).**
   Código S1–S13 + V1–V8 + W1–W10 do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o marco pode atrasar
-  um pouco, não muito). Depois, a carga pelo "Processo da fase A" e o marco (Diretriz 6 expira).
+  um pouco, não muito). **Um chat por lote, na tabela "Ordem de execução do código" da seção 3a do
+  `BACKLOG.md`** (lote 1 = `config/negocio`: V1+W2+W3). Depois, a carga pelo "Processo da fase A"
+  (que começa APAGANDO o teste) e o marco (Diretriz 6 expira).
   Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
   SISTEMA gera na hora pro `wa.me/...?text=`. Regra completa (e "sem iPhone") na seção do
