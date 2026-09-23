@@ -18,7 +18,7 @@ import { db } from "./client";
 import { COM_METADATA, type SnapshotOrigin } from "@/lib/cloudStatus";
 import { withWriteTimeout } from "@/lib/errors";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
-import { productionToDocument } from "./productionRepository";
+import { moveFromDocument, moveToDocument } from "./productionRepository";
 import {
   frozenFromDocument,
   frozenToDocument,
@@ -27,17 +27,14 @@ import {
 } from "./frozenCost";
 import { readFinishedColors } from "@/features/pricing-calculator/lib/finishedGoods";
 import { lerEConferirRevs } from "./revGuard";
-import { serializeRolls } from "./stockRepository";
 import { serializeLots } from "./suppliesRepository";
 import type {
   FinishedGoodPayload,
   FinishedMove,
   PaymentMethod,
-  ProductionPayload,
   ReciboUpsert,
   Sale,
   SaleChannel,
-  StockFilament,
   Supply,
 } from "@/features/pricing-calculator/types";
 import { num } from "@/lib/number";
@@ -175,6 +172,12 @@ export function toSale(id: string, data: DocumentData): Sale {
           discountInput: {
             mode: data.discountInput.mode,
             value: num(data.discountInput.value),
+            // V3 (lote 2 da 3a): o motivo era gravado pelo spread e nunca lido
+            // aqui — não aparecia em tela nenhuma e sumia na reedição.
+            ...(typeof data.discountInput.reason === "string" &&
+            data.discountInput.reason.trim()
+              ? { reason: data.discountInput.reason }
+              : {}),
           },
         }
       : {}),
@@ -183,12 +186,9 @@ export function toSale(id: string, data: DocumentData): Sale {
       : {}),
     profit: num(data.profit),
     margin: num(data.margin),
-    // Passo 8 — reconciliação. Ausentes nas vendas anteriores ao recurso (não
-    // estornam nada). `origem` decide o caminho; os moves/ids são o rastro do
-    // estorno ao editar/excluir.
-    ...(data.origem === "acabado" || data.origem === "encomenda"
-      ? { origem: data.origem }
-      : {}),
+    // Passo 8 — o rastro do estorno ao editar/excluir. Ausente nas vendas
+    // anteriores ao recurso (não estornam nada). O `origem`/`productionEventIds`
+    // da venda por encomenda (antes do S1) não são mais lidos — Diretriz 6.
     ...(Array.isArray(data.finishedMoves) && data.finishedMoves.length > 0
       ? { finishedMoves: data.finishedMoves.map(toFinishedMove) }
       : {}),
@@ -207,10 +207,11 @@ export function toSale(id: string, data: DocumentData): Sale {
     // AUD-16 [E5]: o `console.warn` acima só existe em dev e ninguém o lê. O
     // sinal sobe junto com o item para a `/vendas` nomear o documento.
     ...(colors.malformed ? { finishedColorsMalformed: true as const } : {}),
-    ...(Array.isArray(data.productionEventIds) &&
-    data.productionEventIds.length > 0
-      ? { productionEventIds: data.productionEventIds.map(String) }
-      : {}),
+    // W4: lista vazia (e não ausência) quando nada saiu de insumo — é o que a
+    // venda grava, e o que a venda antiga, sem o campo, significa.
+    supplyMoves: Array.isArray(data.supplyMoves)
+      ? data.supplyMoves.map(moveFromDocument)
+      : [],
     createdAt: num(data.createdAt),
   };
 }
@@ -389,7 +390,7 @@ export async function fetchSalesTotals(
 // `reconcileRecibo` abaixo, que ajusta as 4 coleções no mesmo `runTransaction`.
 // Sozinhos eles eram uma armadilha esperando quem os reencontrasse — o
 // `saveRecibo` escrevia `batch.set(ref, payload)` CRU, sem passar pelo
-// `saleToDocument` (o passo 8 sairia sem origem/moves/ids) e sem o
+// `saleToDocument` (o passo 8 sairia sem os moves) e sem o
 // `lerEConferirRevs`; o `removeSale` apagava a venda sem estornar filamento,
 // insumo nem acabado. Mesma decisão do TD-030 no `finishedGoodsRepository`: o
 // código morto SAI, em vez de esperar um botão que o ressuscite.
@@ -408,15 +409,14 @@ function finishedMoveToDocument(move: FinishedMove): DocumentData {
 }
 
 // Serializa o doc da venda, tratando os campos do passo 8 (o restante já vem
-// limpo do `SaleModal`, como antes). Só grava origem/moves/ids quando existem.
+// limpo do `SaleModal`, como antes).
 // Exportada pelo mesmo motivo do `toSale` logo acima: é a metade ESCRITA do
 // par, e o round-trip do [FROTA] Fase 1 precisa das duas para conferir o
 // documento campo a campo.
 export function saleToDocument(payload: ReciboUpsert["payload"]): DocumentData {
   const {
     finishedMoves,
-    productionEventIds,
-    origem,
+    supplyMoves,
     realCostBreakdown,
     machineUsage,
     unattributedUnits,
@@ -424,7 +424,6 @@ export function saleToDocument(payload: ReciboUpsert["payload"]): DocumentData {
   } = payload;
   return {
     ...rest,
-    ...(origem ? { origem } : {}),
     // [FROTA] Fase 1 — explícitos (e não pelo spread) pelo mesmo motivo do
     // `realCostBreakdown`: passam pela coerção numérica em vez de escaparem
     // como vieram. Os dois SEMPRE são gravados, inclusive vazio/zero — é a
@@ -439,28 +438,23 @@ export function saleToDocument(payload: ReciboUpsert["payload"]): DocumentData {
     ...(finishedMoves && finishedMoves.length > 0
       ? { finishedMoves: finishedMoves.map(finishedMoveToDocument) }
       : {}),
-    ...(productionEventIds && productionEventIds.length > 0
-      ? { productionEventIds }
-      : {}),
+    // W4: SEMPRE gravado, inclusive vazio (AUD-02) — ver `SaleInput.supplyMoves`.
+    supplyMoves: (supplyMoves ?? []).map(moveToDocument),
   };
 }
 
 // Tudo que a reconciliação de um recibo grava numa ÚNICA transação (passo 8):
-// vendas (upsert/delete) + producao das encomendas (criar/apagar) + estoque de
-// filamento (rolos) + acabados (SKUs). Ou entra tudo, ou nada — a baixa nunca fica
-// sem a venda que a explica, nem o contrário. Vem pronto de `reconcileReciboWrite`.
+// vendas (upsert/delete) + acabados (SKUs) + insumos do conjunto (W4). Ou entra
+// tudo, ou nada — a baixa nunca fica sem a venda que a explica, nem o contrário.
+// Vem pronto de `reconcileReciboWrite`. Desde o S1 (lote 2 da 3a) a venda não
+// cria produção nem mexe em filamento: a encomenda virou só o canal.
 export type ReciboWrite = {
   saleUpserts: ReciboUpsert[];
   saleRemovedIds: string[];
-  productionCreates: { id: string; payload: ProductionPayload }[];
-  productionDeleteIds: string[];
-  colorUpdates: StockFilament[];
-  // 7e: insumos afetados pelas encomendas (só o campo `lots`). OBRIGATÓRIO de
-  // propósito: enquanto era opcional, o `SaleModal` montava o objeto sem ele e
-  // o TypeScript não dizia nada — a venda por encomenda debitava filamento e
-  // deixava o insumo intacto, e apagar o evento de produção depois devolvia ao
-  // saldo unidades que nunca tinham saído. Lista vazia é a forma de dizer
-  // "nenhum insumo", e ela precisa ser escrita.
+  // 7e/W4: insumos afetados (só o campo `lots`). OBRIGATÓRIO de propósito:
+  // enquanto era opcional, o `SaleModal` montava o objeto sem ele e o
+  // TypeScript não dizia nada — a venda debitava o resto e deixava o insumo
+  // intacto. Lista vazia é a forma de dizer "nenhum insumo".
   supplyUpdates: Supply[];
   finishedUpdates: FinishedGoodPayload[];
 };
@@ -475,10 +469,6 @@ export type ReciboWrite = {
 // antes pelo `guardOnline` (TD-020).
 export async function reconcileRecibo(write: ReciboWrite): Promise<void> {
   const gravacao = runTransaction(db, async (tx) => {
-    const cores = write.colorUpdates.map((color) => ({
-      color,
-      ref: doc(db, "estoque", color.id),
-    }));
     const insumos = write.supplyUpdates.map((supply) => ({
       supply,
       ref: doc(db, "insumos", supply.id),
@@ -490,11 +480,6 @@ export async function reconcileRecibo(write: ReciboWrite): Promise<void> {
 
     // Toda leitura ANTES de qualquer escrita — a regra da transação.
     const revs = await lerEConferirRevs(tx, [
-      ...cores.map(({ color, ref }) => ({
-        ref,
-        esperado: color.rev ?? 0,
-        nome: `A cor "${color.colorName}"`,
-      })),
       ...insumos.map(({ supply, ref }) => ({
         ref,
         esperado: supply.rev ?? 0,
@@ -505,13 +490,13 @@ export async function reconcileRecibo(write: ReciboWrite): Promise<void> {
         esperado: payload.rev ?? 0,
         nome: `As peças prontas de "${payload.productName ?? payload.productId}"`,
         // Id determinístico (= productId): a primeira produção do produto cria
-        // o doc, então não existir é legítimo.
+        // o doc — e, desde o W1, a primeira VENDA também (camada de acerto) —,
+        // então não existir é legítimo.
         podeNaoExistir: true,
       })),
     ]);
-    const revCor = revs.slice(0, cores.length);
-    const revInsumo = revs.slice(cores.length, cores.length + insumos.length);
-    const revAcabado = revs.slice(cores.length + insumos.length);
+    const revInsumo = revs.slice(0, insumos.length);
+    const revAcabado = revs.slice(insumos.length);
 
     for (const { id, payload } of write.saleUpserts) {
       const ref = id ? doc(db, "vendas", id) : doc(salesCollection);
@@ -520,21 +505,7 @@ export async function reconcileRecibo(write: ReciboWrite): Promise<void> {
     for (const id of write.saleRemovedIds) {
       tx.delete(doc(db, "vendas", id));
     }
-    // Encomendas: cria os eventos de produção novos e apaga os do recibo antigo.
-    for (const { id, payload } of write.productionCreates) {
-      tx.set(doc(db, "producao", id), productionToDocument(payload));
-    }
-    for (const id of write.productionDeleteIds) {
-      tx.delete(doc(db, "producao", id));
-    }
-    // Estoque de filamento: só o campo `rolls` das cores afetadas, mais o `rev`.
-    cores.forEach(({ color, ref }, i) => {
-      tx.update(ref, {
-        rolls: serializeRolls(color.rolls),
-        rev: revCor[i] + 1,
-      });
-    });
-    // Estoque de insumos: só o campo `lots` dos insumos afetados.
+    // Estoque de insumos: só o campo `lots` dos insumos afetados, mais o `rev`.
     insumos.forEach(({ supply, ref }, i) => {
       tx.update(ref, {
         lots: serializeLots(supply.lots),

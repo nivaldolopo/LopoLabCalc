@@ -32,9 +32,9 @@
 | 1 | ✅ **Designer: pedido do PDF + checklist da marca** | conversa, sem código | os dois no Drive |
 | 2 | ✅ **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
-| 3a | **Dados da impressora** (2026-09-23) | código S1–S13 + pipeline → fase A | tudo antes do marco |
-| 3b | **Achados da varredura** (2026-09-23) | V2, V3, V5, V6 (código) | antes do marco (V2 c/ S11, V3/V5 c/ S1) |
-| 3c | **Varredura geral** (2026-09-23) | W1, W4–W10 (código) | antes do marco (W1/W4 c/ S1) |
+| 3a | **Dados da impressora** (2026-09-23) | código S2–S13 + pipeline → fase A (S1 ✅) | tudo antes do marco |
+| 3b | **Achados da varredura** (2026-09-23) | V2, V6 (código) | antes do marco (V2 c/ S11) |
+| 3c | **Varredura geral** (2026-09-23) | W7–W10 (código) | antes do marco |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
 | — | **Drive (LopoLabCalc)** | organização da pasta do projeto | só o que é do projeto, sem código |
 
@@ -191,10 +191,6 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
 > ⚠ O marco pode atrasar **um pouco** por isto (dono), não muito — não inflar o escopo.
 
 **Site — grava dado (obrigatório antes do marco):**
-- **S1 · Venda sem o caminho encomenda.** Toda venda drena o acabado; "encomenda" vira rótulo da
-  venda. Produção `encomenda` **junta com `estoque`**. Some a produção criada pela reconciliação
-  (`saleReconciliation.ts:318-378`) e a escolha de máquina no modal de venda (AUD-17 [E2]) — revisar
-  o bullet da `/producao`/VENDA no Status do `CLAUDE.md` quando fechar. A venda é lançada na entrega.
 - **S2 · Código do produto.** Gerado pelo site, sequencial (`LL-0001`), contador único em transação,
   nunca reaproveitado, sem significado embutido, não editável. Salvar mantém; **"Salvar como novo"
   gera novo** e nasce sem `conferidoEm` e sem apelidos. Par `buildLoadedProduct`/`buildProductPayload`
@@ -243,7 +239,7 @@ a fase A: corrigir o `repetitions`, o formato de export definitivo e a contagem 
 | # | Lote | Itens | Por que aqui |
 |---|---|---|---|
 | 1 | ✅ `config/negocio` (2026-09-23) | V1 + W2 + W3 + V4 + V7 + V8 | fechado — writeup no `HISTORICO.md` |
-| 2 | Venda | S1 + W1 + W4 + V3 + V5 + W6 (+ W5) | o maior; mesmo código (`saleReconciliation`/`SaleModal`/`finishedGoods`) |
+| 2 | ✅ Venda (2026-09-23) | S1 + W1 + W4 + V3 + V5 + W6 + W5 | fechado — writeup no `HISTORICO.md` |
 | 3 | Chave de cor | S11 + V2 + V6 | muda a chave cor+material → **antes** do dono cadastrar as cores reais |
 | 4 | Código + apelidos | S2 + S3 + colunas do CSV | fecha os nomes de coluna → destrava o item 8 do pedido ao pipeline |
 | 5 | Evento + import | S4 + S5 + S6 + S7 (+ W7) | fecha o formato do arquivo de produção → destrava a seção 3 do pedido |
@@ -274,7 +270,7 @@ próprio salvo com o código no nome) · registrar produção **na hora** pela `
 pelo import com revisão · venda sempre do acabado · real × cadastro + "conferido" que volta quando o
 real diverge · feed parado = faixa avisa, segue manual.
 
-### 3b · Varredura de 2026-09-23 — 4 abertos, todos antes do marco (V1/V4/V7/V8 fechados no lote 1)
+### 3b · Varredura de 2026-09-23 — 2 abertos, todos antes do marco (V1/V4/V7/V8 no lote 1, V3/V5 no lote 2)
 
 > Leitura só de código (Diretriz 9) do que entrou depois da AUD-18 e que a frente 3a NÃO reescreve:
 > FEAT-12, TD-033, modal de Configurações, energia global, `ProductKind`, orçamento↔venda, Estoque
@@ -288,37 +284,16 @@ real diverge · feed parado = faixa avisa, segue manual.
   entrada nem aviso; **renomear** cor/material desliga os produtos do Estoque e eles voltam ao
   `pricePerKg` salvo **sem badge** (`resolveFilamentPrices` trata como "nunca apontou"). → junto do
   **S11** (mesma chave cor+material).
-- [ ] **V3 🟠 Motivo do desconto é só-escrita.** Grava pelo spread (`discountInput.reason`), mas o
-  `toSale` (`salesRepository.ts:172-179`) lê só `mode`/`value`: não aparece em tela nenhuma e
-  **some ao editar** a venda (RT-01). → junto do **S1**.
-- [ ] **V5 🟡 Venda com orçamento APAGADO:** ao editar, o `<select>` mostra "Nenhum" mas o
-  `quoteId` segue no estado, e o `quoteNumber` (denormalizado justamente pra sobreviver à exclusão)
-  é regravado `""` (`SaleModal.tsx:934-939`). → junto do **S1**.
 - [ ] **V6 🟢** Estoque aceita cor+material+marca **duplicada** sem aviso (`saveColor`, "Nova cor"
   e "+ Marca") — a produção fica com dois cartões de mesmo nome.
 
-### 3c · Varredura GERAL de 2026-09-23 — 8 abertos, todos antes do marco (W2/W3 fechados no lote 1)
+### 3c · Varredura GERAL de 2026-09-23 — 4 abertos, todos antes do marco (W2/W3 no lote 1, W1/W4/W5/W6 no lote 2)
 
 > `/code-review --high` sobre o `src/` inteiro (não um diff), foco na camada de escrita/estorno
 > (repositórios, produção, acabados, venda, config, orçamento). **Sem passe de verificação** — nada
 > reproduzido; W6–W10 são os menos certos. Leitura rasa em `productCsv`, `calculatePricing` e CSS/UI.
 > Fora de propósito: o que a 3a reescreve e os V1–V8.
 
-- [ ] **W1 🔴 Venda de ACABADO sem camada grava custo 0.** SKU sem camada (ou inexistente) →
-  `consumeFifo` (`finishedGoods.ts:673`) devolve 0 move/0 custo: a venda grava `unitCost` 0 (lucro =
-  receita), o saldo não mexe, e a tela avisa "o saldo fica negativo" (falso). É o [E7] da AUD-16
-  (lote de acerto) que nunca chegou ao acabado. → junto do **S1** (toda venda passa a drenar acabado).
-- [ ] **W4 🟠 Acessório do produto INTEIRO some quando se produz por partes.** `accessoryRows`
-  (`productionPlan.ts:242`) só dá baixa do acessório sem subitem na produção do inteiro; vender o
-  conjunto montado (`consumeWholeFifo`) soma só as camadas das partes → insumo nunca sai e o COGS fica
-  sem ele (o preço o inclui). Decidir onde baixa: na venda do conjunto? (cruza com **S1**).
-- [ ] **W5 🟠 Produto excluído encalha o acabado e corrompe a reedição do recibo.** `catalogItems`
-  sai do catálogo vivo → peças prontas dele não vendem; reeditar recibo antigo reconcilia sem o
-  produto (`saleReconciliation.ts:322`): encomenda estorna filamento, apaga evento e grava custo 0;
-  conjunto por partes cai em shortfall, custo 0. A confirmação diz que nada disso é afetado.
-- [ ] **W6 🟡** `SaleModal.confirm` roda `reconcileReciboWrite` **fora do try** e depois do
-  `setSaving(true)` (`SaleModal.tsx:891`): exceção do `shiftLayers` ("camada não existe") trava o
-  botão em "Registrando…" sem mensagem; no preview (`useMemo`) derruba o modal.
 - [ ] **W7 🟡** `buildProductionPayloads` grava `machineId: e.machine?.id ?? e.row.machineId`
   (`productionPlan.ts:879`) — máquina excluída noutra aba com a /producao aberta → evento com id
   fantasma, nome "", custo de frota e horas órfãs ([E4]/[E5]).
@@ -408,7 +383,7 @@ real diverge · feed parado = faixa avisa, segue manual.
 > nada, é item próprio, sem prompt escrito ainda.
 
 Hoje uma peça já pronta (`acabados`) só sai do estoque por **venda** — `StockPage.tsx` só tem os
-botões Vender/Produzir/Ver no catálogo, e `SaleItemOrigin` só aceita `"acabado"`/`"encomenda"`.
+botões Vender/Produzir/Ver no catálogo, e a única saída do acabado é a venda.
 Não existe caminho para "essa peça pronta virou brinde", "perdi/quebrei", ou "dei" — a única saída
 hoje seria registrar uma venda fantasma (receita 0), que polui contagem/métricas de venda com algo
 que não foi vendido.
@@ -419,8 +394,9 @@ que não foi vendido.
   gera `Sale` nenhuma**.
 - Mexe só em `acabados`/`StockPage.tsx` — não tem relação com produção, catálogo, cor/marca ou
   importação de histórico.
-- ⚠ **Cruza com a frente 3a** (2026-09-23): o S1 tira a origem `"encomenda"` da venda e o S11 muda a
-  chave de cor do acabado — se este item vier depois, já nasce sobre o modelo novo.
+- ⚠ **Cruza com a frente 3a** (2026-09-23): o S1 (✅ lote 2) já tirou a origem da venda — toda saída
+  de venda é do acabado, e a camada de acerto (W1) é o molde de "saída com custo congelado"; o S11
+  ainda vai mudar a chave de cor do acabado — se este item vier depois, já nasce sobre o modelo novo.
 
 ## ⚠ A frente do DONO (bloqueia a carga em massa)
 

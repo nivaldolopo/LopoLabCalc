@@ -503,7 +503,6 @@ export function buildImportPreview(
   const porMaquinaMap = new Map<string, ImportPreviewMachine>();
   const porOutcome: Record<ProductionOutcome, number> = {
     estoque: 0,
-    encomenda: 0,
     teste: 0,
     falha: 0,
     brinde: 0,

@@ -9,11 +9,10 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-23): lote 1 da frente 3a fechado (`config/negocio`)** — V1 + W2 + W3 +
-  V4 + V7 + V8. Custo fixo e energia agora gravam com trava de `rev` (UMA por doc) e o erro do save
-  volta pro `RepriceGate`; a semeadura só grava o que o servidor não tem. Writeup no `HISTORICO.md`.
-  Abertos: V2/V3/V5/V6 (3b) e W1, W4–W10 (3c) no `BACKLOG.md`; pedido pro pipeline em
-  [`.claude/handoff/PEDIDO_PRINTPIPELINE.md`](.claude/handoff/PEDIDO_PRINTPIPELINE.md).
+- **Última mudança (2026-09-23): lote 2 da 3a (Venda) fechado** — **toda venda sai do acabado**
+  ("encomenda" é só o canal); sem peça registrada → **camada de acerto** (custo do cadastro);
+  acessório sem parte de produto por partes baixa na **venda do conjunto**. Writeup no
+  `HISTORICO.md`; pedido pro pipeline em [`handoff/`](.claude/handoff/PEDIDO_PRINTPIPELINE.md).
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
@@ -25,8 +24,8 @@
 - **PRÓXIMA TAREFA DESTE PROJETO — frente 3a (dados da impressora), depois frente 3 (uso real).**
   Código S1–S13 + os V/W abertos do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o
   marco pode atrasar um pouco, não muito). **Um chat por lote, na tabela "Ordem de execução do
-  código" da seção 3a do `BACKLOG.md`** (✅ lote 1; **próximo = lote 2, Venda**: S1+W1+W4+V3+V5+W6,
-  o maior). Depois, a carga pelo "Processo da fase A"
+  código" da seção 3a do `BACKLOG.md`** (✅ lotes 1–2; **próximo = lote 3, Chave de cor**:
+  S11+V2+V6). Depois, a carga pelo "Processo da fase A"
   (que começa APAGANDO o teste) e o marco (Diretriz 6 expira).
   Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
@@ -47,10 +46,9 @@
   2026-09-03) — o `DEFAULT_MACHINES` do código só tem duas, então não raciocine por ele. **Todo
   produto anterior à fase entra SEM conjunto** → frota inteira + badge de órfão (Diretriz 6 — sem
   migração; o dono recadastra).
-- ⚠ **`/producao` e VENDA por encomenda PERGUNTAM a máquina** quando há 2+ candidatas (dono,
-  2026-09-01: *"vazia só quando há dúvida"*); sem escolher, o botão trava com o motivo na tela — não
-  é bug. Na venda as opções são a **interseção** das etapas ambíguas; com UMA o seletor some e a
-  reconciliação deduz sozinha (não é bug desde o lote 2 da AUD-17).
+- ⚠ **A `/producao` PERGUNTA a máquina** quando há 2+ candidatas (dono, 2026-09-01: *"vazia só
+  quando há dúvida"*); sem escolher, o botão trava com o motivo na tela — não é bug. A VENDA não
+  pergunta mais nada (S1): quem imprimiu sai das camadas do acabado.
 - ⚠ **A frente do DONO (bloqueia a carga em massa):** cadastrar cores/insumos e religar os
   acessórios — detalhe no `BACKLOG.md`. **"Pode recadastrar?" → SIM, sem trava.** Acessório sem
   baixa *não é bug, é vínculo em branco* (`planSupplies`): ligar o `supplyId` liga a baixa.
@@ -193,7 +191,7 @@ src/lib/
 - **"PODE rodar" (conjunto, do produto/etapa) ≠ "RODOU" (escalar, do evento)** — as duas fases do
   [FROTA], e a regra que não se desfaz. A precificação lê `machineIds` e cobra a **taxa de frota**
   (média ponderada por `Machine.weight`, **por componente** — ratear um total só dá mistura sem
-  significado); quem imprimiu sai dos eventos (encomenda) ou das camadas drenadas (acabado).
+  significado); quem imprimiu sai das camadas drenadas do acabado (a venda não cria evento).
   **Um evento = uma etapa = UMA máquina.** Conjunto vazio/órfão → frota inteira + badge (TD-009);
   soma de pesos 0 → média simples (senão `NaN`). Na venda, `machineUsage` e `unattributedUnits` são
   **obrigatórios** (vazio = "sem lastro"); na CAMADA a ausência É o dado, e vazio não se grava.

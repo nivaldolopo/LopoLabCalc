@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Boxes, Plus, Trash2 } from "lucide-react";
 import {
+  errorMessage,
   guardOnline,
   isOffline,
   mensagemDeFalhaNaGravacao,
@@ -53,14 +54,6 @@ import {
   type OldReciboState,
   type ReconItem,
 } from "../lib/saleReconciliation";
-import { calculatePricing } from "../lib/calculatePricing";
-import {
-  encomendaAssignmentNote,
-  encomendaMachineOptions,
-  type EncomendaAssignmentNote,
-  subitemEventRows,
-  wholeEventRows,
-} from "../lib/productionPlan";
 import {
   chargedWithFee,
   type SaleModalContext,
@@ -79,15 +72,13 @@ import type {
   Machine,
   PaymentFeeSettings,
   PaymentMethod,
-  PricingResult,
-  ProductionEvent,
   QuoteRecord,
   ReciboUpsert,
   SaleChannel,
-  SaleItemOrigin,
   SalePayload,
   SavedProduct,
   StockFilament,
+  StockMove,
   Supply,
 } from "../types";
 
@@ -105,12 +96,12 @@ export type SaleModalEditItem = {
   discountInput?: Discount;
   discountAmount?: number;
   // Passo 8: reconciliação da venda salva, para o estorno-e-reaplicação da edição.
-  origem?: SaleItemOrigin;
   finishedMoves?: FinishedMove[];
+  // W4: a baixa dos acessórios do conjunto, idem.
+  supplyMoves: StockMove[];
   // FEAT-11: as cores escolhidas na venda salva — voltam para a linha para a
   // reedição reaplicar a baixa na MESMA prateleira de onde saiu.
   finishedColors?: FinishedColorEntry[];
-  productionEventIds?: string[];
 };
 
 // Recibo existente aberto para edição (campos compartilhados + itens salvos).
@@ -145,20 +136,11 @@ type CestaItem = {
   // FEAT-09: desconto DESTA linha (só usado no modo "por item"; no modo "total" o
   // desconto vive em `totalDiscount` e é rateado). Ausente = linha sem desconto.
   discount?: Discount;
-  // Passo 8: caminho de reconciliação deste item (default por saldo do acabado).
-  origem: SaleItemOrigin;
   // FEAT-11: cor ESCOLHIDA à mão para cada parte (chave = subitemId ou
   // `WHOLE_PART_KEY`). Guarda só o que o dono escolheu — o default (cor de maior
   // saldo) é DERIVADO na hora de usar. Sem isso, o modal teria que reescrever o
-  // estado quando os acabados chegassem do Firestore (o mesmo bug assíncrono que
-  // o `touchedOrigem` conserta para a origem).
+  // estado quando os acabados chegassem do Firestore.
   colors?: Record<string, string>;
-  // [FROTA] Fase 2 — a máquina que IMPRIMIU, escolhida à mão. Só o caminho
-  // `encomenda` usa, e só quando há mais de uma candidata (o mesmo critério da
-  // `/producao`: "vazia só quando há dúvida"). Guarda só a ESCOLHA — quando a
-  // etapa tem uma elegível só, quem preenche é o `initialRowMachineId`, lá no
-  // builder, e este campo nem aparece.
-  machineId?: string;
 };
 
 // FEAT-09: qual modo de desconto está ativo no recibo (XOR — nunca os dois).
@@ -181,22 +163,19 @@ type SaleModalProps = {
   // Passo 8: dados vivos para a reconciliação (custo real + baixa por caminho).
   goods: FinishedGood[];
   stock: StockFilament[];
-  // 7e: insumos, para a encomenda dar baixa dos acessórios ligados.
+  // 7e/W4: insumos, para a venda do conjunto dar baixa dos acessórios dele.
   supplies: Supply[];
   products: SavedProduct[];
   machines: Machine[];
   fixedCosts: FixedCostSettings;
   energyTariff: number;
-  // Eventos de produção — para resolver os `stockMoves` das encomendas do recibo
-  // antigo ao editar (o doc da venda só guarda os `productionEventIds`).
-  production: ProductionEvent[];
   // Histórico de orçamentos, para o seletor "veio de qual orçamento" (link
   // opcional orçamento → venda). Mais recente primeiro é decisão da UI, não
   // deste tipo.
   quotes: QuoteRecord[];
   onClose: () => void;
-  // Recebe o plano de escrita atômico completo (vendas + producao + estoque +
-  // acabados). O call site liga em `reconcileRecibo`.
+  // Recebe o plano de escrita atômico completo (vendas + acabados + insumos). O
+  // call site liga em `reconcileRecibo`.
   onConfirm: (write: ReciboWrite) => Promise<void>;
 };
 
@@ -205,49 +184,6 @@ function formatDecimalPct(value: number): string {
   return (Number(value) || 0).toLocaleString("pt-BR", {
     maximumFractionDigits: 2,
   });
-}
-
-// Horas com duas casas, como o cartão da /maquinas publica ("113,30 h").
-function formatHoras(value: number): string {
-  return (Number(value) || 0).toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-// A REDAÇÃO do aviso de interseção vazia — a DECISÃO é do
-// `encomendaAssignmentNote` (AUD-17 [E8]); aqui só se escolhe a frase.
-//
-// ⚠ Os dois casos existem porque afirmam coisas diferentes sobre o ROI: no
-// `total` ninguém é creditado, no `parcial` as etapas resolvidas são. Uma frase
-// só para os dois é o defeito que o [E8] mediu — a X2D levava 1 h e R$ 1,87 na
-// mesma venda que exibia "o ROI não credita ninguém".
-function AvisoSemIntersecao({ note }: { note: EncomendaAssignmentNote }) {
-  if (!note) return null;
-  if (note.tipo === "total") {
-    return (
-      <div className="cesta-warn">
-        As etapas deste produto não têm uma impressora em comum, e nenhuma delas
-        tem impressora própria — não há máquina a atribuir. A venda entra
-        normalmente (o custo usa a média da frota), mas o ROI não credita
-        ninguém. Para atribuir por etapa, registre em <strong>Produção</strong> e
-        venda como peça pronta.
-      </div>
-    );
-  }
-  const etapas = note.etapasComMaquina + note.etapasAmbiguas;
-  const horas = note.horasComMaquina + note.horasAmbiguas;
-  return (
-    <div className="cesta-warn">
-      As etapas <strong>ambíguas</strong> deste produto não têm uma impressora em
-      comum — não há uma máquina só para atribuir a elas. A venda entra
-      normalmente (essas etapas custam a média da frota). No ROI, as etapas que
-      já têm impressora própria são creditadas a ela — {note.etapasComMaquina} de{" "}
-      {etapas} etapas, {formatHoras(note.horasComMaquina)} h de{" "}
-      {formatHoras(horas)} h; o resto fica sem dono. Para atribuir também as
-      ambíguas, registre em <strong>Produção</strong> e venda como peça pronta.
-    </div>
-  );
 }
 
 // FEAT-09: campo de desconto (número + alternância R$/%). O `mode` decide o passo
@@ -300,10 +236,7 @@ function DiscountInput({
 }
 
 let itemSeq = 0;
-function itemFromContext(
-  source: SaleModalContext,
-  origem: SaleItemOrigin,
-): CestaItem {
+function itemFromContext(source: SaleModalContext): CestaItem {
   itemSeq += 1;
   return {
     key: `item_${Date.now()}_${itemSeq}`,
@@ -311,7 +244,6 @@ function itemFromContext(
     productName: source.defaultProductName,
     quantity: 1,
     salePrice: round2(source.suggestedPrice),
-    origem,
   };
 }
 
@@ -327,7 +259,6 @@ export function SaleModal({
   machines,
   fixedCosts,
   energyTariff,
-  production,
   quotes,
   onClose,
   onConfirm,
@@ -349,14 +280,10 @@ export function SaleModal({
             finishedMoves: editRecibo.items.flatMap(
               (entry) => entry.finishedMoves ?? [],
             ),
-            productionEvents: editRecibo.items
-              .flatMap((entry) => entry.productionEventIds ?? [])
-              .map((id) => production.find((event) => event.id === id))
-              .filter((event): event is ProductionEvent => Boolean(event))
-              .map((event) => ({ id: event.id, stockMoves: event.stockMoves })),
+            supplyMoves: editRecibo.items.flatMap((entry) => entry.supplyMoves),
           }
         : null,
-    [editRecibo, production],
+    [editRecibo],
   );
 
   // CSV-34 — o saldo que a TELA mostra tem de ser o mesmo que o aviso usa. O
@@ -370,15 +297,21 @@ export function SaleModal({
     const moves = oldRecibo?.finishedMoves ?? [];
     if (moves.length === 0) return goods;
     const afetados = new Set(moves.map((move) => move.productId));
-    return goods.map((good) =>
-      afetados.has(good.productId)
-        ? reverseFinishedConsumption(good, moves)
-        : good,
-    );
+    // W6: o estorno LANÇA quando a camada drenada sumiu (TD-028). Aqui ele cai
+    // no saldo cru — o recado e a trava do botão vêm do `reconError` abaixo,
+    // que roda o mesmo estorno; deixar a exceção subir derrubaria o modal.
+    try {
+      return goods.map((good) =>
+        afetados.has(good.productId)
+          ? reverseFinishedConsumption(good, moves)
+          : good,
+      );
+    } catch {
+      return goods;
+    }
   }, [goods, oldRecibo]);
 
-  // Saldo do acabado (a SKU = o subitem) deste item, e o caminho default: peça
-  // pronta quando há saldo, senão encomenda (decisão do dono — por item).
+  // Saldo do acabado (a SKU = o subitem) deste item.
   // BUG-05: o INTEIRO de um produto que vende por partes não tem SKU própria — o
   // saldo é quantos conjuntos dá para montar (min das partes), casando com a baixa
   // do `consumeWholeFifo` na reconciliação.
@@ -402,7 +335,8 @@ export function SaleModal({
   // As PARTES que uma venda de peça pronta drena: os subitens (venda do conjunto)
   // ou a peça única. Cada uma escolhe a sua cor — um conjunto pode ser corpo azul
   // + tampa vermelha de projeto.
-  function partsOf(source: SaleModalContext): { key: string; name: string }[] {
+  function partsOf(item: CestaItem): { key: string; name: string }[] {
+    const source = item.source;
     if (source.subitemId) return [{ key: source.subitemId, name: "" }];
     const product = products.find((p) => p.id === source.productId);
     if (product?.sellBySubitems && product.subitems.length > 0) {
@@ -410,6 +344,14 @@ export function SaleModal({
         key: s.id,
         name: s.name || "parte",
       }));
+    }
+    // W5: produto EXCLUÍDO — a reedição traz as partes no mapa de cores salvo
+    // (a mesma regra do `partesDoItem` da reconciliação).
+    if (!product) {
+      const salvas = Object.keys(item.colors ?? {});
+      if (salvas.length > 0 && !salvas.includes(WHOLE_PART_KEY)) {
+        return salvas.map((key) => ({ key, name: "" }));
+      }
     }
     return [{ key: WHOLE_PART_KEY, name: "" }];
   }
@@ -442,7 +384,7 @@ export function SaleModal({
   // Conjunto multicor: é o MÍNIMO entre as partes, a mesma conta do
   // `assemblableWholes` — o que limita o conjunto é a parte mais escassa.
   function colorBalanceOf(item: CestaItem): number {
-    const saldos = partsOf(item.source).map((part) => {
+    const saldos = partsOf(item).map((part) => {
       const key = colorOf(item, part.key);
       return (
         colorOptionsOf(item.source, part.key).find((c) => c.colorKey === key)
@@ -455,21 +397,26 @@ export function SaleModal({
   // O mapa completo de cores de um item, como a reconciliação espera.
   function colorsOf(item: CestaItem): Record<string, string> {
     const map: Record<string, string> = {};
-    for (const part of partsOf(item.source)) map[part.key] = colorOf(item, part.key);
+    for (const part of partsOf(item)) map[part.key] = colorOf(item, part.key);
     return map;
   }
 
   // Rótulo congelado no recibo: "Azul" na peça única, "Corpo: Azul · Tampa:
-  // Vermelho" no conjunto multicor. Vazio quando não há cor a declarar.
-  function colorLabelOf(item: CestaItem): string {
-    const parts = partsOf(item.source)
+  // Vermelho" no conjunto multicor. Vazio quando não há cor a declarar. `colors`
+  // é a cor EFETIVA que a reconciliação usou (pode ser a do cadastro, quando a
+  // escolha era "sem cor") — o rótulo sai da SKU, que existe mesmo zerada.
+  function colorLabelOf(item: CestaItem, colors: Record<string, string>): string {
+    const good = goodsCreditados.find((g) => g.productId === item.source.productId);
+    const parts = partsOf(item)
       .map((part) => {
-        const key = colorOf(item, part.key);
-        const found = colorOptionsOf(item.source, part.key).find(
-          (c) => c.colorKey === key,
+        const key = colors[part.key];
+        if (!key || key === NO_COLOR_KEY) return null;
+        const sku = good?.skus.find(
+          (s) =>
+            (s.subitemId ?? WHOLE_PART_KEY) === part.key && s.colorKey === key,
         );
-        if (!found || found.colorKey === NO_COLOR_KEY) return null;
-        return part.name ? `${part.name}: ${found.colorLabel}` : found.colorLabel;
+        if (!sku?.colorLabel) return null;
+        return part.name ? `${part.name}: ${sku.colorLabel}` : sku.colorLabel;
       })
       .filter((label): label is string => Boolean(label));
     // Conjunto inteiro na mesma cor não precisa repetir o nome de cada parte.
@@ -489,10 +436,6 @@ export function SaleModal({
       ),
     );
   }
-  function defaultOrigin(source: SaleModalContext): SaleItemOrigin {
-    return balanceForItem(source) > 0 ? "acabado" : "encomenda";
-  }
-
   const [items, setItems] = useState<CestaItem[]>(() => {
     if (editRecibo) {
       return editRecibo.items.map((entry) => ({
@@ -508,7 +451,6 @@ export function SaleModal({
         ...(entry.discountKind === "item" && entry.discountInput
           ? { discount: entry.discountInput }
           : {}),
-        origem: entry.origem ?? defaultOrigin(entry.source),
         // FEAT-11: a cor salva volta como escolha explícita (não como default),
         // senão reabrir um recibo poderia mudar a prateleira de onde a peça sai.
         ...(entry.finishedColors
@@ -516,7 +458,7 @@ export function SaleModal({
           : {}),
       }));
     }
-    return seed ? [itemFromContext(seed, defaultOrigin(seed))] : [];
+    return seed ? [itemFromContext(seed)] : [];
   });
   const [customer, setCustomer] = useState(editRecibo?.customer ?? "");
   const [dateStr, setDateStr] = useState(
@@ -550,6 +492,18 @@ export function SaleModal({
     () => [...quotes].sort((a, b) => b.date - a.date),
     [quotes],
   );
+  // V5 (lote 2 da 3a): o orçamento do recibo em edição pode ter sido APAGADO.
+  // O `quoteNumber` é denormalizado justamente para sobreviver a isso — e a
+  // edição o regravava como `""`, porque só procurava no histórico vivo. O
+  // número salvo vale enquanto o link for o mesmo.
+  const orcamentoApagado =
+    Boolean(editRecibo?.quoteId) &&
+    !quotesRecentes.some((q) => q.id === editRecibo?.quoteId);
+  function quoteNumberOf(id: string): string {
+    const vivo = quotesRecentes.find((q) => q.id === id);
+    if (vivo) return vivo.number;
+    return id === editRecibo?.quoteId ? (editRecibo.quoteNumber ?? "") : "";
+  }
   // FEAT-09: modo de desconto (XOR) + o desconto do modo "total". Reconstruídos do
   // recibo salvo ao editar (o desconto por item já voltou pras linhas acima).
   const [discountMode, setDiscountMode] = useState<DiscountMode>(() => {
@@ -569,26 +523,6 @@ export function SaleModal({
   const [saving, setSaving] = useState(false);
   // Aviso inline (validação ou erro de gravação), no lugar do window.alert.
   const [error, setError] = useState<string | null>(null);
-
-  // O default "acabado" vs "encomenda" depende do saldo do acabado (`goods`), que
-  // sobe ASSÍNCRONO: o modal abre com `goods=[]` e a assinatura só chega depois.
-  // Sem isto, um item semeado (ex.: "Vender" na aba Produtos) congelaria
-  // "encomenda" mesmo havendo estoque. Ao carregar/mudar os acabados, reavalia o
-  // default dos itens que o usuário AINDA não mexeu (os tocados ficam no ref);
-  // o modo edição preserva o `origem` salvo no recibo.
-  const touchedOrigem = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (editRecibo) return;
-    setItems((current) =>
-      current.map((item) =>
-        touchedOrigem.current.has(item.key)
-          ? item
-          : { ...item, origem: defaultOrigin(item.source) },
-      ),
-    );
-    // `defaultOrigin` deriva de goods/products — recomputa quando eles chegam.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [goods, products, editRecibo]);
 
   const feeRatePct = resolveFeeRate(fees, paymentMethod, cardBrandTier, installments);
   const hasFee = feeRatePct > 0;
@@ -656,7 +590,7 @@ export function SaleModal({
     const index = Number(indexStr);
     const source = catalogItems[index];
     if (!source) return;
-    const item = itemFromContext(source, defaultOrigin(source));
+    const item = itemFromContext(source);
     // Se o repasse está ligado, o item novo já nasce com o preço inflado e redondo.
     if (feePassedToCustomer && hasFee) {
       item.salePrice = chargedWithFee(source, feeRatePct);
@@ -682,10 +616,7 @@ export function SaleModal({
     const index = Number(indexStr);
     const source = catalogItems[index];
     if (!source) return;
-    // Veio da prateleira → já nasce como peça pronta (acabado), não encomenda. É
-    // escolha explícita: marca como "tocado" pra o efeito de default não reverter.
-    const item = itemFromContext(source, "acabado");
-    touchedOrigem.current.add(item.key);
+    const item = itemFromContext(source);
     if (feePassedToCustomer && hasFee) {
       item.salePrice = chargedWithFee(source, feeRatePct);
     }
@@ -703,102 +634,51 @@ export function SaleModal({
         ...(item.source.subitemId ? { subitemId: item.source.subitemId } : {}),
         productName: item.productName,
         quantity: Math.max(1, Number(item.quantity) || 1),
-        origem: item.origem,
-        // FEAT-11: a cor de cada parte (só o caminho `acabado` usa).
+        // FEAT-11: a cor de cada parte.
         colors: colorsOf(item),
-        // [FROTA] Fase 2: a máquina escolhida (só o caminho `encomenda` usa).
-        ...(item.machineId ? { machineId: item.machineId } : {}),
       })),
     // `colorsOf` deriva de goods/products — recomputa quando eles chegam.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [items, goods, products],
   );
 
-  // Estado a estornar do recibo ANTIGO (edição): os `finishedMoves` das vendas
-  // salvas + os `stockMoves` dos eventos de encomenda (resolvidos na coleção; um
-  // evento já apagado à mão some sem estorno duplo).
+  // Reconciliação viva: custo REAL por item (D3) + avisos. Pura, não grava; usa
+  // id fixo pois o custo independe do id da camada de acerto.
   //
-  // Reconciliação viva: custo REAL por item (D3) + avisos, por caminho. Pura, não
-  // grava; usa id fixo pois o custo independe do id do evento.
-  const recon = useMemo(
-    () =>
-      planReciboReconciliation(reconItems, {
-        goods,
-        colors: stock,
-        supplies,
-        products,
-        machines,
-        fixedCosts,
-        energyTariff,
-        at: toTimestamp(dateStr),
-        // Preview: createdAt/genId não afetam o custo exibido (id de evento fixo).
-        createdAt: 0,
-        genId: () => "preview",
-      },
-      // UX-42: o MESMO estorno que a gravação faz — sem ele o preview simula
-      // sobre um saldo que já não existe.
-      oldRecibo),
-    [reconItems, goods, stock, supplies, products, machines, fixedCosts, energyTariff, dateStr, oldRecibo],
-  );
+  // ⚠ W6 (lote 2 da 3a): o estorno do recibo antigo LANÇA quando a camada que
+  // ele drenou não existe mais (TD-028, `shiftLayers`). Solto num `useMemo`, isso
+  // derrubava o modal inteiro; agora vira recado na tela e trava o botão.
+  const { recon, reconError } = useMemo(() => {
+    try {
+      return {
+        recon: planReciboReconciliation(
+          reconItems,
+          {
+            goods,
+            colors: stock,
+            supplies,
+            products,
+            machines,
+            fixedCosts,
+            energyTariff,
+            at: toTimestamp(dateStr),
+            genId: () => "preview",
+          },
+          // UX-42: o MESMO estorno que a gravação faz — sem ele o preview simula
+          // sobre um saldo que já não existe.
+          oldRecibo,
+        ),
+        reconError: null,
+      };
+    } catch (err) {
+      return { recon: null, reconError: errorMessage(err) };
+    }
+  }, [reconItems, goods, stock, supplies, products, machines, fixedCosts, energyTariff, dateStr, oldRecibo]);
   const reconByKey = useMemo(
-    () => new Map(recon.items.map((r) => [r.key, r])),
+    () => new Map((recon?.items ?? []).map((r) => [r.key, r])),
     [recon],
   );
 
-  // [FROTA] Fase 2 — as máquinas que cada item de ENCOMENDA pode oferecer.
-  //
-  // A encomenda cria os eventos de produção sozinha, sem passar pela /producao —
-  // e sem esta escolha todo produto elegível a 2+ impressoras vendia sem creditar
-  // horas a nenhuma no ROI (o custo saía certo; a atribuição, não).
-  //
-  // Reconstrói as linhas com o MESMO builder que a reconciliação usa: qualquer
-  // outra fonte seria uma segunda verdade sobre quais etapas ficaram ambíguas.
-  //
-  // O mesmo par de linhas responde a DUAS perguntas distintas — o que o seletor
-  // oferece (`options`) e qual aviso a tela deve dar (`notes`, AUD-17 [E8]) —,
-  // então as duas decisões saem daqui juntas, cada uma na sua função pura.
-  const { machineOptionsByKey, machineNoteByKey } = useMemo(() => {
-    const out = new Map<string, Machine[] | null>();
-    const notes = new Map<string, EncomendaAssignmentNote>();
-    const precoCache = new Map<string, PricingResult>();
-    for (const item of items) {
-      if (item.origem !== "encomenda") continue;
-      const product = products.find((p) => p.id === item.source.productId);
-      if (!product) continue;
-      // O subitem precisa do `SubitemPrice` (é ele que carrega as `stageKeys`
-      // resolvidas), então o preço é calculado sob demanda — só para os produtos
-      // que estão na cesta como encomenda, e uma vez por produto.
-      let rows;
-      if (item.source.subitemId) {
-        const priced =
-          precoCache.get(product.id) ??
-          calculatePricing(product, machines, fixedCosts, energyTariff, stock, supplies);
-        precoCache.set(product.id, priced);
-        const sub = priced.subitems?.find((x) => x.id === item.source.subitemId);
-        if (!sub) continue;
-        rows = subitemEventRows(product, sub, stock, machines, energyTariff);
-      } else {
-        rows = wholeEventRows(product, machines, stock, energyTariff);
-      }
-      out.set(item.key, encomendaMachineOptions(rows, machines));
-      notes.set(item.key, encomendaAssignmentNote(rows, machines));
-    }
-    return { machineOptionsByKey: out, machineNoteByKey: notes };
-  }, [items, products, machines, stock, fixedCosts, energyTariff, supplies]);
-
-  // Itens travados: há mais de uma candidata e o dono não escolheu. Uma
-  // candidata só não trava — não há escolha a fazer, e a reconciliação carimba
-  // essa única sozinha (`unicaCandidata`, AUD-17 [E2]; antes este comentário
-  // dizia "o builder já preencheu", que é falso: o `initialRowMachineId` olha o
-  // conjunto DA LINHA, não a interseção do item, e a venda saía toda órfã).
-  // Interseção VAZIA também não trava: ali não existe resposta única (etapas que
-  // exigem máquinas diferentes), e a saída é a /producao, não este seletor.
-  const semMaquina = items.filter(
-    (item) =>
-      item.origem === "encomenda" &&
-      !item.machineId &&
-      (machineOptionsByKey.get(item.key)?.length ?? 0) > 1,
-  );
   // Custo real por unidade deste item (fallback no snapshot se algo faltar).
   const unitCostOf = (item: CestaItem): number =>
     reconByKey.get(item.key)?.cogsUnit ?? item.source.unitCost;
@@ -881,13 +761,34 @@ export function SaleModal({
     }
 
     setSaving(true);
+    try {
+      // UX-15: offline a Promise do lote nunca resolve e o botão fica preso em
+      // "Salvando…". Dentro do try para o aviso sair pelo canal já existente.
+      guardOnline();
+      await onConfirm(buildWrite());
+      onClose();
+    } catch (err) {
+      // AUD-18: a frase é DECISÃO e mora no lib. Colar "Nada foi salvo — tente
+      // de novo" em todo erro fazia o timeout dizer o oposto de si mesmo.
+      setError(
+        mensagemDeFalhaNaGravacao(err, `${isEdit ? "salvar" : "registrar"} venda`),
+      );
+      setSaving(false);
+    }
+  }
+
+  // O plano de escrita do recibo. ⚠ W6 (lote 2 da 3a): a reconciliação rodava
+  // FORA do try, logo depois do `setSaving(true)` — uma exceção do estorno
+  // (`shiftLayers`, "camada não existe") travava o botão em "Registrando…" sem
+  // mensagem nenhuma. Chamada de dentro do try, ela cai no mesmo aviso de erro.
+  function buildWrite(): ReciboWrite {
     const now = Date.now();
     const reciboId =
       editRecibo?.reciboId ?? `r_${now}_${Math.floor(Math.random() * 1000)}`;
     const saleDate = toTimestamp(dateStr);
 
     // Estorna o recibo antigo e reaplica o novo numa passada só (baixa real, ids
-    // de evento definitivos). Devolve o custo real por item + o que gravar.
+    // definitivos). Devolve o custo real por item + o que gravar.
     const write = reconcileReciboWrite(reconItems, oldRecibo, {
       goods,
       colors: stock,
@@ -897,7 +798,6 @@ export function SaleModal({
       fixedCosts,
       energyTariff,
       at: saleDate,
-      createdAt: now,
       genId: newProductionId,
     });
     const wByKey = new Map(write.items.map((r) => [r.key, r]));
@@ -906,7 +806,7 @@ export function SaleModal({
       const qty = Math.max(1, Number(item.quantity) || 1);
       const unitPrice = Math.max(0, Number(item.salePrice) || 0);
       const r = wByKey.get(item.key);
-      // COGS = custo real de produção (D3): camadas do acabado ou FIFO da encomenda.
+      // COGS = custo real de produção (D3): as camadas drenadas do acabado.
       const unitCost = r?.cogsUnit ?? item.source.unitCost;
       // FEAT-09: R$ efetivo do desconto desta linha (já rateado no modo total).
       const discountAmount = discountByKey.get(item.key) ?? 0;
@@ -931,13 +831,7 @@ export function SaleModal({
         // Link opcional para o orçamento de origem — ver a nota em
         // `SaleInput.quoteId`. `quoteNumber` denormalizado do orçamento vivo
         // (ele não muda depois de emitido, mas o doc pode ser apagado).
-        ...(quoteId
-          ? {
-              quoteId,
-              quoteNumber:
-                quotesRecentes.find((q) => q.id === quoteId)?.number ?? "",
-            }
-          : {}),
+        ...(quoteId ? { quoteId, quoteNumber: quoteNumberOf(quoteId) } : {}),
         status: "concluida",
         productId: item.source.productId,
         // FEAT-01: qual subitem foi vendido (só quando é venda de parte). Condi-
@@ -949,9 +843,8 @@ export function SaleModal({
         // Congelado no momento da venda — ver a nota em `SaleInput.productKind`.
         productKind: item.source.kind,
         printHours: item.source.printHours,
-        // [FROTA] Fase 1 — quem imprimiu vem da RECONCILIAÇÃO, não do snapshot
-        // do catálogo: dos eventos criados (encomenda) ou das camadas drenadas
-        // (acabado). Os dois campos são gravados SEMPRE, inclusive vazio/zero —
+        // [FROTA] Fase 1 — quem imprimiu vem da RECONCILIAÇÃO (das camadas
+        // drenadas), não do snapshot do catálogo. Os dois campos são gravados SEMPRE, inclusive vazio/zero —
         // AUD-02: campo que o repositório grava é obrigatório, e lista vazia é a
         // forma de dizer "sem lastro". Item sem resultado (não deveria existir)
         // entra como órfão inteiro, nunca como atribuído por omissão.
@@ -1000,25 +893,23 @@ export function SaleModal({
         // itens novos nascem agora.
         createdAt: item.createdAt ?? now,
         // Passo 8 — o rastro da reconciliação (para o estorno futuro).
-        origem: item.origem,
         ...(r && r.finishedMoves.length > 0
           ? { finishedMoves: r.finishedMoves }
           : {}),
-        // FEAT-11: a cor de onde saiu, congelada — só faz sentido na peça pronta
-        // (a encomenda produz na cor do cadastro). O mapa serve à reedição; o
-        // rótulo, ao histórico (a cor pode ser renomeada depois).
-        ...(item.origem === "acabado" && r && r.finishedMoves.length > 0
+        // W4: sempre gravado, inclusive vazio (AUD-02).
+        supplyMoves: r?.supplyMoves ?? [],
+        // FEAT-11: a cor de onde saiu, congelada — a EFETIVA da reconciliação
+        // (`r.colors`), que é a prateleira que o estorno vai honrar. O mapa
+        // serve à reedição; o rótulo, ao histórico (a cor pode ser renomeada).
+        ...(r && r.finishedMoves.length > 0
           ? {
               // LISTA, não mapa: a parte viraria nome de campo e o Firestore
               // recusa `__whole__` (ver `FinishedColorEntry`).
-              finishedColors: colorEntriesOf(colorsOf(item)),
-              ...(colorLabelOf(item)
-                ? { finishedColorLabel: colorLabelOf(item) }
+              finishedColors: colorEntriesOf(r.colors),
+              ...(colorLabelOf(item, r.colors)
+                ? { finishedColorLabel: colorLabelOf(item, r.colors) }
                 : {}),
             }
-          : {}),
-        ...(r && r.productionEventIds.length > 0
-          ? { productionEventIds: r.productionEventIds }
           : {}),
       };
       return { id: item.id, payload };
@@ -1036,36 +927,13 @@ export function SaleModal({
           .filter((id) => !currentIds.has(id))
       : [];
 
-    const reciboWrite: ReciboWrite = {
+    return {
       saleUpserts,
       saleRemovedIds,
-      productionCreates: write.productionCreates,
-      productionDeleteIds: write.productionDeleteIds,
-      colorUpdates: write.colorUpdates,
-      // 7e: os insumos das ENCOMENDAS. O plano já os calculava e o repositório
-      // já sabia gravá-los, mas o campo (opcional no tipo, então o TypeScript
-      // não reclamava) não vinha até aqui: a venda debitava filamento e deixava
-      // o insumo intacto. Pior que ficar parado — apagar depois aquele evento de
-      // produção CREDITA os `stockMoves` de volta, inflando o saldo com unidades
-      // que nunca saíram.
+      // 7e/W4: os insumos do conjunto. OBRIGATÓRIO no tipo — ver `ReciboWrite`.
       supplyUpdates: write.supplyUpdates,
       finishedUpdates: write.finishedUpdates,
     };
-
-    try {
-      // UX-15: offline a Promise do lote nunca resolve e o botão fica preso em
-      // "Salvando…". Dentro do try para o aviso sair pelo canal já existente.
-      guardOnline();
-      await onConfirm(reciboWrite);
-      onClose();
-    } catch (err) {
-      // AUD-18: a frase é DECISÃO e mora no lib. Colar "Nada foi salvo — tente
-      // de novo" em todo erro fazia o timeout dizer o oposto de si mesmo.
-      setError(
-        mensagemDeFalhaNaGravacao(err, `${isEdit ? "salvar" : "registrar"} venda`),
-      );
-      setSaving(false);
-    }
   }
 
   const multiItem = items.length > 1;
@@ -1086,7 +954,7 @@ export function SaleModal({
             className="btn primary"
             type="button"
             onClick={confirm}
-            disabled={saving || items.length === 0 || semMaquina.length > 0}
+            disabled={saving || items.length === 0 || reconError !== null}
           >
             {saving
               ? isEdit
@@ -1139,7 +1007,7 @@ export function SaleModal({
         </div>
       </div>
 
-      {quotesRecentes.length > 0 ? (
+      {quotesRecentes.length > 0 || orcamentoApagado ? (
         <div className="field-block compact">
           <label className="section-label" htmlFor={`${fieldId}-quote`}>
             Veio de orçamento <span className="label-hint">(opcional)</span>
@@ -1151,6 +1019,13 @@ export function SaleModal({
             onChange={(event) => setQuoteId(event.target.value)}
           >
             <option value="">Nenhum</option>
+            {/* V5: sem esta opção o `<select>` mostrava "Nenhum" com o link
+                ainda no estado — a tela dizia uma coisa e a gravação outra. */}
+            {orcamentoApagado && editRecibo?.quoteId ? (
+              <option value={editRecibo.quoteId}>
+                Nº {editRecibo.quoteNumber || "?"} (orçamento apagado)
+              </option>
+            ) : null}
             {quotesRecentes.map((quote) => (
               <option key={quote.id} value={quote.id}>
                 Nº {quote.number}
@@ -1323,7 +1198,7 @@ export function SaleModal({
             Math.round(colorBal) === Math.round(balance)
               ? ""
               : ` · ${Math.round(colorBal)} ${
-                  partsOf(item.source).length > 1 ? "nestas cores" : "nesta cor"
+                  partsOf(item).length > 1 ? "nestas cores" : "nesta cor"
                 }`;
 
           return (
@@ -1405,29 +1280,14 @@ export function SaleModal({
                 </div>
               ) : null}
 
+              {/* S1 (lote 2 da 3a): aqui havia o seletor acabado × encomenda.
+                  Toda venda sai do estoque de acabados; a linha mostra o saldo
+                  de onde a peça vai sair. */}
               <div className="cesta-origem">
-                <select
-                  className="field-input"
-                  aria-label="Origem desta peça"
-                  value={item.origem}
-                  onChange={(event) => {
-                    // Escolha manual manda — o efeito de default não a reverte.
-                    touchedOrigem.current.add(item.key);
-                    updateItem(item.key, {
-                      origem: event.target.value as SaleItemOrigin,
-                    });
-                  }}
-                  title="De onde sai esta peça: estoque de acabados (pronta) ou produzida agora (encomenda)."
-                >
-                  <option value="acabado">
-                    {`Estoque de acabados (${Math.round(
-                      balance,
-                    )} disp.${colorNote})`}
-                  </option>
-                  <option value="encomenda">Sob encomenda (produz agora)</option>
-                </select>
-                {/* FEAT-06: a composição real vem da reconciliação ao vivo —
-                    camadas do acabado ou o evento que a encomenda vai criar. */}
+                <span className="cesta-origem-saldo">
+                  {`Estoque de acabados: ${Math.round(balance)} disp.${colorNote}`}
+                </span>
+                {/* FEAT-06: a composição real vem da reconciliação ao vivo. */}
                 <CostDetail
                   breakdown={item.source.costBreakdown}
                   real={r?.cogsBreakdownPartial ? undefined : r?.cogsBreakdown}
@@ -1439,116 +1299,61 @@ export function SaleModal({
                   parte existe em mais de uma cor — com uma cor só (o caso
                   normal) a linha fica igual à de antes. Conjunto multicor tem
                   um seletor por parte: corpo e tampa saem de saldos próprios. */}
-              {item.origem === "acabado"
-                ? partsOf(item.source).map((part) => {
-                    const options = colorOptionsOf(item.source, part.key);
-                    if (options.length < 2) return null;
-                    return (
-                      <div className="cesta-cor" key={part.key}>
-                        {/* <span> → <label>: os dois são inline, o CSS não
-                            muda nada (só font/cor). */}
-                        <label
-                          className="cesta-cor-label"
-                          htmlFor={`${fieldId}-${item.key}-cor-${part.key}`}
-                        >
-                          {part.name ? `Cor — ${part.name}` : "Cor"}
-                        </label>
-                        <select
-                          id={`${fieldId}-${item.key}-cor-${part.key}`}
-                          className="field-input"
-                          value={colorOf(item, part.key)}
-                          onChange={(event) =>
-                            setColor(item.key, part.key, event.target.value)
-                          }
-                          title="De qual cor sair esta peça (só as cores com saldo aparecem)."
-                        >
-                          {options.map((option) => (
-                            <option key={option.colorKey} value={option.colorKey}>
-                              {option.colorLabel} ({Math.round(option.balance)})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    );
-                  })
-                : null}
+              {partsOf(item).map((part) => {
+                const options = colorOptionsOf(item.source, part.key);
+                if (options.length < 2) return null;
+                return (
+                  <div className="cesta-cor" key={part.key}>
+                    <label
+                      className="cesta-cor-label"
+                      htmlFor={`${fieldId}-${item.key}-cor-${part.key}`}
+                    >
+                      {part.name ? `Cor — ${part.name}` : "Cor"}
+                    </label>
+                    <select
+                      id={`${fieldId}-${item.key}-cor-${part.key}`}
+                      className="field-input"
+                      value={colorOf(item, part.key)}
+                      onChange={(event) =>
+                        setColor(item.key, part.key, event.target.value)
+                      }
+                      title="De qual cor sair esta peça (só as cores com saldo aparecem)."
+                    >
+                      {options.map((option) => (
+                        <option key={option.colorKey} value={option.colorKey}>
+                          {option.colorLabel} ({Math.round(option.balance)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
 
-              {/* [FROTA] Fase 2 — QUEM IMPRIMIU. A encomenda cria os eventos de
-                  produção sozinha, sem passar pela /producao; sem esta escolha o
-                  ROI não recebe nada dessa venda. Mesma regra que o dono fixou
-                  para a /producao: aparece só quando há DÚVIDA (2+ candidatas).
-                  Com uma candidata só não há o que perguntar — a reconciliação
-                  carimba a única possível (AUD-17 [E2]) — e a peça PRONTA nem
-                  chega aqui: ela lê quem imprimiu das camadas do acabado,
-                  testemunha melhor que qualquer seleção. */}
-              {item.origem === "encomenda" &&
-              (machineOptionsByKey.get(item.key)?.length ?? 0) > 1 ? (
-                <div className="cesta-cor">
-                  <label
-                    className="cesta-cor-label"
-                    htmlFor={`${fieldId}-${item.key}-maquina`}
-                  >
-                    Máquina
-                  </label>
-                  <select
-                    id={`${fieldId}-${item.key}-maquina`}
-                    className={`field-input ${item.machineId ? "" : "field-pending"}`}
-                    value={item.machineId ?? ""}
-                    onChange={(event) =>
-                      updateItem(item.key, { machineId: event.target.value })
-                    }
-                    title="Em qual impressora esta encomenda foi produzida. É o que credita as horas e o lucro à máquina certa no ROI."
-                  >
-                    {item.machineId ? null : (
-                      <option value="">Escolha a máquina…</option>
-                    )}
-                    {(machineOptionsByKey.get(item.key) ?? []).map((machine) => (
-                      <option key={machine.id} value={machine.id}>
-                        {machine.name}
-                      </option>
-                    ))}
-                  </select>
+              {/* W1: nenhuma peça registrada — a venda abre a camada de ACERTO
+                  (custo do cadastro) e o saldo fica negativo até a produção
+                  ser registrada. É o recado mais forte, e substitui o genérico. */}
+              {r?.acerto ? (
+                <div className="cesta-warn strong">
+                  ⚠ Nenhuma peça desta registrada na Produção — o saldo fica em
+                  −{Math.round(r.finishedShortfall)} e o custo é o do cadastro
+                  (estimativa) até você registrar a produção.
                 </div>
-              ) : null}
-
-              {/* Interseção VAZIA: as etapas ambíguas não têm impressora em
-                  comum, então não existe UMA resposta para o item. Dizer isso é
-                  melhor que oferecer uma escolha que seria descartada em parte
-                  das etapas — e a /producao pergunta por etapa.
-
-                  ⚠ AUD-17 [E3] + [E8]: QUAL aviso mostrar (e se há aviso) é
-                  decisão, e mora no `encomendaAssignmentNote` — no JSX nenhum
-                  teste a alcançava. O `null` de "nada ambíguo" (o caso BOM) e a
-                  interseção de 1+ caem fora dele lá; aqui sobrou a redação. */}
-              {item.origem === "encomenda" ? (
-                <AvisoSemIntersecao note={machineNoteByKey.get(item.key) ?? null} />
-              ) : null}
-
-              {item.origem === "acabado" && r && r.finishedShortfall > 0 ? (
+              ) : r && r.finishedShortfall > 0 ? (
                 <div className="cesta-warn strong">
                   ⚠ {Math.round(r.finishedShortfall)} além do estoque de acabados
-                  — o saldo fica negativo.
+                  — o saldo fica negativo até você registrar a produção.
                 </div>
               ) : null}
-              {item.origem === "encomenda" && r?.missingProduct ? (
+              {r?.missingProduct ? (
                 <div className="cesta-warn strong">
-                  ⚠ Produto fora do catálogo — nada a produzir; sem baixa de
-                  filamento.
+                  ⚠ Produto fora do catálogo e sem peça registrada — não há
+                  custo a usar; esta linha entra com custo R$ 0.
                 </div>
               ) : null}
-              {item.origem === "encomenda" && r && r.filamentShortfallG > 0 ? (
-                <div className="cesta-warn strong">
-                  ⚠ Passa {Math.round(r.filamentShortfallG)} g do estoque da cor —
-                  saldo negativo (contagem furada?).
-                </div>
-              ) : null}
-              {item.origem === "encomenda" &&
-              r &&
-              r.crossesRoll &&
-              r.filamentShortfallG === 0 ? (
+              {r && r.supplyShortfall > 0 ? (
                 <div className="cesta-warn">
-                  Atravessa o rolo em uso — custo misto (na A1 sem AMS, é troca
-                  manual no meio da impressão).
+                  Os acessórios do conjunto passam {Math.round(r.supplyShortfall)}{" "}
+                  un do estoque de insumos — o saldo deles fica negativo.
                 </div>
               ) : null}
 
@@ -1746,16 +1551,9 @@ export function SaleModal({
       {/* UX-32 — o botão desabilitado DIZ o que falta. Sem isto o dono clicaria
           em "Registrar venda" e nada aconteceria: a caixa âmbar do item está
           longe do rodapé, e num recibo de vários itens ele não saberia qual. */}
-      {semMaquina.length > 0 ? (
-        <div className="disabled-why">
-          escolha a máquina de{" "}
-          {semMaquina.length === 1
-            ? `“${semMaquina[0].productName || "um item"}”`
-            : `${semMaquina.length} itens`}{" "}
-          — a encomenda produz agora, e é isso que credita as horas à impressora
-          certa
-        </div>
-      ) : null}
+      {/* W6: o preview não conseguiu estornar o recibo antigo — o botão trava
+          e a tela diz por quê, em vez de o modal cair. */}
+      {reconError ? <div className="form-error">{reconError}</div> : null}
       {error ? <div className="form-error">{error}</div> : null}
     </Modal>
   );

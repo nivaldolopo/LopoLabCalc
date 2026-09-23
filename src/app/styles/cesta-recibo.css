@@ -112,12 +112,15 @@
   margin-top: var(--space-8);
 }
 
-/* ⚠ `min-width: 0` junto: sem ele o mínimo implícito do flex é o min-content, e
-   um `<select>` NÃO encolhe — a base de 260 viraria piso de 241 e a fileira
-   estouraria de novo, que é a mesma armadilha da coluna `1fr` pura nas grades. */
-.cesta-origem select {
+/* S1 (lote 2 da 3a): aqui morava o `<select>` acabado × encomenda. Toda venda
+   sai do acabado, e a fileira virou o SALDO da prateleira, só leitura. O
+   `min-width: 0` segue pelo mesmo motivo de antes: sem ele o mínimo implícito do
+   flex é o min-content e a fileira estoura no celular. */
+.cesta-origem-saldo {
   flex: 1 1 260px;
   min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 /* FEAT-11: de qual COR tirar a peça pronta. Só aparece quando a peça existe em

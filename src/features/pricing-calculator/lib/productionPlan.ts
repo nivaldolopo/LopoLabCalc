@@ -46,14 +46,11 @@ import type {
 // Builder puro da PRODUÇÃO a partir de um produto/subitem (FEAT-04b, extraído da
 // `ProductionPage` na 8a). Duas fases:
 //  1. `wholeEventRows`/`subitemEventRows` → as LINHAS-evento (uma por ETAPA) de
-//     uma seleção. Editáveis na tela (a `ProductionPage` guarda em estado); a
-//     encomenda do passo 8 usa direto, sem editar.
+//     uma seleção. Editáveis na tela (a `ProductionPage` guarda em estado).
+//     Até o S1 (lote 2 da 3a) a encomenda da venda os usava direto; hoje toda
+//     produção nasce na `/producao` (ou no import de histórico).
 //  2. `planEventRows` → a baixa FIFO encadeada + o custo congelado de cada linha.
 //     `buildProductionPayloads` fecha o payload gravável.
-//
-// É a MESMA conta nos dois pontos (tela de produção e encomenda da venda): se
-// divergissem, a baixa da encomenda não bateria com a da produção registrada à
-// mão — exatamente o furo que o reframe do passo 8 evita.
 
 // Uma linha de filamento (default do produto/subitem ou avulsa).
 export type FilRow = {
@@ -100,8 +97,8 @@ export type EventRow = {
   // Quem IMPRIMIU — escalar, um evento = uma etapa = uma máquina (Fase 1).
   // [FROTA] Fase 2: pode nascer VAZIO quando o produto é elegível a mais de uma
   // e ninguém escolheu ainda (ver `initialRowMachineId`). A `/producao` bloqueia
-  // o registro nesse estado; a encomenda, que não tem quem escolher, cai na taxa
-  // de frota abaixo e conta as unidades como órfãs.
+  // o registro nesse estado; o import de histórico, que não tem quem escolher,
+  // cai na taxa de frota abaixo e conta as unidades como órfãs.
   machineId: string;
   // [FROTA] Fase 2 — onde a etapa PODERIA rodar. Não decide nada quando a
   // `machineId` está preenchida; é o denominador do custo quando ela não está.
@@ -230,6 +227,13 @@ export function filRowToUsage(f: FilRow, stock: StockFilament[]): FilamentUsage 
  * ele. Acessório sem atribuição pertence ao produto inteiro e é rateado no
  * PREÇO, mas fisicamente não sai da gaveta ao imprimir uma parte só — então
  * fica de fora da baixa do subitem.
+ *
+ * ⚠ W4 (lote 2 da 3a) — e fica de fora TAMBÉM da produção do inteiro, quando o
+ * produto vende por partes. Antes o mesmo acessório (a caixa do conjunto) dava
+ * baixa se o dono registrasse o inteiro de uma vez e NUNCA se registrasse parte
+ * por parte — o insumo dependia do botão usado na `/producao`. Agora ele tem um
+ * momento só: a venda do CONJUNTO (`conjuntoAccessoryRows`). Produto sem partes
+ * segue como sempre: tudo sai na produção.
  */
 export function accessoryRows(
   product: SavedProduct,
@@ -237,16 +241,52 @@ export function accessoryRows(
   subitemId?: string,
 ): SupplyUsage[] {
   const scale = Math.max(1, num(pieces) || 1);
+  const porPartes = sellsByParts(product);
   return (product.accessories ?? [])
     .filter((accessory) =>
-      subitemId ? accessory.subitemId === subitemId : true,
+      subitemId
+        ? accessory.subitemId === subitemId
+        : !porPartes || Boolean(accessory.subitemId),
     )
-    .map((accessory) => ({
-      supplyId: accessory.supplyId ?? null,
-      name: accessory.desc || "Acessório",
-      qty: num(accessory.qty) * scale,
-      catalogUnitPrice: num(accessory.unitPrice),
-    }))
+    .map((accessory) => toSupplyUsage(accessory, scale))
+    .filter((usage) => usage.qty > 0);
+}
+
+// O produto vende por PARTES (FEAT-01): o inteiro é um conjunto de subitens.
+export function sellsByParts(product: SavedProduct): boolean {
+  return Boolean(product.sellBySubitems) && (product.subitems ?? []).length > 0;
+}
+
+function toSupplyUsage(
+  accessory: NonNullable<SavedProduct["accessories"]>[number],
+  scale: number,
+): SupplyUsage {
+  return {
+    supplyId: accessory.supplyId ?? null,
+    name: accessory.desc || "Acessório",
+    qty: num(accessory.qty) * scale,
+    catalogUnitPrice: num(accessory.unitPrice),
+  };
+}
+
+/**
+ * W4 (lote 2 da 3a) — os acessórios do CONJUNTO que saem na VENDA do inteiro.
+ *
+ * Só existe em produto que vende por partes: ali o acessório sem parte (caixa,
+ * parafuso que une as partes, cartão) não pertence a impressão nenhuma — a
+ * `accessoryRows` o deixa fora de toda produção —, e é a venda do conjunto
+ * montado que o tira da gaveta. `qty` é em CONJUNTOS vendidos (o `accessory.qty`
+ * é por unidade, a mesma escala do preço). Venda de uma parte avulsa não leva.
+ */
+export function conjuntoAccessoryRows(
+  product: SavedProduct,
+  qty: number,
+): SupplyUsage[] {
+  if (!sellsByParts(product)) return [];
+  const scale = Math.max(0, num(qty));
+  return (product.accessories ?? [])
+    .filter((accessory) => !accessory.subitemId)
+    .map((accessory) => toSupplyUsage(accessory, scale))
     .filter((usage) => usage.qty > 0);
 }
 
@@ -298,102 +338,6 @@ export function initialRowMachineId(
     machines.some((machine) => machine.id === id),
   );
   return eligible.length === 1 ? eligible[0] : "";
-}
-
-/**
- * [FROTA] Fase 2 — as máquinas que o modal de VENDA pode oferecer para um lote
- * de linhas de encomenda.
- *
- * É a **INTERSEÇÃO** dos conjuntos elegíveis das linhas que nasceram ambíguas —
- * não a união. A pergunta que o seletor faz é "em qual máquina esta encomenda
- * rodou?", uma resposta só para o item inteiro; oferecer a união deixaria o dono
- * escolher uma impressora que metade das etapas não aceita, e o
- * `reconcileReciboWrite` descartaria a escolha em silêncio naquelas etapas.
- *
- * Linha que já tem máquina fica FORA da conta: ela tinha uma elegível só, não há
- * escolha a fazer, e incluí-la na interseção reduziria as opções do que ainda
- * está em aberto a essa única — o oposto do que se quer.
- *
- * Interseção vazia (`[]`) = as partes ambíguas não têm nenhuma impressora em
- * comum (etapas que exigem máquinas diferentes). Não há uma resposta só; o modal
- * diz isso e manda usar a `/producao`, que pergunta por etapa.
- *
- * ⚠ AUD-17 [E3]: `null` = NADA ambíguo, o caso BOM — toda etapa já tem a sua
- * máquina, e o ROI credita cada uma. Devolver `[]` aqui também fazia o modal
- * exibir, no melhor caso possível (e no mais comum depois do recadastro: uma
- * etapa, uma elegível), o aviso do PIOR — "não têm uma impressora em comum … o
- * ROI não credita ninguém" — mandando o dono refazer na `/producao` um trabalho
- * que já estava certo. São dois estados opostos; o tipo agora os separa, e quem
- * consome tem de escolher qual está testando.
- */
-export function encomendaMachineOptions(
-  rows: EventRow[],
-  machines: Machine[],
-): Machine[] | null {
-  const ambiguas = rows.filter((row) => !row.machineId);
-  if (ambiguas.length === 0) return null;
-  return machines.filter((machine) =>
-    ambiguas.every((row) => {
-      const declarado = (row.fleetMachineIds ?? []).filter((id) =>
-        machines.some((m) => m.id === id),
-      );
-      // Vazio = frota inteira (todo produto anterior à fase chega assim).
-      return declarado.length === 0 || declarado.includes(machine.id);
-    }),
-  );
-}
-
-/**
- * [FROTA] Fase 2 — QUAL aviso de atribuição a venda por encomenda deve mostrar,
- * separado da REDAÇÃO (irmão do `machineSelectionNote`, AUD-17 [E3]).
- *
- * · `null` → nada a avisar: ou nada é ambíguo (o caso BOM), ou a interseção tem
- *   alguém — com UMA a reconciliação carimba sozinha (`unicaCandidata`), com
- *   duas ou mais quem fala é o seletor, não um aviso.
- * · `"total"` → interseção vazia e NENHUMA etapa com impressora própria: nada
- *   nesta venda tem dono, e aí sim "o ROI não credita ninguém".
- * · `"parcial"` → interseção vazia, mas há etapa resolvida: as horas dela SÃO
- *   creditadas, e só as ambíguas ficam órfãs.
- *
- * ⚠ AUD-17 [E8]: os dois casos exibiam a mesma frase, a do `total`. Medido na
- * venda do lote 2 (`AUD17 L2 E1 sem intersecao`): a tela dizia "o ROI não
- * credita ninguém" enquanto a X2D levava 1 h e R$ 1,87 pela etapa "Base", a
- * única com uma elegível só. Mesmo defeito do [E3] — texto afirmando mais do que
- * o dado —, e por isso a decisão mora aqui, onde teste a alcança, e não no JSX.
- *
- * As contagens saem junto porque a frase precisa delas para não trocar um
- * exagero por outro: "as resolvidas creditam", sem dizer QUANTAS e quantas
- * horas, afirmaria crédito de horas onde a etapa resolvida imprime 0 h (ela
- * ainda conta uma impressão no cartão da máquina, mas nenhum desgaste).
- */
-export type EncomendaAssignmentNote = {
-  tipo: "total" | "parcial";
-  etapasComMaquina: number;
-  etapasAmbiguas: number;
-  horasComMaquina: number;
-  horasAmbiguas: number;
-} | null;
-
-export function encomendaAssignmentNote(
-  rows: EventRow[],
-  machines: Machine[],
-): EncomendaAssignmentNote {
-  const options = encomendaMachineOptions(rows, machines);
-  // `null` = nada ambíguo; `> 0` = há resposta (única ou a escolher).
-  if (options === null || options.length > 0) return null;
-  const comMaquina = rows.filter((row) => row.machineId);
-  const ambiguas = rows.filter((row) => !row.machineId);
-  // Mesma soma defensiva do `orfas` da reconciliação: hora negativa não abate a
-  // hora de outra etapa.
-  const horas = (list: EventRow[]) =>
-    list.reduce((sum, row) => sum + Math.max(0, num(row.printHours)), 0);
-  return {
-    tipo: comMaquina.length > 0 ? "parcial" : "total",
-    etapasComMaquina: comMaquina.length,
-    etapasAmbiguas: ambiguas.length,
-    horasComMaquina: horas(comMaquina),
-    horasAmbiguas: horas(ambiguas),
-  };
 }
 
 // Linhas-evento de um produto INTEIRO: UMA LINHA POR ETAPA (principal + extras).
@@ -627,8 +571,8 @@ export function submissionColors(
   return { whole: colorKeyOf(usageOf(all)), bySubitem };
 }
 
-// Escala uma linha-evento por um fator (placa inteira → P placas na /producao, ou
-// qty/pieces por peça na encomenda): horas, labor e gramas por cor acompanham. O
+// Escala uma linha-evento por um fator (placa inteira → P placas na /producao):
+// horas, labor e gramas por cor acompanham. O
 // FIFO consome `fator ×` as gramas (custo misto exato) e energia/deprec./manut.
 // seguem as horas. Um evento representa a tiragem inteira, não 1 unidade.
 export function scaleRow(row: EventRow, factor: number): EventRow {
@@ -747,7 +691,7 @@ export function planEventRows(
     // resolvível caía na PRIMEIRA do cadastro, e a energia, o desgaste e a
     // manutenção do evento saíam dela, creditados a ela. Com escalar isso era
     // quase inalcançável (o id vinha do produto); com conjunto passou a ser o
-    // caminho normal da encomenda. O fallback mudo vira EXPLÍCITO: sem máquina
+    // caminho normal de quem grava sem perguntar. O fallback mudo vira EXPLÍCITO: sem máquina
     // declarada, o custo é a taxa da FROTA ELEGÍVEL — a mesma que o preço usou —
     // e o evento fica SEM DONO para o ROI.
     const machine = machines.find((m) => m.id === row.machineId);
@@ -838,8 +782,7 @@ export function planEventRows(
   return { built, colorUpdates, supplyUpdates, summary };
 }
 
-// Fecha o payload gravável de cada evento planejado (comum à tela de produção e à
-// encomenda da venda). `at`/`outcome`/`mode`/`notes` vêm de fora do plano.
+// Fecha o payload gravável de cada evento planejado (a tela de produção). `at`/`outcome`/`mode`/`notes` vêm de fora do plano.
 // AUD-14 [D9] — a `FilamentUsage` do formulário vira a linha CONGELADA do evento:
 // o `id` de estado sai (mesma disciplina do `stripFilamentIds`) e o preço muda de
 // nome, porque no documento ele é o preço de CADASTRO da cor, não o que a
@@ -863,9 +806,7 @@ export function buildProductionPayloads(
   },
 ): { id: string; payload: ProductionPayload }[] {
   // [FROTA] Fase 1 — o elo do LOTE. É o id do PRIMEIRO evento, carimbado em
-  // todos (nele inclusive). Aqui é o único lugar onde ele se decide, e os DOIS
-  // caminhos que gravam produção passam por esta função (a `/producao` e a
-  // encomenda da venda) — é por isso que ela é o lugar certo.
+  // todos (nele inclusive). Aqui é o único lugar onde ele se decide.
   const submissionId = built[0]?.id ?? "";
   return built.map((e) => {
     const payload: ProductionPayload = {

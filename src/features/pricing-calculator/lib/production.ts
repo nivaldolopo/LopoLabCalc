@@ -386,9 +386,9 @@ export function productionCost(
 /**
  * A mesma conta, a partir de uma TAXA POR HORA em vez de uma máquina.
  *
- * [FROTA] Fase 2 — existe para o evento cuja máquina não foi declarada (a
- * encomenda de um produto elegível a mais de uma impressora: ninguém está na
- * tela para escolher). Ali o custo honesto é a MÉDIA DA FROTA — exatamente a
+ * [FROTA] Fase 2 — existe para o evento cuja máquina não foi declarada (um
+ * produto elegível a mais de uma impressora, gravado sem ninguém na tela para
+ * escolher). Ali o custo honesto é a MÉDIA DA FROTA — exatamente a
  * taxa que o preço de venda embutiu —, e não a primeira máquina do cadastro,
  * que era o que o `?? machines[0]` do `planEventRows` fazia em silêncio.
  *

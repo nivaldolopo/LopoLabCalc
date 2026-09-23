@@ -1,8 +1,11 @@
 import { round2 } from "@/lib/number";
+import { skuBalance, skuValue } from "./finishedGoods";
 import { grossUpForFee } from "./paymentFees";
 import { roundPrice } from "./roundPrice";
 import type {
   FilamentUsage,
+  FinishedGood,
+  FinishedSku,
   PricingResult,
   ProductKind,
   RoundingMode,
@@ -22,8 +25,8 @@ export type SaleModalContext = {
   printHours: number;
   // ⚠ [FROTA] Fase 1 — aqui viviam `machineId`, `machineName` e `machineUsage`.
   // Os três saíram: eles diziam quem foi PRECIFICADO, e a venda precisa de quem
-  // IMPRIMIU. Essa resposta só existe na reconciliação (eventos da encomenda ou
-  // camadas drenadas do acabado), e é lá que ela passou a nascer.
+  // IMPRIMIU. Essa resposta só existe na reconciliação (as camadas drenadas do
+  // acabado), e é lá que ela passou a nascer.
   //
   // Saíram agora, e não junto da Fase 2, para não ficarem carregados e ignorados
   // entre as duas — campo que ninguém lê é campo que volta a ser lido por engano.
@@ -97,6 +100,66 @@ export function saleContextFromSubitem(
     filaments: subitem.filaments,
     kind,
   };
+}
+
+const ZERO_SALE_BREAKDOWN: SaleCostBreakdown = {
+  material: 0,
+  energy: 0,
+  depreciation: 0,
+  maintenance: 0,
+  labor: 0,
+  accessories: 0,
+  failureReserve: 0,
+  fixed: 0,
+};
+
+/**
+ * W5 (lote 2 da 3a) — as peças prontas de produto que SAIU do catálogo.
+ *
+ * A lista vendável do modal nascia só do catálogo vivo: excluir o produto
+ * deixava as peças dele encalhadas na prateleira, sem porta de saída — e a
+ * confirmação da exclusão dizia que o estoque de acabados não era afetado.
+ *
+ * Um item por PARTE com saldo positivo (a peça única, ou cada subitem): sem o
+ * cadastro não se sabe mais montar o conjunto. Sem preço sugerido — não há
+ * cadastro que o calcule; o dono digita, e o modal já recusa venda a R$ 0. O
+ * custo exibido é a média das camadas; o que grava é o FIFO da reconciliação.
+ */
+export function orphanFinishedContexts(
+  goods: FinishedGood[],
+  products: { id: string }[],
+): SaleModalContext[] {
+  const vivos = new Set(products.map((p) => p.id));
+  const out: SaleModalContext[] = [];
+  for (const good of goods) {
+    if (vivos.has(good.productId)) continue;
+    const porParte = new Map<string, FinishedSku[]>();
+    for (const sku of good.skus) {
+      const parte = sku.subitemId ?? "";
+      porParte.set(parte, [...(porParte.get(parte) ?? []), sku]);
+    }
+    for (const [parte, skus] of porParte) {
+      const saldo = skus.reduce((sum, sku) => sum + skuBalance(sku), 0);
+      if (saldo <= 0) continue;
+      const valor = skus.reduce((sum, sku) => sum + skuValue(sku), 0);
+      const nome = good.productName || "(produto excluído)";
+      const parteNome = skus[0]?.name?.trim();
+      out.push({
+        defaultProductName:
+          parte && parteNome && parteNome !== nome ? `${nome} — ${parteNome}` : nome,
+        productId: good.productId,
+        ...(parte ? { subitemId: parte } : {}),
+        printHours: 0,
+        suggestedPrice: 0,
+        roundingMode: "exact",
+        unitCost: valor / saldo,
+        costBreakdown: ZERO_SALE_BREAKDOWN,
+        filaments: [],
+        kind: "geral",
+      });
+    }
+  }
+  return out;
 }
 
 // Horas totais de impressão de um produto (etapa principal + etapas extras).

@@ -206,7 +206,7 @@ export type FinishedColorsRead = {
   entries: FinishedColorEntry[];
   // `true` quando o campo EXISTE no documento e QUALQUER entrada dele se perdeu
   // na leitura — não só quando se perdeu tudo (AUD-16 [E5]). Campo ausente (a
-  // venda de encomenda, a venda pré-FEAT-11) é `false`: ali não há o que lamentar.
+  // venda pré-FEAT-11) é `false`: ali não há o que lamentar.
   malformed: boolean;
 };
 
@@ -764,6 +764,80 @@ export function consumeFifo(
     costUnknown,
     machineUsage,
     unattributedUnits: unattributed,
+  };
+}
+
+// O que é preciso para abrir uma camada de ACERTO numa SKU (W1).
+export type AcertoLayerInput = {
+  productId: string;
+  productName: string;
+  subitemId?: string;
+  colorKey: string;
+  colorLabel: string;
+  skuName: string;
+  layerId: string;
+  at: number;
+  unitCost: number;
+  costBreakdown: FrozenCostBreakdown;
+};
+
+/**
+ * W1 (lote 2 da 3a) — o [E7] da AUD-16 chegando ao ACABADO.
+ *
+ * A venda de uma peça cuja SKU não tem camada nenhuma não tinha onde lançar o
+ * D4: o `consumeFifo` devolvia 0 move e 0 custo, a venda gravava lucro =
+ * receita e o saldo não mexia (a tela dizia "o saldo fica negativo", falso).
+ * Com o S1 (toda venda sai do acabado) esse caso deixou de ser raro — é toda
+ * venda de peça que o dono ainda não registrou na `/producao`.
+ *
+ * A resposta é a mesma do filamento: materializar a camada que falta, com
+ * `qty: 0` e o custo do CADASTRO (a estimativa — não há impressão que diga
+ * outra coisa), ANTES do consumo. Daí o `consumeFifo` lança o excedente nela
+ * (saldo negativo, visível) e o resto do sistema — COGS, estorno, histórico —
+ * segue sem caso especial. Sem `machineUsage`: ninguém sabe quem imprimiu, e as
+ * unidades contam como órfãs no ROI, que é a verdade.
+ *
+ * PURA: devolve o doc com a camada; não grava. Cria o doc/SKU se faltarem.
+ */
+export function withAcertoLayer(
+  good: FinishedGood | null | undefined,
+  input: AcertoLayerInput,
+): FinishedGood {
+  const layer: FinishedLayer = {
+    id: input.layerId,
+    at: num(input.at),
+    qty: 0,
+    unitCost: num(input.unitCost),
+    costBreakdown: input.costBreakdown,
+    // Não há evento de produção por trás: o próprio id é a origem. Nenhum evento
+    // da `/producao` o reclama (`finishedEventReferences`/`removeEventLayers`).
+    sourceEventId: input.layerId,
+  };
+  const base: FinishedGood = good ?? {
+    id: input.productId,
+    productId: input.productId,
+    productName: input.productName,
+    skus: [],
+    createdAt: num(input.at),
+  };
+  const key = skuKey(input.subitemId, input.colorKey);
+  const existe = base.skus.some((sku) => keyOfSku(sku) === key);
+  return {
+    ...base,
+    skus: existe
+      ? base.skus.map((sku) =>
+          keyOfSku(sku) === key ? { ...sku, layers: [...sku.layers, layer] } : sku,
+        )
+      : [
+          ...base.skus,
+          {
+            ...(input.subitemId ? { subitemId: input.subitemId } : {}),
+            colorKey: input.colorKey,
+            colorLabel: input.colorLabel,
+            name: input.skuName,
+            layers: [layer],
+          },
+        ],
   };
 }
 

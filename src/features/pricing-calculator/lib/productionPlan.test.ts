@@ -3,9 +3,11 @@ import { DEFAULT_MACHINES, DEFAULT_PRODUCT_INPUT } from "../constants";
 import {
   accessoryRows,
   buildProductionPayloads,
+  conjuntoAccessoryRows,
   planEventRows,
   resolveFilRow,
   scaleRow,
+  sellsByParts,
   submissionColors,
   wholeEventRows,
 } from "./productionPlan";
@@ -78,6 +80,55 @@ describe("accessoryRows", () => {
       accessories: [{ desc: "Nada", qty: 0, unitPrice: 5, supplyId: "x" }],
     });
     expect(accessoryRows(zerado, 3)).toEqual([]);
+  });
+});
+
+// W4 (lote 2 da 3a) — o acessório do CONJUNTO tem UM momento de baixa: a venda
+// do conjunto montado. Antes ele saía se o dono registrasse o inteiro de uma vez
+// e nunca se registrasse parte por parte.
+describe("W4 — acessório do conjunto não sai na produção", () => {
+  const kit = makeProduct({
+    piecesCount: 1,
+    sellBySubitems: true,
+    subitems: [
+      { id: "s1", name: "Corpo", stageKeys: [] },
+      { id: "s2", name: "Tampa", stageKeys: [] },
+    ],
+    accessories: [
+      { desc: "Ímã", qty: 1, unitPrice: 0.5, supplyId: "ima", subitemId: "s1" },
+      { desc: "Caixa", qty: 1, unitPrice: 2, supplyId: "cx" }, // do conjunto
+    ],
+  });
+
+  it("produzir o INTEIRO de produto por partes leva só os das partes", () => {
+    expect(accessoryRows(kit, 1).map((row) => row.name)).toEqual(["Ímã"]);
+    const rows = wholeEventRows(kit, DEFAULT_MACHINES, []);
+    const nomes = rows.flatMap((row) => row.supplies.map((s) => s.name));
+    expect(nomes).toEqual(["Ímã"]);
+  });
+
+  it("produto SEM partes segue como sempre: tudo sai na produção", () => {
+    const simples = makeProduct({ accessories: kit.accessories });
+    expect(accessoryRows(simples, 1).map((row) => row.name)).toEqual([
+      "Ímã",
+      "Caixa",
+    ]);
+  });
+
+  it("a venda do conjunto leva a caixa, por CONJUNTO vendido", () => {
+    expect(conjuntoAccessoryRows(kit, 3)).toEqual([
+      { supplyId: "cx", name: "Caixa", qty: 3, catalogUnitPrice: 2 },
+    ]);
+  });
+
+  it("produto sem partes não tem acessório de conjunto", () => {
+    expect(conjuntoAccessoryRows(makeProduct({ accessories: kit.accessories }), 3)).toEqual([]);
+  });
+
+  it("vende-por-partes ligado mas SEM subitens é produto simples", () => {
+    const vazio = makeProduct({ sellBySubitems: true, subitems: [], accessories: kit.accessories });
+    expect(sellsByParts(vazio)).toBe(false);
+    expect(accessoryRows(vazio, 1)).toHaveLength(2);
   });
 });
 

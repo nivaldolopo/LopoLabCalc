@@ -476,11 +476,6 @@ export type FrozenCostBreakdown = {
   supplies: number;
 };
 
-// Passo 8: origem de reconciliação de UM item vendido. `acabado` = peça pronta,
-// decrementa o Estoque de Produtos (FEAT-05) via `consumeFifo` SEM rebaixar
-// filamento (o insumo já saiu na produção). `encomenda` = feita sob demanda, cria
-// evento(s) de produção (deduz filamento FIFO + horas) que a venda referencia.
-export type SaleItemOrigin = "acabado" | "encomenda";
 
 // FEAT-09: desconto na venda. `mode` é como o dono digitou (R$ absoluto ou %);
 // `value` é o número cru. O R$ efetivo (o que de fato sai do preço) é derivado e
@@ -532,8 +527,7 @@ export type SaleInput = {
   printHours: number; // horas TOTAIS (principal + etapas), por unidade
   // [FROTA] Fase 1 — a repartição REAL por máquina, POR UNIDADE ATRIBUÍDA. Ela
   // deixou de vir da precificação (quem foi precificado) e passa a ser calculada
-  // na RECONCILIAÇÃO, de quem de fato imprimiu: os eventos de produção
-  // (encomenda) ou as camadas drenadas do acabado.
+  // na RECONCILIAÇÃO, de quem de fato imprimiu as camadas drenadas do acabado.
   //
   // ⚠ OBRIGATÓRIA no tipo de escrita (AUD-02: `supplyUpdates` opcional fez a
   // venda não debitar insumo — campo que o repositório grava é obrigatório).
@@ -596,11 +590,13 @@ export type SaleInput = {
   installments?: number;
   profit: number; // LÍQUIDO da taxa: totalRevenue − totalCost − feeAmount
   margin: number; // profit / totalRevenue (%)
-  // Passo 8 — reconciliação. Ausentes nas vendas anteriores ao recurso (não
-  // reconciliam nada; o `toSale` as trata como legado). `origem` decide o caminho.
-  origem?: SaleItemOrigin;
-  // Caminho `acabado`: as camadas drenadas do Estoque de Produtos, para o estorno
-  // devolver exatamente o que saiu (editar/excluir o recibo). Espelha o papel do
+  // Passo 8 — reconciliação. Desde o lote 2 da frente 3a (S1) toda venda sai
+  // do acabado: a "encomenda" deixou de ser caminho e virou só o CANAL da venda
+  // (`channel`). Os campos `origem`/`productionEventIds` das vendas antigas não
+  // são mais lidos (Diretriz 6 — dado de teste, sem migração).
+  //
+  // As camadas drenadas do Estoque de Produtos, para o estorno devolver
+  // exatamente o que saiu (editar/excluir o recibo). Espelha o papel do
   // `stockMoves` do filamento, no acabado.
   finishedMoves?: FinishedMove[];
   // FEAT-11 — a COR de que cada peça saiu, congelada. `finishedColors` é a LISTA
@@ -609,8 +605,7 @@ export type SaleInput = {
   // porque a parte viraria nome de campo — ver `FinishedColorEntry`.
   // `finishedColorLabel` é o rótulo pronto para o histórico ("Azul", ou "Corpo:
   // Azul · Tampa: Vermelho"), congelado como o resto do snapshot — a cor pode ser
-  // renomeada depois. Ausentes na encomenda (produz na cor do cadastro) e em
-  // venda pré-FEAT-11.
+  // renomeada depois. Ausentes em venda pré-FEAT-11.
   finishedColors?: FinishedColorEntry[];
   finishedColorLabel?: string;
   // AUD-16 [E5] — o campo ESTAVA lá e não deu para ler (inteiro ou em parte).
@@ -618,9 +613,15 @@ export type SaleInput = {
   // tudo à prateleira de origem. Só o `toSale` escreve, e a `/vendas` mostra —
   // antes o aviso morria num `console.warn` que o dono nunca abre.
   finishedColorsMalformed?: true;
-  // Caminho `encomenda`: o(s) evento(s) de produção criados junto da venda (a
-  // baixa de filamento + horas mora neles). O estorno apaga-os e reverte o rolo.
-  productionEventIds?: string[];
+  // W4 (lote 2 da 3a) — a baixa dos acessórios do CONJUNTO. Em produto que
+  // vende por partes, o acessório sem parte (caixa, parafuso que une as partes)
+  // não pertence a nenhuma impressão: ele sai quando o conjunto montado sai, na
+  // venda do inteiro. Estes são os moves FIFO dessa baixa, para o estorno.
+  //
+  // ⚠ OBRIGATÓRIO (AUD-02): lista vazia é "nada saiu de insumo aqui" — o caso
+  // de quase toda venda. Opcional, a próxima tela que montasse o payload sem
+  // ele debitaria o insumo e nunca o devolveria.
+  supplyMoves: StockMove[];
 };
 
 export type SalePayload = SaleInput & { createdAt: number };
@@ -904,12 +905,12 @@ export type SupplyConsumptionResult = {
 // ---------------------------------------------------------------------------
 
 // Desfecho da impressão (campo obrigatório do evento). Só `estoque` alimenta o
-// estoque de acabados (FEAT-05); `encomenda` sai direto para a venda; teste/
+// estoque de acabados (FEAT-05) — desde o S1 (lote 2 da 3a) toda impressão boa
+// é `estoque`, inclusive a feita por encomenda: a venda sai do acabado; teste/
 // falha/brinde deduzem insumo+hora mas NÃO produzem unidade vendável; `historico`
 // é backfill avulso (dado real ≠ reserva de falha do pricing — não misturar).
 export type ProductionOutcome =
   | "estoque"
-  | "encomenda"
   | "teste"
   | "falha"
   | "brinde"

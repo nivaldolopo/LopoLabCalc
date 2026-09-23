@@ -3,7 +3,6 @@ import {
   deleteDoc,
   doc,
   getCountFromServer,
-  getDoc,
   getDocs,
   limit as fsLimit,
   onSnapshot,
@@ -51,7 +50,6 @@ const productionCollection = collection(db, "producao");
 
 const OUTCOME_VALUES: ProductionOutcome[] = [
   "estoque",
-  "encomenda",
   "teste",
   "falha",
   "brinde",
@@ -123,7 +121,8 @@ function supplyUsageFromDocument(data: DocumentData): SupplyUsage {
   };
 }
 
-function moveToDocument(move: StockMove): DocumentData {
+// Exportados: a venda grava os `supplyMoves` (W4) no MESMO formato.
+export function moveToDocument(move: StockMove): DocumentData {
   return {
     itemId: move.itemId,
     kind: move.kind,
@@ -133,7 +132,7 @@ function moveToDocument(move: StockMove): DocumentData {
   };
 }
 
-function moveFromDocument(data: DocumentData): StockMove {
+export function moveFromDocument(data: DocumentData): StockMove {
   return {
     itemId: String(data.itemId ?? ""),
     kind: data.kind === "supply" ? "supply" : "filament",
@@ -143,9 +142,8 @@ function moveFromDocument(data: DocumentData): StockMove {
   };
 }
 
-// Exportado para o batch da VENDA (passo 8): a encomenda grava eventos de produção
-// na coleção `producao` dentro da mesma transação do recibo, reusando esta
-// serialização para não divergir da escrita da /producao.
+// A serialização de um evento, campo a campo. (Até o S1 do lote 2 da 3a a venda
+// por encomenda também gravava eventos por aqui; hoje só a /producao grava.)
 export function productionToDocument(payload: ProductionPayload): DocumentData {
   return {
     at: num(payload.at),
@@ -325,24 +323,9 @@ export async function fetchProductionCount(
   return num(snap.data().count);
 }
 
-// TD-006: resolve eventos de produção POR ID direto no banco, sem depender da
-// lista em memória. O estorno de uma venda/encomenda (SalesPage/SaleModal) lia os
-// eventos pela lista assinada; com a produção paginada, um evento antigo fora da
-// janela carregada não seria encontrado e o estoque NÃO seria estornado. Buscar
-// por id garante o estorno correto de qualquer venda, nova ou antiga. Um evento já
-// apagado à mão vem ausente (filtrado) — não estorna em dobro, como antes.
-export async function fetchProductionEventsByIds(
-  ids: string[],
-): Promise<ProductionEvent[]> {
-  const unique = [...new Set(ids)].filter(Boolean);
-  const events = await Promise.all(
-    unique.map(async (id) => {
-      const snap = await getDoc(doc(productionCollection, id));
-      return snap.exists() ? toProduction(snap.id, snap.data()) : null;
-    }),
-  );
-  return events.filter((event): event is ProductionEvent => event !== null);
-}
+// (Aqui morava `fetchProductionEventsByIds`, o TD-006 do estorno da venda por
+// encomenda. Com o S1 do lote 2 da 3a a venda deixou de criar produção, e a
+// função ficou sem chamador — código morto sai.)
 
 // Item 3 — os `task_id` já importados do histórico da Bambu, para o passo 6
 // (idempotência: reimportar o mesmo arquivo não duplica). `notes` sempre

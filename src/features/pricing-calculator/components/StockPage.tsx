@@ -157,7 +157,6 @@ const STOCK_COST_NOTE = (
 // Rótulo curto do desfecho da produção, para a linha de consumo do extrato.
 const OUTCOME_SHORT: Record<ProductionEvent["outcome"], string> = {
   estoque: "estoque",
-  encomenda: "encomenda",
   teste: "teste",
   falha: "falha",
   brinde: "brinde",

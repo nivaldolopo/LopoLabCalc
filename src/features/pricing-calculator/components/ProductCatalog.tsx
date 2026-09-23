@@ -216,7 +216,8 @@ export function ProductCatalog({
           <p className="confirm-safe">
             Não afeta as vendas já registradas, o estoque de acabados nem o
             histórico de produção — cada um guarda o nome e o custo congelados
-            na época.
+            na época. As peças prontas dele continuam vendáveis (o preço, sem o
+            cadastro, você digita na venda).
           </p>
         </>
       ),

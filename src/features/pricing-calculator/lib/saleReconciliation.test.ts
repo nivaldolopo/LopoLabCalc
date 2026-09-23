@@ -5,9 +5,11 @@ import {
   reverseReciboReconciliation,
   type ReconContext,
   type ReconItem,
-  type ReconItemResult,
 } from "./saleReconciliation";
-import { balanceG } from "./stock";
+import { calculatePricing } from "./calculatePricing";
+import { NO_COLOR_KEY } from "./filaments";
+import { orphanFinishedContexts } from "./saleContext";
+import { balanceQty } from "./supplies";
 import {
   addProductionLayers,
   balanceOf,
@@ -28,6 +30,7 @@ import type {
   FrozenCostBreakdown,
   SavedProduct,
   StockFilament,
+  Supply,
 } from "../types";
 
 const NO_FIXED: FixedCostSettings = {
@@ -102,7 +105,6 @@ function ctx(over: Partial<ReconContext>): ReconContext {
     fixedCosts: NO_FIXED,
     energyTariff: 0.8,
     at: 1000,
-    createdAt: 2000,
     genId: () => `e${(n += 1)}`,
     ...over,
   };
@@ -116,19 +118,24 @@ const acabadoItem = (over: Partial<ReconItem> = {}): ReconItem => ({
   productId: "p1",
   productName: "Boneco",
   quantity: 1,
-  origem: "acabado",
   colors: { [WHOLE_PART_KEY]: AZUL.key, a: AZUL.key, b: AZUL.key },
   ...over,
 });
 
-const encomendaItem = (over: Partial<ReconItem> = {}): ReconItem => ({
-  key: "k1",
-  productId: "p1",
-  productName: "Boneco",
-  quantity: 1,
-  origem: "encomenda",
-  ...over,
-});
+function makeSupply(id: string, remainingQty: number, unitPrice: number): Supply {
+  return {
+    id,
+    name: id,
+    unit: "un",
+    minQty: 0,
+    archived: false,
+    lots: [
+      { id: `${id}_l0`, purchaseDate: 0, initialQty: remainingQty, remainingQty, unitPrice },
+    ],
+    adjustments: [],
+    createdAt: 0,
+  };
+}
 
 describe("planReciboReconciliation — peça pronta (acabado)", () => {
   const good = makeGood([
@@ -150,10 +157,10 @@ describe("planReciboReconciliation — peça pronta (acabado)", () => {
     expect(item.cogsTotal).toBe(2 * 5 + 1 * 7); // 17
     expect(item.cogsUnit).toBeCloseTo(17 / 3);
     expect(item.finishedMoves).toHaveLength(2);
-    expect(item.productionEventIds).toEqual([]);
-    // Nenhuma encomenda → nada de produção, nada de baixa de filamento.
-    expect(recon.productionPayloads).toEqual([]);
-    expect(recon.colorUpdates).toEqual([]);
+    expect(item.acerto).toBe(false);
+    // A venda não mexe em insumo quando não é conjunto.
+    expect(item.supplyMoves).toEqual([]);
+    expect(recon.supplyUpdates).toEqual([]);
     // O acabado decrementa: 5 − 3 = 2.
     expect(recon.finishedUpdates).toHaveLength(1);
     expect(balanceOf({ ...recon.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(2);
@@ -182,8 +189,11 @@ describe("planReciboReconciliation — peça pronta (acabado)", () => {
     expect(balanceOf({ ...recon.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(1);
   });
 
-  it("acabado nunca produzido: sem doc, shortfall carrega o pedido (sem write)", () => {
+  it("sem camada E sem cadastro (produto excluído): aviso, custo 0, sem write", () => {
     const recon = planReciboReconciliation([acabadoItem({ quantity: 2 })], ctx({}));
+    expect(recon.items[0].missingProduct).toBe(true);
+    expect(recon.items[0].acerto).toBe(false);
+    expect(recon.items[0].cogsTotal).toBe(0);
     expect(recon.items[0].finishedShortfall).toBe(2);
     expect(recon.items[0].finishedMoves).toEqual([]);
     expect(recon.finishedUpdates).toEqual([]);
@@ -232,106 +242,274 @@ describe("planReciboReconciliation — inteiro de produto com subitens (BUG-05)"
   });
 });
 
-describe("planReciboReconciliation — encomenda (dispara produção)", () => {
-  const product = makeProduct({
+// ---------------------------------------------------------------------------
+// W1 (lote 2 da 3a) — venda sem peça registrada abre a camada de ACERTO.
+//
+// Com o S1 toda venda sai do acabado, e vender antes de registrar a produção
+// virou caso comum. Antes: 0 move, custo 0, lucro = receita, saldo parado.
+// ---------------------------------------------------------------------------
+describe("W1 — venda sem peça registrada: camada de acerto", () => {
+  const produto = makeProduct({
+    name: "Boneco",
+    failureRate: 10, // a reserva de falha NÃO entra no custo da camada
     filaments: [
-      { filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 },
+      { filamentId: AZUL.key, colorName: "Azul", material: "PLA", totalG: 100, pricePerKg: 100 },
     ],
   });
+  const precificado = calculatePricing(produto, DEFAULT_MACHINES, NO_FIXED, 0.8, [], []);
+  const custoCadastro =
+    precificado.materialCost +
+    precificado.energyCost +
+    precificado.depreciationCost +
+    precificado.maintenanceCost +
+    precificado.laborCost +
+    precificado.accessoriesCost;
+  // O modal manda "sem cor" quando a prateleira não oferece opção nenhuma.
+  const semEscolha = (over: Partial<ReconItem> = {}) =>
+    acabadoItem({ colors: { [WHOLE_PART_KEY]: NO_COLOR_KEY }, ...over });
 
-  it("cria evento de produção, deduz filamento FIFO e referencia o eventId", () => {
+  it("custo do CADASTRO (sem reserva de falha nem fixo) e saldo negativo", () => {
     const recon = planReciboReconciliation(
-      [encomendaItem()],
-      ctx({ products: [product], colors: [makeColor("preto", [{ remainingG: 1000 }])] }),
+      [semEscolha({ quantity: 2 })],
+      ctx({ products: [produto] }),
     );
     const item = recon.items[0];
-    expect(item.productionEventIds).toEqual(["e1"]);
-    expect(item.finishedMoves).toEqual([]);
-    expect(recon.finishedUpdates).toEqual([]);
-    // Um evento de produção, desfecho encomenda, modo real, deduzindo 100 g.
-    expect(recon.productionPayloads).toHaveLength(1);
-    const payload = recon.productionPayloads[0].payload;
-    expect(payload.outcome).toBe("encomenda");
-    expect(payload.mode).toBe("real");
-    expect(payload.at).toBe(1000);
-    expect(payload.stockMoves).toEqual([
-      { itemId: "e1", kind: "filament", stockId: "preto", rollId: "preto_r0", qty: 100 },
-    ]);
-    // A cor decrementa 100 g e o COGS inclui o material real (≥ 10).
-    expect(recon.colorUpdates).toHaveLength(1);
-    expect(balanceG(recon.colorUpdates[0])).toBe(900);
-    expect(item.cogsTotal).toBeGreaterThanOrEqual(10);
-    expect(item.cogsUnit).toBeCloseTo(item.cogsTotal);
+    expect(item.acerto).toBe(true);
+    expect(item.missingProduct).toBe(false);
+    expect(item.cogsUnit).toBeCloseTo(custoCadastro, 6);
+    expect(item.cogsUnit).toBeLessThan(precificado.totalCost); // sem a reserva
+    expect(sumFrozen(item.cogsBreakdown!)).toBeCloseTo(item.cogsUnit, 6);
+    expect(item.finishedShortfall).toBe(2);
+    // Ninguém sabe quem imprimiu: tudo órfão no ROI.
+    expect(item.machineUsage).toEqual([]);
+    expect(item.unattributedUnits).toBe(2);
+    // O doc nasce, na cor do CADASTRO — é onde a produção vai cair depois.
+    const depois = { ...recon.finishedUpdates[0], id: "p1" };
+    expect(item.colors[WHOLE_PART_KEY]).toBe(AZUL.key);
+    expect(balanceOf(depois, undefined, AZUL.key)).toBe(-2);
+    expect(depois.skus[0].layers[0].id.startsWith("acerto_")).toBe(true);
   });
 
-  it("quantidade > 1 escala a baixa (gramas e horas) por unidade", () => {
+  it("a produção registrada depois cobre o negativo, na MESMA SKU", () => {
     const recon = planReciboReconciliation(
-      [encomendaItem({ quantity: 3 })],
-      ctx({ products: [product], colors: [makeColor("preto", [{ remainingG: 1000 }])] }),
+      [semEscolha({ quantity: 2 })],
+      ctx({ products: [produto] }),
     );
-    // 3 × 100 g = 300 g deduzidos; saldo 700.
-    expect(balanceG(recon.colorUpdates[0])).toBe(700);
-    const payload = recon.productionPayloads[0].payload;
-    expect(payload.printHours).toBeCloseTo(3 * DEFAULT_PRODUCT_INPUT.printHours);
-    expect(payload.stockMoves.reduce((s, m) => s + m.qty, 0)).toBe(300);
-    expect(recon.items[0].cogsUnit).toBeCloseTo(recon.items[0].cogsTotal / 3);
+    const vendido = { ...recon.finishedUpdates[0], id: "p1" };
+    const produzido = addProductionLayers(
+      vendido,
+      "p1",
+      "Boneco",
+      submissionEntries("Boneco", 50, { units: 5, color: AZUL }),
+      "ev-depois",
+      2000,
+    );
+    expect(balanceOf({ ...produzido, id: "p1" }, undefined, AZUL.key)).toBe(3);
   });
 
-  it("BUG-02: piecesCount=N divide a placa por peça (baixa e COGS por peça)", () => {
-    // Mesa de 4 peças; o produto guarda a PLACA (100 g). Vender 2 peças = 2/4 de
-    // placa → 50 g deduzidos, horas 2/4 da placa, COGS/peça = placa÷4.
-    const mesa = makeProduct({
-      piecesCount: 4,
-      filaments: [
-        { filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 },
+  it("estornar devolve o saldo a zero (a camada fica, zerada)", () => {
+    const recon = planReciboReconciliation(
+      [semEscolha({ quantity: 2 })],
+      ctx({ products: [produto] }),
+    );
+    const vendido = { ...recon.finishedUpdates[0], id: "p1" };
+    const back = reverseReciboReconciliation(recon.items[0].finishedMoves, [], [vendido], []);
+    expect(balanceOf({ ...back.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(0);
+  });
+
+  it("reeditar NÃO abre uma segunda camada de acerto — o D4 cai na que já existe", () => {
+    const primeira = reconcileReciboWrite(
+      [semEscolha({ quantity: 2 })],
+      null,
+      ctx({ products: [produto] }),
+    );
+    const vendido = { ...primeira.finishedUpdates[0], id: "p1" };
+    const reedicao = reconcileReciboWrite(
+      [semEscolha({ quantity: 3 })],
+      { finishedMoves: primeira.items[0].finishedMoves, supplyMoves: [] },
+      ctx({ goods: [vendido], products: [produto] }),
+    );
+    const depois = { ...reedicao.finishedUpdates[0], id: "p1" };
+    expect(depois.skus[0].layers).toHaveLength(1);
+    expect(balanceOf(depois, undefined, AZUL.key)).toBe(-3);
+    expect(reedicao.items[0].cogsUnit).toBeCloseTo(custoCadastro, 6);
+  });
+
+  it("SKU da cor do cadastro com camada zerada: o D4 cai nela, com o custo REAL", () => {
+    const zerada = makeGood([
+      { name: "Boneco", layers: [{ id: "e1__whole", at: 0, qty: 0, unitCost: 7, sourceEventId: "e1" }] },
+    ]);
+    const recon = planReciboReconciliation(
+      [semEscolha({ quantity: 1 })],
+      ctx({ goods: [zerada], products: [produto] }),
+    );
+    expect(recon.items[0].acerto).toBe(false);
+    expect(recon.items[0].cogsUnit).toBe(7);
+    expect(recon.items[0].finishedMoves.map((m) => m.layerId)).toEqual(["e1__whole"]);
+  });
+
+  it("conjunto: só a parte sem peça abre acerto; a outra sai da camada real", () => {
+    const kitProduct = makeProduct({
+      sellBySubitems: true,
+      subitems: [
+        { id: "a", name: "Base", stageKeys: [] },
+        { id: "b", name: "Topo", stageKeys: [] },
       ],
     });
+    const soBase = makeGood([
+      { subitemId: "a", name: "Base", layers: [{ id: "e1__a", at: 0, qty: 3, unitCost: 6, sourceEventId: "e1" }] },
+    ]);
     const recon = planReciboReconciliation(
-      [encomendaItem({ quantity: 2 })],
-      ctx({ products: [mesa], colors: [makeColor("preto", [{ remainingG: 1000 }])] }),
+      [acabadoItem({ quantity: 1, colors: { a: AZUL.key, b: NO_COLOR_KEY } })],
+      ctx({ goods: [soBase], products: [kitProduct] }),
     );
-    expect(balanceG(recon.colorUpdates[0])).toBe(950); // 1000 − 50
-    const payload = recon.productionPayloads[0].payload;
-    expect(payload.stockMoves.reduce((s, m) => s + m.qty, 0)).toBeCloseTo(50);
-    expect(payload.printHours).toBeCloseTo(
-      (2 / 4) * DEFAULT_PRODUCT_INPUT.printHours,
+    const item = recon.items[0];
+    expect(item.acerto).toBe(true);
+    expect(item.finishedMoves).toHaveLength(2);
+    // A base custa a camada real; o topo, o do cadastro da parte (> 0).
+    expect(item.cogsTotal).toBeGreaterThan(6);
+    const depois = { ...recon.finishedUpdates[0], id: "p1" };
+    expect(balanceOf(depois, "a", AZUL.key)).toBe(2);
+    expect(balanceOf(depois, "b", item.colors.b)).toBe(-1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W4 (lote 2 da 3a) — o acessório do CONJUNTO sai na venda do conjunto.
+// ---------------------------------------------------------------------------
+describe("W4 — acessório do conjunto baixa na venda do conjunto", () => {
+  const kit = makeGood([
+    { subitemId: "a", name: "Base", layers: [{ id: "e1__a", at: 0, qty: 5, unitCost: 6, sourceEventId: "e1" }] },
+    { subitemId: "b", name: "Topo", layers: [{ id: "e1__b", at: 0, qty: 5, unitCost: 4, sourceEventId: "e1" }] },
+  ]);
+  const kitProduct = makeProduct({
+    sellBySubitems: true,
+    subitems: [
+      { id: "a", name: "Base", stageKeys: [] },
+      { id: "b", name: "Topo", stageKeys: [] },
+    ],
+    accessories: [
+      { desc: "Caixa", qty: 1, unitPrice: 2, supplyId: "caixa" }, // do conjunto
+      { desc: "Ímã", qty: 2, unitPrice: 0.5, supplyId: "ima", subitemId: "a" }, // da parte
+    ],
+  });
+  const estoque = () => [makeSupply("caixa", 10, 3), makeSupply("ima", 100, 0.5)];
+
+  it("vender 2 conjuntos tira 2 caixas (FIFO) e o custo entra no COGS", () => {
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 2 })],
+      ctx({ goods: [kit], products: [kitProduct], supplies: estoque() }),
     );
-    expect(recon.items[0].cogsUnit).toBeCloseTo(recon.items[0].cogsTotal / 2);
+    const item = recon.items[0];
+    // Partes (6 + 4) + a caixa pelo preço REAL do lote (3, não o 2 do cadastro).
+    expect(item.cogsUnit).toBeCloseTo(6 + 4 + 3, 6);
+    expect(item.supplyMoves).toEqual([
+      { itemId: "e1", kind: "supply", stockId: "caixa", rollId: "caixa_l0", qty: 2 },
+    ]);
+    // O ímã é da PARTE: saiu na produção dela, não aqui.
+    expect(recon.supplyUpdates.map((s) => s.id)).toEqual(["caixa"]);
+    expect(balanceQty(recon.supplyUpdates[0])).toBe(8);
   });
 
-  it("D5: encomenda que atravessa rolo / estoura o estoque sinaliza avisos", () => {
+  it("a caixa aparece como `supplies` na composição por unidade", () => {
+    const semComposicao = planReciboReconciliation(
+      [acabadoItem({ quantity: 2 })],
+      ctx({ goods: [kit], products: [kitProduct], supplies: estoque() }),
+    );
+    // As camadas do teste não têm composição → parcial; o total segue certo.
+    expect(semComposicao.items[0].cogsBreakdownPartial).toBe(true);
+    expect(semComposicao.items[0].cogsBreakdown!.supplies).toBeCloseTo(3, 6);
+  });
+
+  it("vender uma PARTE avulsa não leva caixa", () => {
     const recon = planReciboReconciliation(
-      [encomendaItem()], // precisa de 100 g
+      [acabadoItem({ quantity: 1, subitemId: "a" })],
+      ctx({ goods: [kit], products: [kitProduct], supplies: estoque() }),
+    );
+    expect(recon.items[0].supplyMoves).toEqual([]);
+    expect(recon.supplyUpdates).toEqual([]);
+  });
+
+  it("insumo sem saldo: a caixa fica negativa (D4) e o aviso sobe", () => {
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 3 })],
+      ctx({ goods: [kit], products: [kitProduct], supplies: [makeSupply("caixa", 1, 3)] }),
+    );
+    expect(recon.items[0].supplyShortfall).toBe(2);
+    expect(balanceQty(recon.supplyUpdates[0])).toBe(-2);
+  });
+
+  it("excluir a venda devolve as caixas", () => {
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 2 })],
+      ctx({ goods: [kit], products: [kitProduct], supplies: estoque() }),
+    );
+    const back = reverseReciboReconciliation(
+      recon.items[0].finishedMoves,
+      recon.items[0].supplyMoves,
+      [{ ...recon.finishedUpdates[0], id: "p1" }],
+      recon.supplyUpdates,
+    );
+    expect(balanceQty(back.supplyUpdates[0])).toBe(10);
+    expect(balanceOf({ ...back.finishedUpdates[0], id: "p1" }, "a", AZUL.key)).toBe(5);
+  });
+
+  it("reeditar 2 → 1 devolve uma caixa (estorno-e-reaplicação)", () => {
+    const primeira = reconcileReciboWrite(
+      [acabadoItem({ quantity: 2 })],
+      null,
+      ctx({ goods: [kit], products: [kitProduct], supplies: estoque() }),
+    );
+    const reedicao = reconcileReciboWrite(
+      [acabadoItem({ quantity: 1 })],
+      {
+        finishedMoves: primeira.items[0].finishedMoves,
+        supplyMoves: primeira.items[0].supplyMoves,
+      },
       ctx({
-        products: [product],
-        colors: [makeColor("preto", [{ remainingG: 40 }])], // só 40 g
+        goods: [{ ...primeira.finishedUpdates[0], id: "p1" }],
+        products: [kitProduct],
+        supplies: primeira.supplyUpdates,
       }),
     );
-    expect(recon.items[0].filamentShortfallG).toBe(60);
-    expect(balanceG(recon.colorUpdates[0])).toBe(-60);
+    expect(balanceQty(reedicao.supplyUpdates[0])).toBe(9);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W5 (lote 2 da 3a) — produto EXCLUÍDO não encalha o acabado.
+// ---------------------------------------------------------------------------
+describe("W5 — produto excluído", () => {
+  const kit = makeGood([
+    { subitemId: "a", name: "Base", layers: [{ id: "e1__a", at: 0, qty: 3, unitCost: 6, sourceEventId: "e1" }] },
+    { subitemId: "b", name: "Topo", layers: [{ id: "e1__b", at: 0, qty: 2, unitCost: 4, sourceEventId: "e1" }] },
+  ]);
+
+  it("reeditar a venda de um CONJUNTO sem cadastro drena as partes do mapa de cores", () => {
+    // Antes caía na SKU do inteiro (que um produto por partes não tem): custo 0.
+    const recon = planReciboReconciliation(
+      [acabadoItem({ quantity: 1, colors: { a: AZUL.key, b: AZUL.key } })],
+      ctx({ goods: [kit], products: [] }),
+    );
+    expect(recon.items[0].missingProduct).toBe(false);
+    expect(recon.items[0].cogsTotal).toBe(6 + 4);
+    expect(recon.items[0].finishedShortfall).toBe(0);
   });
 
-  it("produto fora do catálogo: aviso, sem produção nem baixa", () => {
-    const recon = planReciboReconciliation(
-      [encomendaItem({ productId: "sumido" })],
-      ctx({ products: [product], colors: [makeColor("preto", [{}])] }),
-    );
-    expect(recon.items[0].missingProduct).toBe(true);
-    expect(recon.productionPayloads).toEqual([]);
-    expect(recon.colorUpdates).toEqual([]);
+  it("as peças prontas dele continuam na lista vendável, uma por parte", () => {
+    const itens = orphanFinishedContexts([kit], []);
+    expect(itens.map((i) => i.subitemId)).toEqual(["a", "b"]);
+    expect(itens[0].unitCost).toBe(6);
+    // Sem cadastro não há preço sugerido: o dono digita.
+    expect(itens[0].suggestedPrice).toBe(0);
   });
 
-  it("duas encomendas na mesma cor encadeiam a baixa (ids únicos)", () => {
-    const recon = planReciboReconciliation(
-      [
-        encomendaItem({ key: "k1" }),
-        encomendaItem({ key: "k2" }),
-      ],
-      ctx({ products: [product], colors: [makeColor("preto", [{ remainingG: 1000 }])] }),
-    );
-    // 2 × 100 g do mesmo rolo → saldo 800; dois eventos distintos.
-    expect(recon.productionPayloads.map((p) => p.id)).toEqual(["e1", "e2"]);
-    expect(balanceG(recon.colorUpdates[0])).toBe(800);
+  it("produto vivo não entra como órfão; parte zerada também não", () => {
+    expect(orphanFinishedContexts([kit], [{ id: "p1" }])).toEqual([]);
+    const zerado = makeGood([
+      { name: "Boneco", layers: [{ id: "x", at: 0, qty: 0, unitCost: 5, sourceEventId: "e" }] },
+    ]);
+    expect(orphanFinishedContexts([zerado], [])).toEqual([]);
   });
 });
 
@@ -385,42 +563,9 @@ describe("planReciboReconciliation — composição do COGS (FEAT-06)", () => {
     expect(recon.items[0].cogsUnit).toBeCloseTo(5, 6);
   });
 
-  it("encomenda com qty 3: composição por unidade, nunca parcial", () => {
-    const product = makeProduct({
-      filaments: [
-        { filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 },
-      ],
-    });
+  it("produto fora do catálogo, sem camada: não há o que detalhar", () => {
     const recon = planReciboReconciliation(
-      [encomendaItem({ quantity: 3 })],
-      ctx({ products: [product], colors: [makeColor("preto", [{ remainingG: 1000 }])] }),
-    );
-    const item = recon.items[0];
-    expect(sumFrozen(item.cogsBreakdown!)).toBeCloseTo(item.cogsUnit, 6);
-    expect(item.cogsUnit * 3).toBeCloseTo(item.cogsTotal, 6);
-    expect(item.cogsBreakdownPartial).toBe(false);
-  });
-
-  // Onde escala (÷pieces) e rateio se cruzam — o cenário do BUG-02.
-  it("encomenda de mesa (piecesCount 4): composição por PEÇA", () => {
-    const mesa = makeProduct({
-      piecesCount: 4,
-      filaments: [
-        { filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 },
-      ],
-    });
-    const recon = planReciboReconciliation(
-      [encomendaItem({ quantity: 2 })],
-      ctx({ products: [mesa], colors: [makeColor("preto", [{ remainingG: 1000 }])] }),
-    );
-    const item = recon.items[0];
-    expect(sumFrozen(item.cogsBreakdown!)).toBeCloseTo(item.cogsUnit, 6);
-    expect(item.cogsUnit * 2).toBeCloseTo(item.cogsTotal, 6);
-  });
-
-  it("produto fora do catálogo não tem o que detalhar", () => {
-    const recon = planReciboReconciliation(
-      [encomendaItem({ productId: "sumido" })],
+      [acabadoItem({ productId: "sumido" })],
       ctx({ products: [], colors: [] }),
     );
     expect(recon.items[0].cogsBreakdown).toBeUndefined();
@@ -428,72 +573,30 @@ describe("planReciboReconciliation — composição do COGS (FEAT-06)", () => {
   });
 });
 
-describe("recibo misto + estorno (round-trip)", () => {
+describe("estorno (round-trip)", () => {
   const good = makeGood([
     {
       name: "Boneco",
       layers: [{ id: "e0__whole", at: 0, qty: 4, unitCost: 6, sourceEventId: "e0" }],
     },
   ]);
-  const product = makeProduct({
-    id: "p2",
-    filaments: [
-      { filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 },
-    ],
-  });
 
-  it("acabado + encomenda no mesmo recibo, cada um no seu caminho", () => {
+  it("reverseReciboReconciliation devolve o acabado ao estado anterior", () => {
     const recon = planReciboReconciliation(
-      [
-        acabadoItem({ key: "a", productId: "p1", quantity: 1 }),
-        encomendaItem({ key: "b", productId: "p2", quantity: 1 }),
-      ],
-      ctx({
-        goods: [good],
-        products: [makeProduct({ id: "p1" }), product],
-        colors: [makeColor("preto", [{ remainingG: 1000 }])],
-      }),
+      [acabadoItem({ key: "a", productId: "p1", quantity: 2 })],
+      ctx({ goods: [good], products: [makeProduct({ id: "p1" })] }),
     );
-    expect(recon.items[0].finishedMoves).toHaveLength(1); // acabado
-    expect(recon.items[1].productionEventIds).toEqual(["e1"]); // encomenda
-    expect(recon.finishedUpdates).toHaveLength(1);
-    expect(recon.colorUpdates).toHaveLength(1);
-    expect(balanceG(recon.colorUpdates[0])).toBe(900);
-  });
-
-  it("reverseReciboReconciliation devolve acabado e filamento ao estado anterior", () => {
-    const recon = planReciboReconciliation(
-      [
-        acabadoItem({ key: "a", productId: "p1", quantity: 2 }),
-        encomendaItem({ key: "b", productId: "p2", quantity: 1 }),
-      ],
-      ctx({
-        goods: [good],
-        products: [makeProduct({ id: "p1" }), product],
-        colors: [makeColor("preto", [{ remainingG: 1000 }])],
-      }),
-    );
-
-    // Estado pós-venda: acabado 4−2=2; cor 1000−100=900.
     const goodAfter: FinishedGood = { ...recon.finishedUpdates[0], id: "p1" };
-    const colorAfter = recon.colorUpdates[0];
     expect(balanceOf(goodAfter, undefined, AZUL.key)).toBe(2);
-    expect(balanceG(colorAfter)).toBe(900);
 
-    // Estorno lê os moves gravados (acabado) + os stockMoves dos eventos (encomenda).
-    const finishedMoves = recon.items.flatMap((i) => i.finishedMoves);
-    const productionStockMoves = recon.productionPayloads.flatMap(
-      (p) => p.payload.stockMoves,
-    );
     const back = reverseReciboReconciliation(
-      finishedMoves,
-      productionStockMoves,
+      recon.items.flatMap((i) => i.finishedMoves),
+      [],
       [goodAfter],
-      [colorAfter],
+      [],
     );
-
     expect(balanceOf({ ...back.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(4);
-    expect(balanceG(back.colorUpdates[0])).toBe(1000);
+    expect(back.supplyUpdates).toEqual([]);
   });
 });
 
@@ -516,7 +619,7 @@ describe("UX-42 — preview de edição bate com a gravação", () => {
       finishedMoves: [
         { productId: "p1", layerId: "e1__whole", qty: 1, unitCost: 5, cost: 5 },
       ],
-      productionEvents: [],
+      supplyMoves: [],
     };
     return { good, old };
   };
@@ -551,44 +654,7 @@ describe("UX-42 — preview de edição bate com a gravação", () => {
     const write = reconcileReciboWrite(itens, old, ctx({ goods: [good] }));
     expect(preview.items).toEqual(write.items);
     expect(preview.finishedUpdates).toEqual(write.finishedUpdates);
-    expect(preview.colorUpdates).toEqual(write.colorUpdates);
     expect(preview.supplyUpdates).toEqual(write.supplyUpdates);
-  });
-
-  it("preview e gravação concordam também na ENCOMENDA (crossesRoll e falta)", () => {
-    // O outro lado do item: sem estorno, a encomenda editada parecia atravessar
-    // rolo e faltar filamento que na verdade volta.
-    const product = makeProduct({
-      filaments: [{ filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 }],
-    });
-    const currentColor = makeColor("preto", [{ remainingG: 60 }]);
-    const old = {
-      finishedMoves: [],
-      productionEvents: [
-        {
-          id: "old1",
-          stockMoves: [
-            { itemId: "old1", kind: "filament" as const, stockId: "preto", rollId: "preto_r0", qty: 100 },
-          ],
-        },
-      ],
-    };
-    // ⚠ Um contexto NOVO para cada chamada: o `genId` do helper é um contador,
-    // e reusar o mesmo objeto faria a segunda chamada continuar de onde a
-    // primeira parou.
-    const feitoCtx = () => ctx({ products: [product], colors: [currentColor] });
-    const preview = planReciboReconciliation([encomendaItem({ quantity: 1 })], feitoCtx(), old);
-    const write = reconcileReciboWrite([encomendaItem({ quantity: 1 })], old, feitoCtx());
-
-    // Estorna +100 (saldo 160), reaplica −100 → 60. Não falta nada.
-    expect(preview.items[0].filamentShortfallG).toBe(0);
-    expect(preview.items[0].crossesRoll).toBe(write.items[0].crossesRoll);
-    // `productionEventIds` é a ÚNICA divergência esperada, e é de propósito: o
-    // preview gera com um id fixo ("preview") porque o custo não depende dele,
-    // enquanto a gravação usa os ids definitivos. Todo o resto tem que bater.
-    const semIds = (r: ReconItemResult) => ({ ...r, productionEventIds: [] });
-    expect(semIds(preview.items[0])).toEqual(semIds(write.items[0]));
-    expect(preview.colorUpdates).toEqual(write.colorUpdates);
   });
 
   it("venda NOVA (old ausente) segue idêntica ao que era", () => {
@@ -604,7 +670,7 @@ describe("UX-42 — preview de edição bate com a gravação", () => {
 });
 
 describe("reconcileReciboWrite — estornar-e-reaplicar (edição)", () => {
-  it("old=null é igual ao forward, sem eventos a apagar", () => {
+  it("old=null é igual ao forward", () => {
     const good = makeGood([
       { name: "Boneco", layers: [{ id: "e0__whole", at: 0, qty: 5, unitCost: 5, sourceEventId: "e0" }] },
     ]);
@@ -613,7 +679,6 @@ describe("reconcileReciboWrite — estornar-e-reaplicar (edição)", () => {
       null,
       ctx({ goods: [good] }),
     );
-    expect(plan.productionDeleteIds).toEqual([]);
     expect(balanceOf({ ...plan.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(3);
   });
 
@@ -634,34 +699,11 @@ describe("reconcileReciboWrite — estornar-e-reaplicar (edição)", () => {
     ];
     const plan = reconcileReciboWrite(
       [acabadoItem({ quantity: 2 })],
-      { finishedMoves: oldMoves, productionEvents: [] },
+      { finishedMoves: oldMoves, supplyMoves: [] },
       ctx({ goods: [currentGood] }),
     );
     // Reverte +3 (saldo 5), reaplica −2 → saldo 3 (era 2, devolveu 1 líquido).
     expect(balanceOf({ ...plan.finishedUpdates[0], id: "p1" }, undefined, AZUL.key)).toBe(3);
-  });
-
-  it("editar encomenda estorna o evento antigo (delete + filamento de volta) e cria o novo", () => {
-    const product = makeProduct({
-      filaments: [{ filamentId: "preto", colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 100 }],
-    });
-    // Cor ATUAL já decrementada pela encomenda antiga (900); o evento antigo tirou 100.
-    const currentColor = makeColor("preto", [{ remainingG: 900 }]);
-    const oldEvent = {
-      id: "old1",
-      stockMoves: [
-        { itemId: "old1", kind: "filament" as const, stockId: "preto", rollId: "preto_r0", qty: 100 },
-      ],
-    };
-    const plan = reconcileReciboWrite(
-      [encomendaItem({ quantity: 1 })],
-      { finishedMoves: [], productionEvents: [oldEvent] },
-      ctx({ products: [product], colors: [currentColor] }),
-    );
-    expect(plan.productionDeleteIds).toEqual(["old1"]);
-    expect(plan.productionCreates).toHaveLength(1);
-    // Reverte +100 (volta a 1000), reaplica −100 → 900 (o novo evento).
-    expect(balanceG(plan.colorUpdates[0])).toBe(900);
   });
 });
 

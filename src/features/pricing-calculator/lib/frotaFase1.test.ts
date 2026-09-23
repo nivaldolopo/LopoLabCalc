@@ -238,7 +238,13 @@ describe("[FROTA] Fase 1 — uma linha por ETAPA", () => {
   });
 
   it("os acessórios continuam na PRIMEIRA linha só — nunca repetidos por etapa", () => {
-    const rows = wholeEventRows(KIT, MACHINES, [], ENERGY_TARIFF);
+    // Atribuído ao CORPO: desde o W4 (lote 2 da 3a) o acessório SEM parte de um
+    // produto por partes sai na venda do conjunto, em produção nenhuma.
+    const kitComImaNoCorpo = {
+      ...KIT,
+      accessories: [{ desc: "Ima", qty: 1, unitPrice: 0.5, supplyId: null, subitemId: "corpo" }],
+    } as SavedProduct;
+    const rows = wholeEventRows(kitComImaNoCorpo, MACHINES, [], ENERGY_TARIFF);
     expect(rows[0].supplies.map((s) => s.name)).toEqual(["Ima"]);
     expect(rows[1].supplies).toEqual([]);
     expect(rows[2].supplies).toEqual([]);
@@ -498,7 +504,6 @@ describe("[FROTA] Fase 1 — a venda congela a máquina REAL", () => {
       fixedCosts: DEFAULT_FIXED_COSTS,
       energyTariff: ENERGY_TARIFF,
       at: 1000,
-      createdAt: 1000,
       genId: () => `venda-ev${(n += 1)}`,
     };
   };
@@ -507,7 +512,6 @@ describe("[FROTA] Fase 1 — a venda congela a máquina REAL", () => {
     productId: "peca",
     productName: "Peça",
     quantity: 2,
-    origem: "acabado",
     ...over,
   });
 
@@ -523,33 +527,9 @@ describe("[FROTA] Fase 1 — a venda congela a máquina REAL", () => {
     expect(x2d.hours).toBeCloseTo(horasX2d / 4, 10);
   });
 
-  it("encomenda: a repartição vem dos EVENTOS criados na hora", () => {
-    const plan = reconcileReciboWrite(
-      [item({ origem: "encomenda", quantity: 2 })],
-      null,
-      ctx([]),
-    );
-    const [r] = plan.items;
-    expect(r.unattributedUnits).toBe(0);
-    // Um evento por etapa, e a repartição cobre as duas máquinas.
-    expect(r.productionEventIds).toHaveLength(2);
-    expect([...r.machineUsage.map((u) => u.machineId)].sort()).toEqual([
-      "a1",
-      "x2d",
-    ]);
-    // Por unidade: 2 peças × 3 h na A1 ÷ 2 = 3 h/un.
-    expect(r.machineUsage.find((u) => u.machineId === "a1")!.hours).toBeCloseTo(
-      3,
-      10,
-    );
-    // E a depreciação é a REAL do custo congelado dos eventos.
-    const dep = r.machineUsage.reduce((s, u) => s + u.depreciation, 0);
-    expect(dep).toBeCloseTo(r.cogsBreakdown!.depreciation, 10);
-  });
-
   it("produto fora do catálogo: nada atribuído, tudo órfão", () => {
     const plan = reconcileReciboWrite(
-      [item({ productId: "sumiu", origem: "encomenda", quantity: 3 })],
+      [item({ productId: "sumiu", quantity: 3 })],
       null,
       ctx([]),
     );
@@ -561,9 +541,11 @@ describe("[FROTA] Fase 1 — a venda congela a máquina REAL", () => {
 
   it("vender de estoque que não existe: sem camada, sem dono", () => {
     // Nunca se produziu nada, e mesmo assim a venda de peça pronta acontece
-    // (D4). Não há camada de onde tirar a origem: as 5 são órfãs.
+    // (D4). A camada de ACERTO (W1) dá o custo, mas não sabe quem imprimiu: as
+    // 5 são órfãs.
     const plan = reconcileReciboWrite([item({ quantity: 5 })], null, ctx([]));
     const [r] = plan.items;
+    expect(r.acerto).toBe(true);
     expect(r.finishedShortfall).toBe(5);
     expect(r.machineUsage).toEqual([]);
     expect(r.unattributedUnits).toBe(5);

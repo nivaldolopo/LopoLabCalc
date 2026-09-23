@@ -9,6 +9,7 @@ import { calculatePricing } from "../lib/calculatePricing";
 import {
   productPrintHours,
   saleContextFromResult,
+  orphanFinishedContexts,
   saleContextFromSubitem,
   type SaleModalContext,
 } from "../lib/saleContext";
@@ -54,7 +55,7 @@ export function SaleFlow({
 }: SaleFlowProps) {
   const { fees } = useFees();
   const { goods } = useFinishedGoods();
-  // 7e: insumos para a baixa dos acessórios na encomenda. Assinado aqui (e não
+  // 7e/W4: insumos para a baixa dos acessórios do conjunto. Assinado aqui (e não
   // vindo por prop) pelo mesmo motivo dos outros 3 hooks: é do modal, não da
   // página, e só sobe quando o modal abre.
   const { supplies } = useSupplies();
@@ -92,10 +93,12 @@ export function SaleFlow({
           );
           return [whole, ...subs];
         })
+        // W5: as peças prontas de produto excluído continuam vendáveis.
+        .concat(orphanFinishedContexts(goods, products))
         .sort((a, b) =>
           a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),
-    [products, pricingByProduct, machines, fixedCosts, energyTariff, stock, supplies],
+    [products, pricingByProduct, machines, fixedCosts, energyTariff, stock, supplies, goods],
   );
 
   return (
@@ -110,9 +113,6 @@ export function SaleFlow({
       machines={machines}
       fixedCosts={fixedCosts}
       energyTariff={energyTariff}
-      // Venda NOVA não estorna produção existente — o `production` só serve ao
-      // caminho de edição (SalesPage), que resolve os eventos por id. Vazio aqui.
-      production={[]}
       quotes={quotes}
       onClose={onClose}
       onConfirm={reconcileRecibo}

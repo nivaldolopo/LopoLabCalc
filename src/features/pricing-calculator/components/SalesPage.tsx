@@ -24,13 +24,12 @@ import { useTheme } from "../hooks/useTheme";
 import { marginTierClass, marginTierTitle } from "../lib/marginTier";
 import { machineUsageLabel } from "../lib/production";
 import { reverseReciboReconciliation } from "../lib/saleReconciliation";
-import type { ProductionEvent, RoundingMode, Sale } from "../types";
+import type { RoundingMode, Sale } from "../types";
 import {
   fetchAllSales,
   reconcileRecibo,
   type SalesQuery,
 } from "@/lib/firebase/salesRepository";
-import { fetchProductionEventsByIds } from "@/lib/firebase/productionRepository";
 import { toTimestamp } from "@/lib/formatting/date";
 import { matchesQuery } from "@/lib/text";
 import { useConfirm } from "./ConfirmDialog";
@@ -43,6 +42,7 @@ import { SaleModal, type EditReciboSeed } from "./SaleModal";
 import {
   productPrintHours,
   saleContextFromResult,
+  orphanFinishedContexts,
   saleContextFromSubitem,
   type SaleModalContext,
 } from "../lib/saleContext";
@@ -200,16 +200,12 @@ export function SalesPage() {
   const { fees } = useFees();
   // Passo 8: dados vivos para a reconciliação (custo real + baixa por caminho).
   const { filaments: stock } = useStock();
-  // 7e: insumos — o estorno da venda devolve também os acessórios da encomenda.
+  // 7e/W4: insumos — o estorno da venda devolve os acessórios do conjunto.
   const { supplies } = useSupplies();
   const { goods } = useFinishedGoods();
   // Link opcional orçamento → venda (ver `SaleInput.quoteId`).
   const { quotes } = useQuotes();
   const [editRecibo, setEditRecibo] = useState<EditReciboSeed | null>(null);
-  // TD-006: eventos de produção da encomenda do recibo em edição, resolvidos por
-  // id ao abrir (a coleção não é mais assinada inteira). Alimentam o estorno do
-  // SaleModal — sem eles, editar uma venda antiga não devolveria o filamento.
-  const [editEvents, setEditEvents] = useState<ProductionEvent[]>([]);
   const [newSale, setNewSale] = useState(false);
   const [sortMode, setSortMode] = useState<SalesSortMode>("recent");
   // UX-06: qual item do recibo está com o detalhe aberto (linha + dropdown).
@@ -265,10 +261,12 @@ export function SalesPage() {
           );
           return [whole, ...subs];
         })
+        // W5: as peças prontas de produto excluído continuam vendáveis.
+        .concat(orphanFinishedContexts(goods, products))
         .sort((a, b) =>
           a.defaultProductName.localeCompare(b.defaultProductName, "pt-BR"),
         ),
-    [products, machines, fixedCosts, energyTariff, stock, supplies],
+    [products, machines, fixedCosts, energyTariff, stock, supplies, goods],
   );
 
   // Agrupa as vendas por recibo (fase 1b): itens de uma mesma compra ficam juntos.
@@ -404,8 +402,7 @@ export function SalesPage() {
 
   async function handleDelete(sale: Sale) {
     const hasReversal =
-      (sale.finishedMoves?.length ?? 0) > 0 ||
-      (sale.productionEventIds?.length ?? 0) > 0;
+      (sale.finishedMoves?.length ?? 0) > 0 || sale.supplyMoves.length > 0;
     const confirmed = await ask({
       title: `Excluir “${sale.productName}” (${formatDate(sale.saleDate)})?`,
       body: (
@@ -414,8 +411,8 @@ export function SalesPage() {
           {hasReversal ? (
             <p className="confirm-safe">
               O que a venda consumiu <strong>volta</strong>: a peça acabada
-              retorna ao estoque e, se foi encomenda, o filamento e os insumos
-              são estornados junto com os eventos de produção dela.
+              retorna ao estoque de produtos e, se foi um conjunto, os
+              acessórios dele voltam ao estoque de insumos.
             </p>
           ) : null}
           <p>Isso não pode ser desfeito.</p>
@@ -430,27 +427,17 @@ export function SalesPage() {
     // nenhum — falha de estorno passava em silêncio e a linha só não sumia.
     try {
       guardOnline();
-      // Passo 8: excluir uma venda estorna o que ela consumiu — acabado (finishedMoves)
-      // e/ou filamento das encomendas — e apaga os eventos de produção, tudo atômico.
-      // TD-006: os eventos vêm por id do banco (não da janela paginada) — um evento
-      // já apagado à mão vem ausente e não estorna em dobro, como antes.
-      const events = await fetchProductionEventsByIds(
-        sale.productionEventIds ?? [],
+      // Passo 8: excluir uma venda estorna o que ela consumiu — acabado
+      // (`finishedMoves`) e insumos do conjunto (`supplyMoves`, W4) —, atômico.
+      const { supplyUpdates, finishedUpdates } = reverseReciboReconciliation(
+        sale.finishedMoves ?? [],
+        sale.supplyMoves,
+        goods,
+        supplies,
       );
-      const { colorUpdates, supplyUpdates, finishedUpdates } =
-        reverseReciboReconciliation(
-          sale.finishedMoves ?? [],
-          events.flatMap((event) => event.stockMoves),
-          goods,
-          stock,
-          supplies,
-        );
       await reconcileRecibo({
         saleUpserts: [],
         saleRemovedIds: [sale.id],
-        productionCreates: [],
-        productionDeleteIds: events.map((event) => event.id),
-        colorUpdates,
         supplyUpdates,
         finishedUpdates,
       });
@@ -466,11 +453,7 @@ export function SalesPage() {
     }
   }
 
-  async function openEdit(recibo: Recibo) {
-    // TD-006: resolve por id os eventos de produção das encomendas do recibo, para
-    // o estorno na edição (a janela paginada pode não conter os eventos antigos).
-    const ids = recibo.items.flatMap((item) => item.productionEventIds ?? []);
-    setEditEvents(await fetchProductionEventsByIds(ids));
+  function openEdit(recibo: Recibo) {
     setEditRecibo({
       reciboId: recibo.reciboId,
       customer: recibo.customer,
@@ -510,14 +493,11 @@ export function SalesPage() {
           ? { discountAmount: sale.discountAmount }
           : {}),
         // Passo 8: carrega o rastro da reconciliação salva para o estorno da edição.
-        ...(sale.origem ? { origem: sale.origem } : {}),
         ...(sale.finishedMoves ? { finishedMoves: sale.finishedMoves } : {}),
+        supplyMoves: sale.supplyMoves,
         // FEAT-11: as cores escolhidas voltam para a linha — reeditar o recibo
         // reaplica a baixa na MESMA prateleira de onde a peça saiu.
         ...(sale.finishedColors ? { finishedColors: sale.finishedColors } : {}),
-        ...(sale.productionEventIds
-          ? { productionEventIds: sale.productionEventIds }
-          : {}),
       })),
     });
   }
@@ -742,7 +722,7 @@ export function SalesPage() {
                   <button
                     className="icon-button edit"
                     type="button"
-                    onClick={() => void openEdit(recibo)}
+                    onClick={() => openEdit(recibo)}
                     title="Editar venda"
                     aria-label={`Editar a venda de ${recibo.customer || "cliente não informado"}`}
                   >
@@ -918,6 +898,11 @@ export function SalesPage() {
                                         ? " (rateado do total)"
                                         : ""}{" "}
                                       = −{formatCurrency(sale.discountAmount)}
+                                      {/* V3: o motivo era gravado e nunca
+                                          lido — não aparecia em lugar nenhum. */}
+                                      {sale.discountInput?.reason
+                                        ? ` · ${sale.discountInput.reason}`
+                                        : ""}
                                     </span>
                                   ) : null}
                                 </div>
@@ -993,12 +978,8 @@ export function SalesPage() {
           machines={machines}
           fixedCosts={fixedCosts}
           energyTariff={energyTariff}
-          production={editEvents}
           quotes={quotes}
-          onClose={() => {
-            setEditRecibo(null);
-            setEditEvents([]);
-          }}
+          onClose={() => setEditRecibo(null)}
           onConfirm={reconcileRecibo}
         />
       ) : null}
@@ -1015,8 +996,6 @@ export function SalesPage() {
           machines={machines}
           fixedCosts={fixedCosts}
           energyTariff={energyTariff}
-          // Venda nova não estorna produção — o `production` só serve à edição.
-          production={[]}
           quotes={quotes}
           onClose={() => setNewSale(false)}
           onConfirm={reconcileRecibo}

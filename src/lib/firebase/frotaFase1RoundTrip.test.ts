@@ -247,7 +247,9 @@ const venda = (over: Partial<SalePayload> = {}): SalePayload => ({
   profit: 60,
   margin: 60,
   createdAt: 1000,
-  origem: "acabado",
+  supplyMoves: [
+    { itemId: "c1", kind: "supply", stockId: "caixa", rollId: "lote1", qty: 2 },
+  ],
   ...over,
 });
 
@@ -323,7 +325,7 @@ describe("[FROTA] Fase 1 — round-trip da atribuição na VENDA", () => {
       "profit",
       "margin",
       "createdAt",
-      "origem",
+      "supplyMoves",
     ] as const) {
       expect(volta[chave]).toEqual(payload[chave]);
     }

@@ -78,7 +78,6 @@ import { PrintTimeField } from "./ProductForm";
 
 const OUTCOMES: { value: ProductionOutcome; label: string }[] = [
   { value: "estoque", label: "Peça pro estoque" },
-  { value: "encomenda", label: "Encomenda" },
   { value: "teste", label: "Teste / calibração" },
   { value: "falha", label: "Falha" },
   { value: "brinde", label: "Brinde / uso interno" },
@@ -193,7 +192,7 @@ export function ProductionPage() {
   }, [products, pricingByProduct]);
 
   // Linha avulsa (sem produto): a única montada aqui — as de produto/subitem vêm
-  // do builder compartilhado (`productionPlan`), que a encomenda do passo 8 reusa.
+  // do builder compartilhado (`productionPlan`).
   function avulsoRow(): EventRow {
     return {
       key: nextRowKey(),

@@ -9,6 +9,49 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Lote 2 da frente 3a — Venda: S1 + W1 + W4 + W5 + V3 + V5 + W6 (2026-09-23)
+
+O maior lote da "Ordem de execução do código". Decisões do dono tomadas no chat, antes de codar:
+(1) venda sem peça registrada grava o **custo do cadastro** numa camada de acerto; (2) acessório do
+conjunto baixa **na venda do conjunto** (opção A — a B, campo "baixa na produção/venda" por
+acessório, ficou para depois do marco, sem migração); (3) "encomenda" vira o **canal** que já
+existia, sem campo novo; (4) W5 entra no lote. W1/W4/W5/W6 foram confirmados no código antes da
+correção (Diretriz 9); `/code-review --high` achou 1 defeito (abaixo), corrigido no mesmo commit.
+Testes: 1087 → 1059 (saíram os do caminho encomenda; entraram 20 de W1/W4/W5).
+
+- **[S1] Toda venda sai do acabado.** Some o caminho `encomenda` da reconciliação (a produção criada
+  pela venda: fração de placa, cor/gramas do cadastro, data da venda, apagada junto com a venda), o
+  seletor de máquina do modal (AUD-17 [E2]/[E3]/[E8] — `encomendaMachineOptions`/
+  `encomendaAssignmentNote` e os testes deles saíram), o `SaleItemOrigin`, o `productionEventIds`,
+  o `fetchProductionEventsByIds` e o desfecho `encomenda` da `/producao` (evento antigo com ele é
+  lido como `historico`). A transação do recibo agora grava só vendas + acabados + insumos. ⚠
+  Diretriz 6: venda antiga por encomenda, editada/excluída, NÃO apaga mais os eventos que criou.
+- **[W1] Camada de acerto no acabado** (`withAcertoLayer`) — o [E7] da AUD-16 chegando à prateleira.
+  A ordem de `resolverParte`: cor escolhida com camada → SKU da **cor do cadastro** com camada (o D4
+  cai numa camada de custo real) → camada de acerto NA COR DO CADASTRO (para a produção registrada
+  depois cair na mesma SKU e cobrir o negativo) → sem cadastro, custo 0 com aviso. O custo é o do
+  cadastro **sem reserva de falha nem fixo** (provisões de preço, não gasto); a parte leva só o
+  acessório atribuído a ela. Sem `machineUsage`: as unidades ficam órfãs no ROI. A cor EFETIVA volta
+  em `ReconItemResult.colors` e é ela que se congela no recibo. ⚠ O id da camada carrega a SKU:
+  no preview o `genId` é fixo, e duas camadas de mesmo id em SKUs diferentes seriam a mesma para o
+  `shiftLayers`.
+- **[W4] Acessório do conjunto.** Medido: o mesmo acessório sem parte dava baixa se o dono
+  registrasse o inteiro de uma vez e nunca se registrasse parte por parte. Agora `accessoryRows` o
+  deixa fora de TODA produção de produto por partes, e `conjuntoAccessoryRows` o baixa (FIFO, com
+  lote de dívida) na venda do conjunto; os moves vão em `Sale.supplyMoves` (obrigatório, AUD-02) e o
+  custo entra no COGS como `supplies`. Parte avulsa não leva. Resíduo conhecido, não mexido: o PREÇO
+  da parte avulsa ainda embute a fatia do acessório do conjunto (rateio da FEAT-01).
+- **[W5] Produto excluído.** As peças prontas dele entram na lista vendável
+  (`orphanFinishedContexts`, uma por parte, sem preço sugerido — o dono digita) e a reedição de um
+  conjunto sem cadastro drena as partes pelas CHAVES do mapa de cores salvo (peça única grava a
+  sentinela do inteiro; conjunto, só as partes). A confirmação de excluir produto diz isso.
+- **[V3]** `toSale` passou a ler `discountInput.reason`; o motivo aparece no detalhe da `/vendas` e
+  sobrevive à reedição. **[V5]** Orçamento apagado: o `<select>` ganha a opção "Nº X (orçamento
+  apagado)" e o `quoteNumber` salvo é mantido (antes virava `""`).
+- **[W6]** A reconciliação do salvar foi para dentro do `try` (`buildWrite`); a do preview virou
+  `reconError` (recado + botão travado). ⚠ Achado do review: o `goodsCreditados` do modal faz o
+  MESMO estorno num `useMemo` e continuaria derrubando o modal — ganhou o mesmo guarda.
+
 ## ✅ Lote 1 da frente 3a — `config/negocio`: V1 + W2 + W3 + V4 + V7 + V8 (2026-09-23)
 
 Primeiro lote da "Ordem de execução do código". W2 e W3 foram confirmados no código antes da

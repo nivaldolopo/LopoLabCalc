@@ -60,6 +60,7 @@ function sale(overrides: Partial<Sale> = {}): Sale {
     profit: 30,
     margin: 60,
     createdAt: 0,
+    supplyMoves: [],
     ...overrides,
   };
 }
