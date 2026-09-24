@@ -82,10 +82,13 @@ export function colorGroupTable(stock: StockFilament[]): string {
 
 export function productIdTable(products: SavedProduct[]): string {
   return tsv(
-    ["Produto", "id"],
+    // S2 — o código no fim: quem já lê a tabela pela posição (Produto, id)
+    // não quebra.
+    ["Produto", "id", "Codigo"],
     products.map((product) => [
       cell(product.name || product.mainStageName),
       product.id,
+      product.codigo ?? "",
     ]),
   );
 }

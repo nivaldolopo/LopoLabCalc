@@ -162,6 +162,19 @@ describe("round-trip do formulário — abrir e salvar sem tocar em nada", () =>
     ).toBeUndefined();
   });
 
+  it("S2: não grava o `codigo` — nem no save, nem no salvar como novo", () => {
+    // Do repositório, como o `rev`: "salvar como novo" herdando o código do
+    // original deixaria dois produtos com o mesmo `LL-0042`.
+    const comCodigo: SavedProduct = { ...salvo, codigo: "LL-0042" };
+    expect((abrirESalvar(comCodigo) as Record<string, unknown>).codigo).toBeUndefined();
+    expect(
+      (buildProductPayload(buildLoadedProduct(comCodigo), true, true) as Record<
+        string,
+        unknown
+      >).codigo,
+    ).toBeUndefined();
+  });
+
   it("nunca produz `undefined` — o Firestore rejeita a gravação", () => {
     const achados: string[] = [];
     const scan = (o: unknown, path: string) => {

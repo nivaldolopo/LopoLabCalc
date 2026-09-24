@@ -189,10 +189,55 @@ export type SavedProduct = ProductInput & {
   // NÃO está no `ProductPayload`, e o `buildProductPayload` a remove junto com
   // o `id` antes de montar o que vai para o Firestore.
   rev?: number;
+  // S2 (frente 3a) — `LL-0042`. Também do REPOSITÓRIO: nasce na transação que
+  // cria o documento e nunca mais muda. Fora do `ProductPayload` pelo mesmo
+  // motivo do `rev` — o formulário não pode regravá-lo (e "salvar como novo"
+  // não pode herdá-lo). `null` = produto anterior ao S2 (Diretriz 6: sem
+  // backfill, some na fase A).
+  codigo?: string | null;
 };
 
 export type ProductPayload = ProductInput & {
   createdAt?: number;
+};
+
+// S3 (frente 3a) — APELIDO de impressão: a impressão digital da ORIGEM de uma
+// impressão, em campos. `fonte`: `codigo` (o `LL-0042` no nome do projeto) ·
+// `mw` (designId do MakerWorld) · `arquivo` (nome do arquivo/projeto, no
+// ORIGINAL — o site normaliza caixa/acento/espaço, nunca traduz).
+export type PrintAliasFonte = "codigo" | "mw" | "arquivo";
+
+export type PrintAliasKey = {
+  fonte: PrintAliasFonte;
+  chave: string;
+  // Instância do MakerWorld (o mesmo design tem instâncias com peças
+  // diferentes). `null` = não se aplica.
+  variante: string | null;
+  // Índice da mesa (plate) do projeto. `null` = não informado.
+  plate: number | null;
+};
+
+// O que o apelido LIGA: produto + etapa + objetos por unidade (1 puxador + 2
+// cursores → quantos zippers?). Um documento por apelido na coleção
+// `apelidos`, id calculado da chave (`aliasDocId`) — o mesmo apelido nunca
+// aponta pra dois produtos, e quem garante é o banco.
+export type PrintAliasDraft = PrintAliasKey & {
+  // `"main"` ou o `PrintStage.id` (o mesmo `stageKey` dos subitens).
+  stageKey: string;
+  objetosPorUnidade: number;
+};
+
+// S2/S3 — um produto NOVO e os apelidos que nascem ligados a ele (a mesma
+// transação reserva o código e grava os dois). Lista vazia = nenhum apelido.
+export type NewProductRow = {
+  payload: ProductPayload;
+  aliases: PrintAliasDraft[];
+};
+
+export type SavedPrintAlias = PrintAliasDraft & {
+  id: string;
+  productId: string;
+  createdAt: number;
 };
 
 export type FixedCostSettings = {

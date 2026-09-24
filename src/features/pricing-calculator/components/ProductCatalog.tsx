@@ -10,7 +10,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/formatting/currency";
 import { round2 } from "@/lib/number";
@@ -19,8 +19,9 @@ import type {
   FixedCostSettings,
   Machine,
   PaymentFeeSettings,
+  NewProductRow,
   PricingResult,
-  ProductPayload,
+  SavedPrintAlias,
   SavedProduct,
   SortMode,
   StockFilament,
@@ -36,6 +37,7 @@ import {
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { filamentsTotalG, normalizeFilaments } from "../lib/filaments";
 import { productIdTable } from "../lib/idTable";
+import { parseProductCode } from "../lib/productCode";
 import { marginTierClass, marginTierTitle } from "../lib/marginTier";
 import {
   downloadCsv,
@@ -80,8 +82,22 @@ function MachineCell({ result }: { result: PricingResult }) {
   return <>{names.join(" · ")}</>;
 }
 
+// S2 — a busca acha pelo nome E pelo código, e o código em qualquer grafia
+// (`ll-42` acha o `LL-0042`).
+function matchesProduct(query: string, product: SavedProduct): boolean {
+  if (matchesQuery(query, product.name, product.codigo ?? "")) return true;
+  const codigo = parseProductCode(query);
+  return codigo !== null && codigo === product.codigo;
+}
+
 type ProductCatalogProps = {
   products: SavedProduct[];
+  // S3 — TODOS os apelidos (não só os da aba): a importação confere o apelido
+  // do arquivo contra o catálogo inteiro, e o export leva os de cada produto.
+  aliases: SavedPrintAlias[];
+  // Catálogo (ou aba) vazio: o que mostrar no lugar da tabela. A barra de
+  // ações continua — é por ela que a carga da fase A entra num banco vazio.
+  emptyState?: ReactNode;
   machines: Machine[];
   stock: StockFilament[];
   // CSV-05: só a importação usa — confere o `supplyId` dos acessórios da
@@ -101,7 +117,7 @@ type ProductCatalogProps = {
   onSortModeChange: (sortMode: SortMode) => void;
   onLoadProduct: (product: SavedProduct) => void;
   onDeleteProduct: (productId: string) => Promise<void>;
-  onImportProducts: (products: ProductPayload[]) => Promise<void>;
+  onImportProducts: (rows: NewProductRow[]) => Promise<void>;
   // FEAT-08: as 3 ações operam sobre o produto INTEIRO ou sobre um subitem
   // vendável (`subitemId`) — a mesma unidade que a produção e o orçamento já
   // sabem receber. Ausente = produto inteiro.
@@ -117,6 +133,8 @@ type ProductCatalogProps = {
 
 export function ProductCatalog({
   products,
+  aliases,
+  emptyState,
   machines,
   stock,
   supplies,
@@ -193,12 +211,18 @@ export function ProductCatalog({
     }
   }, [products, resultFor, sortMode]);
 
+  const aliasCountByProduct = useMemo(() => {
+    const counts = new Map<string, number>();
+    aliases.forEach((alias) => {
+      counts.set(alias.productId, (counts.get(alias.productId) ?? 0) + 1);
+    });
+    return counts;
+  }, [aliases]);
+
   const filteredProducts = useMemo(
-    () => sortedProducts.filter((product) => matchesQuery(query, product.name)),
+    () => sortedProducts.filter((product) => matchesProduct(query, product)),
     [sortedProducts, query],
   );
-
-  if (products.length === 0) return null;
 
   // UX-15 — a confirmação que motivou o item. `removeProduct` é um `deleteDoc`
   // SEM cascata: venda e acabado guardam nome + custo congelados, então o
@@ -237,7 +261,15 @@ export function ProductCatalog({
   }
 
   function exportCsv() {
-    const csv = exportProductsCsv(products, machines, fixedCosts, energyTariff, stock, supplies);
+    const csv = exportProductsCsv(
+      products,
+      machines,
+      fixedCosts,
+      energyTariff,
+      stock,
+      supplies,
+      aliases,
+    );
     downloadCsv("catalogo-precos-3d.csv", csv);
   }
 
@@ -261,6 +293,7 @@ export function ProductCatalog({
         const content = String(event.target?.result ?? "");
         const {
           products: importedProducts,
+          aliases: importedAliases,
           warnings,
           recalc,
           issues,
@@ -271,7 +304,12 @@ export function ProductCatalog({
           supplies,
           // CSV-05: nome repetido não substitui nada — entra produto novo.
           existingNames: products.map((product) => product.name),
+          existingAliasIds: aliases.map((alias) => alias.id),
         });
+        const totalApelidos = importedAliases.reduce(
+          (soma, lista) => soma + lista.length,
+          0,
+        );
         if (importedProducts.length === 0) {
           fail("Nenhum produto válido encontrado no CSV.");
           return;
@@ -289,8 +327,16 @@ export function ProductCatalog({
             <>
               <p>
                 Eles entram como produtos <strong>novos</strong> no catálogo — o
-                que já está salvo continua onde está.
+                que já está salvo continua onde está. Cada um ganha um{" "}
+                <strong>código novo</strong> (LL-…) na hora de gravar.
               </p>
+              {totalApelidos > 0 ? (
+                <p>
+                  Junto entram {totalApelidos}{" "}
+                  {totalApelidos === 1 ? "apelido" : "apelidos"} de impressão,
+                  já ligados aos produtos.
+                </p>
+              ) : null}
               {/* O aviso vem ANTES de gravar: máquina que não casou muda
                   energia e desgaste, e o dono ainda pode corrigir o CSV. */}
               {warnings.length > 0 && (
@@ -365,7 +411,12 @@ export function ProductCatalog({
         // ficaria enfileirado e a Promise nunca resolveria — o botão preso em
         // "Importando…" sem o dono saber se algo entrou.
         guardOnline();
-        await onImportProducts(importedProducts);
+        await onImportProducts(
+          importedProducts.map((payload, index) => ({
+            payload,
+            aliases: importedAliases[index] ?? [],
+          })),
+        );
         ok(
           `${importedProducts.length} ${
             unico ? "produto importado" : "produtos importados"
@@ -444,6 +495,9 @@ export function ProductCatalog({
         </div>
       </div>
       <FeedbackNote note={note} onClose={clear} />
+      {products.length === 0 ? (
+        emptyState
+      ) : (
       <div className="catalog-card">
         <div className="table-scroll">
           <table>
@@ -490,6 +544,9 @@ export function ProductCatalog({
                           expandido repete o nome inteiro (toque/mobile). */}
                       <td className="col-name strong" title={product.name}>
                         <span className="arrow-icon">▼</span>
+                        {product.codigo ? (
+                          <span className="product-code">{product.codigo}</span>
+                        ) : null}
                         {product.name}
                       </td>
                       <td className="col-price mono price-cell num">
@@ -599,6 +656,7 @@ export function ProductCatalog({
                           fixedCosts={fixedCosts}
                           capacitySettings={capacitySettings}
                           fees={fees}
+                          aliasCount={aliasCountByProduct.get(product.id) ?? 0}
                           onRegisterSale={onRegisterSale}
                           onProduce={onProduce}
                           onQuote={onQuote}
@@ -612,6 +670,7 @@ export function ProductCatalog({
           </table>
         </div>
       </div>
+      )}
       {dialog}
     </div>
   );
@@ -624,6 +683,7 @@ function CatalogDetails({
   fixedCosts,
   capacitySettings,
   fees,
+  aliasCount,
   onRegisterSale,
   onProduce,
   onQuote,
@@ -637,6 +697,8 @@ function CatalogDetails({
   fixedCosts: FixedCostSettings;
   capacitySettings: CapacitySettings;
   fees: PaymentFeeSettings;
+  // S3 — quantas origens de impressão já reconhecem este produto.
+  aliasCount: number;
   onRegisterSale: (
     product: SavedProduct,
     result: PricingResult,
@@ -692,6 +754,13 @@ function CatalogDetails({
           ler o nome expande o card e vê. */}
       <h3 className="cd-product-name">{product.name}</h3>
       <div className="cd-meta">
+        <span>
+          <span className="db-label">Código</span>{" "}
+          {product.codigo ?? "— sem código"}
+        </span>
+        <span>
+          <span className="db-label">Apelidos de impressão</span> {aliasCount}
+        </span>
         <span>
           <span className="db-label">Pode rodar em</span>{" "}
           <MachineCell result={result} />

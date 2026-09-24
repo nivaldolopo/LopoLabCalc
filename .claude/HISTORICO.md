@@ -9,6 +9,38 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Lote 4 da frente 3a — Código + apelidos: S2 + S3 + colunas do CSV (2026-09-24)
+
+Decisões do dono no chat, antes de codar: produto de teste fica **sem código** (sem backfill,
+Diretriz 6); a coluna `Codigo` no import é **ignorada com aviso** (não recusa o arquivo); código
+sem apelido de etapa **não preenche sozinho** (a regra "só a exata preenche" vale; a tela é do lote
+5); nomes dos campos **em português**, e a `chave` vai **no original, sem tradução** (o site só
+normaliza caixa/acento/`_`/extensão). `/code-review --high`: 9 achados, 8 corrigidos no mesmo commit
+(o 9º, assinar a coleção inteira na calculadora, ficou — escala pequena). Testes: 1076 → 1113.
+
+- **[S2] Código `LL-0042`.** `productCode.ts` (formato + leitura tolerante: `LL0042`, `ll-42`, no
+  meio do título; `LL-3.2`/`LL-42-7` NÃO são código). `createProductsTx` (`productsRepository`)
+  reserva N números em `config/produtoSeq` e grava os produtos na MESMA transação — criar produto
+  agora exige servidor (antes o `addDoc` ficava na fila; a tela já barrava offline). O `codigo` é do
+  repositório como o `rev`: `buildProductPayload` o apaga (senão "salvar como novo" herdava) e o
+  `saveProduct` nem toca na chave. Busca do catálogo acha pelo código; `productIdTable` ganhou a
+  coluna `Codigo` no fim; `ProductIdentity` (sob o nome no formulário) mostra + "Copiar código".
+- **[S3] Apelidos.** Coleção `apelidos`, 1 doc por origem, **id = `aliasDocId`** (fonte~chave~
+  variante~plate, `~` e `/` escapados) — "um apelido, um produto" é garantia do banco. Campos
+  `{fonte, chave, variante, plate, productId, stageKey, objetosPorUnidade, createdAt}`, todos
+  explícitos. `lookupPrintAlias` (puro, sem consumidor até o lote 5): exata preenche; o resto é
+  sugestão com motivo (`etapa-removida`, `outra-mesa`, `codigo`, `outra-variante`, `link-modelo`,
+  `nome-parecido` — Jaccard ≥ 0,5). Excluir produto leva os apelidos no mesmo lote.
+- **Apelido ÓRFÃO não bloqueia** (achado do review): produto apagado pelo Console (a limpeza da
+  fase A!) deixaria o apelido "em uso" para sempre, sem tela que o mostre. A transação lê o dono e
+  só recusa se o produto EXISTE; a pré-checagem do CSV só conta apelido de produto vivo.
+- **CSV:** `Codigo` (só sai; `codigo-ignorado` na volta) e `Apelidos JSON` (etapa por id OU nome;
+  classes `apelido-invalido`, `apelido-codigo`, `apelido-repetido`, `apelido-em-uso`). Round-trip
+  com 36 colunas — a única diferença A×B é o código, de propósito.
+- **Achado no caminho:** o botão **Importar** do `/catalogo` só existia com catálogo NÃO vazio — a
+  fase A (que começa apagando `products`) não teria por onde entrar. A `ProductCatalog` agora
+  renderiza a barra de ações mesmo vazia.
+
 ## ✅ Lote 3 da frente 3a — Chave de cor: S11 + V2 + V6 (+ lista de cores) (2026-09-23)
 
 Decisões do dono no chat, antes de codar: rótulo da prateleira **"Preto PLA"**; arquivar/excluir

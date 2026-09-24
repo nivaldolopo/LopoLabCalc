@@ -3,7 +3,8 @@
 > **Para o dono levar ao projeto `LopoLabPrintPipeline`.** Saiu do brainstorm de 2026-09-22/23 no
 > LopoLabCalc (registro completo, com o que foi descartado e por quê, no `HISTORICO.md` de lá, seção
 > "📐 Brainstorm: dados da impressora"). Este arquivo é autocontido: dá pra colar numa sessão do
-> pipeline sem o resto. Nada aqui foi implementado ainda, de nenhum dos dois lados.
+> pipeline sem o resto. **Do lado do site:** o formato do CSV de catálogo (item 8) está fechado e
+> codado (2026-09-24); o arquivo de produção (seção 3) ainda não.
 
 ## A regra que vale pra tudo
 
@@ -69,7 +70,26 @@
    cores (material+cor), link, personalizado — **+ a coluna de apelidos** de cada produto. Markup e
    taxa de falha: no máximo um **padrão em lote**. **Não investir** mais em mão de obra/acessórios
    aqui: isso é preenchido no site (acessório precisa do insumo do site; lá o dono vê o preço real).
-   Nome de coluna novo: combinar com o LopoLabCalc na hora de codar o import (S2/S3 de lá).
+   **Formato fechado (LopoLabCalc, lote 4, 2026-09-24):**
+   - Coluna **`Apelidos JSON`**: uma lista JSON por produto, célula vazia = nenhum apelido.
+     Cada item:
+     `{"fonte":"mw","chave":"1234567","variante":"998877","plate":2,"etapa":"Tampa","objetosPorUnidade":1}`
+     - `fonte`: `mw` ou `arquivo`. **Não mande `codigo`**: na fase A o produto ainda não tem
+       código (o site gera ao importar) e o site recusa, com aviso.
+     - `chave`: **no ORIGINAL, sem traduzir**. `mw` = o `designId`; `arquivo` = o nome do
+       arquivo/projeto como veio. O site normaliza (caixa, acento, `_`, espaço repetido, extensão
+       `.3mf`/`.gcode.3mf`/`.stl`), então não precisa pré-normalizar.
+     - `variante`: o `instanceId` do MakerWorld, como texto (ou `null`).
+     - `plate`: inteiro a partir de 1 (ou `null`).
+     - `etapa`: o **nome** da etapa da mesma linha (o "Nome Etapa Principal" ou o `name` de um item
+       do "Etapas JSON"), ou o `id` da etapa, ou vazio = etapa principal. Nome que casa com duas
+       etapas é recusado (ambíguo).
+     - `objetosPorUnidade`: inteiro a partir de 1; ausente = 1.
+     - O mesmo `fonte+chave+variante+plate` em duas linhas: **vale o da primeira**, o outro sai com
+       aviso (um apelido aponta pra um produto só).
+   - Coluna **`Codigo`**: não mande (ou deixe vazia). O site gera um código novo por produto e
+     ignora, com aviso, o que vier nela.
+   - Item ruim de `Apelidos JSON` é descartado **com aviso** e o produto entra mesmo assim.
 9. **Salvar a curadoria em arquivo** além do `localStorage`.
 
 ## 3. O arquivo de produção (formato definitivo — o mesmo nas fases A e B)
@@ -122,7 +142,7 @@ comparador têm de ser o mesmo código), caminhos de mídia além da capa/foto.
 
 ## Código do produto (o que o dono precisa saber pra usar)
 
-O LopoLabCalc vai gerar um código **eterno** por produto (`LL-0001`…, sequencial, nunca
+O LopoLabCalc gera (desde 2026-09-24) um código **eterno** por produto (`LL-0001`…, sequencial, nunca
 reaproveitado, sem significado embutido). Em arquivo próprio, o dono copia o código do produto no
 site e salva o projeto com ele no nome (`LL-0042 Quatto face`). É o apelido mais forte: a impressão
 já chega reconhecida desde a 1ª vez. No MakerWorld não precisa fazer nada — o apelido `mw` é

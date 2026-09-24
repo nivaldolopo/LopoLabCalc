@@ -6,7 +6,7 @@
 > do AGORA fica no `CLAUDE.md`.
 >
 > **Estado em 2026-09-23: frentes 1 (designer) e 2 (Configurações) fechadas; a frente 3a (dados da
-> impressora) anda por lotes — ✅ lotes 1–3, próximo = lote 4 (Código + apelidos: S2 + S3)**, na
+> impressora) anda por lotes — ✅ lotes 1–4, próximo = lote 5 (Evento + import: S4–S7 + W7)**, na
 > tabela "Ordem de execução do código" da seção 3a. Depois vem a fase A e o marco (frente 3). O plano
 > de frentes nasceu em 2026-09-15, com a logo pronta — ela destrava a metade da [FEAT-03] que
 > esperava marca, o [branding/rebrand] e o [DEC-05]. Antes disso: [FEAT-12] (2026-09-09), [TD-033],
@@ -34,7 +34,7 @@
 | 1 | ✅ **Designer: pedido do PDF + checklist da marca** | conversa, sem código | os dois no Drive |
 | 2 | ✅ **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
-| 3a | **Dados da impressora** (2026-09-23) | código S2–S13 + pipeline → fase A (S1, S11 ✅) | tudo antes do marco |
+| 3a | **Dados da impressora** (2026-09-23) | código S4–S13 + pipeline → fase A (S1, S2, S3, S11 ✅) | tudo antes do marco |
 | 3c | **Varredura geral** (2026-09-23) | W7–W10 (código) | antes do marco |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
 | — | **Drive (LopoLabCalc)** | organização da pasta do projeto | só o que é do projeto, sem código |
@@ -146,6 +146,10 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
     `energyTariff` global da frente 2). Apagar a coleção inteira é clean slate mas perde esse
     histórico de auditoria; a alternativa é filtrar documento por documento antes — mais trabalho,
     zero perda. É append-only por design (FEAT-12), então a escolha é do dono.
+  - [ ] `apelidos` — apelidos de impressão de teste (lote 4). ⚠ Apagar JUNTO com `products`: o
+    órfão não bloqueia mais a importação, mas é lixo que ninguém vê
+  - [ ] `config/produtoSeq` — contador do código `LL-…` (lote 4); apagar faz o catálogo real
+    começar do **LL-0001** (senão herda os números gastos no teste)
   - [ ] `config/orcamentoSeq` — contador de numeração (`last: 23` na conferência de 2026-09-18);
     apagar reseta o próximo orçamento pro nº 1 (o `historyFloor` cai pra 0 junto com `orcamentos`)
 
@@ -192,13 +196,10 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
 > ⚠ O marco pode atrasar **um pouco** por isto (dono), não muito — não inflar o escopo.
 
 **Site — grava dado (obrigatório antes do marco):**
-- **S2 · Código do produto.** Gerado pelo site, sequencial (`LL-0001`), contador único em transação,
-  nunca reaproveitado, sem significado embutido, não editável. Salvar mantém; **"Salvar como novo"
-  gera novo** e nasce sem `conferidoEm` e sem apelidos. Par `buildLoadedProduct`/`buildProductPayload`
-  + CSV + teste de round-trip campo a campo.
-- **S3 · Apelidos de impressão.** Coleção própria, 1 doc por apelido `{fonte, chave, variante,
-  plate}` → produto + etapa + objetos por unidade. Busca em camadas (só a exata preenche); Link Modelo
-  como sugestão extra. O CSV do catálogo aceita a coluna de apelidos (vêm do curador na fase A).
+- ✅ **S2 · Código do produto** e ✅ **S3 · Apelidos** — lote 4 (2026-09-24), writeup no
+  `HISTORICO.md`. ⚠ Ao codar o **S12**: "salvar como novo" já nasce sem apelidos (coleção própria);
+  o `conferidoEm` novo precisa ser apagado no `buildProductPayload` do mesmo jeito que o `codigo`.
+  A busca em camadas (`lookupPrintAlias`) está pronta e sem tela — o consumidor é o S7.
 - **S4 · Evento de produção:** `origemExterna {fonte, id}` (substitui o prefixo `bambu:` no `notes`),
   `fonteDosNumeros` (`impressora` | `estimativa` | `manual`), **unidades produzidas ≠ creditadas**
   (custo por unidade = total ÷ produzidas), referência de imagem, **bloco de fatos crus
@@ -239,7 +240,7 @@ a fase A: corrigir o `repetitions`, o formato de export definitivo e a contagem 
 | 1 | ✅ `config/negocio` (2026-09-23) | V1 + W2 + W3 + V4 + V7 + V8 | fechado — writeup no `HISTORICO.md` |
 | 2 | ✅ Venda (2026-09-23) | S1 + W1 + W4 + V3 + V5 + W6 + W5 | fechado — writeup no `HISTORICO.md` |
 | 3 | ✅ Chave de cor (2026-09-23) | S11 + V2 + V6 + lista de cores | fechado — writeup no `HISTORICO.md` |
-| 4 | Código + apelidos | S2 + S3 + colunas do CSV | fecha os nomes de coluna → destrava o item 8 do pedido ao pipeline |
+| 4 | ✅ Código + apelidos (2026-09-24) | S2 + S3 + colunas do CSV | fechado — writeup no `HISTORICO.md` |
 | 5 | Evento + import | S4 + S5 + S6 + S7 (+ W7) | fecha o formato do arquivo de produção → destrava a seção 3 do pedido |
 | 6 | Fechamento | S12 + S13, depois W8–W10 | S12 pede o X% do dono |
 | — | Depois do marco, se quiser | S8 · S9 · S10 | só leem/mostram |
@@ -247,8 +248,8 @@ a fase A: corrigir o `repetitions`, o formato de export definitivo e a contagem 
 ⚠ **Os W não foram reproduzidos** (varredura sem passe de verificação): cada lote começa confirmando
 os W dele no código (Diretriz 9) antes de corrigir. **Em paralelo, no pipeline:** o `repetitions` e o
 curador (itens 1–5, 7, 9 do pedido) já podem andar; o item 6 (cor) espera só o cadastro de cores
-(a lista sai do botão "Copiar lista de cores" do `/estoque`), o item 8 espera o lote 4, a seção 3
-espera o lote 5.
+(a lista sai do botão "Copiar lista de cores" do `/estoque`), o item 8 **já pode andar** (formato no
+pedido, lote 4 ✅), a seção 3 espera o lote 5.
 
 **Processo da fase A (carga, uma vez):**
 1. **Apagar o dado de teste** (checklist acima) — PRIMEIRO, porque `estoque` e `insumos` estão na

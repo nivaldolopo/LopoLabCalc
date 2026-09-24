@@ -30,6 +30,12 @@ export function buildProductPayload(
   // escrever, e o contador andaria para trás. Quem grava o `rev` é o
   // repositório, e só ele.
   delete (base as { rev?: number }).rev;
+  // S2: o `codigo` é do repositório, como o `rev` — nasce na transação que
+  // CRIA o documento e nunca muda. Se sobrevivesse até aqui, "salvar como
+  // novo" gravaria o código do ORIGINAL no produto novo (dois produtos, um
+  // código). O `createProduct` escreve o dele por cima; o `saveProduct` nem
+  // toca na chave.
+  delete (base as { codigo?: string | null }).codigo;
   return {
     ...base,
     name: product.name.trim(),

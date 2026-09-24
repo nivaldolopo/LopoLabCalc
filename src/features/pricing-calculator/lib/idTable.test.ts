@@ -90,24 +90,25 @@ describe("idTable — o de-para que a carga em massa precisa", () => {
 
   it("produtos: cabeçalho + uma linha por produto, separado por TAB", () => {
     const linhas = productIdTable([
-      produto({ id: "p1", name: "Chaveiro Gatinho" }),
+      produto({ id: "p1", name: "Chaveiro Gatinho", codigo: "LL-0007" }),
       produto({ id: "p2", name: "Vaso Espiral" }),
     ]).split("\n");
 
-    expect(linhas[0]).toBe("Produto\tid");
-    expect(linhas[1]).toBe("Chaveiro Gatinho\tp1");
-    expect(linhas[2]).toBe("Vaso Espiral\tp2");
+    expect(linhas[0]).toBe("Produto\tid\tCodigo");
+    expect(linhas[1]).toBe("Chaveiro Gatinho\tp1\tLL-0007");
+    // S2: produto anterior ao código sai com a célula vazia.
+    expect(linhas[2]).toBe("Vaso Espiral\tp2\t");
   });
 
   it("produtos: nome vazio cai no nome da etapa principal", () => {
     const linha = productIdTable([
       produto({ id: "p1", name: "", mainStageName: "Corpo" }),
     ]).split("\n")[1];
-    expect(linha).toBe("Corpo\tp1");
+    expect(linha).toBe("Corpo\tp1\t");
   });
 
   it("produtos: lista vazia devolve só o cabeçalho", () => {
-    expect(productIdTable([])).toBe("Produto\tid");
+    expect(productIdTable([])).toBe("Produto\tid\tCodigo");
   });
 });
 

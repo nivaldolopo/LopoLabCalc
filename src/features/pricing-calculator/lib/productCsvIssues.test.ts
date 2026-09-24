@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseProductsCsv, type CsvIssue } from "./productCsv";
 import { calculatePricing } from "./calculatePricing";
+import { aliasDocId } from "./printAliases";
 import type {
   FixedCostSettings,
   Machine,
@@ -2316,5 +2317,75 @@ describe("AUD-17 [E6] — id de máquina inexistente dentro do Etapas JSON", () 
     );
     expect(r.products[0].stages?.[0].machineIds).toEqual(["x2d"]);
     expect(achar(r.issues, "maquina-etapa-descartada")).toBeUndefined();
+  });
+});
+
+// S3 — a coluna `Apelidos JSON` entra com a checagem dela (CSV-05): o apelido
+// que sai do arquivo SE ANUNCIA, e o produto entra mesmo assim.
+describe("S3 — Apelidos JSON", () => {
+  const apelido = (over: Record<string, unknown>) => ({ fonte: "mw", chave: "777", plate: 1, ...over });
+  const linha = (nome: string, lista: unknown[]) =>
+    ({ ...LINHA_BOA, Produto: nome, "Apelidos JSON": JSON.stringify(lista) });
+  function csvN(linhas: Record<string, string>[]): string {
+    const headers = Object.keys(linhas[0]);
+    const cell = (v: string) => (/[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    return [headers.join(";"), ...linhas.map((l) => headers.map((h) => cell(l[h])).join(";"))].join("\n");
+  }
+
+  it("apelido bom entra, na etapa principal por padrão", () => {
+    const r = parseProductsCsv(csv(linha("Zipper", [apelido({})])), machines, opcoes);
+    expect(r.aliases).toEqual([
+      [{ fonte: "mw", chave: "777", variante: null, plate: 1, stageKey: "main", objetosPorUnidade: 1 }],
+    ]);
+    expect(r.issues).toBeUndefined();
+  });
+
+  it("repetido no arquivo: vale o da 1ª linha, o outro sai e avisa", () => {
+    const r = parseProductsCsv(
+      csvN([linha("Zipper", [apelido({})]), linha("Outro", [apelido({})])]),
+      machines,
+      opcoes,
+    );
+    expect(r.products).toHaveLength(2);
+    expect(r.aliases.map((l) => l.length)).toEqual([1, 0]);
+    expect(achar(r.issues, "apelido-repetido")?.linhas).toBe(1);
+  });
+
+  it("já ligado a outro produto do catálogo: sai e avisa", () => {
+    const id = aliasDocId({ fonte: "mw", chave: "777", variante: null, plate: 1 });
+    const r = parseProductsCsv(csv(linha("Zipper", [apelido({})])), machines, {
+      ...opcoes,
+      existingAliasIds: [id],
+    });
+    expect(r.aliases).toEqual([[]]);
+    expect(achar(r.issues, "apelido-em-uso")?.linhas).toBe(1);
+  });
+
+  it("ilegível e fonte codigo: classes próprias", () => {
+    const r = parseProductsCsv(
+      csv(linha("Zipper", [apelido({ plate: 0 }), { fonte: "codigo", chave: "LL-0001" }])),
+      machines,
+      opcoes,
+    );
+    expect(r.aliases).toEqual([[]]);
+    expect(achar(r.issues, "apelido-invalido")?.linhas).toBe(1);
+    expect(achar(r.issues, "apelido-codigo")?.linhas).toBe(1);
+  });
+
+  it("a coluna Codigo é ignorada com aviso; vazia não avisa", () => {
+    const com = parseProductsCsv(csv({ ...LINHA_BOA, Codigo: "LL-0042" }), machines, opcoes);
+    expect(achar(com.issues, "codigo-ignorado")?.linhas).toBe(1);
+    const sem = parseProductsCsv(csv({ ...LINHA_BOA, Codigo: "" }), machines, opcoes);
+    expect(achar(sem.issues, "codigo-ignorado")).toBeUndefined();
+  });
+
+  it("Código e Apelidos escritos à mão (com acento) são reconhecidos, sem aproximação", () => {
+    const r = parseProductsCsv(
+      csv({ ...LINHA_BOA, "Código": "", "Apelidos JSON": JSON.stringify([apelido({})]) }),
+      machines,
+      opcoes,
+    );
+    expect(r.warnings.filter((w) => /aproxima|ignorada/.test(w))).toEqual([]);
+    expect(r.aliases[0]).toHaveLength(1);
   });
 });

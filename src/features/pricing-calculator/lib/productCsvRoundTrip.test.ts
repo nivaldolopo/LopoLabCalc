@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { exportProductsCsv, parseProductsCsv } from "./productCsv";
+import { aliasDocId } from "./printAliases";
 import type {
   FixedCostSettings,
   Machine,
+  PrintAliasDraft,
   ProductPayload,
+  SavedPrintAlias,
   SavedProduct,
   StockFilament,
   Supply,
@@ -108,7 +111,19 @@ function rows(csv: string): { headers: string[]; body: string[][] } {
   return { headers: all[0], body: all.slice(1) };
 }
 
-const JSON_COLS = ["Etapas JSON", "Acessorios JSON", "Filamentos JSON", "Subitens JSON"];
+const JSON_COLS = [
+  "Etapas JSON", "Acessorios JSON", "Filamentos JSON", "Subitens JSON", "Apelidos JSON",
+];
+
+// S3 — os apelidos da cobaia: um por etapa, cada campo exercitado.
+const apelidosCobaia: PrintAliasDraft[] = [
+  { fonte: "mw", chave: "1234567", variante: "998877", plate: 1, stageKey: "main", objetosPorUnidade: 1 },
+  { fonte: "mw", chave: "1234567", variante: "998877", plate: 2, stageKey: "stage_extra_1", objetosPorUnidade: 3 },
+  { fonte: "arquivo", chave: "cobaia encaixe", variante: null, plate: null, stageKey: "stage_extra_2", objetosPorUnidade: 2 },
+];
+function saved(drafts: PrintAliasDraft[], productId: string): SavedPrintAlias[] {
+  return drafts.map((d) => ({ ...d, id: aliasDocId(d), productId, createdAt: 0 }));
+}
 
 type Diff = { col: string; a: string; b: string };
 function diffRows(headers: string[], a: string[], b: string[]) {
@@ -133,18 +148,39 @@ function asSaved(p: ProductPayload, id: string): SavedProduct {
 }
 
 describe("round-trip do CSV — export -> import -> export", () => {
-  const csvA = exportProductsCsv([cobaia], machines, fixedCosts, ENERGY_TARIFF, stock);
-  const imported = reimport(csvA);
-  const csvB = exportProductsCsv([asSaved(imported[0], "prod_copia")], machines, fixedCosts, ENERGY_TARIFF, stock);
+  const csvA = exportProductsCsv(
+    [{ ...cobaia, codigo: "LL-0042" }], machines, fixedCosts, ENERGY_TARIFF, stock, [],
+    saved(apelidosCobaia, "prod_cobaia"),
+  );
+  const parsedA = parseProductsCsv(csvA, machines);
+  const imported = parsedA.products;
+  const csvB = exportProductsCsv(
+    [{ ...asSaved(imported[0], "prod_copia"), codigo: "LL-0043" }], machines, fixedCosts,
+    ENERGY_TARIFF, stock, [], saved(parsedA.aliases[0], "prod_copia"),
+  );
 
-  it("A e B: celula por celula, 34 colunas", () => {
+  it("A e B: celula por celula, 36 colunas", () => {
     const A = rows(csvA), B = rows(csvB);
     const { diffs, compared } = diffRows(A.headers, A.body[0], B.body[0]);
     // Coluna nova sem cobertura aqui é um buraco silencioso: o diff só prova o
-    // que ele percorre. 34 = 35 - "Tarifa Energia" (saiu do CSV, frente 2) +
-    // "Personalizado" (ProductKind, entrou nesta rodada).
-    expect(compared).toBe(34);
-    expect(diffs).toEqual([]);
+    // que ele percorre. 36 = 35 - "Tarifa Energia" (saiu do CSV, frente 2) +
+    // "Personalizado" (ProductKind) + "Codigo" e "Apelidos JSON" (S2/S3).
+    expect(compared).toBe(36);
+    // S2: o código é a ÚNICA diferença, e é o desenho — importar cria produto
+    // novo, com código novo (o do arquivo é ignorado, com aviso).
+    expect(diffs).toEqual([{ col: "Codigo", a: "LL-0042", b: "LL-0043" }]);
+  });
+
+  it("S2: o código do arquivo é ignorado e AVISADO", () => {
+    expect(parsedA.issues?.find((i) => i.kind === "codigo-ignorado")?.linhas).toBe(1);
+    expect((imported[0] as Record<string, unknown>).codigo).toBeUndefined();
+  });
+
+  it("S3: os apelidos voltam campo a campo, na etapa certa", () => {
+    const ordem = (l: PrintAliasDraft[]) =>
+      [...l].sort((a, b) => aliasDocId(a).localeCompare(aliasDocId(b)));
+    expect(parsedA.aliases).toHaveLength(1);
+    expect(ordem(parsedA.aliases[0])).toEqual(ordem(apelidosCobaia));
   });
 
   it("campo a campo no PAYLOAD importado (nao so no CSV)", () => {

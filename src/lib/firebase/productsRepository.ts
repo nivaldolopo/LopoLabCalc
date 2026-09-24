@@ -1,10 +1,11 @@
 import {
-  addDoc,
   collection,
-  deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
+  query,
   runTransaction,
+  where,
   writeBatch,
   type DocumentData,
 } from "firebase/firestore";
@@ -12,12 +13,21 @@ import { db } from "./client";
 import { COM_METADATA, type SnapshotOrigin } from "@/lib/cloudStatus";
 import { BATCH_TIMEOUT_SECONDS, withWriteTimeout } from "@/lib/errors";
 import type {
+  NewProductRow,
   ProductPayload,
   SavedProduct,
 } from "@/features/pricing-calculator/types";
 import { DEFAULT_FAILURE_RATE } from "@/features/pricing-calculator/constants";
+import { formatProductCode } from "@/features/pricing-calculator/lib/productCode";
+import { aliasDocId } from "@/features/pricing-calculator/lib/printAliases";
+import { aliasesCollection, aliasPayload } from "./printAliasesRepository";
 
 const productsCollection = collection(db, "products");
+
+// S2 — o contador do código `LL-0042`. Só anda (nunca reaproveita: produto
+// apagado leva o número junto). Para recomeçar do LL-0001 — uma vez só, na
+// limpeza da fase A — apague o doc `config/produtoSeq` junto com `products`.
+const codeSeqRef = doc(db, "config", "produtoSeq");
 
 function toSavedProduct(id: string, data: DocumentData): SavedProduct {
   return {
@@ -27,6 +37,8 @@ function toSavedProduct(id: string, data: DocumentData): SavedProduct {
     // Documento antigo (os 97 do catálogo) não tem o campo e vale 0; a primeira
     // gravação já o cria. Nada a migrar.
     rev: Number(data.rev) || 0,
+    // S2 — `null` = produto anterior ao código (Diretriz 6: sem backfill).
+    codigo: typeof data.codigo === "string" && data.codigo ? data.codigo : null,
     name: data.name ?? "",
     mainStageName: data.mainStageName ?? "",
     weightG: Number(data.weightG) || 0,
@@ -98,46 +110,127 @@ export function subscribeProducts(
   );
 }
 
+// S3 — o apelido do CSV já tem dono: nada foi gravado (a transação inteira
+// volta), e a frase diz qual apelido e o que fazer.
+export class ApelidoEmUsoError extends Error {
+  constructor(chave: string) {
+    super(
+      `O apelido "${chave}" já está ligado a outro produto (gravado depois que ` +
+        "o arquivo foi lido, provavelmente em outra aba). Nada foi importado — " +
+        "leia o CSV de novo para ver o aviso e decidir.",
+    );
+    this.name = "ApelidoEmUsoError";
+  }
+}
+
+// S2/S3 — cria N produtos numa transação: reserva N códigos no contador,
+// grava os produtos e os apelidos deles. Tudo ou nada (dentro do limite de 500
+// escritas do Firestore — quem chama fatia). Transação exige servidor: offline
+// ela FALHA em vez de ficar na fila como o `addDoc` ficava — e é o certo, o
+// número do código só existe depois que o servidor o reservou.
+async function createProductsTx(rows: NewProductRow[]): Promise<string[]> {
+  const gravacao = runTransaction(db, async (tx) => {
+    const seqSnap = await tx.get(codeSeqRef);
+    const last = seqSnap.exists() ? Number(seqSnap.data().last) || 0 : 0;
+    // Leituras ANTES das escritas (regra da transação): o apelido que outra
+    // aba gravou depois da leitura do CSV derruba tudo, em vez de ser
+    // sobrescrito calado apontando pra outro produto.
+    const aliasRefs = rows.flatMap((row) =>
+      row.aliases.map((alias) => ({
+        alias,
+        ref: doc(aliasesCollection, aliasDocId(alias)),
+      })),
+    );
+    const lidos = await Promise.all(aliasRefs.map(({ ref }) => tx.get(ref)));
+    // Apelido já gravado só está EM USO se o produto dele existe. Órfão (o
+    // produto foi apagado pelo Console, ou numa corrida com o `removeProduct`)
+    // e doc ilegível (sem `productId`) não aparecem em tela nenhuma — se
+    // bloqueassem, aquela origem nunca mais se ligaria. Esses são
+    // sobrescritos pelo `tx.set` abaixo.
+    const donos = await Promise.all(
+      lidos.map((snap) => {
+        const dono = snap.exists() ? snap.data().productId : null;
+        return typeof dono === "string" && dono
+          ? tx.get(doc(productsCollection, dono))
+          : null;
+      }),
+    );
+    const emUso = donos.findIndex((dono) => dono?.exists());
+    if (emUso >= 0) throw new ApelidoEmUsoError(aliasRefs[emUso].alias.chave);
+
+    const agora = Date.now();
+    const ids = rows.map((row, index) => {
+      const ref = doc(productsCollection);
+      tx.set(ref, {
+        ...row.payload,
+        codigo: formatProductCode(last + index + 1),
+        rev: 1,
+      });
+      row.aliases.forEach((alias) => {
+        tx.set(
+          doc(aliasesCollection, aliasDocId(alias)),
+          aliasPayload(alias, ref.id, agora),
+        );
+      });
+      return ref.id;
+    });
+    tx.set(codeSeqRef, { last: last + rows.length }, { merge: true });
+    return ids;
+  });
+  return gravacao;
+}
+
 // Devolve o id do documento criado: o UX-11 ("salvar e vender/produzir/orçar"
 // num clique) precisa dele imediatamente para semear a venda ou a rota, sem
 // esperar o produto voltar pela assinatura.
 export async function createProduct(payload: ProductPayload): Promise<string> {
-  const ref = await withWriteTimeout(
-    addDoc(productsCollection, { ...payload, rev: 1 }),
+  const [id] = await withWriteTimeout(
+    createProductsTx([{ payload, aliases: [] }]),
   );
-  return ref.id;
+  return id;
 }
 
-// Cria vários produtos de uma vez (importação de CSV). Cada lote de até 500 é
-// atômico (teto de um writeBatch do Firestore). ATENÇÃO: acima de 500 são vários
-// commits SEQUENCIAIS — não há transação única cross-lote no cliente Firestore.
-// Logo, se um lote falhar no meio, os anteriores JÁ foram gravados. Em vez de
-// deixar esse estado parcial em silêncio (TD-009/TD-007), o erro informa quantos
-// já entraram, para o usuário reimportar só o restante.
-const BATCH_LIMIT = 500;
+// Cria vários produtos de uma vez (importação de CSV). Cada fatia é atômica
+// (transação; teto de 500 escritas do Firestore — o produto conta 1, cada
+// apelido 1, o contador 1). ATENÇÃO: acima disso são várias transações
+// SEQUENCIAIS — se uma falhar no meio, as anteriores JÁ foram gravadas. Em vez
+// de deixar esse estado parcial em silêncio (TD-009/TD-007), o erro informa
+// quantos já entraram, para o usuário reimportar só o restante.
+const WRITE_LIMIT = 450;
 
-export async function createProductsBatch(
-  payloads: ProductPayload[],
-): Promise<void> {
-  let imported = 0;
-  for (let start = 0; start < payloads.length; start += BATCH_LIMIT) {
-    const chunk = payloads.slice(start, start + BATCH_LIMIT);
-    const batch = writeBatch(db);
-    for (const payload of chunk) {
-      batch.set(doc(productsCollection), { ...payload, rev: 1 });
+function chunkRowsByWrites(rows: NewProductRow[]): NewProductRow[][] {
+  const chunks: NewProductRow[][] = [];
+  let atual: NewProductRow[] = [];
+  let escritas = 1; // o contador
+  for (const row of rows) {
+    const custo = 1 + row.aliases.length;
+    if (atual.length > 0 && escritas + custo > WRITE_LIMIT) {
+      chunks.push(atual);
+      atual = [];
+      escritas = 1;
     }
+    atual.push(row);
+    escritas += custo;
+  }
+  if (atual.length > 0) chunks.push(atual);
+  return chunks;
+}
+
+export async function createProductsBatch(rows: NewProductRow[]): Promise<void> {
+  let imported = 0;
+  for (const chunk of chunkRowsByWrites(rows)) {
     try {
-      await withWriteTimeout(batch.commit(), BATCH_TIMEOUT_SECONDS);
+      await withWriteTimeout(createProductsTx(chunk), BATCH_TIMEOUT_SECONDS);
       imported += chunk.length;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      // Só há o que reportar quando parte já foi gravada (>1 lote). No caso
-      // comum (≤500, atômico) nada entrou, então repassa o erro cru.
+      // Só há o que reportar quando parte já foi gravada (>1 fatia). No caso
+      // comum (uma fatia, atômica) nada entrou, então repassa o erro cru.
       if (imported === 0) throw error;
       throw new Error(
-        `Importados ${imported} de ${payloads.length} produtos antes de ` +
+        `Importados ${imported} de ${rows.length} produtos antes de ` +
           `falhar (${reason}). Os já importados foram mantidos — reimporte ` +
-          `apenas os ${payloads.length - imported} restantes.`,
+          `apenas os ${rows.length - imported} restantes.`,
       );
     }
   }
@@ -195,6 +288,15 @@ export async function saveProduct(
   return withWriteTimeout(gravacao);
 }
 
+// S3 — o produto leva os apelidos junto, num lote só: apelido órfão faria a
+// próxima impressão daquela origem "reconhecer" um produto que não existe.
+// (A busca já ignora órfão — isto é para não deixar lixo, não a única trava.)
 export async function removeProduct(productId: string): Promise<void> {
-  await withWriteTimeout(deleteDoc(doc(db, "products", productId)));
+  const apelidos = await getDocs(
+    query(aliasesCollection, where("productId", "==", productId)),
+  );
+  const batch = writeBatch(db);
+  batch.delete(doc(db, "products", productId));
+  apelidos.docs.forEach((apelido) => batch.delete(apelido.ref));
+  await withWriteTimeout(batch.commit());
 }

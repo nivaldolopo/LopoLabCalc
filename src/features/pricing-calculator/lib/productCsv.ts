@@ -12,8 +12,10 @@ import type {
   Machine,
   ProductInput,
   ProductPayload,
+  PrintAliasDraft,
   PrintStage,
   RoundingMode,
+  SavedPrintAlias,
   SavedProduct,
   StockFilament,
   Subitem,
@@ -31,6 +33,7 @@ import {
 import { brandCandidates, catalogPricePerKg } from "./stock";
 import { ROUNDING_OPTIONS } from "./roundPrice";
 import { DEFAULT_FAILURE_RATE } from "../constants";
+import { aliasDocId, aliasesCell, parseAliasesCell } from "./printAliases";
 import { num } from "@/lib/number";
 
 const VALID_ROUNDING_MODES = new Set(
@@ -93,6 +96,11 @@ const CSV_HEADERS = [
   // `ProductKind`: coluna nova, no fim, pela mesma razão. Booleana (sim/nao),
   // como "Vende por Subitens" — CSV sem ela importa como "geral", o default.
   "Personalizado",
+  // S2/S3 (frente 3a) — no fim, mesma razão. O código SÓ SAI: é gerado pelo
+  // site e a importação o ignora (com aviso) — importar sempre cria produto
+  // NOVO, e código nunca é reaproveitado. Os apelidos vão e voltam.
+  "Codigo",
+  "Apelidos JSON",
 ];
 
 function csvCell(value: unknown): string {
@@ -463,6 +471,9 @@ const COLUMN_SPECS = {
   sellBySubitems: { exact: "Vende por Subitens", needle: "vende por subitens" },
   subitems: { exact: "Subitens JSON", needle: "subitens json" },
   kind: { exact: "Personalizado", needle: "personalizado" },
+  // S2: lida só para AVISAR que foi ignorada (ver `codigo-ignorado`).
+  code: { exact: "Codigo", needle: "codigo" },
+  aliases: { exact: "Apelidos JSON", needle: "apelidos" },
   // CSV-03: as duas colunas calculadas que alguém de fato tentaria editar para
   // "definir" o preço. As outras 10 são detalhamento — ninguém mexe no
   // "Desgaste (R$)" esperando mudar o resultado, e avisar sobre 12 colunas ×
@@ -1111,7 +1122,16 @@ export function exportProductsCsv(
   energyTariff: number,
   stock: StockFilament[] = [],
   supplies: Supply[] = [],
+  // S3 — todos os apelidos; cada linha leva os do seu produto.
+  aliases: SavedPrintAlias[] = [],
 ): string {
+  const aliasesByProduct = new Map<string, SavedPrintAlias[]>();
+  aliases.forEach((alias) => {
+    aliasesByProduct.set(alias.productId, [
+      ...(aliasesByProduct.get(alias.productId) ?? []),
+      alias,
+    ]);
+  });
   const rows = products.map((product) => {
     const result = calculatePricing(
       product,
@@ -1231,6 +1251,8 @@ export function exportProductsCsv(
       product.sellBySubitems ? "sim" : "nao",
       csvCell(JSON.stringify(exportedSubitems)),
       product.kind === "personalizado" ? "sim" : "nao",
+      csvCell(product.codigo ?? ""),
+      csvCell(aliasesCell(aliasesByProduct.get(product.id) ?? [])),
     ].join(";");
   });
 
@@ -1274,6 +1296,9 @@ export type CsvIssue = {
 
 export type CsvImportResult = {
   products: ProductPayload[];
+  // S3 — os apelidos de cada produto, MESMO ÍNDICE de `products` (lista
+  // vazia = nenhum). Já sem os descartados (inválidos, repetidos, em uso).
+  aliases: PrintAliasDraft[][];
   // Máquina que não casou e coluna de cabeçalho ignorada: por linha (ou por
   // arquivo), e ACIONÁVEL (dá pra corrigir o CSV).
   warnings: string[];
@@ -1300,6 +1325,9 @@ export type CsvParseOptions = {
   // produto com acessório ligado. `existingNames` continua fora de cálculo.
   supplies?: Supply[];
   existingNames?: string[];
+  // S3 — ids (`aliasDocId`) dos apelidos já gravados: o do arquivo que bater
+  // com um deles é descartado e avisado (apelido nunca aponta pra 2 produtos).
+  existingAliasIds?: string[];
 };
 
 // Tolerância: o export grava com 2 casas (`formatDecimal`), então até 2 centavos
@@ -1348,7 +1376,7 @@ export function parseProductsCsv(
 ): CsvImportResult {
   const rawLines = splitRecords(content.replace(/^\uFEFF/, ""));
 
-  if (rawLines.length < 2) return { products: [], warnings: [] };
+  if (rawLines.length < 2) return { products: [], aliases: [], warnings: [] };
 
   const { separator, runnerUp } = detectSeparator(rawLines[0]);
   const headers = parseLine(rawLines[0], separator);
@@ -1384,6 +1412,8 @@ export function parseProductsCsv(
   const indexSellBySubitems = col.sellBySubitems;
   const indexSubitems = col.subitems;
   const indexKind = col.kind;
+  const indexCode = col.code;
+  const indexAliases = col.aliases;
   const indexPrice = col.price;
   const indexTotalCost = col.totalCost;
 
@@ -1508,6 +1538,10 @@ export function parseProductsCsv(
   const estoquePorId = new Map(
     (options?.stock ?? []).map((color) => [color.id, color] as const),
   );
+  // S3 — os apelidos já vistos: os gravados e os das linhas anteriores.
+  const apelidosVistos = new Set(options?.existingAliasIds ?? []);
+  const apelidosGravados = new Set(options?.existingAliasIds ?? []);
+  const aliasesPorLinha: PrintAliasDraft[][] = [];
   const insumoIds = options?.supplies
     ? new Set(options.supplies.map((supply) => supply.id))
     : null;
@@ -2367,11 +2401,66 @@ export function parseProductsCsv(
       }
     }
 
+    // 10) S2 — o código do arquivo não entra: o site gera um novo (importar
+    // sempre cria produto NOVO; código nunca se reaproveita). Avisa, porque
+    // quem reimporta um export pode esperar manter os códigos.
+    const codigoNoArquivo = indexCode >= 0 ? columns[indexCode]?.trim() : "";
+    if (codigoNoArquivo) {
+      addIssue(
+        "codigo-ignorado",
+        "Código do arquivo ignorado — o site gera um código NOVO para cada produto importado",
+        `${ondeEstou}: "${codigoNoArquivo}"`,
+      );
+    }
+
+    // 11) S3 — os apelidos. Item ilegível, repetido ou já ligado a outro
+    // produto SAI e se anuncia; o produto entra mesmo assim.
+    const { aliases: lidos, problems } = parseAliasesCell(
+      indexAliases >= 0 ? columns[indexAliases] : "",
+      product.mainStageName,
+      stages,
+    );
+    problems.forEach((problem) => {
+      if (problem.kind === "codigo") {
+        addIssue(
+          "apelido-codigo",
+          'Apelido com fonte "codigo" descartado — o produto ainda não tem código (o site gera ao importar); use mw ou arquivo',
+          `${ondeEstou}: ${problem.detalhe}`,
+        );
+      } else {
+        addIssue(
+          "apelido-invalido",
+          "Apelido ilegível descartado — a impressão dessa origem não vai ser reconhecida sozinha",
+          `${ondeEstou}: ${problem.detalhe}`,
+        );
+      }
+    });
+    const aceitos = lidos.filter((alias) => {
+      const id = aliasDocId(alias);
+      if (!apelidosVistos.has(id)) {
+        apelidosVistos.add(id);
+        return true;
+      }
+      const onde = [alias.fonte, alias.chave, alias.variante, alias.plate]
+        .filter((v) => v !== null)
+        .join(" · ");
+      addIssue(
+        apelidosGravados.has(id) ? "apelido-em-uso" : "apelido-repetido",
+        apelidosGravados.has(id)
+          ? "Apelido já ligado a OUTRO produto do catálogo — descartado (um apelido aponta pra um produto só)"
+          : "Apelido repetido no arquivo — vale o da PRIMEIRA linha; este foi descartado",
+        `${ondeEstou}: ${onde}`,
+      );
+      return false;
+    });
+    aliasesPorLinha.push(aceitos);
+
     return [product];
   });
 
   return {
     products,
+    aliases: aliasesPorLinha,
     warnings,
     ...(recalcDivergentes > 0
       ? {

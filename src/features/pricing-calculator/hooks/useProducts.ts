@@ -10,7 +10,12 @@ import {
   subscribeProducts,
 } from "@/lib/firebase/productsRepository";
 import { cloudStatusOf } from "@/lib/cloudStatus";
-import type { CloudStatus, ProductPayload, SavedProduct } from "../types";
+import type {
+  CloudStatus,
+  NewProductRow,
+  ProductPayload,
+  SavedProduct,
+} from "../types";
 
 export function useProducts() {
   const [products, setProducts] = useState<SavedProduct[]>([]);
@@ -60,11 +65,13 @@ export function useProducts() {
     await removeProduct(productId);
   }
 
-  async function importProducts(payloads: ProductPayload[]) {
+  // S2/S3: cada linha leva os apelidos dela — nascem ligados ao produto na
+  // mesma transação que reserva o código.
+  async function importProducts(rows: NewProductRow[]) {
     setStatus("importing");
-    // Atômico e em um só round-trip (por lote de 500), em vez de N gravações
-    // sequenciais. O onSnapshot atualiza a lista e devolve o status a "synced".
-    await createProductsBatch(payloads);
+    // Atômico por fatia (transação), em vez de N gravações sequenciais. O
+    // onSnapshot atualiza a lista e devolve o status a "synced".
+    await createProductsBatch(rows);
     setStatus("synced");
   }
 

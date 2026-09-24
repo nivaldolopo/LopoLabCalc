@@ -9,10 +9,11 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-23): lote 3 da 3a (Chave de cor) fechado** — a **prateleira do acabado
-  é material + cor, sem marca** (rótulo "Preto PLA"); Estoque que move preço (arquivar/excluir/
-  editar cor) **confirma e registra**; cor sem marca ativa acende **"cor fora do Estoque"**;
-  duplicata bloqueia; botão **"Copiar lista de cores"** pro pipeline. Writeup no `HISTORICO.md`.
+- **Última mudança (2026-09-24): lote 4 da 3a (Código + apelidos) fechado** — todo produto novo
+  ganha **código `LL-0001`** (contador `config/produtoSeq` em transação; "salvar como novo" gera
+  outro); **apelidos de impressão** na coleção `apelidos` (1 doc por origem, id calculado da chave);
+  o CSV ganhou `Codigo` (só sai) e `Apelidos JSON`; o `/catalogo` importa **com o banco vazio**.
+  Writeup no `HISTORICO.md`; formato no `PEDIDO_PRINTPIPELINE.md` (item 8 destravado).
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
@@ -24,8 +25,8 @@
 - **PRÓXIMA TAREFA DESTE PROJETO — frente 3a (dados da impressora), depois frente 3 (uso real).**
   Código S1–S13 + os V/W abertos do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o
   marco pode atrasar um pouco, não muito). **Um chat por lote, na tabela "Ordem de execução do
-  código" da seção 3a do `BACKLOG.md`** (✅ lotes 1–3; **próximo = lote 4, Código + apelidos**:
-  S2+S3+colunas do CSV). Depois, a carga pelo "Processo da fase A"
+  código" da seção 3a do `BACKLOG.md`** (✅ lotes 1–4; **próximo = lote 5, Evento + import**:
+  S4+S5+S6+S7+W7). Depois, a carga pelo "Processo da fase A"
   (que começa APAGANDO o teste) e o marco (Diretriz 6 expira).
   Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
@@ -73,7 +74,8 @@ src/app/          # App Router. layout.tsx · page.tsx (calculadora) · catalogo
 src/features/pricing-calculator/
   components/     # calculadora: PricingCalculator (raiz) + ProductForm + PricingResultCard +
                   #   CapacityPanel/MachineSelector/FixedCostsPanel/Accessories/ExtraStages/
-                  #   Subitems/LinksSection + MachineCheckboxes (as elegíveis)
+                  #   Subitems/LinksSection + MachineCheckboxes (as elegíveis) +
+                  #   ProductIdentity (código LL-… + apelidos, sob o nome)
                   # uma por rota: CatalogPage(+ProductCatalog) · SalesPage · QuotePage ·
                   #   MachinesPage · ProductionPage (+ ImportProductionModal, botão "Importar
                   #   histórico") · StockPage (abas) + SuppliesTab · SettingsPage
@@ -88,11 +90,14 @@ src/features/pricing-calculator/
   hooks/          # useProducts · usePricingForm · useMachines · useBusinessSettings (config/
                   #   negocio — lido em 10 telas, editado só no FixedCostsPanel) · useTheme ·
                   #   useAuth · e um por coleção: useSales/useSupplies/useStock/useProduction/
-                  #   useFinishedGoods/useQuotes/useQuoteConfig/useFees/useChangeLog
+                  #   useFinishedGoods/useQuotes/useQuoteConfig/useFees/useChangeLog/
+                  #   usePrintAliases
   lib/            # TODA a matemática, pura. calculatePricing · calculateCapacity ·
                   #   fleet (taxa de frota: média ponderada por componente +
                   #     as decisões do seletor, sobre o MARCADO VIVO) ·
                   #   validateProduct · productCsv · idTable (de-para nome→id, TSV) ·
+                  #   productCode (LL-0042, leitura tolerante) · printAliases (chave
+                  #     canônica, id do doc, coluna do CSV, busca em camadas) ·
                   #   fifo (ordem + overdraft D4) → stock (g) + supplies (unidades) ·
                   #   production (baixa por evento + custo congelado, em 3 escalas) ·
                   #   finishedGoods (camadas FIFO; SKU = subitem × cor) ·
@@ -104,7 +109,8 @@ src/features/pricing-calculator/
                   #   margem líquida)     [+ constants.ts, types.ts na raiz da feature]
 src/lib/
   firebase/       # client.ts (init + db) · frozenCost.ts (o mesmo objeto vai p/ 3 coleções) ·
-                  #   um repositório por coleção: products · machines (config/machines) ·
+                  #   um repositório por coleção: products (+ código em transação,
+                  #   config/produtoSeq) · printAliases (`apelidos`) · machines (config/machines) ·
                   #   businessSettings (config/negocio) · quoteConfig · quotes · fees ·
                   #   sales (`vendas`; reconcileRecibo = 1 transação p/ as 4 coleções) ·
                   #   stock (`estoque`, doc por COR) · supplies (`insumos`, doc por INSUMO) ·
@@ -170,7 +176,8 @@ src/lib/
   documento** (`productPayload.test.ts` e `productCsvRoundTrip.test.ts`), e diff de célula JSON exige
   **stringify canônico** (o Firestore não preserva ordem de chave em mapa). **Valor-hora é do
   PRODUTO** e **tarifa de energia é GLOBAL** (`config/negocio`, frente 2) — nenhum dos dois é da
-  etapa; o **`id` não é campo do documento**, é o caminho; o export escreve
+  etapa; o **`id` não é campo do documento**, é o caminho, e `rev`/`codigo` são do REPOSITÓRIO
+  (o payload os apaga — "salvar como novo" herdaria o código); o export escreve
   etapa **normalizada**, não crua. ⚠ **A importação de CSV AVISA, não engole** (CSV-05): coluna nova
   que possa falhar calada entra com a checagem dela no mesmo commit — e renomear coluna pede `alias`
   na passada EXATA, senão o nome que o app mesmo escrevia vira "lido por aproximação".

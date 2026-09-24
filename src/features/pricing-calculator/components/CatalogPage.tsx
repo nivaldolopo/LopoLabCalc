@@ -7,6 +7,7 @@ import { DEFAULT_FIXED_COSTS, PRODUCT_KINDS } from "../constants";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
 import { useFees } from "../hooks/useFees";
 import { useMachines } from "../hooks/useMachines";
+import { usePrintAliases } from "../hooks/usePrintAliases";
 import { useProducts } from "../hooks/useProducts";
 import { useStock } from "../hooks/useStock";
 import { useSupplies } from "../hooks/useSupplies";
@@ -55,6 +56,14 @@ export function CatalogPage() {
   // no preço aqui (o repasse continua sendo escolha da venda).
   const { fees } = useFees();
   const productsApi = useProducts();
+  // S3 — a importação confere apelido contra o catálogo inteiro; o export leva.
+  const { aliases, error: aliasesError } = usePrintAliases();
+  // Só o apelido de produto VIVO está em uso: órfão (produto apagado pelo
+  // Console) é sobrescrito na importação — ver `createProductsTx`.
+  const liveAliases = useMemo(() => {
+    const ids = new Set(productsApi.products.map((product) => product.id));
+    return aliases.filter((alias) => ids.has(alias.productId));
+  }, [aliases, productsApi.products]);
 
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [saleOpen, setSaleOpen] = useState(false);
@@ -188,37 +197,47 @@ export function CatalogPage() {
       {productsApi.error ? (
         <div className="app-error">{productsApi.error}</div>
       ) : null}
-
-      {productsApi.products.length === 0 ? (
-        // Numa rota dedicada, catálogo vazio não pode ser tela em branco (na
-        // página principal o componente simplesmente sumia).
-        <div className="catalog-card catalog-empty">
-          <p>Nenhum produto cadastrado ainda.</p>
-          <Link className="btn primary" href="/">
-            Ir para a calculadora
-          </Link>
+      {aliasesError ? (
+        <div className="app-error">
+          Apelidos de impressão indisponíveis: {aliasesError}
         </div>
-      ) : (
-        <>
-          {/* Duas gavetas do mesmo catálogo (ver `ProductKind`) — dia a dia ×
-              sob medida. Cada uma é um catálogo próprio: busca, ordenação e
-              export/import da `ProductCatalog` operam só sobre a aba aberta. */}
-          <div className="stock-tabs" role="tablist">
-            {PRODUCT_KINDS.map((option) => (
-              <button
-                key={option.value}
-                className={`stock-tab ${activeKind === option.value ? "active" : ""}`}
-                type="button"
-                role="tab"
-                aria-selected={activeKind === option.value}
-                onClick={() => setActiveKind(option.value)}
-              >
-                {option.label} ({kindCounts[option.value]})
-              </button>
-            ))}
-          </div>
+      ) : null}
 
-          {productsInKind.length === 0 ? (
+      {/* Duas gavetas do mesmo catálogo (ver `ProductKind`) — dia a dia × sob
+          medida. Cada uma é um catálogo próprio: busca, ordenação e
+          export/import da `ProductCatalog` operam só sobre a aba aberta.
+          ⚠ A `ProductCatalog` renderiza MESMO VAZIA: é a barra dela que
+          importa o CSV, e a carga da fase A começa com o banco zerado. */}
+      {productsApi.products.length > 0 ? (
+        <div className="stock-tabs" role="tablist">
+          {PRODUCT_KINDS.map((option) => (
+            <button
+              key={option.value}
+              className={`stock-tab ${activeKind === option.value ? "active" : ""}`}
+              type="button"
+              role="tab"
+              aria-selected={activeKind === option.value}
+              onClick={() => setActiveKind(option.value)}
+            >
+              {option.label} ({kindCounts[option.value]})
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <ProductCatalog
+        products={productsInKind}
+        aliases={liveAliases}
+        emptyState={
+          productsApi.products.length === 0 ? (
+            // Numa rota dedicada, catálogo vazio não pode ser tela em branco.
+            <div className="catalog-card catalog-empty">
+              <p>Nenhum produto cadastrado ainda.</p>
+              <Link className="btn primary" href="/">
+                Ir para a calculadora
+              </Link>
+            </div>
+          ) : (
             <div className="catalog-card catalog-empty">
               <p>
                 Nenhum produto{" "}
@@ -226,31 +245,27 @@ export function CatalogPage() {
                 ainda.
               </p>
             </div>
-          ) : (
-            <ProductCatalog
-              products={productsInKind}
-              machines={machines}
-              stock={stock}
-              supplies={supplies}
-              fixedCosts={fixedCosts}
-              energyTariff={energyTariff}
-              pricingByProduct={pricingByProduct}
-              capacitySettings={capacitySettings}
-              fees={fees}
-              initialOpenId={focusId}
-              sortMode={sortMode}
-              onSortModeChange={setSortMode}
-              onLoadProduct={editProduct}
-              onDeleteProduct={productsApi.deleteProduct}
-              onImportProducts={productsApi.importProducts}
-              onRegisterSale={openSaleFromCatalog}
-              onProduce={produceProduct}
-              onQuote={quoteProduct}
-              onNewSale={openNewSale}
-            />
-          )}
-        </>
-      )}
+          )
+        }
+        machines={machines}
+        stock={stock}
+        supplies={supplies}
+        fixedCosts={fixedCosts}
+        energyTariff={energyTariff}
+        pricingByProduct={pricingByProduct}
+        capacitySettings={capacitySettings}
+        fees={fees}
+        initialOpenId={focusId}
+        sortMode={sortMode}
+        onSortModeChange={setSortMode}
+        onLoadProduct={editProduct}
+        onDeleteProduct={productsApi.deleteProduct}
+        onImportProducts={productsApi.importProducts}
+        onRegisterSale={openSaleFromCatalog}
+        onProduce={produceProduct}
+        onQuote={quoteProduct}
+        onNewSale={openNewSale}
+      />
 
       {saleOpen ? (
         <SaleFlow

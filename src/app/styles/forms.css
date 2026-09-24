@@ -834,3 +834,54 @@ input[type="range"]::-moz-range-thumb {
 .num-field input {
   padding-right: 16px;
 }
+
+/* S2/S3 — código do produto e apelidos de impressão, sob o nome. O código é o
+   que o dono copia pro Bambu Studio: mono, legível, com o botão ao lado. */
+.product-identity {
+  margin-top: var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.product-identity-code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.product-identity-value {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.product-identity-note {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.product-identity-aliases ul {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.product-identity-aliases li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+/* Nome de arquivo longo quebra em vez de empurrar a lixeira pra fora. */
+.product-identity-alias {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}

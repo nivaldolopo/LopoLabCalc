@@ -15,6 +15,7 @@ import { useFees } from "../hooks/useFees";
 import { useMachines } from "../hooks/useMachines";
 import { usePricingForm } from "../hooks/usePricingForm";
 import { useProducts } from "../hooks/useProducts";
+import { usePrintAliases } from "../hooks/usePrintAliases";
 import { useStock } from "../hooks/useStock";
 import { useSupplies } from "../hooks/useSupplies";
 import { useTheme } from "../hooks/useTheme";
@@ -27,6 +28,7 @@ import { Header } from "./Header";
 import { MobilePriceBar } from "./MobilePriceBar";
 import { PricingResultCard } from "./PricingResultCard";
 import { ProductForm } from "./ProductForm";
+import { ProductIdentity } from "./ProductIdentity";
 import { SaleFlow } from "./SaleFlow";
 import { useSettingsModal } from "./SettingsModalHost";
 import {
@@ -48,6 +50,8 @@ export function PricingCalculator() {
   // já apontava para ele continua apontando; o guarda do excluir cobre isso).
   const { supplies } = useSupplies();
   const productsApi = useProducts();
+  // S3 — os apelidos do produto aberto aparecem (e se removem) no formulário.
+  const aliasesApi = usePrintAliases();
   const form = usePricingForm();
   const searchParams = useSearchParams();
   // UX-11: "Produzir"/"Orçar" saem daqui pras rotas semeadas por id (FEAT-08).
@@ -422,11 +426,41 @@ export function PricingCalculator() {
     <main className="wrap has-price-bar" id="conteudo" tabIndex={-1}>
       <Header theme={theme} status={productsApi.status} onToggleTheme={toggleTheme} />
       {productsApi.error ? <div className="app-error">{productsApi.error}</div> : null}
+      {aliasesApi.error ? (
+        <div className="app-error">
+          Apelidos de impressão indisponíveis: {aliasesApi.error}
+        </div>
+      ) : null}
 
       <div className="grid">
         <div className="left-column">
           <ProductForm
             product={form.product}
+            identity={
+              <ProductIdentity
+                // Remonta a cada produto: o aviso "copiado" é de UM produto.
+                key={form.editingProductId ?? "novo"}
+                editing={form.editingProductId !== null}
+                // `undefined` enquanto o produto recém-criado (UX-11) não
+                // voltou pela assinatura — não é "anterior ao código".
+                codigo={
+                  form.editingProductId
+                    ? productsApi.products.find(
+                        (item) => item.id === form.editingProductId,
+                      )?.codigo
+                    : undefined
+                }
+                product={form.product}
+                aliases={
+                  form.editingProductId
+                    ? aliasesApi.aliases.filter(
+                        (alias) => alias.productId === form.editingProductId,
+                      )
+                    : []
+                }
+                onRemoveAlias={aliasesApi.deleteAlias}
+              />
+            }
             machines={machines}
             stock={stock}
             supplies={supplies}

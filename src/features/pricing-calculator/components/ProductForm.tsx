@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { PRODUCT_KINDS } from "../constants";
 import type {
   Machine,
@@ -21,6 +21,8 @@ import { SubitemsSection } from "./SubitemsSection";
 
 type ProductFormProps = {
   product: ProductInput;
+  // S2/S3 — código e apelidos, logo abaixo do nome (`ProductIdentity`).
+  identity?: ReactNode;
   machines: Machine[];
   stock: StockFilament[];
   supplies: Supply[];
@@ -46,6 +48,7 @@ type ProductFormProps = {
 
 export function ProductForm({
   product,
+  identity,
   machines,
   stock,
   supplies,
@@ -80,6 +83,7 @@ export function ProductForm({
           onChange={(event) => onChange({ name: event.target.value })}
           placeholder="Ex: Insert para Wingspan"
         />
+        {identity}
       </div>
 
       <div className="field-block compact">
