@@ -668,6 +668,56 @@ describe("calculatePricing — preço vivo do Estoque (7c)", () => {
       [makeColor("cor1", [{ pricePerKg: 999 }])]); // "Preto"/"PLA" — não casa
     expect(r.materialCost).toBeCloseTo(7.7, 6); // 100/1000*77 (salvo)
     expect(r.filamentMissing).toBe(false);
+    // [V2] — mas NÃO calado: a cor fica fora do Estoque, com aviso próprio.
+    expect(r.filamentOffStock).toBe(true);
+  });
+
+  // [V2] — renomear a cor no Estoque desligava o produto sem aviso nenhum.
+  it("[V2] cor renomeada ou com todas as marcas arquivadas acende filamentOffStock", () => {
+    const produto = makeProduct({
+      filaments: [
+        { filamentId: null, colorName: "Preto", material: "PLA", totalG: 100, pricePerKg: 50 },
+      ],
+    });
+    const renomeada = { ...makeColor("cor1", [{ pricePerKg: 130 }]), colorName: "Preto Fosco" };
+    const arquivada = { ...makeColor("cor1", [{ pricePerKg: 130 }]), archived: true };
+    for (const stock of [[renomeada], [arquivada]]) {
+      const r = calculatePricing(produto, DEFAULT_MACHINES, NO_FIXED, ENERGY_TARIFF, stock);
+      expect(r.materialCost).toBeCloseTo(5, 6); // caiu no salvo
+      expect(r.filamentOffStock).toBe(true);
+      expect(r.filamentMissing).toBe(false);
+    }
+  });
+
+  it("[V2] marca ativa casando, linha zerada ou Estoque vazio NÃO acendem filamentOffStock", () => {
+    const linha = (colorName: string, totalG: number) =>
+      makeProduct({
+        filaments: [{ filamentId: null, colorName, material: "PLA", totalG, pricePerKg: 50 }],
+      });
+    const stock = [makeColor("cor1", [{ pricePerKg: 130 }])];
+    expect(
+      calculatePricing(linha("preto", 100), DEFAULT_MACHINES, NO_FIXED, ENERGY_TARIFF, stock)
+        .filamentOffStock,
+    ).toBe(false);
+    expect(
+      calculatePricing(linha("Roxo", 0), DEFAULT_MACHINES, NO_FIXED, ENERGY_TARIFF, stock)
+        .filamentOffStock,
+    ).toBe(false);
+    expect(
+      calculatePricing(linha("Roxo", 100), DEFAULT_MACHINES, NO_FIXED, ENERGY_TARIFF, [])
+        .filamentOffStock,
+    ).toBe(false);
+  });
+
+  it("[V2] cor sem material também acende — não há marca que case", () => {
+    const r = calculatePricing(
+      makeProduct({
+        filaments: [{ filamentId: null, colorName: "Preto", material: "", totalG: 100, pricePerKg: 50 }],
+      }),
+      DEFAULT_MACHINES, NO_FIXED, ENERGY_TARIFF,
+      [makeColor("cor1", [{ pricePerKg: 130 }])],
+    );
+    expect(r.filamentOffStock).toBe(true);
   });
 
   // Regressão do code review (--high): a marca REMOVIDA não pode cair nas

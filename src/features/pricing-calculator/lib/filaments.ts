@@ -239,17 +239,29 @@ export type ColorKey = {
 
 export const NO_COLOR: ColorKey = { key: NO_COLOR_KEY, label: NO_COLOR_LABEL };
 
-// Identidade de UMA cor. Ligada ao Estoque = o `filamentId` (o nome pode ser
-// editado depois sem partir o saldo); avulsa = o nome normalizado, com o prefixo
-// `livre:` para nunca colidir com um id do Firestore. Sem gramas não conta: uma
-// linha zerada não pinta a peça. O slug tira `+` e espaços, que são os
-// separadores da chave composta.
+// Identidade de UMA cor: MATERIAL + COR, sem marca (S11, frente 3a). É a chave
+// do agrupamento que o Estoque já mostra (`filamentGroupKey`) — Preto PLA Bambu
+// e Preto PLA Sunlu são a mesma prateleira, PLA e PETG pretos são duas. Ligada
+// ao Estoque ou avulsa dá a MESMA chave: a marca só decide de qual rolo sai o
+// filamento, não que peça é esta. Custo aceito pelo dono: renomear a cor separa
+// o saldo antigo do novo. Sem gramas não conta: uma linha zerada não pinta a
+// peça. O slug tira `+`, `:` e espaços — `+` é o separador da chave composta.
+const slug = (text: string) => normalizeText(text).replace(/[^a-z0-9]+/g, "-");
+
 function colorIdentity(f: FilamentUsage): ColorKey | null {
   if (filamentTotalG(f) <= 0) return null;
   const name = (f.colorName ?? "").trim();
-  if (f.filamentId) return { key: f.filamentId, label: name || "Cor do estoque" };
-  if (!name) return null;
-  return { key: `livre:${normalizeText(name).replace(/[^a-z0-9]+/g, "-")}`, label: name };
+  // Ligada ao Estoque mas sem nome (linha antiga/importada): não há par
+  // material+cor para casar, então a própria cor do Estoque é a identidade —
+  // melhor que cair em "Sem cor" e somar com o que não tem cor nenhuma.
+  if (!name) {
+    return f.filamentId ? { key: `estoque:${f.filamentId}`, label: "Cor do estoque" } : null;
+  }
+  const material = (f.material ?? "").trim();
+  return {
+    key: `cor:${slug(material)}:${slug(name)}`,
+    label: material ? `${name} ${material}` : name,
+  };
 }
 
 /**

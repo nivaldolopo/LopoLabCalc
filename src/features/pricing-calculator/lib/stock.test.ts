@@ -13,6 +13,7 @@ import {
   filamentGroupLabel,
   filamentLabel,
   filamentReferences,
+  findDuplicateFilament,
   isBelowMin,
   materialOptions,
   matchStockByBrand,
@@ -766,5 +767,42 @@ describe("filamentReferences (guarda do excluir)", () => {
   it("cor avulsa (filamentId null) não referencia ninguém", () => {
     const refs = filamentReferences("cor-preto", [usa(null)], [usa(null)]);
     expect(refs).toEqual({ productNames: [], salesCount: 0 });
+  });
+});
+
+// [V6] — duplicata de material + cor + marca no Estoque.
+describe("findDuplicateFilament (V6)", () => {
+  const cor = (id: string, over: Partial<StockFilament> = {}): StockFilament => ({
+    id,
+    material: "PLA",
+    brand: "Bambu",
+    colorName: "Preto",
+    minG: 0,
+    archived: false,
+    rolls: [],
+    adjustments: [],
+    createdAt: 0,
+    ...over,
+  });
+
+  it("acha a gêmea, tolerante a acento, caixa e espaço", () => {
+    const stock = [cor("a")];
+    expect(findDuplicateFilament(stock, { material: " pla ", colorName: "PRETO", brand: "bambú" })?.id).toBe("a");
+  });
+
+  it("outra marca, cor ou material não é duplicata", () => {
+    const stock = [cor("a")];
+    expect(findDuplicateFilament(stock, { material: "PLA", colorName: "Preto", brand: "Voolt" })).toBeNull();
+    expect(findDuplicateFilament(stock, { material: "PETG", colorName: "Preto", brand: "Bambu" })).toBeNull();
+    expect(findDuplicateFilament(stock, { material: "PLA", colorName: "Branco", brand: "Bambu" })).toBeNull();
+  });
+
+  it("a ARQUIVADA também conta — o certo é desarquivar", () => {
+    expect(findDuplicateFilament([cor("a", { archived: true })], cor("novo"))?.id).toBe("a");
+  });
+
+  it("a própria cor em edição não é duplicata de si mesma", () => {
+    expect(findDuplicateFilament([cor("a")], cor("a"), "a")).toBeNull();
+    expect(findDuplicateFilament([cor("a"), cor("b")], cor("a"), "a")?.id).toBe("b");
   });
 });

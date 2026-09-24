@@ -267,6 +267,10 @@ export type StageCost = {
   // mais no Estoque e o cálculo caiu no preço salvo de fallback (D3). Molde do
   // `machineMissing`/TD-009: sinaliza dado órfão em vez de mascarar.
   filamentMissing: boolean;
+  // [V2] true quando uma cor SEM marca fixada (cor+material) não acha nenhuma
+  // marca ATIVA no Estoque — renomeada, arquivada inteira ou nunca cadastrada —
+  // e o cálculo caiu no preço salvo. Antes ficava calado.
+  filamentOffStock: boolean;
   materialCost: number;
   energyCost: number;
   depreciationCost: number;
@@ -350,6 +354,9 @@ export type PricingResult = {
   // UI avisa com badge, no mesmo molde do `machineMissing`. Opcional: ausente em
   // snapshots antigos e quando não há nada ligado ao Estoque.
   filamentMissing?: boolean;
+  // [V2] cor+material sem marca ativa no Estoque (ver `StageCost`). Opcional
+  // pelo mesmo motivo do `filamentMissing`.
+  filamentOffStock?: boolean;
   // TD-033: true quando algum acessório aponta para um INSUMO removido do
   // Estoque e o custo caiu no `unitPrice` salvo. Gêmeo do `filamentMissing` —
   // mesmo molde de badge. Insumo ARQUIVADO não acende: ele continua no cadastro

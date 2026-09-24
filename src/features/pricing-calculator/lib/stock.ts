@@ -226,6 +226,30 @@ export function filamentGroupLabel(
   return parts.length > 0 ? parts.join(" ") : "(sem nome)";
 }
 
+// [V6] — já existe OUTRA cor com o mesmo material + cor + marca? Tolerante a
+// acento/caixa, e olha as ARQUIVADAS também: duas iguais viravam dois cartões
+// de mesmo nome na produção, e a arquivada é o caso em que o dono esqueceu que
+// já tinha — o certo é desarquivar, não criar a gêmea. `ignoreId` é a própria
+// cor em edição (salvar sem mudar o nome não é duplicata de si mesma).
+export function findDuplicateFilament(
+  stock: StockFilament[],
+  draft: Pick<StockFilament, "material" | "colorName" | "brand">,
+  ignoreId: string | null = null,
+): StockFilament | null {
+  const alvo = [draft.material, draft.colorName, draft.brand].map((p) =>
+    normalizeText(p ?? ""),
+  );
+  return (
+    stock.find(
+      (c) =>
+        c.id !== ignoreId &&
+        normalizeText(c.material ?? "") === alvo[0] &&
+        normalizeText(c.colorName ?? "") === alvo[1] &&
+        normalizeText(c.brand ?? "") === alvo[2],
+    ) ?? null
+  );
+}
+
 // Alerta de estoque mínimo. `minG` 0 = sem alerta.
 export function isBelowMin(color: StockFilament): boolean {
   return num(color.minG) > 0 && balanceG(color) < num(color.minG);

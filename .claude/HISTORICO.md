@@ -9,6 +9,34 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Lote 3 da frente 3a — Chave de cor: S11 + V2 + V6 (+ lista de cores) (2026-09-23)
+
+Decisões do dono no chat, antes de codar: rótulo da prateleira **"Preto PLA"**; arquivar/excluir
+que move preço **confirma com o impacto** (opção a); aviso "cor fora do Estoque" acende **também**
+em cor avulsa nunca cadastrada; duplicata **bloqueia**; a exportação da lista de cores sem marca
+(item 6 do pedido ao pipeline) **entra no lote**. `/code-review --high`: 5 achados, 4 corrigidos no
+mesmo commit (o 5º, o `agora()` fora do componente, ficou — é o contorno do react-hooks/purity).
+Testes: 1061 → 1076.
+
+- **[S11] Prateleira = material + cor, sem marca.** `colorIdentity` (`filaments.ts`) gera
+  `cor:<material>:<cor>` (slug, tolerante a acento/caixa — a régua do `filamentGroupKey`) para
+  ligada E avulsa; rótulo "Cor Material". Ligada sem nome (linha antiga) cai em
+  `estoque:<filamentId>`, não em "Sem cor". O `colorKey` já era opaco em todo o resto (venda,
+  `/estoque`, import, plano) — só a `colorKeyOf` mudou. ⚠ Diretriz 6: camadas gravadas antes ficam
+  numa prateleira separada (chave velha); a fase A apaga `acabados`.
+- **[V2] Estoque que move preço não é mais calado.** Arquivar, desarquivar, excluir e editar cor
+  passam por `confirmarReprecificacao` (`StockPage`): `computeRepriceImpact` trocando só aquela cor;
+  preço movido → confirmação com `stockRepriceWarning` e, depois da alavanca, 1 doc em `alteracoes`
+  (`stockEditPayload`, sem desfazer). Preço parado → sem diálogo (excluir continua perguntando). E o
+  renomear: `resolveFilamentPrices` ganhou `offStock` → `filamentOffStock` (badge "cor fora do
+  Estoque" no card de preço e no catálogo) quando a linha sem marca fixada não acha marca ATIVA.
+- **[V6]** `findDuplicateFilament` (inclui arquivadas → "desarquive"), só quando a identidade é nova
+  ou mudou (gêmea pré-V6 ainda edita amostra/mínimo).
+- **Lista de cores** (`colorGroupTable`, botão "Copiar lista de cores" no `/estoque`): TSV
+  Cor · Material · Nome no site · Amostras (hex de todas as marcas) · Arquivada — uma linha por grupo.
+- **Achado do review, fora do Estoque:** o `<Modal>` fechava TODOS os modais abertos num Escape (a
+  confirmação por cima do formulário levava o rascunho junto). Agora há uma pilha: só o do topo fecha.
+
 ## ✅ Lote 2 da frente 3a — Venda: S1 + W1 + W4 + W5 + V3 + V5 + W6 (2026-09-23)
 
 O maior lote da "Ordem de execução do código". Decisões do dono tomadas no chat, antes de codar:

@@ -444,11 +444,11 @@ describe("buildImportFinishedUpdates — acumula VARIAS linhas do MESMO produto"
       createdAt: 0,
       skus: [
         {
-          // Mesma chave que `colorKeyOf` daria pro filamento avulso "azul
-          // claro" do `evento()` (ver filaments.ts) — é o que faz a camada
+          // Mesma chave que `colorKeyOf` daria pro filamento "azul claro"
+          // PLA do `evento()` (S11, ver filaments.ts) — é o que faz a camada
           // nova cair na MESMA sku, não abrir uma segunda.
-          colorKey: "livre:azul-claro",
-          colorLabel: "azul claro",
+          colorKey: "cor:pla:azul-claro",
+          colorLabel: "azul claro PLA",
           name: "Insert",
           layers: [{ id: "velho", at: 0, qty: 3, unitCost: 10, sourceEventId: "velho-evt" }],
         },

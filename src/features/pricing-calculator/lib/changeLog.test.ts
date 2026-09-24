@@ -6,7 +6,10 @@ import {
   describeMachineChanges,
   fixedCostProposal,
   machinesProposal,
+  describeStockColorEdit,
   stockChangePayload,
+  stockEditPayload,
+  stockRepriceWarning,
   summarizeChange,
   toChangeImpact,
   undoLabelOf,
@@ -24,6 +27,7 @@ import type {
   FixedCostRate,
   Machine,
   SavedProduct,
+  StockFilament,
 } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -390,6 +394,78 @@ describe("[FEAT-12] cotação do estoque", () => {
     expect(payload.after.unitPrice).toBe(160);
     // E o registro que sai daqui não oferece desfazer.
     expect(canUndo({ ...payload, id: "x" })).toBe(false);
+  });
+});
+
+// [V2] — arquivar/excluir/renomear no Estoque reprecificava calado: o produto
+// sem marca fixada cobra a MAIOR cotação entre as marcas ATIVAS.
+describe("[V2] mudança de cadastro de cor no Estoque", () => {
+  const marca = (id: string, brand: string, pricePerKg: number, over: Partial<StockFilament> = {}): StockFilament => ({
+    id,
+    material: "PLA",
+    brand,
+    colorName: "Azul",
+    minG: 0,
+    archived: false,
+    rolls: [{ id: `${id}_r`, purchaseDate: 0, initialG: 1000, remainingG: 1000, pricePerKg }],
+    adjustments: [],
+    createdAt: 0,
+    ...over,
+  });
+  const comEstoque = (stock: StockFilament[]): RepriceLevers => ({ ...levers(FROTA), stock });
+  const barata = marca("barata", "Voolt", 90);
+  const cara = marca("cara", "Bambu", 160);
+
+  it("arquivar a marca mais cara BAIXA o produto sem marca fixada — e a confirmação diz isso", () => {
+    const impacto = computeRepriceImpact(
+      [produto("p1")],
+      comEstoque([barata, cara]),
+      comEstoque([barata, { ...cara, archived: true }]),
+    );
+    expect(impacto.affected).toBe(1);
+    expect(impacto.down).toBe(1);
+    expect(stockRepriceWarning(impacto)).toBe(
+      "Isto muda o preço de 1 produto do catálogo (1 desce).",
+    );
+  });
+
+  it("renomear a cor desliga o produto do Estoque — preço move, e há o que confirmar", () => {
+    const impacto = computeRepriceImpact(
+      [produto("p1"), produto("p2")],
+      comEstoque([cara]),
+      comEstoque([{ ...cara, colorName: "Azul Royal" }]),
+    );
+    expect(impacto.affected).toBe(2);
+    expect(stockRepriceWarning(impacto)).toMatch(/^Isto muda o preço de 2 produtos/);
+  });
+
+  it("sem preço movido não há o que confirmar", () => {
+    const impacto = computeRepriceImpact([produto("p1")], comEstoque([cara]), comEstoque([cara]));
+    expect(stockRepriceWarning(impacto)).toBeNull();
+  });
+
+  it("o registro diz a ação, sem desfazer", () => {
+    const payload = stockEditPayload({
+      label: "PLA · Azul · Bambu",
+      action: "arquivada",
+      by: "dono@exemplo.com",
+      impact: computeRepriceImpact([], levers(FROTA), levers(FROTA)),
+      at: 7,
+    });
+    expect(payload.summary).toBe("PLA · Azul · Bambu · arquivada");
+    expect(payload.details).toEqual([payload.summary]);
+    expect(payload.lever).toBe("cor");
+    expect(payload.at).toBe(7);
+    expect(canUndo({ ...payload, id: "x" })).toBe(false);
+  });
+
+  it("a edição descreve só material/cor/marca, campo a campo", () => {
+    const base = { material: "PLA", colorName: "Azul", brand: "Bambu" };
+    expect(describeStockColorEdit(base, { ...base, colorName: "Azul Royal" })).toEqual([
+      "cor Azul → Azul Royal",
+    ]);
+    expect(describeStockColorEdit(base, { ...base })).toEqual([]);
+    expect(describeStockColorEdit(base, { ...base, brand: "" })).toEqual(["marca Bambu → (vazio)"]);
   });
 });
 

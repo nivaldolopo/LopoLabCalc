@@ -54,6 +54,9 @@ const FOCUSABLE =
  * (cabeçalho fixo / corpo rolável / rodapé fixo) que resolve o rodapé abaixo da
  * dobra do `SaleModal`. Cada modal passou a ser só o seu FORMULÁRIO.
  */
+// Modais montados agora, do mais antigo ao do topo (ver o Escape abaixo).
+const openModals: object[] = [];
+
 export function Modal({
   title,
   sub,
@@ -69,10 +72,27 @@ export function Modal({
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const titleId = useId();
 
-  // Escape fecha, como na gaveta da nav (UX-14) e no ConfirmDialog.
+  // A pilha de modais abertos, na ordem em que MONTARAM (não na do efeito do
+  // Escape, que se re-registra a cada `onClose` novo).
+  const stackToken = useRef<object>({});
+  useEffect(() => {
+    const token = stackToken.current;
+    openModals.push(token);
+    return () => {
+      const index = openModals.lastIndexOf(token);
+      if (index >= 0) openModals.splice(index, 1);
+    };
+  }, []);
+
+  // Escape fecha, como na gaveta da nav (UX-14) e no ConfirmDialog — mas só o
+  // modal do TOPO: com uma confirmação aberta por cima de um formulário (V2, a
+  // prévia de preço ao editar uma cor), um Escape fechava os dois e o rascunho
+  // do formulário ia junto.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      if (openModals[openModals.length - 1] !== stackToken.current) return;
+      onClose();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);

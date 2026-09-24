@@ -73,8 +73,9 @@ function makeColor(
 // FEAT-11: toda SKU tem cor. Os testes anteriores ao recurso nao falam de cor —
 // a semente poe AZUL em quem nao declarar, e os itens da cesta pedem essa mesma
 // cor (`acabadoItem`). Quem testa cor declara.
-const AZUL = { key: "fil_azul", label: "Azul" };
-const VERMELHO = { key: "fil_verm", label: "Vermelho" };
+// S11: a chave é material + cor (a mesma que `colorKeyOf` dá ao cadastro).
+const AZUL = { key: "cor:pla:azul", label: "Azul PLA" };
+const VERMELHO = { key: "cor:pla:vermelho", label: "Vermelho PLA" };
 
 type SkuSeed = Omit<FinishedSku, "colorKey" | "colorLabel"> &
   Partial<Pick<FinishedSku, "colorKey" | "colorLabel">>;
@@ -851,8 +852,8 @@ describe("FEAT-11 — ciclo produzir 2 cores → vender 1 (integração)", () =>
 
   it("o seletor da venda oferece as duas, maior saldo primeiro", () => {
     expect(colorsWithBalance(good)).toEqual([
-      { colorKey: VERMELHO.key, colorLabel: "Vermelho", balance: 3 },
-      { colorKey: AZUL.key, colorLabel: "Azul", balance: 2 },
+      { colorKey: VERMELHO.key, colorLabel: VERMELHO.label, balance: 3 },
+      { colorKey: AZUL.key, colorLabel: AZUL.label, balance: 2 },
     ]);
   });
 

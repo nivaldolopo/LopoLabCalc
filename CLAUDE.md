@@ -9,10 +9,10 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-23): lote 2 da 3a (Venda) fechado** — **toda venda sai do acabado**
-  ("encomenda" é só o canal); sem peça registrada → **camada de acerto** (custo do cadastro);
-  acessório sem parte de produto por partes baixa na **venda do conjunto**. Writeup no
-  `HISTORICO.md`; pedido pro pipeline em [`handoff/`](.claude/handoff/PEDIDO_PRINTPIPELINE.md).
+- **Última mudança (2026-09-23): lote 3 da 3a (Chave de cor) fechado** — a **prateleira do acabado
+  é material + cor, sem marca** (rótulo "Preto PLA"); Estoque que move preço (arquivar/excluir/
+  editar cor) **confirma e registra**; cor sem marca ativa acende **"cor fora do Estoque"**;
+  duplicata bloqueia; botão **"Copiar lista de cores"** pro pipeline. Writeup no `HISTORICO.md`.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
@@ -24,8 +24,8 @@
 - **PRÓXIMA TAREFA DESTE PROJETO — frente 3a (dados da impressora), depois frente 3 (uso real).**
   Código S1–S13 + os V/W abertos do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o
   marco pode atrasar um pouco, não muito). **Um chat por lote, na tabela "Ordem de execução do
-  código" da seção 3a do `BACKLOG.md`** (✅ lotes 1–2; **próximo = lote 3, Chave de cor**:
-  S11+V2+V6). Depois, a carga pelo "Processo da fase A"
+  código" da seção 3a do `BACKLOG.md`** (✅ lotes 1–3; **próximo = lote 4, Código + apelidos**:
+  S2+S3+colunas do CSV). Depois, a carga pelo "Processo da fase A"
   (que começa APAGANDO o teste) e o marco (Diretriz 6 expira).
   Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o

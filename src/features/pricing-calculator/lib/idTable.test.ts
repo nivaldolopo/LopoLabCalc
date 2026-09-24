@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { colorIdTable, productIdTable, supplyIdTable } from "./idTable";
+import { colorGroupTable, colorIdTable, productIdTable, supplyIdTable } from "./idTable";
 import type { SavedProduct, StockFilament, Supply } from "../types";
 
 const cor = (over: Partial<StockFilament>): StockFilament =>
@@ -108,5 +108,26 @@ describe("idTable — o de-para que a carga em massa precisa", () => {
 
   it("produtos: lista vazia devolve só o cabeçalho", () => {
     expect(productIdTable([])).toBe("Produto\tid");
+  });
+});
+
+describe("colorGroupTable (S11) — a lista de cores sem marca, pro pipeline", () => {
+  it("uma linha por material + cor: as marcas se juntam, com as amostras de todas", () => {
+    const t = colorGroupTable([
+      cor({ id: "a", colorName: "Preto", brand: "Bambu", colorHex: "#161616" }),
+      cor({ id: "b", colorName: "preto", brand: "Sunlu", colorHex: "#101010" }),
+      cor({ id: "c", colorName: "Preto", material: "PETG", colorHex: "#161616" }),
+    ]);
+    expect(t.split("\n")).toEqual([
+      "Cor\tMaterial\tNome no site\tAmostras\tArquivada",
+      "Preto\tPETG\tPreto PETG\t#161616\tnao",
+      "Preto\tPLA\tPreto PLA\t#161616 #101010\tnao",
+    ]);
+  });
+
+  it("arquivada só quando TODAS as marcas do grupo estão", () => {
+    const parcial = colorGroupTable([cor({ id: "a", archived: true }), cor({ id: "b", brand: "Voolt" })]);
+    expect(parcial).toContain("\tnao");
+    expect(colorGroupTable([cor({ archived: true })])).toContain("\tsim");
   });
 });

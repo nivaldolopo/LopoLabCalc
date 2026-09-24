@@ -16,6 +16,7 @@ import type {
 import { DEFAULT_FAILURE_RATE } from "../constants";
 import { roundPrice, type RoundingMode } from "./roundPrice";
 import {
+  filamentTotalG,
   filamentsMaterialCost,
   mergeFilaments,
   normalizeFilaments,
@@ -55,11 +56,20 @@ type StageDetail = { key: string; cost: StageCost; printHours: number };
 // Sem nenhuma correspondência no Estoque, cai no `pricePerKg` salvo, como um
 // avulso — sem acender `missing` (cor/material que nunca foi ligada ao Estoque
 // não é dado ÓRFÃO, é dado que nunca apontou para lá).
+//
+// [V2] — mas também não pode ficar CALADO: renomear a cor no Estoque (ou
+// arquivar todas as marcas dela) desliga o produto, que volta ao preço salvo
+// sem ninguém saber. `offStock` acende quando a linha tem cor (e gramas) e
+// NENHUMA marca ativa casa — renomeada, arquivada, nunca cadastrada ou sem
+// material (sem ele não há marca que case): em todos o preço é o digitado, e
+// depois da fase A toda cor real mora no Estoque. Estoque vazio (não carregado
+// / sem cadastro) não acende.
 function resolveFilamentPrices(
   filaments: FilamentUsage[],
   stockById: Map<string, StockFilament>,
-): { filaments: FilamentUsage[]; missing: boolean } {
+): { filaments: FilamentUsage[]; missing: boolean; offStock: boolean } {
   let missing = false;
+  let offStock = false;
   const stockList = Array.from(stockById.values());
   const resolved = filaments.map((f) => {
     if (f.filamentId) {
@@ -72,10 +82,18 @@ function resolveFilamentPrices(
       return { ...f, pricePerKg: live > 0 ? live : num(f.pricePerKg) };
     }
     const candidates = brandCandidates(stockList, f.colorName, f.material);
+    if (
+      candidates.length === 0 &&
+      stockList.length > 0 &&
+      (f.colorName ?? "").trim() &&
+      filamentTotalG(f) > 0
+    ) {
+      offStock = true;
+    }
     const maxPrice = maxCandidatePrice(candidates);
     return maxPrice > 0 ? { ...f, pricePerKg: maxPrice } : f;
   });
-  return { filaments: resolved, missing };
+  return { filaments: resolved, missing, offStock };
 }
 
 // TD-033 — preço VIVO do INSUMO, a metade que faltava da 7c. Gêmea exata da
@@ -175,7 +193,11 @@ export function calculateStageCost(
   // FEAT-02: material = soma por cor (peso total × preço/kg). Migra o escalar
   // legado (weightG/filamentPricePerKg) para uma cor única quando `filaments`
   // não existe. 7c: resolve o preço vivo (rolo mais novo) das cores ligadas.
-  const { filaments, missing: filamentMissing } = resolveFilamentPrices(
+  const {
+    filaments,
+    missing: filamentMissing,
+    offStock: filamentOffStock,
+  } = resolveFilamentPrices(
     normalizeFilaments(stage),
     stockById,
   );
@@ -193,6 +215,7 @@ export function calculateStageCost(
     machineMissing: fleet.missing,
     filaments,
     filamentMissing,
+    filamentOffStock,
     materialCost,
     energyCost,
     depreciationCost,
@@ -248,6 +271,7 @@ export function calculatePricing(
 
   let anyMachineMissing = mainStage.machineMissing;
   let anyFilamentMissing = mainStage.filamentMissing;
+  let anyFilamentOffStock = mainStage.filamentOffStock;
 
   // FEAT-02: acumula o consumo por cor de todas as etapas (principal + extras)
   // para agregar num único array por cor no resultado (pesos por impressão).
@@ -283,6 +307,7 @@ export function calculatePricing(
     stagesHours += num(stage.printHours);
     if (cost.machineMissing) anyMachineMissing = true;
     if (cost.filamentMissing) anyFilamentMissing = true;
+    if (cost.filamentOffStock) anyFilamentOffStock = true;
     allFilaments.push(...cost.filaments);
     fleets.push(cost.fleet);
     stageDetails.push({
@@ -442,6 +467,7 @@ export function calculatePricing(
     filaments: mergeFilaments(allFilaments),
     machineMissing: anyMachineMissing,
     filamentMissing: anyFilamentMissing,
+    filamentOffStock: anyFilamentOffStock,
     supplyMissing,
     subitems,
   };

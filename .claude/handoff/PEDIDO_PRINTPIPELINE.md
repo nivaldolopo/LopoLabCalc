@@ -57,9 +57,10 @@
    nenhuma impressão cobre (peça feita antes de 11/06) aparece como **"faltam N"** — o dono lança à
    mão no site.
 6. **Cor:** traduzir o hex **carregado** (`targetColor`, não o planejado) + tipo em **material + cor
-   da lista do site** (o dono exporta a lista de cores do `/estoque` do LopoLabCalc — o de-para
-   nome→id em TSV já existe lá). Ex.: `161616` + PLA → "Preto PLA". **Sem marca**: na fase A nada
-   mexe em rolo. Somar por cor carregada (1081441249: 3 cores planejadas caíram no mesmo slot verde).
+   da lista do site** (o dono exporta a lista de cores do `/estoque` do LopoLabCalc pelo botão
+   **"Copiar lista de cores"**: TSV `Cor · Material · Nome no site · Amostras · Arquivada`, uma linha
+   por material + cor, com os hex de todas as marcas). Ex.: `161616` + PLA → "Preto PLA". **Sem
+   marca**: na fase A nada mexe em rolo, e a prateleira do acabado já conta por material + cor. Somar por cor carregada (1081441249: 3 cores planejadas caíram no mesmo slot verde).
 7. **Cancelada:** peso e tempo da API são do PLANO. Estimar o consumido com
    `plano × min(1, (endTime − startTime) ÷ costTime)` e marcar `fonteDosNumeros: "estimativa"`.
    Ex.: 1214307195 → 1358 s de 5824 s ≈ 23% → ~7 g de 31 g. (Na concluída, tempo = `costTime`,

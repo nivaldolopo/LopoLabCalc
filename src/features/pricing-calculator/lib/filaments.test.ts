@@ -246,36 +246,63 @@ describe("materialsLabel (D8 — material derivado)", () => {
   });
 });
 
-describe("colorKeyOf (FEAT-11 — identidade de cor da peça)", () => {
+describe("colorKeyOf (FEAT-11 + S11 — identidade de cor da peça)", () => {
   const cor = (
     filamentId: string | null,
     colorName: string,
     totalG = 10,
+    material = "PLA",
   ): FilamentUsage => ({
     filamentId,
     colorName,
-    material: "PLA",
+    material,
     pricePerKg: 110,
     totalG,
   });
 
-  it("uma cor do estoque: a chave é o filamentId, o rótulo é o nome", () => {
+  it("uma cor: a chave é material + cor, o rótulo é 'Cor Material'", () => {
     expect(colorKeyOf([cor("fil_azul", "Azul")])).toEqual({
-      key: "fil_azul",
-      label: "Azul",
+      key: "cor:pla:azul",
+      label: "Azul PLA",
     });
   });
 
-  it("a chave segue o id, não o nome — renomear a cor não parte o saldo", () => {
-    expect(colorKeyOf([cor("fil_azul", "Azul Bebê")]).key).toBe(
-      colorKeyOf([cor("fil_azul", "Azul Claro")]).key,
+  it("S11: a MARCA não parte a prateleira — duas marcas de Preto PLA são um saldo só", () => {
+    expect(colorKeyOf([cor("fil_preto_bambu", "Preto")]).key).toBe(
+      colorKeyOf([cor("fil_preto_sunlu", "Preto")]).key,
     );
+  });
+
+  it("S11: ligada ao Estoque ou avulsa, a mesma cor+material é a mesma prateleira", () => {
+    expect(colorKeyOf([cor("fil_azul", "Azul")])).toEqual(colorKeyOf([cor(null, "Azul")]));
+  });
+
+  it("S11: o MATERIAL separa — PLA preto e PETG preto são duas prateleiras (também no avulso)", () => {
+    expect(colorKeyOf([cor(null, "Preto", 10, "PLA")]).key).not.toBe(
+      colorKeyOf([cor(null, "Preto", 10, "PETG")]).key,
+    );
+    expect(colorKeyOf([cor("fil_a", "Preto", 10, "PLA")]).key).not.toBe(
+      colorKeyOf([cor("fil_b", "Preto", 10, "PETG")]).key,
+    );
+  });
+
+  it("tolerante a acento, caixa e espaço (a mesma régua do agrupamento do Estoque)", () => {
+    const key = colorKeyOf([cor(null, "Azul Bebê", 10, "PLA")]).key;
+    expect(key).toBe("cor:pla:azul-bebe");
+    expect(colorKeyOf([cor("fil_x", "  azul bebe ", 10, "pla")]).key).toBe(key);
+  });
+
+  it("sem material: a chave fica com o material vazio e o rótulo é só a cor", () => {
+    expect(colorKeyOf([cor(null, "Dourado", 10, "")])).toEqual({
+      key: "cor::dourado",
+      label: "Dourado",
+    });
   });
 
   it("peça bicolor vira chave COMPOSTA (decisão do dono), não a cor dominante", () => {
     const composta = colorKeyOf([cor("fil_azul", "Azul", 90), cor("fil_branco", "Branco", 5)]);
-    expect(composta.key).toBe("fil_azul+fil_branco");
-    expect(composta.label).toBe("Azul + Branco");
+    expect(composta.key).toBe("cor:pla:azul+cor:pla:branco");
+    expect(composta.label).toBe("Azul PLA + Branco PLA");
     expect(composta.key).not.toBe(colorKeyOf([cor("fil_azul", "Azul")]).key);
   });
 
@@ -285,38 +312,33 @@ describe("colorKeyOf (FEAT-11 — identidade de cor da peça)", () => {
     );
   });
 
-  it("duas etapas na MESMA cor colapsam (não vira 'Azul + Azul')", () => {
-    expect(colorKeyOf([cor("fil_azul", "Azul"), cor("fil_azul", "Azul")])).toEqual({
-      key: "fil_azul",
-      label: "Azul",
+  it("duas etapas na MESMA cor colapsam (não vira 'Azul + Azul'), mesmo em marcas diferentes", () => {
+    expect(colorKeyOf([cor("fil_azul", "Azul"), cor("fil_azul_2", "Azul")])).toEqual({
+      key: "cor:pla:azul",
+      label: "Azul PLA",
     });
   });
 
   it("linha zerada não pinta a peça (0 g fica de fora da chave)", () => {
     expect(colorKeyOf([cor("fil_azul", "Azul"), cor("fil_branco", "Branco", 0)]).key).toBe(
-      "fil_azul",
+      "cor:pla:azul",
     );
   });
 
-  it("avulso entra pelo nome normalizado, com prefixo que não colide com id", () => {
-    const key = colorKeyOf([cor(null, "Azul Bebê")]).key;
-    expect(key).toBe("livre:azul-bebe");
-    expect(colorKeyOf([cor(null, "  azul bebe ")]).key).toBe(key);
-  });
-
-  it("nome avulso com '+' não forja uma chave composta", () => {
-    const forjada = colorKeyOf([cor(null, "Azul+Branco")]);
-    expect(forjada.key).toBe("livre:azul-branco");
+  it("nome com '+' ou ':' não forja uma chave composta", () => {
+    const forjada = colorKeyOf([cor(null, "Azul+Branco:X")]);
+    expect(forjada.key).toBe("cor:pla:azul-branco-x");
     expect(forjada.key.split("+")).toHaveLength(1);
   });
 
-  it("mistura estoque + avulso na mesma peça", () => {
-    const mista = colorKeyOf([cor("fil_azul", "Azul"), cor(null, "Dourado")]);
-    expect(mista.key).toBe("fil_azul+livre:dourado");
-    expect(mista.label).toBe("Azul + Dourado");
+  it("ligada ao Estoque sem nome: a cor do Estoque é a identidade, não 'Sem cor'", () => {
+    expect(colorKeyOf([cor("fil_azul", "", 10)])).toEqual({
+      key: "estoque:fil_azul",
+      label: "Cor do estoque",
+    });
   });
 
-  it("sem cor identificável cai na sentinela (avulso sem nome, lista vazia)", () => {
+  it("sem cor identificável cai na sentinela (sem nome, lista vazia, 0 g)", () => {
     const nada = { key: NO_COLOR_KEY, label: NO_COLOR_LABEL };
     expect(colorKeyOf([])).toEqual(nada);
     expect(colorKeyOf([cor(null, "")])).toEqual(nada);

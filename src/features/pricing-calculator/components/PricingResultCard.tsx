@@ -160,6 +160,13 @@ export function PricingResultCard({
         </div>
       ) : null}
 
+      {result.filamentOffStock ? (
+        <div className="form-error machine-missing">
+          ⚠ Cor fora do Estoque — nenhuma marca ativa com esta cor + material
+          (renomeada, arquivada ou não cadastrada); usando o preço digitado.
+        </div>
+      ) : null}
+
       {result.supplyMissing ? (
         <div className="form-error machine-missing">
           ⚠ Insumo removido do Estoque — usando o preço salvo como fallback.

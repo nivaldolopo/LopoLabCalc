@@ -469,3 +469,69 @@ export function stockChangePayload(params: {
     undoOf: null,
   };
 }
+
+/**
+ * [V2] — o registro de uma mudança de CADASTRO de cor no Estoque que moveu
+ * preço: arquivar, desarquivar, excluir ou editar material/cor/marca.
+ *
+ * Desde o Item 1 o produto sem marca fixada cobra a MAIOR cotação entre as
+ * marcas ATIVAS de mesma cor+material — então tirar a mais cara da lista
+ * (arquivar/excluir) baixa o catálogo, e renomear desliga os produtos dela.
+ * Só o rolo novo deixava rastro; estas quatro reprecificavam caladas.
+ *
+ * Sem desfazer (`before`/`after` vazios, como a cotação): o que volta atrás é
+ * a própria ação inversa no Estoque, que ganha o seu rastro também.
+ */
+export function stockEditPayload(params: {
+  label: string;
+  action: string; // "arquivada", "excluída", "editada: Preto → Preto Fosco"...
+  by: string;
+  impact: RepriceImpact;
+  at?: number;
+}): ChangeRecordPayload {
+  const linha = `${params.label} · ${params.action}`;
+  return {
+    at: params.at ?? Date.now(),
+    by: params.by,
+    lever: "cor",
+    summary: linha,
+    details: [linha],
+    before: EMPTY_CHANGE_STATE,
+    after: EMPTY_CHANGE_STATE,
+    impact: toChangeImpact(params.impact),
+    undoOf: null,
+  };
+}
+
+/**
+ * [V2] — o que mudou na identidade de uma cor editada, campo a campo
+ * ("cor Preto → Preto Fosco"). Vazio quando só mudou amostra/mínimo — o que
+ * não mexe em preço nem em qual produto aponta pra ela.
+ */
+export function describeStockColorEdit(
+  antes: { material: string; colorName: string; brand: string },
+  depois: { material: string; colorName: string; brand: string },
+): string[] {
+  const campos: [keyof typeof antes, string][] = [
+    ["material", "material"],
+    ["colorName", "cor"],
+    ["brand", "marca"],
+  ];
+  return campos
+    .filter(([key]) => (antes[key] ?? "").trim() !== (depois[key] ?? "").trim())
+    .map(([key, rotulo]) => `${rotulo} ${antes[key] || "(vazio)"} → ${depois[key] || "(vazio)"}`);
+}
+
+/**
+ * [V2] — a frase da confirmação quando uma ação no Estoque reprecifica o
+ * catálogo. `null` quando nenhum preço se move: aí não há o que confirmar.
+ */
+export function stockRepriceWarning(impact: RepriceImpact): string | null {
+  if (impact.affected === 0) return null;
+  const n = impact.affected;
+  const partes = [
+    impact.up > 0 ? `${impact.up} sobe${impact.up > 1 ? "m" : ""}` : "",
+    impact.down > 0 ? `${impact.down} desce${impact.down > 1 ? "m" : ""}` : "",
+  ].filter(Boolean);
+  return `Isto muda o preço de ${n} produto${n > 1 ? "s" : ""} do catálogo (${partes.join(", ")}).`;
+}

@@ -719,6 +719,15 @@ function CatalogDetails({
               ⚠ cor removida
             </span>
           ) : null}
+          {result.filamentOffStock ? (
+            <span
+              className="machine-missing-badge"
+              title="Nenhuma marca ativa com esta cor + material no Estoque (renomeada, arquivada ou não cadastrada) — usando o preço digitado."
+            >
+              {" "}
+              ⚠ cor fora do Estoque
+            </span>
+          ) : null}
         </span>
         <span>
           <span className="db-label">Mão de obra</span> {product.laborMinutes}min

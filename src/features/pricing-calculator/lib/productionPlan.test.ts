@@ -441,10 +441,10 @@ describe("submissionColors (FEAT-11)", () => {
   it("cada parte recebe a cor das SUAS etapas, não a mistura da submissão", () => {
     const rows = wholeEventRows(kit, DEFAULT_MACHINES, []);
     const colors = submissionColors(rows, kit.subitems);
-    expect(colors.bySubitem.get("corpo")?.label).toBe("Azul");
-    expect(colors.bySubitem.get("tampa")?.label).toBe("Vermelho");
+    expect(colors.bySubitem.get("corpo")?.label).toBe("Azul PLA");
+    expect(colors.bySubitem.get("tampa")?.label).toBe("Vermelho PLA");
     // A submissão inteira, essa sim, é bicolor.
-    expect(colors.whole.label).toBe("Azul + Vermelho");
+    expect(colors.whole.label).toBe("Azul PLA + Vermelho PLA");
   });
 
   it("[FROTA] duas etapas na MESMA máquina são DUAS linhas (uma por etapa)", () => {
@@ -458,8 +458,8 @@ describe("submissionColors (FEAT-11)", () => {
     ]);
     // A separação por etapa continua chegando na parte certa.
     const colors = submissionColors(rows, kit.subitems);
-    expect(colors.bySubitem.get("corpo")?.label).toBe("Azul");
-    expect(colors.bySubitem.get("tampa")?.label).toBe("Vermelho");
+    expect(colors.bySubitem.get("corpo")?.label).toBe("Azul PLA");
+    expect(colors.bySubitem.get("tampa")?.label).toBe("Vermelho PLA");
   });
 
   it("trocar a cor de uma linha reflete na parte certa", () => {
@@ -474,8 +474,8 @@ describe("submissionColors (FEAT-11)", () => {
       ),
     }));
     const colors = submissionColors(trocado, kit.subitems);
-    expect(colors.bySubitem.get("corpo")?.label).toBe("Azul");
-    expect(colors.bySubitem.get("tampa")?.label).toBe("Preto");
+    expect(colors.bySubitem.get("corpo")?.label).toBe("Azul PLA");
+    expect(colors.bySubitem.get("tampa")?.label).toBe("Preto PLA");
   });
 
   it("parte sem filamento nenhum (só montagem) fica sem cor", () => {
@@ -506,21 +506,20 @@ describe("submissionColors (FEAT-11)", () => {
       wholeEventRows(simples, DEFAULT_MACHINES, estoque),
       [],
     );
-    expect(colors.whole).toEqual({ key: "fil_azul", label: "Azul" });
+    expect(colors.whole).toEqual({ key: "cor:pla:azul", label: "Azul PLA" });
     expect(colors.bySubitem.size).toBe(0);
   });
 
-  // Documenta a borda: cor apagada do Estoque cai no caminho AVULSO (é o que o
-  // `resolveFilRow` já fazia — sem a cor não há preço vivo nem de onde dar baixa),
-  // e a SKU passa a ser chaveada pelo NOME. Recadastrar a cor não junta o saldo
-  // das duas — é o mesmo sintoma que o badge de cor removida (TD-009) já avisa.
-  it("cor que não está mais no Estoque vira chave por nome (avulso)", () => {
+  // S11: cor apagada do Estoque cai no caminho AVULSO (sem preço vivo nem de
+  // onde dar baixa), mas a PRATELEIRA é a mesma — a chave é material + cor, não
+  // o id. Recadastrar a cor junta o saldo das duas.
+  it("cor que não está mais no Estoque cai na MESMA prateleira (material + cor)", () => {
     const simples = makeProduct({ filaments: [AZUL] });
     const colors = submissionColors(
       wholeEventRows(simples, DEFAULT_MACHINES, []),
       [],
     );
-    expect(colors.whole).toEqual({ key: "livre:azul", label: "Azul" });
+    expect(colors.whole).toEqual({ key: "cor:pla:azul", label: "Azul PLA" });
   });
 });
 

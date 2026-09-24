@@ -6,7 +6,7 @@
 > do AGORA fica no `CLAUDE.md`.
 >
 > **Estado em 2026-09-23: frentes 1 (designer) e 2 (Configurações) fechadas; a frente 3a (dados da
-> impressora) anda por lotes — ✅ lotes 1–2, próximo = lote 3 (Chave de cor: S11 + V2 + V6)**, na
+> impressora) anda por lotes — ✅ lotes 1–3, próximo = lote 4 (Código + apelidos: S2 + S3)**, na
 > tabela "Ordem de execução do código" da seção 3a. Depois vem a fase A e o marco (frente 3). O plano
 > de frentes nasceu em 2026-09-15, com a logo pronta — ela destrava a metade da [FEAT-03] que
 > esperava marca, o [branding/rebrand] e o [DEC-05]. Antes disso: [FEAT-12] (2026-09-09), [TD-033],
@@ -34,8 +34,7 @@
 | 1 | ✅ **Designer: pedido do PDF + checklist da marca** | conversa, sem código | os dois no Drive |
 | 2 | ✅ **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
-| 3a | **Dados da impressora** (2026-09-23) | código S2–S13 + pipeline → fase A (S1 ✅) | tudo antes do marco |
-| 3b | **Achados da varredura** (2026-09-23) | V2, V6 (código) | antes do marco (V2 c/ S11) |
+| 3a | **Dados da impressora** (2026-09-23) | código S2–S13 + pipeline → fase A (S1, S11 ✅) | tudo antes do marco |
 | 3c | **Varredura geral** (2026-09-23) | W7–W10 (código) | antes do marco |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
 | — | **Drive (LopoLabCalc)** | organização da pasta do projeto | só o que é do projeto, sem código |
@@ -216,9 +215,6 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
   **tabela máquina × cor+material → marca** com "a partir desta impressão, marca B" e "dividir entre
   marcas" · **"já registrado?"** (máquina + horário batendo com evento manual → desmarcada) ·
   **"criar produto a partir desta impressão"** (formulário normal preenchido; gera código e apelido).
-- **S11 · Prateleira do acabado = material + cor, sem marca** (`colorKeyOf`, `filaments.ts:263`,
-  passa a usar a chave de `filamentGroupKey`; o avulso deixa de ignorar o material). O Estoque não
-  muda (marca continua obrigatória no rolo).
 - **S12 · "Conferido" + pendências no `/catalogo`.** `conferidoEm` no produto; pendências
   calculadas (sem mão de obra, acessório não ligado, cor fora do Estoque, sem máquina, sem código, e
   **"real diverge > X% do cadastro depois da conferência"**, no mesmo tamanho de mesa). ⚠ **X% ainda
@@ -242,7 +238,7 @@ a fase A: corrigir o `repetitions`, o formato de export definitivo e a contagem 
 |---|---|---|---|
 | 1 | ✅ `config/negocio` (2026-09-23) | V1 + W2 + W3 + V4 + V7 + V8 | fechado — writeup no `HISTORICO.md` |
 | 2 | ✅ Venda (2026-09-23) | S1 + W1 + W4 + V3 + V5 + W6 + W5 | fechado — writeup no `HISTORICO.md` |
-| 3 | Chave de cor | S11 + V2 + V6 | muda a chave cor+material → **antes** do dono cadastrar as cores reais |
+| 3 | ✅ Chave de cor (2026-09-23) | S11 + V2 + V6 + lista de cores | fechado — writeup no `HISTORICO.md` |
 | 4 | Código + apelidos | S2 + S3 + colunas do CSV | fecha os nomes de coluna → destrava o item 8 do pedido ao pipeline |
 | 5 | Evento + import | S4 + S5 + S6 + S7 (+ W7) | fecha o formato do arquivo de produção → destrava a seção 3 do pedido |
 | 6 | Fechamento | S12 + S13, depois W8–W10 | S12 pede o X% do dono |
@@ -250,8 +246,9 @@ a fase A: corrigir o `repetitions`, o formato de export definitivo e a contagem 
 
 ⚠ **Os W não foram reproduzidos** (varredura sem passe de verificação): cada lote começa confirmando
 os W dele no código (Diretriz 9) antes de corrigir. **Em paralelo, no pipeline:** o `repetitions` e o
-curador (itens 1–5, 7, 9 do pedido) já podem andar; o item 6 (cor) espera o lote 3 + o cadastro de
-cores, o item 8 espera o lote 4, a seção 3 espera o lote 5.
+curador (itens 1–5, 7, 9 do pedido) já podem andar; o item 6 (cor) espera só o cadastro de cores
+(a lista sai do botão "Copiar lista de cores" do `/estoque`), o item 8 espera o lote 4, a seção 3
+espera o lote 5.
 
 **Processo da fase A (carga, uma vez):**
 1. **Apagar o dado de teste** (checklist acima) — PRIMEIRO, porque `estoque` e `insumos` estão na
@@ -271,23 +268,6 @@ cores, o item 8 espera o lote 4, a seção 3 espera o lote 5.
 próprio salvo com o código no nome) · registrar produção **na hora** pela `/producao` **ou em lote**
 pelo import com revisão · venda sempre do acabado · real × cadastro + "conferido" que volta quando o
 real diverge · feed parado = faixa avisa, segue manual.
-
-### 3b · Varredura de 2026-09-23 — 2 abertos, todos antes do marco (V1/V4/V7/V8 no lote 1, V3/V5 no lote 2)
-
-> Leitura só de código (Diretriz 9) do que entrou depois da AUD-18 e que a frente 3a NÃO reescreve:
-> FEAT-12, TD-033, modal de Configurações, energia global, `ProductKind`, orçamento↔venda, Estoque
-> agrupado. `typecheck`/`lint`/`test` verdes (1077). Fora de propósito: import de histórico,
-> de-para de ids, produção criada pela venda, cor/marca na produção (a 3a reescreve).
-
-- [ ] **V2 🟠 Estoque: arquivar/excluir/renomear marca reprecifica calado.** Desde o item 1
-  (2026-09-20) produto sem marca fixada cobra a MAIOR cotação entre as marcas ATIVAS de mesma
-  cor+material (`brandCandidates`), mas o rastro só olha rolo novo (`StockPage.tsx:383`, o
-  `registrarCotacao` compara a cotação DA marca). Arquivar/excluir a mais cara baixa o catálogo sem
-  entrada nem aviso; **renomear** cor/material desliga os produtos do Estoque e eles voltam ao
-  `pricePerKg` salvo **sem badge** (`resolveFilamentPrices` trata como "nunca apontou"). → junto do
-  **S11** (mesma chave cor+material).
-- [ ] **V6 🟢** Estoque aceita cor+material+marca **duplicada** sem aviso (`saveColor`, "Nova cor"
-  e "+ Marca") — a produção fica com dois cartões de mesmo nome.
 
 ### 3c · Varredura GERAL de 2026-09-23 — 4 abertos, todos antes do marco (W2/W3 no lote 1, W1/W4/W5/W6 no lote 2)
 
@@ -398,7 +378,7 @@ que não foi vendido.
   importação de histórico.
 - ⚠ **Cruza com a frente 3a** (2026-09-23): o S1 (✅ lote 2) já tirou a origem da venda — toda saída
   de venda é do acabado, e a camada de acerto (W1) é o molde de "saída com custo congelado"; o S11
-  ainda vai mudar a chave de cor do acabado — se este item vier depois, já nasce sobre o modelo novo.
+  (✅ lote 3) já mudou a chave de cor do acabado pra material + cor — este item nasce sobre ela.
 
 ## ⚠ A frente do DONO (bloqueia a carga em massa)
 

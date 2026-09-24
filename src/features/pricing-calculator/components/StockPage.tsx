@@ -35,6 +35,7 @@ import {
   filamentGroupLabel,
   filamentLabel,
   filamentReferences,
+  findDuplicateFilament,
   isBelowMin,
   materialOptions,
   rollNumbers,
@@ -50,7 +51,12 @@ import {
   skuValue,
 } from "../lib/finishedGoods";
 import { calculatePricing } from "../lib/calculatePricing";
-import { stockChangePayload } from "../lib/changeLog";
+import {
+  describeStockColorEdit,
+  stockChangePayload,
+  stockEditPayload,
+  stockRepriceWarning,
+} from "../lib/changeLog";
 import { computeRepriceImpact } from "../lib/repriceImpact";
 import { NO_COLOR_KEY } from "../lib/filaments";
 import { marginTierClass, marginTierTitle } from "../lib/marginTier";
@@ -60,7 +66,7 @@ import {
   saleContextFromSubitem,
   type SaleModalContext,
 } from "../lib/saleContext";
-import { colorIdTable } from "../lib/idTable";
+import { colorGroupTable, colorIdTable } from "../lib/idTable";
 import { addFrozen, sumFrozen, ZERO_FROZEN } from "../lib/production";
 import { copyText } from "@/lib/clipboard";
 import { DEFAULT_FIXED_COSTS } from "../constants";
@@ -170,6 +176,8 @@ function toPayload(color: StockFilament): StockFilamentPayload {
   return color;
 }
 
+const agora = () => Date.now();
+
 export function StockPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -235,6 +243,20 @@ export function StockPage() {
       await copyText(colorIdTable(filaments));
       ok(
         `Tabela de ${filaments.length} cor(es) copiada — cole no Sheets/Excel.`,
+      );
+    } catch (err) {
+      fail(errorMessage(err));
+    }
+  }
+  // S11 — a lista de cores do jeito que a prateleira do acabado conta
+  // (material + cor, sem marca): é o que o curador do pipeline usa para
+  // traduzir o hex carregado numa cor do site.
+  async function copiarListaDeCores() {
+    try {
+      const tabela = colorGroupTable(filaments);
+      await copyText(tabela);
+      ok(
+        `Lista de ${tabela.split("\n").length - 1} cor(es) (material + cor, sem marca) copiada.`,
       );
     } catch (err) {
       fail(errorMessage(err));
@@ -354,10 +376,30 @@ export function StockPage() {
     return { count: stockedGoods.length, value, negatives, comp };
   }, [stockedGoods]);
 
+  // O carimbo da cor NOVA vem de fora do componente: com o `saveColorEdit`
+  // alcançando o `ask` (V2), o React Compiler passou a tratar o `saveColor`
+  // como alcançável do render e acusa o `Date.now()` direto (react-hooks/
+  // purity) — é handler de clique, nunca roda no render.
   async function saveColor(draft: StockColorDraft) {
     guardOnline();
+    // [V6] — material + cor + marca repetida virava dois cartões de mesmo nome
+    // na produção. Olha as arquivadas também: aí o certo é desarquivar. Só
+    // quando a identidade é nova ou mudou: uma gêmea de ANTES do V6 ainda
+    // precisa poder trocar amostra/mínimo sem ser renomeada primeiro.
+    const identidadeMudou =
+      !editing || describeStockColorEdit(editing, draft).length > 0;
+    const gemea = identidadeMudou
+      ? findDuplicateFilament(filaments, draft, editing?.id ?? null)
+      : null;
+    if (gemea) {
+      throw new Error(
+        gemea.archived
+          ? `“${filamentLabel(gemea)}” já existe, arquivada — desarquive-a em vez de criar outra.`
+          : `“${filamentLabel(gemea)}” já existe no Estoque.`,
+      );
+    }
     if (editing) {
-      await updateFilament(editing.id, { ...toPayload(editing), ...draft });
+      await saveColorEdit(editing, draft);
       return;
     }
     await addFilament({
@@ -365,8 +407,27 @@ export function StockPage() {
       archived: false,
       rolls: [],
       adjustments: [],
-      createdAt: Date.now(),
+      createdAt: agora(),
     });
+  }
+
+  // [V2] — renomear desliga do Estoque os produtos sem marca fixada, e trocar
+  // a marca muda qual cotação é a maior: pergunta antes, registra depois.
+  async function saveColorEdit(editada: StockFilament, draft: StockColorDraft) {
+    const proxima: StockFilament = { ...editada, ...draft };
+    const mudancas = describeStockColorEdit(editada, proxima);
+    const aplicar = await confirmarReprecificacao(
+      editada,
+      proxima,
+      `editada: ${mudancas.join(", ")}`,
+      {
+        title: `Salvar “${filamentLabel(proxima)}”?`,
+        confirmLabel: "Salvar mesmo assim",
+      },
+    );
+    if (!aplicar) throw new Error("Nada foi salvo.");
+    await updateFilament(editada.id, { ...toPayload(editada), ...draft });
+    await aplicar();
   }
 
   async function saveRoll(color: StockFilament, roll: FilamentRoll) {
@@ -389,6 +450,64 @@ export function StockPage() {
       filaments.map((item) => (item.id === color.id ? proxima : item)),
       supplies,
     );
+  }
+
+  /**
+   * [V2] — arquivar, desarquivar, excluir ou editar uma cor reprecifica o
+   * catálogo quando ela é a MAIOR cotação de uma cor+material (produto sem
+   * marca fixada) ou quando o nome muda (o produto se desliga do Estoque).
+   *
+   * Calcula o impacto trocando SÓ esta cor no Estoque (`depois` = null é a
+   * exclusão). Preço parado → devolve o gravador do rastro sem perguntar nada
+   * (e o rastro não grava: não há o que registrar). Preço movido → pergunta
+   * com a frase do `stockRepriceWarning`; cancelou → `null`, e quem chama não
+   * grava. O gravador roda DEPOIS da alavanca (alavanca primeiro, rastro
+   * depois) e a falha dele não derruba a mudança.
+   */
+  async function confirmarReprecificacao(
+    antes: StockFilament,
+    depois: StockFilament | null,
+    acao: string,
+    dialogo: { title: string; confirmLabel: string; danger?: boolean; extra?: ReactNode },
+  ): Promise<(() => Promise<void>) | null> {
+    const stockDepois = depois
+      ? filaments.map((item) => (item.id === antes.id ? depois : item))
+      : filaments.filter((item) => item.id !== antes.id);
+    const impact = computeRepriceImpact(
+      products,
+      { machines, fixedCosts, energyTariff, stock: filaments, supplies },
+      { machines, fixedCosts, energyTariff, stock: stockDepois, supplies },
+    );
+    const aviso = stockRepriceWarning(impact);
+    if (aviso || dialogo.extra) {
+      const confirmed = await ask({
+        title: dialogo.title,
+        body: (
+          <>
+            {dialogo.extra}
+            {aviso ? <p>{aviso}</p> : null}
+          </>
+        ),
+        confirmLabel: dialogo.confirmLabel,
+        danger: dialogo.danger,
+      });
+      if (!confirmed) return null;
+    }
+    return async () => {
+      if (!aviso) return;
+      try {
+        await recordChange(
+          stockEditPayload({
+            label: filamentLabel(antes),
+            action: acao,
+            by: user?.email ?? "",
+            impact,
+          }),
+        );
+      } catch (err) {
+        console.warn("[V2] cor alterada, registro falhou:", errorMessage(err));
+      }
+    };
   }
 
   /**
@@ -453,10 +572,26 @@ export function StockPage() {
   async function toggleArchive(color: StockFilament) {
     try {
       guardOnline();
+      const proxima = { ...color, archived: !color.archived };
+      // [V2] — arquivar a marca mais cara baixa o catálogo (e desarquivar
+      // sobe): só pergunta quando algum preço de fato se move.
+      const aplicar = await confirmarReprecificacao(
+        color,
+        proxima,
+        color.archived ? "desarquivada" : "arquivada",
+        {
+          title: color.archived
+            ? `Desarquivar “${filamentLabel(color)}”?`
+            : `Arquivar “${filamentLabel(color)}”?`,
+          confirmLabel: color.archived ? "Desarquivar" : "Arquivar",
+        },
+      );
+      if (!aplicar) return;
       await updateFilament(color.id, {
         ...toPayload(color),
-        archived: !color.archived,
+        archived: proxima.archived,
       });
+      await aplicar();
       ok(
         color.archived
           ? `“${filamentLabel(color)}” voltou para as cores ativas.`
@@ -469,9 +604,11 @@ export function StockPage() {
 
   async function remove(color: StockFilament) {
     const rolls = color.rolls.length;
-    const confirmed = await ask({
+    // [V2] — a mesma confirmação de sempre, agora com o impacto no preço
+    // quando ele existe (excluir a marca mais cara baixa o catálogo).
+    const aplicar = await confirmarReprecificacao(color, null, "excluída", {
       title: `Excluir “${filamentLabel(color)}” de vez?`,
-      body: (
+      extra: (
         <>
           {rolls > 0 ? (
             <p>
@@ -492,11 +629,12 @@ export function StockPage() {
       confirmLabel: "Excluir cor",
       danger: true,
     });
-    if (!confirmed) return;
+    if (!aplicar) return;
 
     try {
       guardOnline();
       await deleteFilament(color.id);
+      await aplicar();
       ok(`“${filamentLabel(color)}” excluída.`);
     } catch (err) {
       fail(errorMessage(err));
@@ -1445,6 +1583,16 @@ export function StockPage() {
             title="Copia nome, material, marca e ID de cada cor — para colar na planilha de importação"
           >
             <Copy size={15} /> Copiar de-para
+          </button>
+        ) : null}
+        {filaments.length > 0 ? (
+          <button
+            className="btn"
+            type="button"
+            onClick={copiarListaDeCores}
+            title="Copia a lista de cores como a prateleira do acabado conta — material + cor, sem marca, com as amostras — para o pipeline de impressões"
+          >
+            <Copy size={15} /> Copiar lista de cores
           </button>
         ) : null}
       </div>
