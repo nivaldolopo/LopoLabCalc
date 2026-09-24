@@ -5,10 +5,12 @@
 > [`.claude/HISTORICO.md`](HISTORICO.md), seção **"📒 Arquivo do BACKLOG"**; abra sob demanda. A foto
 > do AGORA fica no `CLAUDE.md`.
 >
-> **Estado em 2026-09-15: a LOGO FICOU PRONTA e o dono voltou com um plano de 5 frentes** (abaixo),
-> fechado em chat de planejamento — **um chat por frente**, na ordem da tabela. A logo destrava a
-> metade da [FEAT-03] que esperava marca, o [branding/rebrand] e o [DEC-05]. Antes disso: [FEAT-12]
-> (2026-09-09), [TD-033], [AUD-08], [AUD-18], [AUD-17] e o [FROTA] — writeups no `HISTORICO.md`.
+> **Estado em 2026-09-23: frentes 1 (designer) e 2 (Configurações) fechadas; a frente 3a (dados da
+> impressora) anda por lotes — ✅ lotes 1–2, próximo = lote 3 (Chave de cor: S11 + V2 + V6)**, na
+> tabela "Ordem de execução do código" da seção 3a. Depois vem a fase A e o marco (frente 3). O plano
+> de frentes nasceu em 2026-09-15, com a logo pronta — ela destrava a metade da [FEAT-03] que
+> esperava marca, o [branding/rebrand] e o [DEC-05]. Antes disso: [FEAT-12] (2026-09-09), [TD-033],
+> [AUD-08], [AUD-18], [AUD-17] e o [FROTA] — writeups no `HISTORICO.md`.
 
 > ⚠ **Diretriz 6 cobre o backlog inteiro:** nenhum item precisa de migração, e nada se reordena por
 > causa de dado velho — **até a frente 3** (uso real), que é o marco em que ela expira.
@@ -214,7 +216,7 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
   **tabela máquina × cor+material → marca** com "a partir desta impressão, marca B" e "dividir entre
   marcas" · **"já registrado?"** (máquina + horário batendo com evento manual → desmarcada) ·
   **"criar produto a partir desta impressão"** (formulário normal preenchido; gera código e apelido).
-- **S11 · Prateleira do acabado = material + cor, sem marca** (`colorKeyOf`, `filaments.ts:247-253`,
+- **S11 · Prateleira do acabado = material + cor, sem marca** (`colorKeyOf`, `filaments.ts:263`,
   passa a usar a chave de `filamentGroupKey`; o avulso deixa de ignorar o material). O Estoque não
   muda (marca continua obrigatória no rolo).
 - **S12 · "Conferido" + pendências no `/catalogo`.** `conferidoEm` no produto; pendências
@@ -279,7 +281,7 @@ real diverge · feed parado = faixa avisa, segue manual.
 
 - [ ] **V2 🟠 Estoque: arquivar/excluir/renomear marca reprecifica calado.** Desde o item 1
   (2026-09-20) produto sem marca fixada cobra a MAIOR cotação entre as marcas ATIVAS de mesma
-  cor+material (`brandCandidates`), mas o rastro só olha rolo novo (`StockPage.tsx:373`, o
+  cor+material (`brandCandidates`), mas o rastro só olha rolo novo (`StockPage.tsx:383`, o
   `registrarCotacao` compara a cotação DA marca). Arquivar/excluir a mais cara baixa o catálogo sem
   entrada nem aviso; **renomear** cor/material desliga os produtos do Estoque e eles voltam ao
   `pricePerKg` salvo **sem badge** (`resolveFilamentPrices` trata como "nunca apontou"). → junto do
@@ -295,15 +297,15 @@ real diverge · feed parado = faixa avisa, segue manual.
 > Fora de propósito: o que a 3a reescreve e os V1–V8.
 
 - [ ] **W7 🟡** `buildProductionPayloads` grava `machineId: e.machine?.id ?? e.row.machineId`
-  (`productionPlan.ts:879`) — máquina excluída noutra aba com a /producao aberta → evento com id
+  (`productionPlan.ts:820`) — máquina excluída noutra aba com a /producao aberta → evento com id
   fantasma, nome "", custo de frota e horas órfãs ([E4]/[E5]).
 - [ ] **W8 🟢** Orçamento: número digitado (`preferred`) não confere duplicata
-  (`quotesRepository.ts:86`); e "Tente gerar de novo" após falha de gravação reserva outro número com
+  (`quotesRepository.ts:99`); e "Tente gerar de novo" após falha de gravação reserva outro número com
   o PDF do primeiro já emitido.
 - [ ] **W9 🟢** Rolo de acerto pode virar a cotação: `catalogPricePerKg` = rolo mais novo por
-  `purchaseDate` (`stock.ts:35`); compra real lançada depois com data anterior à produção não move o
+  `purchaseDate` (`stock.ts:63`); compra real lançada depois com data anterior à produção não move o
   preço nem gera `registrarCotacao`.
-- [ ] **W10 🟢** `importProducts` (`useProducts.ts:53`) sem `finally`: falha antes do 1º lote deixa
+- [ ] **W10 🟢** `importProducts` (`useProducts.ts:63`) sem `finally`: falha antes do 1º lote deixa
   o chip preso em "importando".
 
 ### Airtable e Drive (LopoLabCalc)
@@ -372,8 +374,8 @@ real diverge · feed parado = faixa avisa, segue manual.
     avisa. Trocar o peso do dono por um palpite é o que o DEC-02 já recusou uma vez.
   - **Ligar RECALCULA O CATÁLOGO INTEIRO.** Precisa de prévia (antes/depois de N produtos) antes de
     confirmar — não pode ser um toggle que muda 103 preços em silêncio.
-  - ⚠ **O peso também é o custo real da encomenda sem máquina declarada** (`productionCostAtRate`),
-    não só o preço. Mudar a fonte do peso muda COGS de venda, não só número de vitrine.
+  - ⚠ **O peso também é o custo real do evento de produção sem máquina declarada**
+    (`productionCostAtRate`, taxa da frota elegível), não só o preço. Mudar a fonte do peso muda COGS de venda, não só número de vitrine.
 - **O custo fixo fica DESLIGADO como está.** Tirar não simplificaria: o trio
   `hoursDay`/`daysMonth`/`machines` é da capacidade e ficaria de qualquer jeito.
 
@@ -539,10 +541,9 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
 
 ## Ressalvas vivas (não são itens; viram item se o dono mandar)
 
-- **As 5 🟢 que a [AUD-17] deixou** (medidas, nenhuma é tarefa): `useMemo` do preview da `/producao`
-  sem `dateStr` · evento gravado com id de máquina morta (`productionPlan.ts`) · a escolha de máquina
-  da venda **não é gravada** no doc (editar a venda zera a escolha de 2+ candidatas; a de interseção
-  única a reconciliação re-deduz) · `idsJson` não distingue `machineIds: []` explícito de ausente ·
+- **As 🟢 que a [AUD-17] deixou** (medidas, nenhuma é tarefa; eram 5 — o id de máquina morta virou
+  o **W7** e a escolha de máquina da venda sumiu com o S1): `useMemo` do preview da `/producao`
+  sem `dateStr` · `idsJson` não distingue `machineIds: []` explícito de ausente ·
   **[E7]** a corrida `machines × products` na `/producao` — o núcleo puro erra, mas **não reproduziu
   em 3 cargas frias** (o doc único chega antes da coleção de 104 produtos).
 - **Pergunta aberta pro dono (AUD-17):** na `/producao` o `<select>` "Máquina" oferece a frota
@@ -571,7 +572,7 @@ chat** depois do cadastro — não vira botão no app (decisão do dono, 2026-08
 - **Lixo que o recadastro leva embora** (registrado só pra não voltar como achado novo): 18 dos 97
   produtos com campo `id` **dentro** do documento, um deles apontando pra outro produto · 65 com
   `markupOnFixed`, morto desde a DEC-01 · 4 `acabados` órfãos com saldo 0 e um com saldo −1 · dois
-  contadores de orçamento (`config/orcamentoSeq.last = 21` vivo, `config/orcamento.lastNumber = 2`
+  contadores de orçamento (`config/orcamentoSeq.last = 23` vivo, conferido em 2026-09-18, `config/orcamento.lastNumber = 2`
   lixo) · overdraft de **−370 g na Bege** (furo de contagem física; o D4 preserva de propósito).
   ⚠ **A mecânica que SOBREVIVE ao recadastro:** `saveProduct` usa `tx.update`, que faz **merge** —
   campo que o `buildProductPayload` deixe de gravar fica no documento pra sempre.
