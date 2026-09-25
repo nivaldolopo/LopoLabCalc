@@ -9,11 +9,11 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-24): lote 4 da 3a (Código + apelidos) fechado** — todo produto novo
-  ganha **código `LL-0001`** (contador `config/produtoSeq` em transação; "salvar como novo" gera
-  outro); **apelidos de impressão** na coleção `apelidos` (1 doc por origem, id calculado da chave);
-  o CSV ganhou `Codigo` (só sai) e `Apelidos JSON`; o `/catalogo` importa **com o banco vazio**.
-  Writeup no `HISTORICO.md`; formato no `PEDIDO_PRINTPIPELINE.md` (item 8 destravado).
+- **Última mudança (2026-09-25): lote 5a da 3a (W7 + S4 + S5) fechado** — o evento de produção
+  ganhou `origemExterna`, `fonteDosNumeros`, unidades produzidas/creditadas, `imagens` e o bloco
+  de fatos crus `impressao` (o manual grava `MANUAL_SOURCE`); o prefixo `bambu:` do `notes` morreu;
+  **Firebase Storage ligado** (`storage.rules`, `impressoes/{task_id}/capa.png|foto.jpg`).
+  Decisões do dono p/ S6/S7 no `BACKLOG.md`; writeup no `HISTORICO.md`.
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
@@ -25,8 +25,8 @@
 - **PRÓXIMA TAREFA DESTE PROJETO — frente 3a (dados da impressora), depois frente 3 (uso real).**
   Código S1–S13 + os V/W abertos do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o
   marco pode atrasar um pouco, não muito). **Um chat por lote, na tabela "Ordem de execução do
-  código" da seção 3a do `BACKLOG.md`** (✅ lotes 1–4; **próximo = lote 5, Evento + import**:
-  S4+S5+S6+S7+W7). Depois, a carga pelo "Processo da fase A"
+  código" da seção 3a do `BACKLOG.md`** (✅ lotes 1–4 e 5a; **próximo = lote 5b, S6: import + formato do arquivo**; o 5c,
+  S7, em chat novo). Depois, a carga pelo "Processo da fase A"
   (que começa APAGANDO o teste) e o marco (Diretriz 6 expira).
   Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
@@ -102,13 +102,14 @@ src/features/pricing-calculator/
                   #   production (baixa por evento + custo congelado, em 3 escalas) ·
                   #   finishedGoods (camadas FIFO; SKU = subitem × cor) ·
                   #   productionPlan (produto/subitem→eventos) · productionImport (JSON externo
-                  #   da Bambu → eventos historico, idempotente por "bambu:<task_id>" em `notes`) ·
+                  #   da Bambu → eventos historico, idempotente por `origemExterna`) ·
+                  #   printImages (S5: caminho no Storage, nome do arquivo exportado) ·
                   #   saleReconciliation (passo 8 +
                   #   reverse) · marginTier (régua DEC-04) · saleContext · filaments ·
                   #   generateQuotePdf · paymentFees (bandeira × parcela, gross-up, desconto,
                   #   margem líquida)     [+ constants.ts, types.ts na raiz da feature]
 src/lib/
-  firebase/       # client.ts (init + db) · frozenCost.ts (o mesmo objeto vai p/ 3 coleções) ·
+  firebase/       # client.ts (init + db + storage) · printImages (Storage: capa/foto) · frozenCost.ts (o mesmo objeto vai p/ 3 coleções) ·
                   #   um repositório por coleção: products (+ código em transação,
                   #   config/produtoSeq) · printAliases (`apelidos`) · machines (config/machines) ·
                   #   businessSettings (config/negocio) · quoteConfig · quotes · fees ·
@@ -361,7 +362,8 @@ git push
   Chrome** (`list_connected_browsers` mostra as duas); deep-link de regras redireciona, o caminho é
   Firestore → aba **Security**. Detalhe: [`HISTORICO.md`](.claude/HISTORICO.md).
 - **Plano Firebase: Blaze** (pago por uso, aprovado 2026-09-17 pro [DEC-07]) — foi o que destravou o
-  2º banco Firestore. Ainda **não usa** Storage nem Cloud Functions; ambos ficaram baratos de ligar
+  2º banco Firestore. **Storage ligado em 2026-09-25** (S5, bucket único p/ produção e teste, regras em
+  `storage.rules` — publicar à mão no Console, como as do Firestore); Cloud Functions não, barato de ligar
   se algum item do backlog precisar (ex.: foto do orçamento, backup agendado).
 
 ### Ambiente Windows (evita retrabalho de PATH)

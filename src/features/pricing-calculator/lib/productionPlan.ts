@@ -28,6 +28,7 @@ import {
 import { resolveFleet } from "./fleet";
 import type {
   DebtLot,
+  EventSource,
   FilamentUsage,
   ProductionFilament,
   FrozenCostBreakdown,
@@ -795,6 +796,15 @@ export function toEventFilament(f: FilamentUsage): ProductionFilament {
   return { ...rest, catalogPricePerKg: num(pricePerKg) };
 }
 
+// S4 — a origem de TODO evento lançado à mão na `/producao`: sem fonte externa,
+// sem imagem, sem fatos crus, e os números são os digitados.
+export const MANUAL_SOURCE: EventSource = {
+  origemExterna: null,
+  fonteDosNumeros: "manual",
+  imagens: null,
+  impressao: null,
+};
+
 export function buildProductionPayloads(
   built: PlannedEvent[],
   meta: {
@@ -803,6 +813,11 @@ export function buildProductionPayloads(
     mode: ProductionMode;
     notes?: string;
     createdAt: number;
+    // S4 — da SUBMISSÃO (repetidas em cada evento dela). Obrigatórias: quem
+    // grava decide, nunca um default calado (AUD-02).
+    unidadesProduzidas: number;
+    unidadesCreditadas: number;
+    source: EventSource;
   },
 ): { id: string; payload: ProductionPayload }[] {
   // [FROTA] Fase 1 — o elo do LOTE. É o id do PRIMEIRO evento, carimbado em
@@ -817,7 +832,11 @@ export function buildProductionPayloads(
       ...(e.row.productId ? { productId: e.row.productId } : {}),
       ...(e.row.subitemId ? { subitemId: e.row.subitemId } : {}),
       productName: e.row.productName.trim(),
-      machineId: e.machine?.id ?? e.row.machineId,
+      // W7 (lote 5 da 3a) — aqui era `?? e.row.machineId`: a máquina escolhida
+      // e excluída noutra aba com a /producao aberta gravava o id FANTASMA, com
+      // nome "", enquanto o custo (frota) e o `summary` (horas órfãs) já a
+      // tratavam como ausente. O documento agora diz o mesmo que o custo: órfão.
+      machineId: e.machine?.id ?? "",
       machineName: e.machine?.name ?? "",
       printHours: num(e.row.printHours),
       // AUD-14 [D9] — `toEventFilament` renomeia o preço para `catalogPricePerKg`
@@ -836,6 +855,12 @@ export function buildProductionPayloads(
       frozenBreakdown: frozenOf(e.cost),
       stockMoves: [...e.plan.moves, ...e.supplyPlan.moves],
       ...(meta.notes && meta.notes.trim() ? { notes: meta.notes.trim() } : {}),
+      unidadesProduzidas: num(meta.unidadesProduzidas),
+      unidadesCreditadas: num(meta.unidadesCreditadas),
+      origemExterna: meta.source.origemExterna,
+      fonteDosNumeros: meta.source.fonteDosNumeros,
+      imagens: meta.source.imagens,
+      impressao: meta.source.impressao,
       createdAt: meta.createdAt,
     };
     return { id: e.id, payload };

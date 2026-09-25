@@ -15,6 +15,7 @@ import { sumFrozen } from "./production";
 import {
   accessoryRows,
   buildProductionPayloads,
+  MANUAL_SOURCE,
   nextRowKey,
   planEventRows,
   resolveFilRow,
@@ -363,6 +364,9 @@ describe("[FROTA] Fase 1 — submissionId", () => {
       outcome: "estoque",
       mode: "real",
       createdAt: 1000,
+      unidadesProduzidas: 1,
+      unidadesCreditadas: 1,
+      source: MANUAL_SOURCE,
     });
     expect(payloads).toHaveLength(3);
     expect(payloads.map((p) => p.payload.submissionId)).toEqual([
@@ -386,6 +390,9 @@ describe("[FROTA] Fase 1 — submissionId", () => {
       outcome: "estoque",
       mode: "real",
       createdAt: 0,
+      unidadesProduzidas: 1,
+      unidadesCreditadas: 1,
+      source: MANUAL_SOURCE,
     });
     expect(p.payload.submissionId).toBe(p.id);
   });

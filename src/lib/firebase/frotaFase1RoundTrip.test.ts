@@ -72,6 +72,12 @@ const evento = (over: Partial<ProductionPayload> = {}): ProductionPayload => ({
   filaments: [],
   frozenCost: 10,
   stockMoves: [],
+  unidadesProduzidas: 1,
+  unidadesCreditadas: 0,
+  origemExterna: null,
+  fonteDosNumeros: "manual",
+  imagens: null,
+  impressao: null,
   createdAt: 1000,
   ...over,
 });

@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// -----------------------------------------------------------------------------
+// Regras do Firebase Storage — bucket `lopo-lab.firebasestorage.app` (S5, lote 5
+// da frente 3a). Mesmo espírito do `firestore.rules` (TD-005): CÓPIA FIEL do que
+// está valendo no Console, publicado pelo dono em 2026-09-25 — a lógica abaixo é
+// idêntica à do painel; só este cabeçalho é comentário extra.
+//
+// A lista de e-mails é a MESMA do `firestore.rules` e de `ALLOWED_EMAILS`
+// (src/features/pricing-calculator/constants.ts) — manter as três em sincronia.
+// Duas travas a mais que o Firestore não tem: só a pasta `impressoes/` existe, e
+// só imagem de até 2 MB (capa ~20 KB, foto ~16 KB).
+//
+// ⚠ O bucket é UM SÓ para produção e teste (o [DEC-07] separa só o Firestore).
+// São fatos da impressora, iguais nos dois ambientes — não há o que isolar.
+//
+// IMPORTANTE: o deploy NÃO é automático (o site sobe pela Vercel). Mexeu aqui?
+// Publique no Console (Storage → Rules) ou `firebase deploy --only storage`, e o
+// `pnpm test:rules` volta a provar o texto que está no ar.
+// -----------------------------------------------------------------------------
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function autorizado() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'nivaldo.lopo@gmail.com',
+          'lopolab3d@gmail.com',
+          'joao.zarbielli@gmail.com'
+        ];
+    }
+
+    // S5 — capa e foto de cada impressão: impressoes/{task_id}/capa.png|foto.jpg
+    match /impressoes/{taskId}/{arquivo} {
+      allow read: if autorizado();
+      allow create, update: if autorizado()
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if autorizado();
+    }
+  }
+}

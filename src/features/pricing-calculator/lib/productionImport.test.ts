@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  bambuNotePrefix,
-  bambuTaskIdOf,
+  IMPORT_FONTE,
   buildImportFinishedUpdates,
   buildImportNotes,
   buildImportPreview,
@@ -275,12 +274,8 @@ describe("resolveImportLine — preco do filamento", () => {
   });
 });
 
-describe("bambuNotePrefix / bambuTaskIdOf — a idempotencia (passo 6)", () => {
-  it("a nota sempre comeca com o prefixo exato", () => {
-    expect(bambuNotePrefix("1265163697")).toBe("bambu:1265163697");
-  });
-
-  it("round-trip sem aviso de heranca", () => {
+describe("buildImportNotes + origemExterna — a identidade saiu da nota (S4)", () => {
+  it("sem heranca nao ha nota; a identidade vai no origemExterna", () => {
     const linha: ResolvedImportLine = {
       taskId: "999",
       outcome: "historico",
@@ -298,12 +293,16 @@ describe("bambuNotePrefix / bambuTaskIdOf — a idempotencia (passo 6)", () => {
       inheritedFilamentBrand: false,
       machineFuzzyMatched: false,
     };
-    const notas = buildImportNotes(linha);
-    expect(notas).toBe("bambu:999");
-    expect(bambuTaskIdOf(notas)).toBe("999");
+    expect(buildImportNotes(linha)).toBeNull();
+    const { payload } = costImportLine(linha, makeContext(), "ev1", 5);
+    expect(payload.notes).toBeUndefined();
+    expect(payload.origemExterna).toEqual({ fonte: IMPORT_FONTE, id: "999" });
+    expect(payload.fonteDosNumeros).toBe("impressora");
+    expect(payload.unidadesProduzidas).toBe(1);
+    expect(payload.unidadesCreditadas).toBe(0); // historico nao credita
   });
 
-  it("round-trip COM aviso de heranca — o prefixo sobrevive a leitura de volta", () => {
+  it("com heranca a nota e SO o aviso", () => {
     const linha: ResolvedImportLine = {
       taskId: "999",
       outcome: "estoque",
@@ -324,14 +323,8 @@ describe("bambuNotePrefix / bambuTaskIdOf — a idempotencia (passo 6)", () => {
     };
     const notas = buildImportNotes(linha);
     expect(notas).toBe(
-      "bambu:999 | acessórios, mão de obra e filamentos herdados do cadastro atual do produto, não confirmados para esta impressão específica",
+      "acessórios, mão de obra e filamentos herdados do cadastro atual do produto, não confirmados para esta impressão específica",
     );
-    expect(bambuTaskIdOf(notas)).toBe("999");
-  });
-
-  it("nota que nao e de importacao nenhuma devolve null (nao confunde com evento normal)", () => {
-    expect(bambuTaskIdOf(undefined)).toBeNull();
-    expect(bambuTaskIdOf("uma nota qualquer")).toBeNull();
   });
 });
 

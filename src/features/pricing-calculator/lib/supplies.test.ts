@@ -56,6 +56,12 @@ function prod(
     printHours: 2,
     filaments: [],
     frozenCost: 0,
+    unidadesProduzidas: 1,
+    unidadesCreditadas: 0,
+    origemExterna: null,
+    fonteDosNumeros: "manual",
+    imagens: null,
+    impressao: null,
     createdAt: 0,
     ...over,
   };

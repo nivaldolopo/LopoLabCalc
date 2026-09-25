@@ -139,10 +139,10 @@ export function parseBambuImportFile(raw: unknown): BambuParseResult {
 }
 
 // A idempotência (passo 6) só sabe o que JÁ ESTÁ no Firestore
-// (`fetchBambuImportedTaskIds`) — um `task_id` repetido DENTRO do mesmo
+// (`fetchImportedExternalIds`) — um `task_id` repetido DENTRO do mesmo
 // arquivo (a ferramenta externa escreveu duas vezes) passaria batido nela: as
 // duas linhas ainda não existem no banco, então as duas seriam gravadas, cada
-// uma virando um evento com o MESMO prefixo "bambu:<task_id>". Dedup ANTES de
+// uma virando um evento com o MESMO `origemExterna`. Dedup ANTES de
 // resolver — mantém a 1ª ocorrência e conta as demais, no mesmo espírito do
 // "avisa, não engole" do resto da importação.
 export type DedupedEvents = { unicos: BambuImportEvent[]; duplicadosNoArquivo: number };
@@ -340,28 +340,12 @@ export function resolveImportLine(
 }
 
 // ---------------------------------------------------------------------------
-// Passo 6 — a nota. SEMPRE começa com o prefixo exato "bambu:<task_id>" (é
-// dele que a idempotência depende); o aviso de herança, quando há, vem depois
-// de " | ".
+// Passo 6 — a nota: só o aviso de herança. A identidade da impressão mora em
+// `origemExterna` desde o S4 (antes era o prefixo "bambu:<task_id>" aqui).
 // ---------------------------------------------------------------------------
 
-const BAMBU_NOTE_PREFIX = "bambu:";
-
-export function bambuNotePrefix(taskId: string): string {
-  return `${BAMBU_NOTE_PREFIX}${taskId}`;
-}
-
-// A leitura inversa: de uma nota gravada, qual task_id ela marca — ou `null`
-// quando a nota não é de importação nenhuma (evento normal da tela). Espelha
-// `bambuNotePrefix` de propósito: a mesma função que monta é a que desfaz,
-// para as duas nunca divergirem sobre o que é o prefixo.
-export function bambuTaskIdOf(notes: string | undefined): string | null {
-  if (!notes?.startsWith(BAMBU_NOTE_PREFIX)) return null;
-  const resto = notes.slice(BAMBU_NOTE_PREFIX.length);
-  const fim = resto.indexOf(" | ");
-  const taskId = (fim >= 0 ? resto.slice(0, fim) : resto).trim();
-  return taskId || null;
-}
+// O adaptador que escreveu o arquivo — a `fonte` do `origemExterna`.
+export const IMPORT_FONTE = "bambu";
 
 function inheritanceNote(line: ResolvedImportLine): string | null {
   const partes: string[] = [];
@@ -380,10 +364,8 @@ function inheritanceNote(line: ResolvedImportLine): string | null {
   );
 }
 
-export function buildImportNotes(line: ResolvedImportLine): string {
-  const aviso = inheritanceNote(line);
-  const prefixo = bambuNotePrefix(line.taskId);
-  return aviso ? `${prefixo} | ${aviso}` : prefixo;
+export function buildImportNotes(line: ResolvedImportLine): string | null {
+  return inheritanceNote(line);
 }
 
 // ---------------------------------------------------------------------------
@@ -424,6 +406,7 @@ export function costImportLine(
     supplyPlan.cost,
   );
 
+  const notes = buildImportNotes(line);
   const payload: ProductionPayload = {
     at: line.at,
     outcome: line.outcome,
@@ -440,7 +423,13 @@ export function costImportLine(
     frozenBreakdown: frozenOf(cost),
     // 6 — sempre vazio: historico nunca deduz rolo/lote real, nem no estoque.
     stockMoves: [],
-    notes: buildImportNotes(line),
+    ...(notes ? { notes } : {}),
+    unidadesProduzidas: line.pieces,
+    unidadesCreditadas: line.outcome === "estoque" && line.productId ? line.pieces : 0,
+    origemExterna: { fonte: IMPORT_FONTE, id: line.taskId },
+    fonteDosNumeros: "impressora",
+    imagens: null,
+    impressao: null,
     createdAt: now,
   };
 

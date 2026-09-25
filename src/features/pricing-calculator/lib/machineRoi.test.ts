@@ -81,6 +81,12 @@ function prod(overrides: Partial<ProductionEvent> = {}): ProductionEvent {
     filaments: [],
     frozenCost: 10,
     stockMoves: [],
+    unidadesProduzidas: 1,
+    unidadesCreditadas: 0,
+    origemExterna: null,
+    fonteDosNumeros: "manual",
+    imagens: null,
+    impressao: null,
     createdAt: BASE,
     ...overrides,
   };

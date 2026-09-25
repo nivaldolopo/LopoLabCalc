@@ -31,6 +31,7 @@ import {
 import { reverseProduction, reverseSupplies } from "../lib/production";
 import {
   buildProductionPayloads,
+  MANUAL_SOURCE,
   nextRowKey,
   planEventRows,
   scaleRow,
@@ -448,6 +449,24 @@ export function ProductionPage() {
   // peças × P placas), não 1 — cada acabado a `custo ÷ units`.
   // FEAT-06: recebe o `summary` inteiro (não só o total) para que a composição
   // congelada desça junto até a camada do acabado.
+  // O produto do seletor (inteiro ou subitem), `undefined` no avulso.
+  function selectedProduct() {
+    const productId = selectedKey.startsWith("whole:")
+      ? selectedKey.slice("whole:".length)
+      : selectedKey.startsWith("sub:")
+        ? selectedKey.split(":")[1]
+        : undefined;
+    return productId ? products.find((p) => p.id === productId) : undefined;
+  }
+
+  // BUG-02 — a submissão gera `piecesCount × placas` unidades. Avulso conta 1
+  // por placa (sem cadastro, não há "peças por mesa" a ler). É o número que o
+  // acabado credita e o que o evento grava como produzidas (S4).
+  function submissionUnits(): number {
+    const pieces = Math.max(1, num(selectedProduct()?.piecesCount) || 1);
+    return pieces * Math.max(1, plates);
+  }
+
   function finishedForSave(
     built: ReturnType<typeof planEvents>["built"],
     summary: ReturnType<typeof planEvents>["summary"],
@@ -468,8 +487,7 @@ export function ProductionPage() {
     if (!product) return null;
     const name = product.name || product.mainStageName || "(sem nome)";
     const subitems = pricingByProduct.get(productId)?.subitems ?? [];
-    const pieces = Math.max(1, num(product.piecesCount) || 1);
-    const units = pieces * Math.max(1, plates);
+    const units = submissionUnits();
 
     // FEAT-11: as cores COMO ESTÃO na tela (já com as trocas). No inteiro com
     // partes, cada subitem recebe a cor das SUAS etapas — é o que credita
@@ -569,6 +587,16 @@ export function ProductionPage() {
         );
         return;
       }
+      // W7 (lote 5 da 3a) — a máquina escolhida sumiu do cadastro (excluída
+      // noutra aba com esta tela aberta). Sem a trava, o evento sairia órfão
+      // calado; com ela, o dono escolhe de novo, que é a regra da Fase 2.
+      if (!machines.some((m) => m.id === row.machineId)) {
+        fail(
+          `A máquina escolhida para “${row.productName || "impressão"}” ` +
+            `foi excluída do cadastro — escolha outra.`,
+        );
+        return;
+      }
     }
 
     try {
@@ -584,12 +612,17 @@ export function ProductionPage() {
     const at = toTimestamp(dateStr);
     const planned = planEvents(newProductionId);
 
+    const units = submissionUnits();
     const entries = buildProductionPayloads(planned.built, {
       at,
       outcome,
       mode,
       notes,
       createdAt: now,
+      unidadesProduzidas: units,
+      // Só o acabado credita — e só quando ele de fato vai ser gravado.
+      unidadesCreditadas: outcome === "estoque" && selectedProduct() ? units : 0,
+      source: MANUAL_SOURCE,
     });
 
     const finished = finishedForSave(planned.built, planned.summary, at);

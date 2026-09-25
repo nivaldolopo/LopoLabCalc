@@ -1,6 +1,7 @@
 import { getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // Config real do projeto lopo-lab, embutida diretamente (valores públicos de um
 // app web Firebase). NÃO lemos mais de NEXT_PUBLIC_FIREBASE_* na Vercel de
@@ -34,3 +35,15 @@ export const db = getFirestore(
 );
 
 export const auth = getAuth(app);
+
+// S5 (lote 5 da 3a) — o bucket das imagens de impressão. UM SÓ para produção e
+// teste: o [DEC-07] separa só o Firestore, e capa/foto são fatos da impressora,
+// iguais nos dois ambientes. Regras em `storage.rules`.
+//
+// O SDK do Storage tenta de novo por até 10 min antes de desistir — com a rede
+// fora, o upload ficaria "enviando" esse tempo todo. 30 s é folga de sobra para
+// arquivos de ~20 KB, e aí a Promise REJEITA (em vez de pendurar, a mesma classe
+// de bug do `withWriteTimeout` no Firestore).
+export const storage = getStorage(app);
+storage.maxUploadRetryTime = 30_000;
+storage.maxOperationRetryTime = 30_000;

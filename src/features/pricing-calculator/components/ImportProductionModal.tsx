@@ -6,7 +6,7 @@ import { errorMessage, guardOnline } from "@/lib/errors";
 import { formatDecimal } from "@/lib/formatting/currency";
 import { formatDate } from "@/lib/formatting/date";
 import {
-  fetchBambuImportedTaskIds,
+  fetchImportedExternalIds,
   newProductionId,
   saveProduction,
 } from "@/lib/firebase/productionRepository";
@@ -17,6 +17,7 @@ import {
   costImportLine,
   dedupeByTaskId,
   estoqueGroupsByProduct,
+  IMPORT_FONTE,
   parseBambuImportFile,
   resolveImportLine,
   type CostedImportLine,
@@ -97,9 +98,8 @@ export function ImportProductionModal({
     try {
       guardOnline();
       // 6 — idempotência ANTES de resolver: reimportar o mesmo arquivo não
-      // duplica. Compara pelo prefixo exato "bambu:<task_id>", nunca a nota
-      // inteira (o aviso de herança pode mudar entre uma importação e outra).
-      const jaImportados = await fetchBambuImportedTaskIds();
+      // duplica. Compara pelo `origemExterna` (S4), nunca pela nota.
+      const jaImportados = await fetchImportedExternalIds(IMPORT_FONTE);
       const novos = parsed.file.eventos.filter((e) => !jaImportados.has(e.task_id));
       // A idempotência acima só sabe o que já está no Firestore — um
       // `task_id` repetido DENTRO deste arquivo passaria batido nela.

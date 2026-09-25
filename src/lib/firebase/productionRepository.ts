@@ -21,9 +21,15 @@ import { serializeRolls } from "./stockRepository";
 import { serializeLots } from "./suppliesRepository";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
 import { frozenFromDocument, frozenToDocument } from "./frozenCost";
-import { bambuTaskIdOf } from "@/features/pricing-calculator/lib/productionImport";
 import type {
+  EventSource,
+  ExternalOrigin,
   FinishedGoodPayload,
+  NumbersSource,
+  PrintFactAlias,
+  PrintFactFilament,
+  PrintFacts,
+  PrintImages,
   ProductionEvent,
   ProductionFilament,
   ProductionMode,
@@ -142,6 +148,157 @@ export function moveFromDocument(data: DocumentData): StockMove {
   };
 }
 
+// ---------------------------------------------------------------------------
+// S4 (lote 5 da 3a) — origem + fatos crus, campo a campo nas DUAS pontas. O
+// bloco `impressao` é o que existe pra análise futura sem migração: um campo
+// que só um dos lados conhece morre calado (FORM-01), por isso cada um é
+// escrito à mão, sem spread.
+// ---------------------------------------------------------------------------
+
+const NUMBERS_SOURCES: NumbersSource[] = ["impressora", "estimativa", "manual"];
+
+// Leitura tolerante de campo opcional-no-significado: `null` é o "não veio".
+const textoOuNull = (v: unknown): string | null =>
+  typeof v === "string" && v !== "" ? v : null;
+const numeroOuNull = (v: unknown): number | null =>
+  typeof v === "number" && Number.isFinite(v) ? v : null;
+
+function origemFromDocument(data: unknown): ExternalOrigin | null {
+  if (!data || typeof data !== "object") return null;
+  const item = data as DocumentData;
+  const fonte = textoOuNull(item.fonte);
+  const id = textoOuNull(item.id);
+  return fonte && id ? { fonte, id } : null;
+}
+
+function imagensFromDocument(data: unknown): PrintImages | null {
+  if (!data || typeof data !== "object") return null;
+  const item = data as DocumentData;
+  return { capa: textoOuNull(item.capa), foto: textoOuNull(item.foto) };
+}
+
+function factFilamentToDocument(f: PrintFactFilament): DocumentData {
+  return {
+    corCarregada: f.corCarregada,
+    corPlanejada: f.corPlanejada,
+    material: f.material,
+    g: num(f.g),
+    ams: f.ams,
+    slot: f.slot,
+    idNaFonte: f.idNaFonte,
+  };
+}
+
+function factFilamentFromDocument(data: DocumentData): PrintFactFilament {
+  return {
+    corCarregada: textoOuNull(data?.corCarregada),
+    corPlanejada: textoOuNull(data?.corPlanejada),
+    material: typeof data?.material === "string" ? data.material : "",
+    g: num(data?.g),
+    ams: numeroOuNull(data?.ams),
+    slot: numeroOuNull(data?.slot),
+    idNaFonte: textoOuNull(data?.idNaFonte),
+  };
+}
+
+function factAliasFromDocument(data: unknown): PrintFactAlias | null {
+  if (!data || typeof data !== "object") return null;
+  const item = data as DocumentData;
+  const fonte = textoOuNull(item.fonte);
+  const chave = textoOuNull(item.chave);
+  if (!fonte || !chave) return null;
+  return {
+    fonte,
+    chave,
+    variante: textoOuNull(item.variante),
+    plate: numeroOuNull(item.plate),
+  };
+}
+
+export function factsToDocument(f: PrintFacts): DocumentData {
+  return {
+    maquina: f.maquina,
+    serial: f.serial,
+    inicio: f.inicio,
+    fim: f.fim,
+    duracaoPlanoS: f.duracaoPlanoS,
+    duracaoRelogioS: f.duracaoRelogioS,
+    status: f.status,
+    statusCru: f.statusCru,
+    pesoTotalG: f.pesoTotalG,
+    objetos: f.objetos.map((o) => ({ nome: o.nome, qtd: num(o.qtd) })),
+    filamentos: f.filamentos.map(factFilamentToDocument),
+    apelido: f.apelido
+      ? {
+          fonte: f.apelido.fonte,
+          chave: f.apelido.chave,
+          variante: f.apelido.variante,
+          plate: f.apelido.plate,
+        }
+      : null,
+    designId: f.designId,
+    titulo: f.titulo,
+    personalizado: f.personalizado,
+  };
+}
+
+export function factsFromDocument(data: unknown): PrintFacts | null {
+  if (!data || typeof data !== "object") return null;
+  const item = data as DocumentData;
+  return {
+    maquina: typeof item.maquina === "string" ? item.maquina : "",
+    serial: textoOuNull(item.serial),
+    inicio: numeroOuNull(item.inicio),
+    fim: numeroOuNull(item.fim),
+    duracaoPlanoS: numeroOuNull(item.duracaoPlanoS),
+    duracaoRelogioS: numeroOuNull(item.duracaoRelogioS),
+    status: typeof item.status === "string" ? item.status : "",
+    statusCru: textoOuNull(item.statusCru),
+    pesoTotalG: numeroOuNull(item.pesoTotalG),
+    objetos: Array.isArray(item.objetos)
+      ? item.objetos.map((o: DocumentData) => ({
+          nome: typeof o?.nome === "string" ? o.nome : "",
+          qtd: num(o?.qtd),
+        }))
+      : [],
+    filamentos: Array.isArray(item.filamentos)
+      ? item.filamentos.map(factFilamentFromDocument)
+      : [],
+    apelido: factAliasFromDocument(item.apelido),
+    designId: textoOuNull(item.designId),
+    titulo: textoOuNull(item.titulo),
+    personalizado: typeof item.personalizado === "boolean" ? item.personalizado : null,
+  };
+}
+
+function sourceToDocument(source: EventSource): DocumentData {
+  return {
+    // Mapa `{fonte, id}` — a idempotência consulta `origemExterna.fonte`
+    // (igualdade num campo só, sem índice composto).
+    origemExterna: source.origemExterna
+      ? { fonte: source.origemExterna.fonte, id: source.origemExterna.id }
+      : null,
+    fonteDosNumeros: source.fonteDosNumeros,
+    imagens: source.imagens
+      ? { capa: source.imagens.capa, foto: source.imagens.foto }
+      : null,
+    impressao: source.impressao ? factsToDocument(source.impressao) : null,
+  };
+}
+
+function sourceFromDocument(data: DocumentData): EventSource {
+  return {
+    origemExterna: origemFromDocument(data.origemExterna),
+    // Evento anterior ao S4 não tem o campo — foi lançado à mão ou pelo import
+    // antigo; "manual" é a leitura (Diretriz 6, o dado de teste vai embora).
+    fonteDosNumeros: NUMBERS_SOURCES.includes(data.fonteDosNumeros)
+      ? data.fonteDosNumeros
+      : "manual",
+    imagens: imagensFromDocument(data.imagens),
+    impressao: factsFromDocument(data.impressao),
+  };
+}
+
 // A serialização de um evento, campo a campo. (Até o S1 do lote 2 da 3a a venda
 // por encomenda também gravava eventos por aqui; hoje só a /producao grava.)
 export function productionToDocument(payload: ProductionPayload): DocumentData {
@@ -170,6 +327,9 @@ export function productionToDocument(payload: ProductionPayload): DocumentData {
       : {}),
     stockMoves: payload.stockMoves.map(moveToDocument),
     ...(payload.notes ? { notes: payload.notes } : {}),
+    unidadesProduzidas: num(payload.unidadesProduzidas),
+    unidadesCreditadas: num(payload.unidadesCreditadas),
+    ...sourceToDocument(payload),
     createdAt: num(payload.createdAt),
   };
 }
@@ -208,6 +368,9 @@ export function toProduction(id: string, data: DocumentData): ProductionEvent {
       ? data.stockMoves.map(moveFromDocument)
       : [],
     ...(data.notes ? { notes: String(data.notes) } : {}),
+    unidadesProduzidas: num(data.unidadesProduzidas),
+    unidadesCreditadas: num(data.unidadesCreditadas),
+    ...sourceFromDocument(data),
     createdAt: num(data.createdAt),
   };
 }
@@ -327,25 +490,18 @@ export async function fetchProductionCount(
 // encomenda. Com o S1 do lote 2 da 3a a venda deixou de criar produção, e a
 // função ficou sem chamador — código morto sai.)
 
-// Item 3 — os `task_id` já importados do histórico da Bambu, para o passo 6
-// (idempotência: reimportar o mesmo arquivo não duplica). `notes` sempre
-// começa com "bambu:<task_id>" nesses eventos (`bambuNotePrefix`) — um range
-// de PREFIXO no próprio campo, sem índice composto (mesmo truque do período
-// em `periodConstraints`, um campo só). `` é o topo da faixa Unicode
-// privada — maior que qualquer string real que comece com o prefixo.
-const BAMBU_PREFIX = "bambu:";
-export async function fetchBambuImportedTaskIds(): Promise<Set<string>> {
+// S4 — os ids externos já importados de uma `fonte` (ex.: os `task_id` da
+// Bambu), pra reimportar o mesmo arquivo não duplicar. Igualdade num campo só
+// (`origemExterna.fonte`), sem índice composto. Substitui a busca por prefixo
+// `bambu:` no `notes` (o texto livre deixou de carregar identidade).
+export async function fetchImportedExternalIds(fonte: string): Promise<Set<string>> {
   const snap = await getDocs(
-    query(
-      productionCollection,
-      where("notes", ">=", BAMBU_PREFIX),
-      where("notes", "<", `${BAMBU_PREFIX}`),
-    ),
+    query(productionCollection, where("origemExterna.fonte", "==", fonte)),
   );
   const ids = new Set<string>();
   for (const item of snap.docs) {
-    const taskId = bambuTaskIdOf(item.data().notes);
-    if (taskId) ids.add(taskId);
+    const origem = origemFromDocument(item.data().origemExterna);
+    if (origem) ids.add(origem.id);
   }
   return ids;
 }

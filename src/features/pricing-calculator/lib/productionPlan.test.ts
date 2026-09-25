@@ -3,6 +3,7 @@ import { DEFAULT_MACHINES, DEFAULT_PRODUCT_INPUT } from "../constants";
 import {
   accessoryRows,
   buildProductionPayloads,
+  MANUAL_SOURCE,
   conjuntoAccessoryRows,
   planEventRows,
   resolveFilRow,
@@ -287,9 +288,55 @@ describe("FEAT-06 — frozenBreakdown no plano", () => {
       outcome: "estoque",
       mode: "real",
       createdAt: 0,
+      unidadesProduzidas: 1,
+      unidadesCreditadas: 1,
+      source: MANUAL_SOURCE,
     });
     expect(payload.frozenBreakdown).toBeDefined();
     expect(sumFrozen(payload.frozenBreakdown!)).toBeCloseTo(payload.frozenCost, 6);
+  });
+
+  // W7 (lote 5 da 3a) — a máquina da linha foi excluída noutra aba: o custo já
+  // saía pela frota e as horas iam pra `unattributedHours`, mas o documento
+  // gravava o id FANTASMA. Agora os três dizem a mesma coisa: órfão.
+  it("W7 — máquina que sumiu do cadastro grava órfão, não id fantasma", () => {
+    const rows = wholeEventRows(product, DEFAULT_MACHINES, []).map((row) => ({
+      ...row,
+      machineId: "maquina-excluida",
+    }));
+    const planned = plan(rows);
+    expect(planned.summary.machineUsage).toEqual([]);
+    expect(planned.summary.unattributedHours).toBeGreaterThan(0);
+    const [{ payload }] = buildProductionPayloads(planned.built, {
+      at: 0,
+      outcome: "estoque",
+      mode: "real",
+      createdAt: 0,
+      unidadesProduzidas: 1,
+      unidadesCreditadas: 1,
+      source: MANUAL_SOURCE,
+    });
+    expect(payload.machineId).toBe("");
+    expect(payload.machineName).toBe("");
+  });
+
+  it("S4 — as unidades e a origem da submissão vão em todo evento", () => {
+    const planned = plan(wholeEventRows(product, DEFAULT_MACHINES, []));
+    const [{ payload }] = buildProductionPayloads(planned.built, {
+      at: 0,
+      outcome: "estoque",
+      mode: "real",
+      createdAt: 0,
+      unidadesProduzidas: 4,
+      unidadesCreditadas: 3,
+      source: MANUAL_SOURCE,
+    });
+    expect(payload.unidadesProduzidas).toBe(4);
+    expect(payload.unidadesCreditadas).toBe(3);
+    expect(payload.fonteDosNumeros).toBe("manual");
+    expect(payload.origemExterna).toBeNull();
+    expect(payload.impressao).toBeNull();
+    expect(payload.imagens).toBeNull();
   });
 });
 
@@ -360,6 +407,9 @@ describe("AUD-14 [D9] — preço de catálogo × custo FIFO no evento", () => {
       outcome: "estoque",
       mode: "real",
       createdAt: 0,
+      unidadesProduzidas: 1,
+      unidadesCreditadas: 1,
+      source: MANUAL_SOURCE,
     });
     return payload;
   }
@@ -398,6 +448,9 @@ describe("AUD-14 [D9] — preço de catálogo × custo FIFO no evento", () => {
       outcome: "historico",
       mode: "historico",
       createdAt: 0,
+      unidadesProduzidas: 1,
+      unidadesCreditadas: 1,
+      source: MANUAL_SOURCE,
     });
     expect(payload.frozenBreakdown!.material).toBeCloseTo(3.4, 6);
     expect(payload.filaments[0].catalogPricePerKg).toBe(85);

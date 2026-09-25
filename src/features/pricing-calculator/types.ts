@@ -982,6 +982,83 @@ export type ProductionFilament = Omit<FilamentUsage, "id" | "pricePerKg"> & {
   catalogPricePerKg: number;
 };
 
+// ---------------------------------------------------------------------------
+// S4 (lote 5 da 3a) — de onde o evento veio e os FATOS crus da impressora.
+// Regra-mãe: o dado da impressora COMPLEMENTA, nunca é requisito — evento manual
+// grava `origemExterna`/`imagens`/`impressao` como `null` e `fonteDosNumeros:
+// "manual"`. Tudo explícito (AUD-02): nada opcional no tipo de escrita.
+// ---------------------------------------------------------------------------
+
+// Quem mediu os números (gramas/horas) do evento. Três estados porque "medido
+// sim/não" não bastava: a cancelada tem só o PLANO da impressora, e o consumo é
+// `plano × min(1, relógio ÷ plano)` — nem medido, nem digitado.
+export type NumbersSource = "impressora" | "estimativa" | "manual";
+
+// A identidade do evento no sistema de origem — é por ela que reimportar o
+// mesmo arquivo não duplica (substitui o antigo prefixo `bambu:` no `notes`).
+// `fonte` é o ADAPTADOR que escreveu o arquivo (ex.: "bambu"); `id` é o
+// `task_id` dele.
+export type ExternalOrigin = { fonte: string; id: string };
+
+// Caminhos no Firebase Storage (S5): `impressoes/{task_id}/capa.png|foto.jpg`.
+// `null` = a impressão não tem aquela imagem (A1 nunca tem foto; junho não tem
+// mídia nenhuma).
+export type PrintImages = { capa: string | null; foto: string | null };
+
+export type PrintFactObject = { nome: string; qtd: number };
+
+// Um slot como a impressora o viu. A baixa usa a cor CARREGADA; a planejada fica
+// como fato (divergiu em 211 de 503 slots medidos).
+export type PrintFactFilament = {
+  corCarregada: string | null; // hex, como veio
+  corPlanejada: string | null;
+  material: string;
+  g: number;
+  ams: number | null;
+  slot: number | null;
+  idNaFonte: string | null; // ex.: `filamentId` da Bambu (vazio em genérico)
+};
+
+// A origem da impressão como veio no arquivo — CRUA (a `chave` sem normalizar,
+// `fonte` sem validar). Quem normaliza/casa é o `printAliases.ts`, na leitura.
+export type PrintFactAlias = {
+  fonte: string;
+  chave: string;
+  variante: string | null;
+  plate: number | null;
+};
+
+// O bloco de fatos crus. Existe pra toda análise futura sair dos FATOS sem
+// migração e sem voltar à API (que só guarda ~3 meses) — ver o brainstorm no
+// HISTORICO.md. Nada aqui é lido pelo custo: o custo sai dos campos normais do
+// evento, que a revisão/importação decidiu.
+export type PrintFacts = {
+  maquina: string; // o nome já mapeado pelo pipeline
+  serial: string | null;
+  inicio: number | null; // ms
+  fim: number | null;
+  duracaoPlanoS: number | null; // o tempo do fatiador (`costTime`)
+  duracaoRelogioS: number | null; // fim − início
+  status: string; // traduzido pelo pipeline
+  statusCru: string | null; // o código original (status novo não vira "concluída" calado)
+  pesoTotalG: number | null;
+  objetos: PrintFactObject[];
+  filamentos: PrintFactFilament[];
+  apelido: PrintFactAlias | null;
+  designId: string | null;
+  titulo: string | null;
+  personalizado: boolean | null;
+};
+
+// Os 4 campos de ORIGEM de um evento, sempre juntos: o registro manual passa o
+// `MANUAL_SOURCE` (lib/productionPlan.ts), a importação monta o dela.
+export type EventSource = {
+  origemExterna: ExternalOrigin | null;
+  fonteDosNumeros: NumbersSource;
+  imagens: PrintImages | null;
+  impressao: PrintFacts | null;
+};
+
 // Um evento de produção CONGELADO no momento da impressão (foto, como a venda):
 // não referencia o produto vivo. `frozenCost` é o custo de produção do dia
 // (material FIFO + energia + depreciação + manutenção + labor); a parcela de
@@ -1043,7 +1120,13 @@ export type ProductionInput = {
   // `itemId` = o id do próprio evento (a produção é a unidade que consumiu).
   stockMoves: StockMove[];
   notes?: string;
-};
+  // S4 — as unidades são da SUBMISSÃO (repetidas em cada evento dela; quem
+  // somar por evento tem de deduplicar por `submissionId`). Produzidas ≠
+  // creditadas: 10 na mesa, 7 na prateleira — o custo por unidade do acabado é
+  // o total ÷ PRODUZIDAS. Creditadas = 0 fora do desfecho `estoque`/sem produto.
+  unidadesProduzidas: number;
+  unidadesCreditadas: number;
+} & EventSource;
 
 export type ProductionPayload = ProductionInput & { createdAt: number };
 

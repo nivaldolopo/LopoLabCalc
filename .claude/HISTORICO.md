@@ -9,6 +9,53 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Lote 5a da frente 3a — Evento + Storage: W7 + S4 + S5 (2026-09-25)
+
+O lote 5 (S4–S7 + W7) foi dividido em três, com aval do dono: **5a** (W7 + S4 + S5) e **5b** (S6 +
+modo histórico + formato do arquivo fechado) no mesmo chat, e **5c** (S7, a revisão) em chat novo.
+**Decisões do dono antes de codar:**
+1. Produto de **várias mesas vendido INTEIRO**: na revisão (e no arquivo da fase A) as linhas do
+   mesmo produto se **juntam numa submissão**. Credita o que as etapas juntas formam; etapa sozinha
+   conta custo e hora, mas não credita.
+2. **"Já registrado?"** = mesma máquina + mesmo dia + mesmo produto quando os dois lados têm produto.
+3. A **tabela máquina × cor → marca** NÃO é guardada entre importações: vem com o palpite (marca do
+   cadastro do produto ou a com saldo) e o dono corrige.
+4. A divisão 5a/5b aqui, 5c em chat novo.
+
+Testes: 1113 → 1126 (+ 214 de regra: Firestore + Storage).
+
+- **[W7] confirmado e corrigido.** `buildProductionPayloads` grava `e.machine?.id ?? ""` — a máquina
+  excluída noutra aba não vira mais id fantasma com nome `""` (o custo e o `summary` já a tratavam
+  como órfã; o documento agora concorda). E a `/producao` **barra** o save com o motivo ("a máquina
+  escolhida foi excluída — escolha outra"), que é a regra da Fase 2: evento sem máquina só por
+  decisão, nunca por acidente.
+- **[S4] O evento ganhou 6 campos, todos obrigatórios no tipo e explícitos no documento:**
+  `origemExterna {fonte, id}`, `fonteDosNumeros` (`impressora`|`estimativa`|`manual`),
+  `unidadesProduzidas`/`unidadesCreditadas` (da SUBMISSÃO, repetidas em cada evento — quem somar
+  por evento deduplica por `submissionId`), `imagens {capa, foto}` e o bloco de fatos crus
+  `impressao` (`PrintFacts`: máquina, serial, início/fim, tempo de plano e de relógio, status e
+  status cru, peso total, objetos, filamentos por slot com cor carregada E planejada, apelido cru,
+  design, título, personalizado). O manual passa `MANUAL_SOURCE` (tudo `null` + `"manual"`). Os 4
+  de origem viajam juntos como `EventSource`, e `buildProductionPayloads` os EXIGE (sem default
+  calado). Round-trip campo a campo em `productionSourceRoundTrip.test.ts` (inclui "zero é dado":
+  `slot 0`/`ams 0` não viram `null`).
+- **A identidade saiu do `notes`.** O prefixo `bambu:<task_id>` e as funções dele morreram; a
+  idempotência é `fetchImportedExternalIds(fonte)` — igualdade em `origemExterna.fonte`, sem índice
+  composto. O import antigo já grava `origemExterna`/`fonteDosNumeros`/unidades (o 5b o reescreve).
+- **[S5] Storage.** Bucket `lopo-lab.firebasestorage.app` (US-EAST1, "no cost"), ligado e com regras
+  publicadas pelo dono. `storage.rules` = cópia fiel: mesma lista de e-mails, **só `impressoes/{task}/
+  {arquivo}`**, **só `image/*`**, **< 2 MB**, apagar liberado. `printImages.ts` (puro: caminho,
+  nome do arquivo exportado `{task_id}_capa.png|_foto.jpg`, `task_id` que mudaria de pasta é
+  RECUSADO, nunca "limpo") + `printImagesRepository.ts` (upload com `contentType` explícito, "já
+  existe?" em que só 404 é "não" — erro de rede SOBE). O retry do SDK caiu de 10 min pra 30 s: com a
+  rede fora a Promise rejeita em vez de pendurar (a classe do `withWriteTimeout`).
+- ⚠ **Armadilha medida no emulador:** o Storage tem **UM ruleset para todos os projetos** — diferente
+  do Firestore. Subir o ambiente "frouxo" (a sonda de dentes) junto do real sobrescreveu as regras e
+  todo "nega" virou "permite" (34 falhas). O frouxo agora sobe só no ÚLTIMO bloco. E o `put()` do SDK
+  devolve `UploadTask` (thenable, não `Promise`) — o vitest aceita, o `tsc` não.
+- ⚠ **O bucket é um só pra produção e teste** ([DEC-07] separa só o Firestore) — são fatos da
+  impressora, iguais nos dois ambientes.
+
 ## ✅ Lote 4 da frente 3a — Código + apelidos: S2 + S3 + colunas do CSV (2026-09-24)
 
 Decisões do dono no chat, antes de codar: produto de teste fica **sem código** (sem backfill,
