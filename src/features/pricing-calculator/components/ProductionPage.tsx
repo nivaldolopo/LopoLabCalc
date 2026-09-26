@@ -151,7 +151,7 @@ export function ProductionPage() {
   const [dateStr, setDateStr] = useState(todayInputValue());
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
-  // Item 3 — "Importar histórico": arquivo JSON externo (Bambu) → N eventos
+  // S6 — "Importar impressões": arquivo de produção do pipeline → N eventos
   // `mode: "historico"`, fora do fluxo manual de cima.
   const [importOpen, setImportOpen] = useState(false);
   const { note, ok, fail, clear } = useFeedback();
@@ -886,7 +886,7 @@ export function ProductionPage() {
           onClick={() => setImportOpen(true)}
         >
           <Upload size={15} />
-          Importar histórico
+          Importar impressões
         </button>
       </div>
 
@@ -898,6 +898,7 @@ export function ProductionPage() {
           supplies={supplies}
           energyTariff={energyTariff}
           goods={goods}
+          pricingByProduct={pricingByProduct}
           onClose={() => setImportOpen(false)}
           onImported={(count) => {
             ok(

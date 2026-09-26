@@ -9,6 +9,45 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Lote 5b da frente 3a — S6: o import de impressões, modo `historico` + formato v1 (2026-09-25)
+
+O "Importar histórico" da `/producao` virou **"Importar impressões"** e foi reescrito: um formato,
+um botão. O formato do arquivo de produção ficou **fechado** (seção 3 do
+`handoff/PEDIDO_PRINTPIPELINE.md`, com exemplo e regra por campo) — destrava o pipeline. O modo
+`real` (fase B, impressão sem `curadoria`) sai com o motivo e espera a revisão do 5c.
+Testes: 1126 → 1129 (o teste do import foi reescrito inteiro: 32 casos).
+
+- **Grava pelo MESMO caminho do manual** (a regra-mãe): a curadoria vira uma "seleção" como a do
+  seletor da `/producao` — `whole` (as etapas da submissão = todas as do produto), `subitem` (= as
+  de uma parte) ou `partial` (nem um nem outro: custo + hora, sem crédito e sem acessório). As
+  linhas saem de `wholeEventRows`/`subitemEventRows`, os FATOS (máquina, horas, gramas por cor do
+  site) entram por cima, mão de obra e insumos escalam por `produzidas ÷ piecesCount` (`scaleRow`),
+  e daí `planEventRows` → `buildProductionPayloads` → `submissionEntries` → `addProductionLayers`.
+  Cada evento guarda a hora e a origem DA impressão; a camada do acabado leva a da última.
+- **Produzidas ≠ creditadas:** `submissionEntries` ganhou `creditedUnits` — custo ÷ produzidas,
+  quantidade = creditadas (0 = nenhuma entrada). O manual não passa (as duas iguais).
+- **Decisão 1 do dono, em código:** `curadoria.submissao` junta as mesas; grupo incoerente
+  (produto/destino/unidades diferentes), com etapa repetida, com parte já importada ou com uma
+  impressão ilegível cai **inteiro** — gravar meia submissão credita o que não existe.
+- **O site estima, o pipeline não:** cancelada **e** falha da impressora = `plano × min(1, relógio
+  ÷ plano)`, `fonteDosNumeros: "estimativa"`; concluída = `costTime`, nunca o relógio. O item 7 do
+  pedido mudou junto (o curador manda o plano cru).
+- **Leitura estrita** (AUD-16): tipo errado DESCARTA a impressão com motivo (`status` novo, `g` em
+  texto, creditadas > produzidas ou fora de `estoque`, `task_id` que viraria pasta, data **sem
+  fuso**). Só o apelido **exato** liga produto (`lookupPrintAlias`) — apelido desconhecido é
+  recusado, não vira avulso. `estoque` exige produto e `cor_site` em todo filamento.
+- **Imagens:** o dono seleciona os arquivos junto; o site casa pelo NOME que o JSON cita, sobe
+  ANTES de gravar (evento nunca aponta pra imagem inexistente) e aborta se o upload falhar.
+- **`/code-review --high`: 7 achados, os 7 corrigidos** — o botão Analisar esperava os apelidos
+  chegarem (antes, clicar rápido rejeitava todo produto); a `falha` da impressora era tratada como
+  medida; erro no meio da gravação agora diz quantas já entraram (reimportar pula as gravadas); o
+  `getMetadata` por imagem citada (centenas de 404 na fase A) saiu junto com o `printImageExists`;
+  data sem fuso; nome de imagem citado; `productStageKeys` reusa o `stageKeysOf`.
+- **Verificado no navegador (banco de TESTE):** arquivo de 5 → prévia com 2 a importar, 1 ilegível
+  e 2 recusadas com motivo; gravou (cancelada 31 g → **7 g**, 0,38 h); reimportar = "0 a importar,
+  2 já importadas"; os 2 eventos apagados depois. **Não provado ao vivo:** o upload de imagem no
+  bucket real (as regras estão provadas no emulador) — sai no 1º import com pasta.
+
 ## ✅ Lote 5a da frente 3a — Evento + Storage: W7 + S4 + S5 (2026-09-25)
 
 O lote 5 (S4–S7 + W7) foi dividido em três, com aval do dono: **5a** (W7 + S4 + S5) e **5b** (S6 +

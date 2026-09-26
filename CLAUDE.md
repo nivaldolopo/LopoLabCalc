@@ -9,24 +9,24 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-25): lote 5a da 3a (W7 + S4 + S5) fechado** — o evento de produção
-  ganhou `origemExterna`, `fonteDosNumeros`, unidades produzidas/creditadas, `imagens` e o bloco
-  de fatos crus `impressao` (o manual grava `MANUAL_SOURCE`); o prefixo `bambu:` do `notes` morreu;
-  **Firebase Storage ligado** (`storage.rules`, `impressoes/{task_id}/capa.png|foto.jpg`).
-  Decisões do dono p/ S6/S7 no `BACKLOG.md`; writeup no `HISTORICO.md`.
+- **Última mudança (2026-09-25): lotes 5a (W7 + S4 + S5) e 5b (S6) da 3a fechados** — o evento
+  guarda origem + fatos crus da impressora, o **Storage** está ligado, e o "Importar impressões" da
+  `/producao` lê o **arquivo v1** (formato FECHADO na seção 3 do `PEDIDO_PRINTPIPELINE.md`) no modo
+  `historico`, gravando pelo mesmo caminho do manual. Decisões do dono p/ o S7 no `BACKLOG.md`.
+  **O dono leva o pedido atualizado ao pipeline** (a seção 3 e o item 7 mudaram).
 - ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
   daqui não se mexe lá.
 - ⚠ **O pipeline de importação (histórico de impressão → CSV/JSON) virou projeto próprio em
   2026-09-21** (`LopoLabPrintPipeline`, fora deste repo — writeup em
   [`HISTORICO.md`](.claude/HISTORICO.md)). Daqui só se conhece o **formato que ele entrega** (o CSV
-  que o `/catalogo` importa, o JSON que o "Importar histórico" da `/producao` lê) — o funcionamento
+  que o `/catalogo` importa, o arquivo v1 que o "Importar impressões" da `/producao` lê) — o funcionamento
   interno dele não é documentado aqui, e não se mexe nele a partir daqui.
 - **PRÓXIMA TAREFA DESTE PROJETO — frente 3a (dados da impressora), depois frente 3 (uso real).**
   Código S1–S13 + os V/W abertos do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o
   marco pode atrasar um pouco, não muito). **Um chat por lote, na tabela "Ordem de execução do
-  código" da seção 3a do `BACKLOG.md`** (✅ lotes 1–4 e 5a; **próximo = lote 5b, S6: import + formato do arquivo**; o 5c,
-  S7, em chat novo). Depois, a carga pelo "Processo da fase A"
+  código" da seção 3a do `BACKLOG.md`** (✅ lotes 1–4, 5a, 5b; **próximo = lote 5c, S7: a revisão do modo `real`, em chat
+  novo**). Depois, a carga pelo "Processo da fase A"
   (que começa APAGANDO o teste) e o marco (Diretriz 6 expira).
   Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
@@ -78,7 +78,7 @@ src/features/pricing-calculator/
                   #   ProductIdentity (código LL-… + apelidos, sob o nome)
                   # uma por rota: CatalogPage(+ProductCatalog) · SalesPage · QuotePage ·
                   #   MachinesPage · ProductionPage (+ ImportProductionModal, botão "Importar
-                  #   histórico") · StockPage (abas) + SuppliesTab · SettingsPage
+                  #   impressões") · StockPage (abas) + SuppliesTab · SettingsPage
                   # venda: SaleModal + SaleFlow (a fiação, usada pelas 2 páginas)
                   # casca: PageHeader · PageIntro · NavBar · MobilePriceBar · AuthGate ·
                   #   Modal (casca dos 9 diálogos) + os 8 que a consomem + ConfirmDialog
@@ -101,8 +101,9 @@ src/features/pricing-calculator/
                   #   fifo (ordem + overdraft D4) → stock (g) + supplies (unidades) ·
                   #   production (baixa por evento + custo congelado, em 3 escalas) ·
                   #   finishedGoods (camadas FIFO; SKU = subitem × cor) ·
-                  #   productionPlan (produto/subitem→eventos) · productionImport (JSON externo
-                  #   da Bambu → eventos historico, idempotente por `origemExterna`) ·
+                  #   productionPlan (produto/subitem→eventos) · productionImport (arquivo v1
+                  #   do pipeline → submissões → eventos pelo caminho do manual; idempotente
+                  #   por `origemExterna`) ·
                   #   printImages (S5: caminho no Storage, nome do arquivo exportado) ·
                   #   saleReconciliation (passo 8 +
                   #   reverse) · marginTier (régua DEC-04) · saleContext · filaments ·

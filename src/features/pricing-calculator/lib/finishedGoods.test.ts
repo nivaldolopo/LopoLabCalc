@@ -650,6 +650,18 @@ describe("submissionEntries (delta da submissão — FEAT-05b)", () => {
     expect(entries[0].qty * entries[0].unitCost).toBeCloseTo(40);
   });
 
+  it("S6: produzidas ≠ creditadas — custo ÷ PRODUZIDAS, credita só as creditadas", () => {
+    // 10 na mesa, 7 na prateleira: cada peça custa 40/10 = 4, não 40/7.
+    const [entry] = submissionEntries("Boneco", 40, { units: 10, creditedUnits: 7 });
+    expect(entry.qty).toBe(7);
+    expect(entry.unitCost).toBeCloseTo(4, 9);
+  });
+
+  it("S6: creditadas 0 não credita nada; acima das produzidas é teto", () => {
+    expect(submissionEntries("Boneco", 40, { units: 10, creditedUnits: 0 })).toEqual([]);
+    expect(submissionEntries("Boneco", 40, { units: 10, creditedUnits: 12 })[0].qty).toBe(10);
+  });
+
   it("BUG-02: units + rateio de subitens → cada SKU N unidades a (parte ÷ N)", () => {
     const entries = submissionEntries("Kit", 30, {
       units: 4, // mesa de 4

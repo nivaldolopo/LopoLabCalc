@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   eventImages,
   isSafeTaskId,
-  parsePrintImageFileName,
   printImagePath,
 } from "./printImages";
 
@@ -17,34 +16,6 @@ describe("printImagePath (S5)", () => {
       expect(isSafeTaskId(ruim)).toBe(false);
       expect(() => printImagePath(ruim, "capa")).toThrow();
     }
-  });
-});
-
-describe("parsePrintImageFileName — o nome que o pipeline exporta", () => {
-  it("lê capa e foto", () => {
-    expect(parsePrintImageFileName("1214307195_capa.png")).toEqual({
-      taskId: "1214307195",
-      kind: "capa",
-    });
-    expect(parsePrintImageFileName("1214307195_foto.jpg")).toEqual({
-      taskId: "1214307195",
-      kind: "foto",
-    });
-    expect(parsePrintImageFileName("1214307195_FOTO.JPEG")).toEqual({
-      taskId: "1214307195",
-      kind: "foto",
-    });
-  });
-
-  it("extensão trocada é arquivo errado, não 'quase certo'", () => {
-    expect(parsePrintImageFileName("1_capa.jpg")).toBeNull();
-    expect(parsePrintImageFileName("1_foto.png")).toBeNull();
-  });
-
-  it("qualquer outro arquivo da pasta é ignorado", () => {
-    expect(parsePrintImageFileName("producao.json")).toBeNull();
-    expect(parsePrintImageFileName("1_topo.png")).toBeNull();
-    expect(parsePrintImageFileName("a.b_capa.png")).toBeNull();
   });
 });
 

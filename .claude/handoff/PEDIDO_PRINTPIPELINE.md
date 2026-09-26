@@ -4,7 +4,7 @@
 > LopoLabCalc (registro completo, com o que foi descartado e por quê, no `HISTORICO.md` de lá, seção
 > "📐 Brainstorm: dados da impressora"). Este arquivo é autocontido: dá pra colar numa sessão do
 > pipeline sem o resto. **Do lado do site:** o formato do CSV de catálogo (item 8) está fechado e
-> codado (2026-09-24); o arquivo de produção (seção 3) ainda não.
+> codado (2026-09-24), e o arquivo de produção (seção 3) também (2026-09-25).
 
 ## A regra que vale pra tudo
 
@@ -62,10 +62,9 @@
    **"Copiar lista de cores"**: TSV `Cor · Material · Nome no site · Amostras · Arquivada`, uma linha
    por material + cor, com os hex de todas as marcas). Ex.: `161616` + PLA → "Preto PLA". **Sem
    marca**: na fase A nada mexe em rolo, e a prateleira do acabado já conta por material + cor. Somar por cor carregada (1081441249: 3 cores planejadas caíram no mesmo slot verde).
-7. **Cancelada:** peso e tempo da API são do PLANO. Estimar o consumido com
-   `plano × min(1, (endTime − startTime) ÷ costTime)` e marcar `fonteDosNumeros: "estimativa"`.
-   Ex.: 1214307195 → 1358 s de 5824 s ≈ 23% → ~7 g de 31 g. (Na concluída, tempo = `costTime`,
-   **nunca** o relógio — já divergiu 1295%.)
+7. **Cancelada:** peso e tempo da API são do PLANO — **mandar o plano como veio**; quem estima é
+   o site (`plano × min(1, relógio ÷ plano)`, ex.: 1214307195 → 1358 s de 5824 s ≈ 23% → ~7 g de
+   31 g). O curador pode MOSTRAR a estimativa, mas não gravá-la no arquivo (seção 3).
 8. **Catálogo (CSV):** exportar só o **objetivo** — peso, tempo, etapas, máquinas que já rodaram,
    cores (material+cor), link, personalizado — **+ a coluna de apelidos** de cada produto. Markup e
    taxa de falha: no máximo um **padrão em lote**. **Não investir** mais em mão de obra/acessórios
@@ -92,30 +91,89 @@
    - Item ruim de `Apelidos JSON` é descartado **com aviso** e o produto entra mesmo assim.
 9. **Salvar a curadoria em arquivo** além do `localStorage`.
 
-## 3. O arquivo de produção (formato definitivo — o mesmo nas fases A e B)
+## 3. O arquivo de produção (formato FECHADO — LopoLabCalc, lote 5b, 2026-09-25)
 
-Um evento por impressão. **Só fatos + a interpretação da fase A** (na fase B o site interpreta).
-Nomes finais dos campos: fechar junto com o S4/S6 do LopoLabCalc; o preview do import do site é o
-validador. Proposta:
+Um item por impressão. **Só fatos + a curadoria da fase A** (na fase B o site interpreta). O botão
+**"Importar impressões"** da `/producao` do site é o validador: a prévia diz, por `task_id`, o que
+não leu e por quê. Referência do código: `src/features/pricing-calculator/lib/productionImport.ts`.
 
-- `schema_version`, `gerado_em`
-- `task_id` (idempotência — cada impressão tem o seu)
-- `maquina` (NOME já mapeado pelo `maquinas_conhecidas.json`) + `serial`
-- `inicio`, `fim` (UTC), `duracao_s` (`costTime`), `duracao_relogio_s` (fim − início)
-- `status` traduzido **e** `status_cru` (código novo não pode virar "concluída" calado)
-- `peso_total_g` (da API, já com cópias)
-- `filamentos[]`: cor **carregada** (hex), cor **planejada** (hex), material/tipo, gramas, slot
-  (`ams`/`slot`/bico), `filament_id_bambu` (pode vir vazio)
-- `objetos[]`: nome **original** (sem normalizar — normalização é do site) + quantidade real na mesa
-- `apelido` `{fonte, chave, variante, plate}` + `design_id`/`titulo` quando houver + `personalizado`
-- `imagens`: nomes dos arquivos (ou `null`)
-- **Só na fase A** (vem do curador): `apelido_produto` (ou `null` = avulso), `destino`
-  (`historico` | `estoque` | `falha` | `teste`), `unidades_produzidas`, `unidades_creditadas`,
-  `fonteDosNumeros` (`impressora` | `estimativa`), cor já traduzida (material+cor do site).
+```json
+{
+  "schema_version": 1,
+  "fonte": "bambu",
+  "gerado_em": "2026-09-25T10:00:00Z",
+  "impressoes": [
+    {
+      "task_id": "1214307195",
+      "maquina": "X2D Combo",
+      "serial": "0948AD5A1200123",
+      "inicio": "2026-07-01T12:00:00Z",
+      "fim": "2026-07-01T12:22:38Z",
+      "duracao_s": 5824,
+      "duracao_relogio_s": 1358,
+      "status": "cancelada",
+      "status_cru": 3,
+      "peso_total_g": 31.2,
+      "filamentos": [
+        { "cor_carregada": "161616", "cor_planejada": "0A2989", "material": "PLA", "g": 31.2,
+          "ams": 0, "slot": 2, "filament_id_bambu": "GFA00",
+          "cor_site": { "cor": "Preto", "material": "PLA" } }
+      ],
+      "objetos": [ { "nome": "Assembly", "qtd": 2 } ],
+      "apelido": { "fonte": "mw", "chave": "1234567", "variante": "998877", "plate": 2 },
+      "design_id": "1234567",
+      "titulo": "LL-0042 Quatto face",
+      "personalizado": false,
+      "imagens": { "capa": "1214307195_capa.png", "foto": null },
+      "curadoria": {
+        "destino": "falha",
+        "apelido_produto": { "fonte": "mw", "chave": "1234567", "variante": "998877", "plate": 2 },
+        "unidades_produzidas": 2,
+        "unidades_creditadas": 0,
+        "submissao": null
+      }
+    }
+  ]
+}
+```
 
-**Não mandar:** configurações do slicer, chaves sobrescritas por plate, `metros` (a conversão
-peso↔metragem é descartada no site), assinaturas calculadas (o site calcula — a regra e o
-comparador têm de ser o mesmo código), caminhos de mídia além da capa/foto.
+**Regras de cada campo** (o que o site recusa vem com o motivo na prévia):
+- `schema_version`: **1**. Sem ele o site recusa o arquivo inteiro ("formato antigo").
+- `fonte`: o adaptador (`"bambu"`). É a identidade junto do `task_id`: reimportar o mesmo arquivo
+  não duplica nada.
+- `task_id`: texto, só letras, números, `_` e `-` (vira pasta no Storage).
+- `maquina`: o NOME já mapeado (`maquinas_conhecidas.json`). Nome que não bate fica fora, com
+  motivo.
+- `inicio`/`fim`: ISO **com fuso** (`Z` ou `-03:00`). Sem fuso a impressão é recusada (seria lida
+  na hora local do navegador).
+- `duracao_s` = `costTime` (o plano); `duracao_relogio_s` = fim − início, ou `null`.
+- `status`: `concluida` | `cancelada` | `falha` (a impressora parou sozinha). Qualquer outro valor
+  é recusado; mande o código original em `status_cru`.
+- **Não estimem nada:** mandem as gramas e o tempo **do plano** também na cancelada/falha. O site
+  aplica `plano × min(1, relógio ÷ plano)` e marca "estimativa" (a regra e o comparador ficam no
+  mesmo código). Na concluída, o site usa o `costTime`, nunca o relógio.
+- `filamentos[]`: um item por slot, `g` numérico ≥ 0. O site soma por cor do site (3 cores
+  planejadas no mesmo slot verde viram 1 linha). `cor_site` = a cor da lista do site (TSV do
+  "Copiar lista de cores"), sem marca; `null` = não traduzida (entra com o hex como nome).
+- `objetos[]`: nome **original** + `qtd` inteira ≥ 1.
+- `apelido`: fato cru, `{fonte, chave, variante, plate}` sem normalizar (ou `null`).
+- `imagens`: o **nome do arquivo** ao lado do JSON (`{task_id}_capa.png`, `{task_id}_foto.jpg`),
+  ou `null`. O dono seleciona os arquivos junto no site; o site casa pelo nome citado aqui.
+- `curadoria` (**só na fase A**; `null`/ausente = fase B, que espera a revisão do próximo lote):
+  - `destino`: `historico` | `estoque` | `falha` | `teste`.
+  - `apelido_produto`: o MESMO apelido que foi no CSV do catálogo (`fonte` `mw` ou `arquivo`),
+    ou `null` = avulso. O site só aceita apelido **exato** que já exista (importe o CSV antes).
+  - `unidades_produzidas` (inteiro ≥ 1, o que a mesa fez) e `unidades_creditadas` (0 até
+    produzidas, **só** com `destino: "estoque"`). Custo por peça = total ÷ **produzidas**.
+  - `submissao`: produto **vendido inteiro com várias mesas** (corpo numa, tampa noutra): as
+    impressões que formam as peças levam o **mesmo texto** aqui, e o mesmo produto, destino e
+    unidades. Juntas, creditam o que formam; uma etapa sozinha com `estoque` é recusada
+    (mande-a como `historico`). Produto de uma mesa, ou vendido por partes, não precisa.
+  - `estoque` exige produto e `cor_site` em todo filamento com grama (a prateleira é material +
+    cor).
+
+**Não mandar:** configurações do slicer, chaves sobrescritas por plate, `metros`, assinaturas
+calculadas, caminhos de mídia além da capa/foto, estimativa de consumo.
 
 ## 4. Imagens
 

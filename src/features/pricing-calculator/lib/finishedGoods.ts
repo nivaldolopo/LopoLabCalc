@@ -88,6 +88,11 @@ export function submissionEntries(
     color?: ColorKey;
     subitems?: { id: string; name: string; cost: number; color?: ColorKey }[];
     units?: number;
+    // S4/S6 (lote 5 da 3a) — produzidas ≠ creditadas: 10 na mesa, 7 na
+    // prateleira. O custo por unidade continua sendo total ÷ `units` (as
+    // PRODUZIDAS); só a quantidade creditada muda. Ausente = todas (o registro
+    // manual, onde as duas são iguais). 0 = nada a creditar → nenhuma entrada.
+    creditedUnits?: number;
     breakdown?: FrozenCostBreakdown;
     // [FROTA] Fase 1 — a repartição por máquina da submissão INTEIRA, na escala
     // da tiragem (a mesma do `totalFrozenCost`). Desce pelo MESMO fator, então
@@ -97,6 +102,11 @@ export function submissionEntries(
 ): FinishedEntry[] {
   const total = num(totalFrozenCost);
   const units = Math.max(1, Math.round(num(opts.units ?? 1)));
+  const credited =
+    opts.creditedUnits === undefined
+      ? units
+      : Math.min(units, Math.max(0, Math.round(num(opts.creditedUnits))));
+  if (credited === 0) return [];
   const breakdown = opts.breakdown;
   const machineUsage = opts.machineUsage;
 
@@ -112,7 +122,7 @@ export function submissionEntries(
     const factor = share / units;
     return {
       ...base,
-      qty: units,
+      qty: credited,
       unitCost: total * factor,
       ...(breakdown ? { unitBreakdown: scaleFrozen(breakdown, factor) } : {}),
       // [FROTA] Fase 1 — a repartição segue o MESMO fator do custo. No inteiro

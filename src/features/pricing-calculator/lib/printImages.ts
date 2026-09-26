@@ -34,22 +34,6 @@ export function printImagePath(taskId: string, kind: PrintImageKind): string {
   return `impressoes/${taskId}/${kind}.${EXTENSAO[kind]}`;
 }
 
-// O arquivo que o pipeline exporta ao lado do JSON: `{task_id}_capa.png` e
-// `{task_id}_foto.jpg` (pedido, seção 4). Devolve de quem é e o quê — ou `null`
-// pra qualquer outro arquivo da pasta (ignorado, nunca adivinhado).
-export function parsePrintImageFileName(
-  fileName: string,
-): { taskId: string; kind: PrintImageKind } | null {
-  const match = /^(.+)_(capa|foto)\.(png|jpe?g)$/i.exec(fileName.trim());
-  if (!match) return null;
-  const taskId = match[1];
-  const kind = match[2].toLowerCase() as PrintImageKind;
-  const ext = match[3].toLowerCase();
-  // A capa é PNG e a foto é JPG — trocado é arquivo errado, não "quase certo".
-  if (kind === "capa" ? ext !== "png" : ext === "png") return null;
-  return isSafeTaskId(taskId) ? { taskId, kind } : null;
-}
-
 // As `imagens` do evento a partir do que existe (subiu agora ou já estava lá).
 // Nenhuma das duas → `null` (a impressão não tem mídia), nunca `{null, null}`.
 export function eventImages(

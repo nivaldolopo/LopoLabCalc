@@ -1,4 +1,4 @@
-import { getDownloadURL, getMetadata, ref, uploadBytes } from "firebase/storage";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { storage } from "./client";
 import { guardOnline } from "@/lib/errors";
 import {
@@ -27,23 +27,6 @@ export async function uploadPrintImage(
     contentType: PRINT_IMAGE_CONTENT_TYPE[kind],
   });
   return path;
-}
-
-// Já existe? Para o import subir só "as imagens que faltam". 404 = não existe;
-// qualquer outro erro (rede, permissão) SOBE — tratar como "não existe" faria o
-// import reenviar tudo calado, ou pior, gravar `imagens: null` num evento que
-// tem capa.
-export async function printImageExists(
-  taskId: string,
-  kind: PrintImageKind,
-): Promise<boolean> {
-  try {
-    await getMetadata(ref(storage, printImagePath(taskId, kind)));
-    return true;
-  } catch (err) {
-    if ((err as { code?: string })?.code === "storage/object-not-found") return false;
-    throw err;
-  }
 }
 
 // A URL para `<img src>` a partir do caminho gravado no evento.

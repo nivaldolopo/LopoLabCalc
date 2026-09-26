@@ -1,21 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
-  IMPORT_FONTE,
-  buildImportFinishedUpdates,
-  buildImportNotes,
   buildImportPreview,
-  bulkImportChunks,
-  costImportLine,
+  consumptionFactor,
+  costSubmission,
   dedupeByTaskId,
-  estoqueGroupsByProduct,
-  parseBambuImportFile,
-  resolveImportLine,
-  type BambuImportEvent,
+  importBatches,
+  parseImportFile,
+  printFilRows,
+  resolveSubmissions,
+  type CostedSubmission,
   type ImportContext,
-  type ResolvedImportLine,
+  type ImportPrint,
 } from "./productionImport";
+import { aliasDocId, normalizeAliasChave } from "./printAliases";
 import { DEFAULT_PRODUCT_INPUT } from "../constants";
-import type { FinishedGood, Machine, SavedProduct, StockFilament } from "../types";
+import type {
+  Machine,
+  PrintAliasKey,
+  SavedPrintAlias,
+  SavedProduct,
+  StockFilament,
+} from "../types";
+
+// S6 (lote 5b da 3a) — o import do arquivo de produção v1, modo `historico`.
 
 const A1: Machine = {
   id: "a1",
@@ -36,453 +43,539 @@ const X2D: Machine = {
   weight: 50,
 };
 const MACHINES = [A1, X2D];
-const ENERGY_TARIFF = 0.8;
 
-function makeContext(over: Partial<ImportContext> = {}): ImportContext {
+const PRETO_PLA: StockFilament = {
+  id: "preto-bambu",
+  material: "PLA",
+  brand: "Bambu",
+  colorName: "Preto",
+  minG: 0,
+  archived: false,
+  rolls: [{ id: "r1", purchaseDate: 0, initialG: 1000, remainingG: 1000, pricePerKg: 120 }],
+  adjustments: [],
+  createdAt: 0,
+};
+
+function alias(key: PrintAliasKey, productId: string, stageKey = "main"): SavedPrintAlias {
+  const chave = normalizeAliasChave(key.fonte, key.chave)!;
+  const k = { ...key, chave };
+  return { ...k, id: aliasDocId(k), productId, stageKey, objetosPorUnidade: 1, createdAt: 0 };
+}
+
+const MW = (plate: number): PrintAliasKey => ({ fonte: "mw", chave: "555", variante: "9", plate });
+
+// Chaveiro: 1 etapa, 5 peças por mesa, 30 min de mão de obra por mesa, 1 ímã por peça.
+const CHAVEIRO: SavedProduct = {
+  ...DEFAULT_PRODUCT_INPUT,
+  id: "chaveiro",
+  name: "Chaveiro",
+  machineIds: ["a1"],
+  piecesCount: 5,
+  printHours: 1,
+  laborMinutes: 30,
+  laborRate: 60,
+  accessories: [{ desc: "Ímã", qty: 1, unitPrice: 0.5, supplyId: null }],
+  filaments: [{ filamentId: null, colorName: "Preto", material: "PLA", pricePerKg: 100, totalG: 20 }],
+} as SavedProduct;
+
+// Pote: corpo (main) + tampa (etapa extra), vendido INTEIRO.
+const POTE: SavedProduct = {
+  ...DEFAULT_PRODUCT_INPUT,
+  id: "pote",
+  name: "Pote",
+  mainStageName: "Corpo",
+  machineIds: ["x2d"],
+  piecesCount: 1,
+  printHours: 2,
+  laborMinutes: 0,
+  laborRate: 60,
+  accessories: [],
+  filaments: [{ filamentId: null, colorName: "Preto", material: "PLA", pricePerKg: 100, totalG: 50 }],
+  stages: [
+    {
+      id: "tampa",
+      name: "Tampa",
+      machineIds: ["x2d"],
+      printHours: 1,
+      laborMinutes: 0,
+      filaments: [{ filamentId: null, colorName: "Preto", material: "PLA", pricePerKg: 100, totalG: 20 }],
+    },
+  ],
+} as SavedProduct;
+
+function ctx(over: Partial<ImportContext> = {}): ImportContext {
   return {
     machines: MACHINES,
-    products: [],
-    stock: [],
-    supplies: [],
-    energyTariff: ENERGY_TARIFF,
-    defaultPricePerKg: 110,
-    ...over,
-  };
-}
-
-function evento(over: Partial<BambuImportEvent> = {}): BambuImportEvent {
-  return {
-    task_id: "1265163697",
-    productName: "Finca Board Game Insert",
-    productId: null,
-    maquina_sugerida: "A1 Combo",
-    at_ms: 1789852599000,
-    printHours: 1.3539,
-    peso_g: 49.29,
-    filamentos: [{ colorName: "azul claro", material: "PLA", g: 49.29, hex: "A4DAE6", filamentId: null }],
-    outcome_sugerido: "historico",
-    ...over,
-  };
-}
-
-function makeProduct(over: Partial<SavedProduct> = {}): SavedProduct {
-  return {
-    ...DEFAULT_PRODUCT_INPUT,
-    id: "prod1",
-    name: "Insert",
-    machineIds: ["a1"],
-    piecesCount: 1,
-    laborMinutes: 0,
-    laborRate: 30,
-    accessories: [],
-    filaments: [
-      { filamentId: null, colorName: "Azul claro", material: "PLA", pricePerKg: 90, totalG: 40 },
+    products: [CHAVEIRO, POTE],
+    aliases: [
+      alias(MW(1), "chaveiro"),
+      alias({ fonte: "arquivo", chave: "Pote corpo", variante: null, plate: 1 }, "pote", "main"),
+      alias({ fonte: "arquivo", chave: "Pote corpo", variante: null, plate: 2 }, "pote", "tampa"),
     ],
+    stock: [PRETO_PLA],
+    supplies: [],
+    energyTariff: 0.8,
+    defaultPricePerKg: 110,
+    subitemPrices: () => [],
     ...over,
-  } as SavedProduct;
+  };
 }
 
-function makeCor(over: Partial<StockFilament> & { id: string }): StockFilament {
+// Uma impressão no formato do ARQUIVO (snake_case, como o pipeline escreve).
+function rawPrint(over: Record<string, unknown> = {}, curadoria: Record<string, unknown> | null = {}) {
   return {
-    material: "PLA",
-    brand: "Bambu",
-    colorName: "Azul Claro",
-    minG: 0,
-    archived: false,
-    rolls: [{ id: `${over.id}_r1`, purchaseDate: 0, initialG: 1000, remainingG: 1000, pricePerKg: 120 }],
-    adjustments: [],
-    createdAt: 0,
+    task_id: "1000",
+    maquina: "A1 Combo",
+    serial: "SN1",
+    inicio: "2026-07-01T12:00:00Z",
+    fim: "2026-07-01T13:00:00Z",
+    duracao_s: 3600,
+    duracao_relogio_s: 3700,
+    status: "concluida",
+    status_cru: 2,
+    peso_total_g: 25,
+    filamentos: [
+      {
+        cor_carregada: "161616",
+        cor_planejada: "0A2989",
+        material: "PLA",
+        g: 25,
+        ams: 0,
+        slot: 1,
+        filament_id_bambu: "GFA00",
+        cor_site: { cor: "Preto", material: "PLA" },
+      },
+    ],
+    objetos: [{ nome: "Assembly", qtd: 5 }],
+    apelido: { fonte: "mw", chave: "555", variante: "9", plate: 1 },
+    design_id: "555",
+    titulo: "Chaveiro",
+    personalizado: false,
+    imagens: { capa: "1000_capa.png", foto: null },
+    curadoria:
+      curadoria === null
+        ? null
+        : {
+            destino: "historico",
+            apelido_produto: { fonte: "mw", chave: "555", variante: "9", plate: 1 },
+            unidades_produzidas: 5,
+            unidades_creditadas: 0,
+            submissao: null,
+            ...curadoria,
+          },
     ...over,
-  } as StockFilament;
+  };
 }
 
-describe("parseBambuImportFile", () => {
-  it("le o arquivo valido e conta o que a ferramenta externa escreveu", () => {
-    const r = parseBambuImportFile({ eventos: [evento()] });
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.file.eventos).toHaveLength(1);
-    expect(r.descartados).toBe(0);
-  });
+function arquivo(impressoes: unknown[]) {
+  return { schema_version: 1, fonte: "bambu", gerado_em: "2026-09-25", impressoes };
+}
 
-  it("erro fatal quando nao ha lista de eventos", () => {
-    expect(parseBambuImportFile({}).ok).toBe(false);
-    expect(parseBambuImportFile(null).ok).toBe(false);
-    expect(parseBambuImportFile("texto").ok).toBe(false);
-  });
+function prints(...raws: unknown[]): ImportPrint[] {
+  const r = parseImportFile(arquivo(raws));
+  if (!r.ok) throw new Error(r.erro);
+  expect(r.descartadas).toEqual([]);
+  return r.file.impressoes;
+}
 
-  it("descarta e CONTA item sem task_id (nao vira undefined calado)", () => {
-    const r = parseBambuImportFile({
-      eventos: [evento(), { productName: "sem id" }],
+let seq = 0;
+const genId = () => `ev${++seq}`;
+
+function custo(ps: ImportPrint[], c = ctx(), already = new Set<string>()) {
+  const { submissions, rejected } = resolveSubmissions(ps, c, already);
+  const costed = submissions.map((s) => costSubmission(s, c, "bambu", genId, 99, () => null));
+  return { submissions, rejected, costed };
+}
+
+// ---------------------------------------------------------------------------
+
+describe("parseImportFile — o arquivo v1", () => {
+  it("lê os FATOS crus como vieram (inicio em ms, status_cru número → texto)", () => {
+    const [p] = prints(rawPrint());
+    expect(p.taskId).toBe("1000");
+    expect(p.at).toBe(Date.parse("2026-07-01T12:00:00Z"));
+    expect(p.facts).toMatchObject({
+      maquina: "A1 Combo",
+      serial: "SN1",
+      duracaoPlanoS: 3600,
+      duracaoRelogioS: 3700,
+      status: "concluida",
+      statusCru: "2",
+      objetos: [{ nome: "Assembly", qtd: 5 }],
+      apelido: { fonte: "mw", chave: "555", variante: "9", plate: 1 },
+      personalizado: false,
     });
+    expect(p.facts.filamentos[0]).toEqual({
+      corCarregada: "161616",
+      corPlanejada: "0A2989",
+      material: "PLA",
+      g: 25,
+      ams: 0,
+      slot: 1,
+      idNaFonte: "GFA00",
+    });
+    expect(p.coresSite).toEqual([{ cor: "Preto", material: "PLA" }]);
+    expect(p.curadoria?.destino).toBe("historico");
+  });
+
+  it("fatal: formato antigo (sem schema_version), versão futura, sem fonte, sem lista", () => {
+    expect(parseImportFile({ eventos: [] })).toMatchObject({ ok: false, erro: expect.stringContaining("formato antigo") });
+    expect(parseImportFile({ ...arquivo([]), schema_version: 2 })).toMatchObject({ ok: false });
+    expect(parseImportFile({ ...arquivo([]), fonte: "" })).toMatchObject({ ok: false });
+    expect(parseImportFile({ schema_version: 1, fonte: "bambu" })).toMatchObject({ ok: false });
+  });
+
+  it("DESCARTA com motivo o que não dá pra ler — e o resto do arquivo entra", () => {
+    const r = parseImportFile(
+      arquivo([
+        rawPrint({ task_id: "ok" }),
+        rawPrint({ task_id: "s1", status: "pausada" }),
+        rawPrint({ task_id: "s2", filamentos: [{ material: "PLA", g: "25" }] }),
+        rawPrint({ task_id: "s3" }, { unidades_produzidas: 5, unidades_creditadas: 6, destino: "estoque" }),
+        rawPrint({ task_id: "s4" }, { unidades_creditadas: 2 }), // credita sem ser estoque
+        rawPrint({ task_id: "../x" }),
+        rawPrint({ task_id: "s6", objetos: [{ nome: "a", qtd: 0 }] }),
+        rawPrint({ task_id: "s7", inicio: "ontem" }),
+        rawPrint({ task_id: "s8" }, { apelido_produto: { fonte: "codigo_errado", chave: "x" } }),
+        "não é objeto",
+      ]),
+    );
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.file.eventos).toHaveLength(1);
-    expect(r.descartados).toBe(1);
+    expect(r.file.impressoes.map((p) => p.taskId)).toEqual(["ok"]);
+    expect(r.descartadas).toHaveLength(9);
+    expect(r.descartadas[0]).toMatchObject({ taskId: "s1", motivo: expect.stringContaining("status desconhecido") });
+    expect(r.descartadas.find((d) => d.taskId === "s2")!.motivo).toContain('"g"');
+    expect(r.descartadas[r.descartadas.length - 1].taskId).toBeNull();
+  });
+
+  it("dedupe dentro do arquivo: vale a 1ª ocorrência", () => {
+    const ps = prints(rawPrint(), rawPrint({ titulo: "segunda" }));
+    const { unicas, duplicadasNoArquivo } = dedupeByTaskId(ps);
+    expect(unicas).toHaveLength(1);
+    expect(unicas[0].facts.titulo).toBe("Chaveiro");
+    expect(duplicadasNoArquivo).toBe(1);
   });
 });
 
-describe("dedupeByTaskId — task_id repetido DENTRO do mesmo arquivo", () => {
-  it("mantem a 1a ocorrencia e conta as demais", () => {
-    const r = dedupeByTaskId([
-      evento({ task_id: "1" }),
-      evento({ task_id: "2" }),
-      evento({ task_id: "1" }),
+describe("os números — a regra do site", () => {
+  it("concluída: tempo do fatiador, NUNCA o relógio", () => {
+    const [p] = prints(rawPrint({ duracao_relogio_s: 99999 }));
+    expect(consumptionFactor(p)).toBe(1);
+    const { costed } = custo([p]);
+    expect(costed[0].events[0].payload.printHours).toBeCloseTo(1, 9);
+    expect(costed[0].events[0].payload.fonteDosNumeros).toBe("impressora");
+  });
+
+  it("cancelada: plano × min(1, relógio ÷ plano) — 1358 s de 5824 s ≈ 23%", () => {
+    const [p] = prints(
+      rawPrint({ status: "cancelada", duracao_s: 5824, duracao_relogio_s: 1358, filamentos: [{ material: "PLA", g: 31, cor_site: { cor: "Preto", material: "PLA" } }] }),
+    );
+    const fator = 1358 / 5824;
+    expect(consumptionFactor(p)).toBeCloseTo(fator, 9);
+    const { costed } = custo([p]);
+    const ev = costed[0].events[0].payload;
+    expect(ev.filaments[0].totalG).toBeCloseTo(31 * fator, 6);
+    expect(ev.printHours).toBeCloseTo(1358 / 3600, 9);
+    expect(ev.fonteDosNumeros).toBe("estimativa");
+  });
+
+  it("falha da IMPRESSORA também não terminou: estimada como a cancelada", () => {
+    const [p] = prints(rawPrint({ status: "falha", duracao_s: 1000, duracao_relogio_s: 200 }));
+    expect(consumptionFactor(p)).toBeCloseTo(0.2, 9);
+    const { costed } = custo([p]);
+    expect(costed[0].events[0].payload.fonteDosNumeros).toBe("estimativa");
+  });
+
+  it("data sem fuso é descartada (seria lida como hora local do navegador)", () => {
+    const r = parseImportFile(arquivo([rawPrint({ inicio: "2026-07-01T22:30:00" })]));
+    expect(r.ok && r.descartadas[0].motivo).toContain("fuso");
+    const ok = parseImportFile(arquivo([rawPrint({ inicio: "2026-07-01T22:30:00-03:00" })]));
+    expect(ok.ok && ok.file.impressoes[0].at).toBe(Date.parse("2026-07-02T01:30:00Z"));
+  });
+
+  it("cancelada sem relógio: fica o plano, ainda como estimativa", () => {
+    const [p] = prints(rawPrint({ status: "cancelada", duracao_relogio_s: null }));
+    expect(consumptionFactor(p)).toBe(1);
+  });
+
+  it("soma por cor do SITE: 3 slots que viraram o mesmo verde são 1 linha", () => {
+    const verde = { material: "PLA", cor_site: { cor: "Verde", material: "PLA" } };
+    const [p] = prints(rawPrint({ filamentos: [{ ...verde, g: 1 }, { ...verde, g: 2 }, { ...verde, g: 3 }] }));
+    const { rows } = printFilRows(p, [], 110, "main");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].totalG).toBe(6);
+  });
+
+  it("preço: o do grupo cor+material no Estoque; fora dele, o padrão — e conta", () => {
+    const [p] = prints(
+      rawPrint({
+        filamentos: [
+          { material: "PLA", g: 10, cor_site: { cor: "Preto", material: "PLA" } },
+          { material: "PLA", g: 10, cor_site: { cor: "Roxo", material: "PLA" } },
+          { material: "PETG", g: 10, cor_carregada: "FF00FF" },
+        ],
+      }),
+    );
+    const r = printFilRows(p, [PRETO_PLA], 110, "main");
+    expect(r.rows.map((f) => [f.colorName, f.pricePerKg])).toEqual([
+      ["Preto", 120],
+      ["Roxo", 110],
+      ["#FF00FF", 110],
     ]);
-    expect(r.unicos.map((e) => e.task_id)).toEqual(["1", "2"]);
-    expect(r.duplicadosNoArquivo).toBe(1);
-  });
-
-  it("sem repeticao, nao descarta nada", () => {
-    const r = dedupeByTaskId([evento({ task_id: "1" }), evento({ task_id: "2" })]);
-    expect(r.unicos).toHaveLength(2);
-    expect(r.duplicadosNoArquivo).toBe(0);
+    expect(r.precoPadrao).toBe(2);
+    expect(r.semTraducao).toBe(1);
   });
 });
 
-describe("resolveImportLine — maquina", () => {
-  it("maquina nao reconhecida rejeita a linha, sem travar o restante (fora daqui)", () => {
-    const r = resolveImportLine(evento({ maquina_sugerida: "Impressora Fantasma" }), makeContext());
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.line.reason).toBe("maquina-nao-reconhecida");
+describe("resolveSubmissions — produto, etapa e submissão", () => {
+  it("sem curadoria (fase B) fica pro 5c, com o motivo", () => {
+    const { rejected, submissions } = custo(prints(rawPrint({}, null)));
+    expect(submissions).toEqual([]);
+    expect(rejected[0].reason).toBe("sem-curadoria");
   });
 
-  it("casa por nome exato (tolerante a espaco duplo, ver machineNameToId)", () => {
-    const r = resolveImportLine(evento({ maquina_sugerida: "A1  Combo" }), makeContext());
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.line.machineId).toBe("a1");
-    expect(r.line.machineFuzzyMatched).toBe(false);
-  });
-
-  // Regressão do code review (--high): sem os callbacks de `machineNameToId`,
-  // um casamento por SUBSTRING do id (o mesmo critério do `machineNamesToIds`
-  // do CSV) passava calado — o custo saindo da máquina que o palpite escolheu,
-  // sem nada avisando que foi um palpite.
-  it("casamento por SUBSTRING do id marca machineFuzzyMatched", () => {
-    const r = resolveImportLine(
-      evento({ maquina_sugerida: "Impressora com A1 no meio do nome" }),
-      makeContext(),
+  it("máquina desconhecida e apelido fora do catálogo rejeitam, com o motivo", () => {
+    const { rejected } = custo(
+      prints(
+        rawPrint({ task_id: "m", maquina: "Ender 3" }),
+        rawPrint({ task_id: "a" }, { apelido_produto: { fonte: "mw", chave: "777", plate: 1 } }),
+      ),
     );
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.line.machineId).toBe("a1");
-    expect(r.line.machineFuzzyMatched).toBe(true);
+    expect(rejected.map((r) => [r.taskId, r.reason])).toEqual([
+      ["m", "maquina-nao-reconhecida"],
+      ["a", "apelido-desconhecido"],
+    ]);
+  });
+
+  it("apelido EXATO liga produto + etapa; sem apelido é avulso", () => {
+    const { submissions } = custo(
+      prints(rawPrint({ task_id: "p" }), rawPrint({ task_id: "v" }, { apelido_produto: null })),
+    );
+    expect(submissions.map((s) => [s.product?.id ?? null, s.selection.kind])).toEqual([
+      ["chaveiro", "whole"],
+      [null, "avulso"],
+    ]);
+  });
+
+  it('"estoque" avulso é recusado (avulso não vira peça pronta)', () => {
+    const { rejected } = custo(
+      prints(rawPrint({}, { destino: "estoque", apelido_produto: null, unidades_creditadas: 1 })),
+    );
+    expect(rejected[0].reason).toBe("estoque-sem-produto");
+  });
+
+  it('"estoque" com cor sem tradução é recusado (a prateleira é material + cor)', () => {
+    const { rejected } = custo(
+      prints(
+        rawPrint({ filamentos: [{ material: "PLA", g: 5, cor_carregada: "161616" }] }, { destino: "estoque", unidades_creditadas: 5 }),
+      ),
+    );
+    expect(rejected[0].reason).toBe("cor-sem-traducao");
+  });
+
+  const corpo = (over: Record<string, unknown> = {}, cur: Record<string, unknown> = {}) =>
+    rawPrint(
+      { task_id: "corpo", maquina: "X2D Combo", apelido: null, ...over },
+      {
+        apelido_produto: { fonte: "arquivo", chave: "Pote corpo", plate: 1 },
+        unidades_produzidas: 1,
+        ...cur,
+      },
+    );
+  const tampa = (over: Record<string, unknown> = {}, cur: Record<string, unknown> = {}) =>
+    rawPrint(
+      { task_id: "tampa", maquina: "X2D Combo", inicio: "2026-07-02T12:00:00Z", apelido: null, ...over },
+      {
+        apelido_produto: { fonte: "arquivo", chave: "pote_corpo.3mf", plate: 2 },
+        unidades_produzidas: 1,
+        ...cur,
+      },
+    );
+
+  it("🔴 decisão 1: etapa SOZINHA de produto vendido inteiro não credita", () => {
+    const { rejected } = custo(prints(corpo({}, { destino: "estoque", unidades_creditadas: 1 })));
+    expect(rejected[0].reason).toBe("estoque-nao-forma-produto");
+    // Como histórico entra — custo + hora, sem crédito.
+    const { submissions } = custo(prints(corpo()));
+    expect(submissions[0].selection.kind).toBe("partial");
+  });
+
+  it("🔴 decisão 1: corpo + tampa JUNTOS numa submissão formam o produto e creditam", () => {
+    const cur = { destino: "estoque", unidades_creditadas: 1, submissao: "pote-a" };
+    const { submissions, rejected, costed } = custo(prints(corpo({}, cur), tampa({}, cur)));
+    expect(rejected).toEqual([]);
+    expect(submissions).toHaveLength(1);
+    expect(submissions[0].selection.kind).toBe("whole");
+    // A submissão fica pronta na ÚLTIMA impressão.
+    expect(submissions[0].at).toBe(Date.parse("2026-07-02T12:00:00Z"));
+    const evs = costed[0].events;
+    expect(evs).toHaveLength(2);
+    expect(new Set(evs.map((e) => e.payload.submissionId)).size).toBe(1);
+    expect(evs[0].payload.submissionId).toBe(evs[0].id);
+    // Cada evento guarda a hora DELA.
+    expect(evs.map((e) => e.payload.at)).toEqual([
+      Date.parse("2026-07-01T12:00:00Z"),
+      Date.parse("2026-07-02T12:00:00Z"),
+    ]);
+    expect(costed[0].finishedEntries?.[0].qty).toBe(1);
+  });
+
+  it("submissão com unidades diferentes entre as mesas é recusada INTEIRA", () => {
+    const { rejected, submissions } = custo(
+      prints(
+        corpo({}, { submissao: "x", unidades_produzidas: 1 }),
+        tampa({}, { submissao: "x", unidades_produzidas: 2 }),
+      ),
+    );
+    expect(submissions).toEqual([]);
+    expect(rejected.map((r) => r.reason)).toEqual(["submissao-incoerente", "submissao-incoerente"]);
+  });
+
+  it("submissão com parte já importada não entra de novo pela metade", () => {
+    const { rejected, submissions } = custo(
+      prints(corpo({}, { submissao: "x" }), tampa({}, { submissao: "x" })),
+      ctx(),
+      new Set(["corpo"]),
+    );
+    expect(submissions).toEqual([]);
+    expect(rejected).toEqual([
+      expect.objectContaining({ taskId: "tampa", reason: "submissao-parcial" }),
+    ]);
+  });
+
+  it("uma impressão ruim derruba a submissão inteira", () => {
+    const { rejected, submissions } = custo(
+      prints(corpo({ maquina: "Ender" }, { submissao: "x" }), tampa({}, { submissao: "x" })),
+    );
+    expect(submissions).toEqual([]);
+    expect(rejected.map((r) => [r.taskId, r.reason])).toEqual([
+      ["corpo", "maquina-nao-reconhecida"],
+      ["tampa", "submissao-incoerente"],
+    ]);
+  });
+
+  it("a mesma etapa duas vezes na submissão é recusada", () => {
+    const { rejected } = custo(
+      prints(corpo({}, { submissao: "x" }), corpo({ task_id: "corpo2" }, { submissao: "x" })),
+    );
+    expect(rejected[0].reason).toBe("etapa-repetida");
   });
 });
 
-describe("resolveImportLine — estoque exige produto", () => {
-  it('"estoque" sem productId rejeita a linha', () => {
-    const r = resolveImportLine(evento({ outcome_sugerido: "estoque", productId: null }), makeContext());
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.line.reason).toBe("estoque-sem-produto");
+describe("costSubmission — o evento que vai pro Firestore", () => {
+  it("S4: origem, fonte dos números, fatos crus e unidades vão em cada evento", () => {
+    const [p] = prints(rawPrint());
+    const { costed } = custo([p]);
+    const ev = costed[0].events[0].payload;
+    expect(ev.origemExterna).toEqual({ fonte: "bambu", id: "1000" });
+    expect(ev.impressao).toEqual(p.facts);
+    expect(ev.mode).toBe("historico");
+    expect(ev.stockMoves).toEqual([]); // histórico nunca mexe em rolo
+    expect(ev.unidadesProduzidas).toBe(5);
+    expect(ev.unidadesCreditadas).toBe(0);
+    expect(ev.machineId).toBe("a1");
   });
 
-  it('"estoque" com productId que sumiu do catalogo tambem rejeita', () => {
-    const r = resolveImportLine(
-      evento({ outcome_sugerido: "estoque", productId: "fantasma" }),
-      makeContext({ products: [] }),
+  it("produzidas ≠ creditadas: 10 na mesa, 7 na prateleira → custo ÷ 10, credita 7", () => {
+    const [p] = prints(
+      rawPrint({}, { destino: "estoque", unidades_produzidas: 10, unidades_creditadas: 7 }),
     );
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.line.reason).toBe("estoque-sem-produto");
+    const { costed } = custo([p]);
+    const [entry] = costed[0].finishedEntries!;
+    expect(entry.qty).toBe(7);
+    expect(entry.unitCost).toBeCloseTo(costed[0].planned.summary.frozen / 10, 9);
+    expect(entry.color?.label).toBe("Preto PLA");
+    // A repartição por máquina desce até a camada (é dela que a venda sabe quem imprimiu).
+    expect(entry.unitMachineUsage?.[0].machineId).toBe("a1");
+    expect(costed[0].events[0].payload.unidadesCreditadas).toBe(7);
   });
 
-  it('"estoque" com produto religado passa', () => {
-    const r = resolveImportLine(
-      evento({ outcome_sugerido: "estoque", productId: "prod1" }),
-      makeContext({ products: [makeProduct()] }),
+  it("mão de obra e ímã escalam pelas PRODUZIDAS ÷ peças por mesa do cadastro", () => {
+    // Cadastro: mesa de 5 → 30 min × R$60/h = R$30; 5 ímãs. A impressão fez 10.
+    const [p] = prints(rawPrint({}, { unidades_produzidas: 10 }));
+    const { costed } = custo([p]);
+    expect(costed[0].planned.built[0].row.laborCost).toBeCloseTo(60, 9);
+    expect(costed[0].events[0].payload.supplies?.[0].qty).toBe(10);
+    expect(costed[0].events[0].payload.notes).toContain("herdados do cadastro");
+  });
+
+  it("etapa solta (partial) não leva o acessório do produto montado", () => {
+    const comIma = { ...POTE, accessories: [{ desc: "Ímã", qty: 1, unitPrice: 1, supplyId: null }] } as SavedProduct;
+    const c = ctx({ products: [CHAVEIRO, comIma] });
+    const [p] = prints(
+      rawPrint(
+        { task_id: "corpo", maquina: "X2D Combo" },
+        { apelido_produto: { fonte: "arquivo", chave: "Pote corpo", plate: 1 }, unidades_produzidas: 1 },
+      ),
     );
-    expect(r.ok).toBe(true);
+    const { costed } = custo([p], c);
+    expect(costed[0].sub.selection.kind).toBe("partial");
+    expect(costed[0].events[0].payload.supplies).toBeUndefined();
   });
 
-  it("outcome_sugerido desconhecido cai em historico (nunca inventa estoque)", () => {
-    const r = resolveImportLine(evento({ outcome_sugerido: "impressao-de-teste" }), makeContext());
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.line.outcome).toBe("historico");
+  it("avulso: título como nome, sem mão de obra nem acessório", () => {
+    const [p] = prints(rawPrint({}, { apelido_produto: null }));
+    const { costed } = custo([p]);
+    const ev = costed[0].events[0].payload;
+    expect(ev.productName).toBe("Chaveiro");
+    expect(ev.productId).toBeUndefined();
+    expect(costed[0].planned.built[0].row.laborCost).toBe(0);
+    expect(ev.notes).toBeUndefined();
   });
 });
 
-describe("resolveImportLine — preco do filamento", () => {
-  it("sem filamentId e sem correspondencia, usa o R$/kg padrao do lote", () => {
-    const r = resolveImportLine(evento(), makeContext({ defaultPricePerKg: 99 }));
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.line.filaments[0].pricePerKg).toBe(99);
-    expect(r.line.filaments[0].filamentId).toBeNull();
+describe("importBatches — as transações", () => {
+  it("crédito vai por PRODUTO com o acabado (camadas em ordem de data); o resto em lotes", () => {
+    const est = (id: string, dia: string) =>
+      rawPrint({ task_id: id, inicio: `2026-07-${dia}T12:00:00Z` }, { destino: "estoque", unidades_creditadas: 5 });
+    const ps = prints(est("b", "05"), est("a", "01"), rawPrint({ task_id: "h1" }), rawPrint({ task_id: "h2" }));
+    const { costed } = custo(ps);
+    const batches = importBatches(costed, [], 1);
+    const comAcabado = batches.filter((b) => b.finished);
+    expect(comAcabado).toHaveLength(1);
+    expect(comAcabado[0].events).toHaveLength(2);
+    const layers = comAcabado[0].finished!.payload.skus[0].layers;
+    expect(layers.map((l) => l.qty)).toEqual([5, 5]);
+    expect(layers[0].at).toBeLessThan(layers[1].at);
+    // max = 1 → um lote por submissão sem crédito.
+    expect(batches.filter((b) => !b.finished).map((b) => b.events.length)).toEqual([1, 1]);
   });
 
-  it("com filamentId ligado ao Estoque, usa o preco VIVO do rolo mais novo", () => {
-    const cor = makeCor({ id: "cor1" });
-    const r = resolveImportLine(
-      evento({ filamentos: [{ colorName: "Azul Claro", material: "PLA", g: 40, filamentId: "cor1" }] }),
-      makeContext({ stock: [cor], defaultPricePerKg: 50 }),
+  it("submissão de várias mesas nunca se parte entre transações", () => {
+    const cur = { submissao: "x" };
+    const ps = prints(
+      rawPrint({ task_id: "c", maquina: "X2D Combo" }, { ...cur, apelido_produto: { fonte: "arquivo", chave: "Pote corpo", plate: 1 }, unidades_produzidas: 1 }),
+      rawPrint({ task_id: "t", maquina: "X2D Combo" }, { ...cur, apelido_produto: { fonte: "arquivo", chave: "Pote corpo", plate: 2 }, unidades_produzidas: 1 }),
+      rawPrint({ task_id: "h" }),
     );
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.line.filaments[0].pricePerKg).toBe(120); // do rolo, nao o padrao
-  });
-
-  it("sem filamentId no arquivo, herda a marca sugerida do CADASTRO do produto religado", () => {
-    const cor = makeCor({ id: "cor1" });
-    const produto = makeProduct({
-      filaments: [
-        { filamentId: "cor1", colorName: "Azul Claro", material: "PLA", pricePerKg: 1, totalG: 1 },
-      ],
-    });
-    const r = resolveImportLine(
-      evento({ productId: "prod1", filamentos: [{ colorName: "Azul Claro", material: "PLA", g: 40, filamentId: null }] }),
-      makeContext({ stock: [cor], products: [produto], defaultPricePerKg: 50 }),
-    );
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.line.filaments[0].filamentId).toBe("cor1");
-    expect(r.line.filaments[0].pricePerKg).toBe(120);
-    expect(r.line.inheritedFilamentBrand).toBe(true);
-  });
-
-  it("sem produto religado, NUNCA inventa acessorio nem mao de obra", () => {
-    const r = resolveImportLine(evento(), makeContext());
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.line.supplies).toEqual([]);
-    expect(r.line.laborCost).toBe(0);
-    expect(r.line.inheritedAccessories).toBe(false);
-    expect(r.line.inheritedLabor).toBe(false);
-  });
-
-  it("com produto religado, herda acessorios e mao de obra do cadastro ATUAL", () => {
-    const produto = makeProduct({
-      laborMinutes: 30,
-      laborRate: 40,
-      accessories: [{ desc: "Ima", qty: 2, unitPrice: 0.5 }],
-    });
-    const r = resolveImportLine(
-      evento({ productId: "prod1" }),
-      makeContext({ products: [produto] }),
-    );
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.line.laborCost).toBeCloseTo(20, 6); // 30/60 * 40
-    expect(r.line.supplies).toHaveLength(1);
-    expect(r.line.supplies[0].qty).toBe(2);
-    expect(r.line.inheritedAccessories).toBe(true);
-    expect(r.line.inheritedLabor).toBe(true);
-  });
-});
-
-describe("buildImportNotes + origemExterna — a identidade saiu da nota (S4)", () => {
-  it("sem heranca nao ha nota; a identidade vai no origemExterna", () => {
-    const linha: ResolvedImportLine = {
-      taskId: "999",
-      outcome: "historico",
-      machineId: "a1",
-      machineName: "A1 Combo",
-      at: 0,
-      productName: "X",
-      printHours: 1,
-      filaments: [],
-      supplies: [],
-      laborCost: 0,
-      pieces: 1,
-      inheritedAccessories: false,
-      inheritedLabor: false,
-      inheritedFilamentBrand: false,
-      machineFuzzyMatched: false,
-    };
-    expect(buildImportNotes(linha)).toBeNull();
-    const { payload } = costImportLine(linha, makeContext(), "ev1", 5);
-    expect(payload.notes).toBeUndefined();
-    expect(payload.origemExterna).toEqual({ fonte: IMPORT_FONTE, id: "999" });
-    expect(payload.fonteDosNumeros).toBe("impressora");
-    expect(payload.unidadesProduzidas).toBe(1);
-    expect(payload.unidadesCreditadas).toBe(0); // historico nao credita
-  });
-
-  it("com heranca a nota e SO o aviso", () => {
-    const linha: ResolvedImportLine = {
-      taskId: "999",
-      outcome: "estoque",
-      machineId: "a1",
-      machineName: "A1 Combo",
-      at: 0,
-      productId: "prod1",
-      productName: "X",
-      printHours: 1,
-      filaments: [],
-      supplies: [{ supplyId: null, name: "Ima", qty: 1, catalogUnitPrice: 1 }],
-      laborCost: 5,
-      pieces: 1,
-      inheritedAccessories: true,
-      inheritedLabor: true,
-      inheritedFilamentBrand: true,
-      machineFuzzyMatched: false,
-    };
-    const notas = buildImportNotes(linha);
-    expect(notas).toBe(
-      "acessórios, mão de obra e filamentos herdados do cadastro atual do produto, não confirmados para esta impressão específica",
-    );
-  });
-});
-
-describe("costImportLine — os SEIS componentes, pela maquina REAL (nao a frota)", () => {
-  it("soma material + energia + desgaste + manutencao + labor + insumos", () => {
-    const ctx = makeContext({ defaultPricePerKg: 100 });
-    const result = resolveImportLine(
-      evento({ printHours: 2, filamentos: [{ colorName: "Azul", material: "PLA", g: 40, filamentId: null }] }),
-      ctx,
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const costed = costImportLine(result.line, ctx, "evt1", 12345);
-    // material: 40/1000*100 = 4
-    expect(costed.cost.material).toBeCloseTo(4, 6);
-    // energia: 2h * (95/1000) * 0.8
-    expect(costed.cost.energy).toBeCloseTo(2 * 0.095 * 0.8, 6);
-    // depreciacao: 2h * (3200/5000)
-    expect(costed.cost.depreciation).toBeCloseTo(2 * (3200 / 5000), 6);
-    // manutencao: 2h * 0.15
-    expect(costed.cost.maintenance).toBeCloseTo(2 * 0.15, 6);
-    expect(costed.cost.labor).toBe(0); // sem produto religado
-    expect(costed.cost.supplies).toBe(0);
-    const total =
-      costed.cost.material +
-      costed.cost.energy +
-      costed.cost.depreciation +
-      costed.cost.maintenance +
-      costed.cost.labor +
-      costed.cost.supplies;
-    expect(costed.cost.total).toBeCloseTo(total, 6);
-    expect(costed.payload.frozenCost).toBeCloseTo(total, 6);
-    expect(costed.payload.mode).toBe("historico");
-    expect(costed.payload.stockMoves).toEqual([]); // 6 — nunca toca rolo/lote real
-  });
-
-  it('outcome "estoque" com produto gera finishedEntries; historico/falha nao', () => {
-    const produto = makeProduct();
-    const ctx = makeContext({ products: [produto] });
-    const comEstoque = resolveImportLine(evento({ outcome_sugerido: "estoque", productId: "prod1" }), ctx);
-    const semEstoque = resolveImportLine(evento({ outcome_sugerido: "historico", productId: "prod1" }), ctx);
-    expect(comEstoque.ok && semEstoque.ok).toBe(true);
-    if (!comEstoque.ok || !semEstoque.ok) return;
-    const c1 = costImportLine(comEstoque.line, ctx, "evt1", 0);
-    const c2 = costImportLine(semEstoque.line, ctx, "evt2", 0);
-    expect(c1.finishedEntries).not.toBeNull();
-    expect(c2.finishedEntries).toBeNull();
+    const { costed } = custo(ps);
+    const batches = importBatches(costed, [], 1);
+    expect(batches.map((b) => b.events.length).sort()).toEqual([1, 2]);
   });
 });
 
 describe("buildImportPreview", () => {
-  it("agrupa por maquina, conta desfecho, produto sim/nao e o periodo coberto", () => {
-    const ctx = makeContext({ products: [makeProduct()] });
-    const results = [
-      resolveImportLine(evento({ task_id: "1", at_ms: 1000, printHours: 1, maquina_sugerida: "A1 Combo" }), ctx),
-      resolveImportLine(
-        evento({ task_id: "2", at_ms: 2000, printHours: 2, maquina_sugerida: "A1 Combo", productId: "prod1" }),
-        ctx,
-      ),
-      resolveImportLine(
-        evento({ task_id: "3", at_ms: 3000, printHours: 3, maquina_sugerida: "X2D Combo", outcome_sugerido: "falha" }),
-        ctx,
-      ),
-      resolveImportLine(evento({ task_id: "4", maquina_sugerida: "Fantasma" }), ctx),
-    ];
-    const preview = buildImportPreview(results, 5, 2);
-    // 4 resolvidas/rejeitadas nesta chamada + 5 já importadas + 2 duplicatas
-    // no arquivo (filtradas ANTES de chegar em `results`) = o total real do
-    // arquivo.
-    expect(preview.totalArquivo).toBe(11);
-    expect(preview.aImportar).toBe(3);
-    expect(preview.jaImportados).toBe(5);
-    expect(preview.duplicadosNoArquivo).toBe(2);
-    expect(preview.semMaquina).toBe(1);
-    expect(preview.comProduto).toBe(1);
-    expect(preview.semProduto).toBe(2);
-    expect(preview.porOutcome.historico).toBe(2);
-    expect(preview.porOutcome.falha).toBe(1);
-    const a1 = preview.porMaquina.find((m) => m.machineId === "a1")!;
-    expect(a1.eventos).toBe(2);
-    expect(a1.horas).toBeCloseTo(3, 6);
-    expect(preview.periodo).toEqual({ inicio: 1000, fim: 3000 });
-  });
-});
-
-describe("buildImportFinishedUpdates — acumula VARIAS linhas do MESMO produto", () => {
-  it("duas linhas estoque do mesmo produto viram UM FinishedUpdate com as duas camadas", () => {
-    const produto = makeProduct({ piecesCount: 1 });
-    const ctx = makeContext({ products: [produto] });
-    const l1 = resolveImportLine(evento({ task_id: "1", outcome_sugerido: "estoque", productId: "prod1" }), ctx);
-    const l2 = resolveImportLine(evento({ task_id: "2", outcome_sugerido: "estoque", productId: "prod1" }), ctx);
-    expect(l1.ok && l2.ok).toBe(true);
-    if (!l1.ok || !l2.ok) return;
-    const c1 = costImportLine(l1.line, ctx, "evt1", 0);
-    const c2 = costImportLine(l2.line, ctx, "evt2", 0);
-    const updates = buildImportFinishedUpdates([c1, c2], []);
-    expect(updates).toHaveLength(1);
-    expect(updates[0].productId).toBe("prod1");
-    const sku = updates[0].payload.skus[0];
-    expect(sku.layers).toHaveLength(2); // uma camada por evento
-  });
-
-  it("acumula sobre o acabado JA EXISTENTE (goods), nao substitui", () => {
-    const produto = makeProduct();
-    const ctx = makeContext({ products: [produto] });
-    const existente: FinishedGood = {
-      id: "prod1",
-      productId: "prod1",
-      productName: "Insert",
-      createdAt: 0,
-      skus: [
-        {
-          // Mesma chave que `colorKeyOf` daria pro filamento "azul claro"
-          // PLA do `evento()` (S11, ver filaments.ts) — é o que faz a camada
-          // nova cair na MESMA sku, não abrir uma segunda.
-          colorKey: "cor:pla:azul-claro",
-          colorLabel: "azul claro PLA",
-          name: "Insert",
-          layers: [{ id: "velho", at: 0, qty: 3, unitCost: 10, sourceEventId: "velho-evt" }],
-        },
-      ],
-    };
-    const l1 = resolveImportLine(evento({ task_id: "1", outcome_sugerido: "estoque", productId: "prod1" }), ctx);
-    expect(l1.ok).toBe(true);
-    if (!l1.ok) return;
-    const c1 = costImportLine(l1.line, ctx, "evt1", 0);
-    const updates = buildImportFinishedUpdates([c1], [existente]);
-    expect(updates[0].payload.skus[0].layers).toHaveLength(2); // a velha + a nova
-  });
-
-  it("linhas historico/falha nao entram nos FinishedUpdate", () => {
-    const ctx = makeContext();
-    const l1 = resolveImportLine(evento({ task_id: "1", outcome_sugerido: "historico" }), ctx);
-    expect(l1.ok).toBe(true);
-    if (!l1.ok) return;
-    const c1 = costImportLine(l1.line, ctx, "evt1", 0);
-    expect(buildImportFinishedUpdates([c1], [])).toEqual([]);
-  });
-});
-
-describe("bulkImportChunks / estoqueGroupsByProduct — a gravacao em lote", () => {
-  it("estoque vai por produto; o resto vai em chunks (nao um por um)", () => {
-    const produto = makeProduct();
-    const ctx = makeContext({ products: [produto] });
-    const estoque = resolveImportLine(evento({ task_id: "1", outcome_sugerido: "estoque", productId: "prod1" }), ctx);
-    const hist1 = resolveImportLine(evento({ task_id: "2", outcome_sugerido: "historico" }), ctx);
-    const hist2 = resolveImportLine(evento({ task_id: "3", outcome_sugerido: "falha" }), ctx);
-    expect(estoque.ok && hist1.ok && hist2.ok).toBe(true);
-    if (!estoque.ok || !hist1.ok || !hist2.ok) return;
-    const costed = [
-      costImportLine(estoque.line, ctx, "evt1", 0),
-      costImportLine(hist1.line, ctx, "evt2", 0),
-      costImportLine(hist2.line, ctx, "evt3", 0),
-    ];
-    const grupos = estoqueGroupsByProduct(costed);
-    expect(grupos.get("prod1")).toHaveLength(1);
-    const chunks = bulkImportChunks(costed, 1);
-    expect(chunks).toHaveLength(2); // 2 linhas nao-estoque, chunk de 1
-    expect(chunks.flat()).toHaveLength(2);
+  it("conta destino, máquina, estimadas, creditadas e imagens escolhidas", () => {
+    const ps = prints(
+      rawPrint({ task_id: "e" }, { destino: "estoque", unidades_creditadas: 4 }),
+      rawPrint({ task_id: "c", status: "cancelada", maquina: "X2D Combo" }, { destino: "falha" }),
+    );
+    const { costed, rejected } = custo(ps);
+    const preview = buildImportPreview({
+      totalArquivo: 3,
+      descartadas: [{ taskId: "z", motivo: "x" }],
+      jaImportadas: 0,
+      duplicadasNoArquivo: 0,
+      rejeitadas: rejected,
+      costed: costed as CostedSubmission[],
+      imagensEscolhidas: new Set(["e:capa"]),
+    });
+    expect(preview.aImportar).toBe(2);
+    expect(preview.porDestino).toEqual({ historico: 0, estoque: 1, falha: 1, teste: 0 });
+    expect(preview.estimadas).toBe(1);
+    expect(preview.unidadesCreditadas).toBe(4);
+    expect(preview.imagens).toEqual({ citadas: 2, escolhidas: 1 });
+    expect(preview.porMaquina.map((m) => m.machineId).sort()).toEqual(["a1", "x2d"]);
   });
 });

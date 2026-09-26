@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload } from "lucide-react";
+import { ImageUp, Upload } from "lucide-react";
 import { errorMessage, guardOnline } from "@/lib/errors";
 import { formatDecimal } from "@/lib/formatting/currency";
 import { formatDate } from "@/lib/formatting/date";
@@ -10,23 +10,26 @@ import {
   newProductionId,
   saveProduction,
 } from "@/lib/firebase/productionRepository";
+import { uploadPrintImage } from "@/lib/firebase/printImagesRepository";
 import {
-  buildImportFinishedUpdates,
   buildImportPreview,
-  bulkImportChunks,
-  costImportLine,
+  costSubmission,
   dedupeByTaskId,
-  estoqueGroupsByProduct,
-  IMPORT_FONTE,
-  parseBambuImportFile,
-  resolveImportLine,
-  type CostedImportLine,
+  importBatches,
+  parseImportFile,
+  resolveSubmissions,
   type ImportContext,
   type ImportPreview,
+  type ImportPrint,
+  type RejectReason,
+  type ResolvedSubmission,
 } from "../lib/productionImport";
+import { eventImages, type PrintImageKind } from "../lib/printImages";
+import { usePrintAliases } from "../hooks/usePrintAliases";
 import type {
   FinishedGood,
   Machine,
+  PricingResult,
   SavedProduct,
   StockFilament,
   Supply,
@@ -34,13 +37,16 @@ import type {
 import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
 
-// Item 3 — "Importar histórico" na /producao: um arquivo JSON gerado por
-// ferramenta externa (fora deste repo, a partir do histórico de impressão da
-// Bambu) vira N eventos de produção (`mode: "historico"`), com prévia
-// OBRIGATÓRIA antes de gravar (a gravação é em lote — a conferência tem que
-// ser em lote também, não peça a peça). Toda a resolução/custo é PURA
-// (`lib/productionImport.ts`); este componente só orquestra arquivo → prévia
-// → Firestore.
+// S6 (lote 5b da 3a) — "Importar impressões" na /producao: o arquivo de
+// produção do pipeline (formato v1, `lib/productionImport.ts`) + as imagens ao
+// lado dele viram eventos. Prévia OBRIGATÓRIA (é lote). Toda a resolução/custo
+// é PURA; este componente só orquestra arquivo → prévia → Storage → Firestore.
+//
+// Ordem na gravação: as IMAGENS sobem primeiro — o evento nunca aponta pra uma
+// capa que não existe. Se alguma falhar, nada é gravado (as que subiram ficam,
+// e repetir é seguro: mesmo caminho, sobrescreve). Só vale a imagem ESCOLHIDA
+// agora: consultar o Storage por cada citada custaria centenas de 404 na fase A
+// sem pasta — quem reimporta escolhe a pasta de novo.
 
 type ImportProductionModalProps = {
   machines: Machine[];
@@ -49,6 +55,7 @@ type ImportProductionModalProps = {
   supplies: Supply[];
   energyTariff: number;
   goods: FinishedGood[];
+  pricingByProduct: Map<string, PricingResult>;
   onClose: () => void;
   onImported: (count: number) => void;
 };
@@ -56,9 +63,38 @@ type ImportProductionModalProps = {
 type Step =
   | { kind: "input" }
   | { kind: "analisando" }
-  | { kind: "preview"; preview: ImportPreview; costed: CostedImportLine[] }
+  | {
+      kind: "preview";
+      preview: ImportPreview;
+      submissions: ResolvedSubmission[];
+      fonte: string;
+      defaultPricePerKg: number;
+    }
+  | { kind: "imagens"; total: number; feitas: number }
   | { kind: "gravando"; total: number; feitos: number }
   | { kind: "erro"; mensagem: string };
+
+const REASON_LABEL: Record<RejectReason, string> = {
+  "sem-curadoria": "sem curadoria (dia a dia — revisão no próximo lote)",
+  "maquina-nao-reconhecida": "máquina não reconhecida",
+  "apelido-desconhecido": "apelido fora do catálogo",
+  "submissao-incoerente": "submissão incoerente",
+  "submissao-parcial": "submissão já importada em parte",
+  "etapa-repetida": "etapa repetida na submissão",
+  "estoque-sem-produto": '"estoque" sem produto',
+  "estoque-nao-forma-produto": '"estoque" que não forma o produto nem uma parte',
+  "cor-sem-traducao": '"estoque" com cor sem tradução pro site',
+};
+
+// Poucas de cada vez: são arquivos de ~20 KB, e o limite é o navegador, não a
+// banda.
+async function emParalelo<T>(itens: T[], n: number, fn: (item: T) => Promise<void>) {
+  let i = 0;
+  const workers = Array.from({ length: Math.min(n, itens.length) }, async () => {
+    while (i < itens.length) await fn(itens[i++]);
+  });
+  await Promise.all(workers);
+}
 
 export function ImportProductionModal({
   machines,
@@ -67,18 +103,50 @@ export function ImportProductionModal({
   supplies,
   energyTariff,
   goods,
+  pricingByProduct,
   onClose,
   onImported,
 }: ImportProductionModalProps) {
+  // Os apelidos chegam por snapshot: analisar ANTES dele rejeitaria todo
+  // produto como "apelido fora do catálogo" — o botão espera.
+  const { aliases, status: aliasesStatus } = usePrintAliases();
+  const aliasesProntos = aliasesStatus !== "connecting";
   const [raw, setRaw] = useState("");
+  // Pelo NOME do arquivo — o que o JSON cita em `imagens.capa`/`foto`.
+  const [imagens, setImagens] = useState<Map<string, File>>(new Map());
   const [defaultPricePerKg, setDefaultPricePerKg] = useState(110);
   const [step, setStep] = useState<Step>({ kind: "input" });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   function readFile(file: File) {
     const reader = new FileReader();
     reader.onload = (event) => setRaw(String(event.target?.result ?? ""));
     reader.readAsText(file, "UTF-8");
+  }
+
+  function escolherImagens(files: FileList) {
+    setImagens(new Map(Array.from(files).map((file) => [file.name, file])));
+  }
+
+  // A imagem escolhida que o arquivo CITA para esta impressão (nunca por
+  // convenção de nome: o que o JSON diz é o que vale).
+  function imagemDe(print: ImportPrint, kind: PrintImageKind): File | undefined {
+    const nome = print.imagens[kind];
+    return nome ? imagens.get(nome) : undefined;
+  }
+
+  function contexto(preco: number): ImportContext {
+    return {
+      machines,
+      products,
+      aliases,
+      stock,
+      supplies,
+      energyTariff,
+      defaultPricePerKg: preco,
+      subitemPrices: (productId) => pricingByProduct.get(productId)?.subitems ?? [],
+    };
   }
 
   async function analisar() {
@@ -90,95 +158,139 @@ export function ImportProductionModal({
       setStep({ kind: "erro", mensagem: "O texto colado (ou o arquivo) não é um JSON válido." });
       return;
     }
-    const parsed = parseBambuImportFile(json);
+    const parsed = parseImportFile(json);
     if (!parsed.ok) {
       setStep({ kind: "erro", mensagem: parsed.erro });
       return;
     }
     try {
       guardOnline();
-      // 6 — idempotência ANTES de resolver: reimportar o mesmo arquivo não
-      // duplica. Compara pelo `origemExterna` (S4), nunca pela nota.
-      const jaImportados = await fetchImportedExternalIds(IMPORT_FONTE);
-      const novos = parsed.file.eventos.filter((e) => !jaImportados.has(e.task_id));
-      // A idempotência acima só sabe o que já está no Firestore — um
-      // `task_id` repetido DENTRO deste arquivo passaria batido nela.
-      const { unicos, duplicadosNoArquivo } = dedupeByTaskId(novos);
-      const ctx: ImportContext = {
-        machines,
-        products,
-        stock,
-        supplies,
-        energyTariff,
-        defaultPricePerKg,
-      };
-      const results = unicos.map((evento) => resolveImportLine(evento, ctx));
-      const preview = buildImportPreview(
-        results,
-        parsed.file.eventos.length - novos.length,
-        duplicadosNoArquivo,
-      );
+      // Idempotência de FORA (já no Firestore), por `origemExterna` (S4).
+      const jaImportados = await fetchImportedExternalIds(parsed.file.fonte);
+      // E a de DENTRO do arquivo.
+      const { unicas, duplicadasNoArquivo } = dedupeByTaskId(parsed.file.impressoes);
+      const ctx = contexto(defaultPricePerKg);
+      const { submissions, rejected } = resolveSubmissions(unicas, ctx, jaImportados);
       const now = Date.now();
-      const costed = results
-        .filter((r) => r.ok)
-        .map((r) => costImportLine(r.line, ctx, newProductionId(), now));
-      setStep({ kind: "preview", preview, costed });
+      // Custo pra prévia (ids provisórios; a gravação recalcula com os finais e
+      // com as imagens que de fato existirem).
+      let n = 0;
+      const costed = submissions.map((sub) =>
+        costSubmission(sub, ctx, parsed.file.fonte, () => `previa-${++n}`, now, () => null),
+      );
+      const escolhidas = new Set<string>();
+      for (const p of unicas) {
+        for (const kind of ["capa", "foto"] as PrintImageKind[]) {
+          if (imagemDe(p, kind)) escolhidas.add(`${p.taskId}:${kind}`);
+        }
+      }
+      const preview = buildImportPreview({
+        totalArquivo: parsed.file.impressoes.length + parsed.descartadas.length,
+        descartadas: parsed.descartadas,
+        jaImportadas: unicas.filter((p) => jaImportados.has(p.taskId)).length,
+        duplicadasNoArquivo,
+        rejeitadas: rejected,
+        costed,
+        imagensEscolhidas: escolhidas,
+      });
+      setStep({
+        kind: "preview",
+        preview,
+        submissions,
+        fonte: parsed.file.fonte,
+        defaultPricePerKg,
+      });
     } catch (err) {
       setStep({ kind: "erro", mensagem: errorMessage(err) });
     }
   }
 
-  async function confirmar(costed: CostedImportLine[]) {
-    const totalEventos = costed.length;
-    setStep({ kind: "gravando", total: totalEventos, feitos: 0 });
-    let feitos = 0;
+  async function confirmar(
+    submissions: ResolvedSubmission[],
+    fonte: string,
+    preco: number,
+  ) {
+    let gravados = 0;
     try {
       guardOnline();
-      const finishedUpdates = buildImportFinishedUpdates(costed, goods);
-      const finishedByProduct = new Map(
-        finishedUpdates.map((u) => [u.productId, u]),
+
+      // 1) Imagens: sobem as escolhidas que o arquivo cita.
+      const tarefas: { print: ImportPrint; kind: PrintImageKind; file: File }[] = [];
+      for (const sub of submissions) {
+        for (const { print } of sub.prints) {
+          for (const kind of ["capa", "foto"] as PrintImageKind[]) {
+            const file = imagemDe(print, kind);
+            if (file) tarefas.push({ print, kind, file });
+          }
+        }
+      }
+      const existe = new Set<string>();
+      let feitas = 0;
+      setStep({ kind: "imagens", total: tarefas.length, feitas });
+      await emParalelo(tarefas, 6, async ({ print, kind, file }) => {
+        await uploadPrintImage(print.taskId, kind, file);
+        existe.add(`${print.taskId}:${kind}`);
+        feitas += 1;
+        setStep({ kind: "imagens", total: tarefas.length, feitas });
+      });
+
+      // 2) Custo final, com ids reais e as imagens que existem.
+      const ctx = contexto(preco);
+      const now = Date.now();
+      const costed = submissions.map((sub) =>
+        costSubmission(sub, ctx, fonte, newProductionId, now, (p) =>
+          eventImages(p.taskId, {
+            capa: existe.has(`${p.taskId}:capa`),
+            foto: existe.has(`${p.taskId}:foto`),
+          }),
+        ),
       );
-      const estoqueGrupos = estoqueGroupsByProduct(costed);
-      for (const [productId, linhas] of estoqueGrupos) {
-        await saveProduction(
-          linhas.map((c) => ({ id: c.eventId, payload: c.payload })),
-          [],
-          finishedByProduct.get(productId) ?? null,
-        );
-        feitos += linhas.length;
-        setStep({ kind: "gravando", total: totalEventos, feitos });
+      const batches = importBatches(costed, goods);
+      const total = batches.reduce((s, b) => s + b.events.length, 0);
+      setStep({ kind: "gravando", total, feitos: 0 });
+      for (const batch of batches) {
+        await saveProduction(batch.events, [], batch.finished);
+        gravados += batch.events.length;
+        setStep({ kind: "gravando", total, feitos: gravados });
       }
-      for (const chunk of bulkImportChunks(costed)) {
-        await saveProduction(
-          chunk.map((c) => ({ id: c.eventId, payload: c.payload })),
-          [],
-          null,
-        );
-        feitos += chunk.length;
-        setStep({ kind: "gravando", total: totalEventos, feitos });
-      }
-      onImported(totalEventos);
+      onImported(total);
       onClose();
     } catch (err) {
-      setStep({ kind: "erro", mensagem: errorMessage(err) });
+      // Lotes são transações independentes: o que já entrou, entrou. Dizer
+      // quanto evita o "nada foi salvo" mentir — e reimportar é seguro (o que
+      // já foi gravado é reconhecido pelo `origemExterna` e pulado).
+      setStep({
+        kind: "erro",
+        mensagem:
+          gravados > 0
+            ? `${errorMessage(err)} — ${gravados} impressão(ões) já tinham sido gravadas antes do erro. ` +
+              "Importe o mesmo arquivo de novo: as gravadas são reconhecidas e puladas."
+            : errorMessage(err),
+      });
     }
   }
+
+  const editando = step.kind === "input" || step.kind === "analisando";
 
   return (
     <Modal
-      title="Importar histórico de produção"
-      sub='Arquivo JSON exportado da ferramenta de histórico da Bambu. Cada evento vira uma produção "histórico" — reimportar o mesmo arquivo não duplica.'
+      title="Importar impressões"
+      sub="Arquivo de produção exportado pelo pipeline (com as imagens ao lado). Cada impressão vira um evento — reimportar o mesmo arquivo não duplica."
       onClose={onClose}
       footer={
-        step.kind === "input" || step.kind === "analisando" ? (
+        editando ? (
           <>
             <button
               className="btn primary"
               type="button"
-              disabled={!raw.trim() || step.kind === "analisando"}
+              disabled={!raw.trim() || step.kind === "analisando" || !aliasesProntos}
               onClick={analisar}
             >
-              {step.kind === "analisando" ? "Analisando…" : "Analisar"}
+              {step.kind === "analisando"
+                ? "Analisando…"
+                : aliasesProntos
+                  ? "Analisar"
+                  : "Carregando apelidos…"}
             </button>
             <button className="btn btn-secondary" type="button" onClick={onClose}>
               Cancelar
@@ -190,10 +302,10 @@ export function ImportProductionModal({
               className="btn primary"
               type="button"
               disabled={step.preview.aImportar === 0}
-              onClick={() => confirmar(step.costed)}
+              onClick={() => confirmar(step.submissions, step.fonte, step.defaultPricePerKg)}
             >
               Importar {step.preview.aImportar}{" "}
-              {step.preview.aImportar === 1 ? "evento" : "eventos"}
+              {step.preview.aImportar === 1 ? "impressão" : "impressões"}
             </button>
             <button
               className="btn btn-secondary"
@@ -204,25 +316,34 @@ export function ImportProductionModal({
             </button>
           </>
         ) : step.kind === "erro" ? (
-          <button className="btn btn-secondary" type="button" onClick={onClose}>
-            Fechar
-          </button>
+          <>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setStep({ kind: "input" })}
+            >
+              Voltar
+            </button>
+            <button className="btn btn-secondary" type="button" onClick={onClose}>
+              Fechar
+            </button>
+          </>
         ) : null
       }
     >
-      {step.kind === "input" || step.kind === "analisando" ? (
+      {editando ? (
         <>
           <div className="field-block">
-            <label className="section-label" htmlFor="bambu-json">
+            <label className="section-label" htmlFor="import-json">
               Cole o JSON, ou escolha o arquivo
             </label>
             <textarea
-              id="bambu-json"
+              id="import-json"
               className="field-input"
-              rows={8}
+              rows={6}
               value={raw}
               onChange={(event) => setRaw(event.target.value)}
-              placeholder='{"eventos": [...]}'
+              placeholder='{"schema_version": 1, "fonte": "bambu", "impressoes": [...]}'
             />
             <button
               className="link-button bordered"
@@ -244,20 +365,45 @@ export function ImportProductionModal({
             />
           </div>
           <div className="field-block">
-            <label className="section-label" htmlFor="bambu-preco-padrao">
-              R$/kg padrão pros materiais sem preço nesta importação
+            <span className="section-label">Imagens (opcional)</span>
+            <button
+              className="link-button bordered"
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+            >
+              <ImageUp size={15} /> Escolher imagens…
+            </button>
+            <input
+              ref={imageInputRef}
+              accept="image/png,image/jpeg"
+              hidden
+              multiple
+              type="file"
+              onChange={(event) => {
+                if (event.target.files) escolherImagens(event.target.files);
+                event.target.value = "";
+              }}
+            />
+            <div className="field-hint">
+              {imagens.size > 0
+                ? `${imagens.size} arquivo(s) escolhido(s) — a prévia diz quantos o JSON cita`
+                : "Selecione as imagens da pasta ao lado do JSON (Ctrl+A). Sem imagem, a importação funciona igual."}
+            </div>
+          </div>
+          <div className="field-block">
+            <label className="section-label" htmlFor="import-preco-padrao">
+              R$/kg padrão pras cores sem preço no Estoque
             </label>
             <NumberInput
-              id="bambu-preco-padrao"
+              id="import-preco-padrao"
               className="field-input"
               min={0}
               value={defaultPricePerKg}
               onChange={setDefaultPricePerKg}
             />
             <div className="field-hint">
-              Vale para todo filamento avulso do lote (sem marca ligada ao Estoque, direto
-              no arquivo ou sugerida pelo cadastro) — decisão de quem importa, não fato da
-              impressora.
+              Vale para cor que não existe no Estoque (nenhuma marca daquela cor + material) —
+              decisão de quem importa, não fato da impressora.
             </div>
           </div>
         </>
@@ -265,82 +411,132 @@ export function ImportProductionModal({
 
       {step.kind === "preview" ? <PreviewView preview={step.preview} /> : null}
 
+      {step.kind === "imagens" ? (
+        <p>
+          Enviando imagens: {step.feitas} de {step.total}…
+        </p>
+      ) : null}
+
       {step.kind === "gravando" ? (
         <p>
           Gravando {step.feitos} de {step.total}…
         </p>
       ) : null}
 
-      {step.kind === "erro" ? (
-        <div className="form-error">{step.mensagem}</div>
-      ) : null}
+      {step.kind === "erro" ? <div className="form-error">{step.mensagem}</div> : null}
     </Modal>
   );
 }
 
 function PreviewView({ preview }: { preview: ImportPreview }) {
+  const porMotivo = new Map<RejectReason, typeof preview.rejeitadas>();
+  for (const r of preview.rejeitadas) {
+    porMotivo.set(r.reason, [...(porMotivo.get(r.reason) ?? []), r]);
+  }
   return (
     <div className="import-preview">
       <ul className="import-preview-stats">
         <li>
-          <strong>{preview.totalArquivo}</strong> evento(s) no arquivo
+          <strong>{preview.totalArquivo}</strong> impressão(ões) no arquivo
         </li>
         <li>
-          <strong>{preview.aImportar}</strong> a importar
+          <strong>{preview.aImportar}</strong> a importar, em {preview.submissoes}{" "}
+          {preview.submissoes === 1 ? "registro" : "registros"}
         </li>
-        {preview.jaImportados > 0 ? (
-          <li>{preview.jaImportados} já importado(s) antes — ignorado(s)</li>
+        {preview.jaImportadas > 0 ? (
+          <li>{preview.jaImportadas} já importada(s) antes — ignorada(s)</li>
         ) : null}
-        {preview.duplicadosNoArquivo > 0 ? (
+        {preview.duplicadasNoArquivo > 0 ? (
           <li className="import-preview-warn">
-            ⚠ {preview.duplicadosNoArquivo} repetido(s) dentro do próprio arquivo —
-            só a 1ª ocorrência entra
-          </li>
-        ) : null}
-        {preview.semMaquina > 0 ? (
-          <li className="import-preview-warn">
-            ⚠ {preview.semMaquina} não importado(s): máquina não reconhecida
+            ⚠ {preview.duplicadasNoArquivo} repetida(s) dentro do próprio arquivo — só a 1ª entra
           </li>
         ) : null}
         {preview.maquinaAproximada > 0 ? (
           <li className="import-preview-warn">
-            ⚠ {preview.maquinaAproximada} com máquina casada por aproximação
-            (nome não bateu exato) — confira antes de confirmar
+            ⚠ {preview.maquinaAproximada} com máquina casada por aproximação — confira
           </li>
         ) : null}
-        {preview.estoqueSemProduto > 0 ? (
+        {preview.corSemTraducao > 0 ? (
           <li className="import-preview-warn">
-            ⚠ {preview.estoqueSemProduto} não importado(s): desfecho &quot;estoque&quot; sem
-            produto religado
+            ⚠ {preview.corSemTraducao} filamento(s) sem a cor do site — entram com o hex como
+            nome, fora de qualquer prateleira
+          </li>
+        ) : null}
+        {preview.precoPadrao > 0 ? (
+          <li className="import-preview-warn">
+            ⚠ {preview.precoPadrao} cor(es) fora do Estoque — custo pelo R$/kg padrão
+          </li>
+        ) : null}
+        {preview.estimadas > 0 ? (
+          <li>
+            ≈ {preview.estimadas} cancelada(s): gramas e horas estimadas (plano × fração do
+            relógio)
           </li>
         ) : null}
         <li>
-          {preview.comProduto} com produto religado (herda acessórios/mão de obra) ·{" "}
-          {preview.semProduto} sem produto (só o dado bruto)
+          {preview.comProduto} ligada(s) a produto · {preview.avulsas} avulsa(s)
         </li>
         {preview.periodo ? (
           <li>
-            Período: {formatDate(preview.periodo.inicio)} até{" "}
-            {formatDate(preview.periodo.fim)}
+            Período: {formatDate(preview.periodo.inicio)} até {formatDate(preview.periodo.fim)}
+          </li>
+        ) : null}
+        {preview.imagens.citadas > 0 ? (
+          <li>
+            Imagens: {preview.imagens.escolhidas} de {preview.imagens.citadas} citadas foram
+            escolhidas
+            {preview.imagens.escolhidas < preview.imagens.citadas
+              ? " (as outras ficam sem imagem)"
+              : ""}
           </li>
         ) : null}
       </ul>
 
-      <h3 className="section-label">Por desfecho</h3>
+      <h3 className="section-label">Por destino</h3>
       <ul className="import-preview-stats">
-        <li>{preview.porOutcome.historico} histórico</li>
-        <li>{preview.porOutcome.falha} falha</li>
-        <li>{preview.porOutcome.estoque} estoque (vira peça pronta)</li>
+        <li>{preview.porDestino.historico} histórico</li>
+        <li>{preview.porDestino.falha} falha</li>
+        <li>{preview.porDestino.teste} teste</li>
+        <li>
+          {preview.porDestino.estoque} estoque → {preview.unidadesCreditadas} peça(s) pronta(s)
+          creditada(s)
+        </li>
       </ul>
 
       <h3 className="section-label">Por máquina</h3>
       <ul className="import-preview-stats">
         {preview.porMaquina.map((m) => (
           <li key={m.machineId}>
-            {m.machineName}: {m.eventos} evento(s), {formatDecimal(m.horas)} h
+            {m.machineName}: {m.impressoes} impressão(ões), {formatDecimal(m.horas)} h
           </li>
         ))}
       </ul>
+
+      {preview.rejeitadas.length > 0 || preview.descartadas.length > 0 ? (
+        <>
+          <h3 className="section-label">Fora desta importação</h3>
+          <ul className="import-preview-stats">
+            {preview.descartadas.length > 0 ? (
+              <li className="import-preview-warn">
+                ⚠ {preview.descartadas.length} ilegível(is) no arquivo:{" "}
+                {resumo(preview.descartadas.map((d) => `${d.taskId ?? "?"} (${d.motivo})`))}
+              </li>
+            ) : null}
+            {[...porMotivo].map(([reason, lista]) => (
+              <li key={reason} className="import-preview-warn">
+                ⚠ {lista.length} — {REASON_LABEL[reason]}:{" "}
+                {resumo(lista.map((r) => `${r.taskId} (${r.detail})`))}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
     </div>
   );
+}
+
+// Os 3 primeiros por extenso — o suficiente pra achar o padrão no pipeline.
+function resumo(itens: string[]): string {
+  const mostra = itens.slice(0, 3).join("; ");
+  return itens.length > 3 ? `${mostra}; e mais ${itens.length - 3}` : mostra;
 }
