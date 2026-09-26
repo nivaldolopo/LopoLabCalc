@@ -9,24 +9,20 @@
 
 > Foto do **AGORA**, para abrir um chat novo por tarefa — não é histórico. Tamanho: Diretrizes 4 e 7.
 
-- **Última mudança (2026-09-25): lotes 5a (W7 + S4 + S5) e 5b (S6) da 3a fechados** — o evento
-  guarda origem + fatos crus da impressora, o **Storage** está ligado, e o "Importar impressões" da
-  `/producao` lê o **arquivo v1** (formato FECHADO na seção 3 do `PEDIDO_PRINTPIPELINE.md`) no modo
-  `historico`, gravando pelo mesmo caminho do manual. Decisões do dono p/ o S7 no `BACKLOG.md`.
-  **O dono leva o pedido atualizado ao pipeline** (a seção 3 e o item 7 mudaram).
-- ⚠ **O site do designer é projeto próprio, fora deste repo** (writeup em
-  [`HISTORICO.md`](.claude/HISTORICO.md)) — nada dele encosta neste projeto nem na base da loja, e
-  daqui não se mexe lá.
-- ⚠ **O pipeline de importação (histórico de impressão → CSV/JSON) virou projeto próprio em
-  2026-09-21** (`LopoLabPrintPipeline`, fora deste repo — writeup em
-  [`HISTORICO.md`](.claude/HISTORICO.md)). Daqui só se conhece o **formato que ele entrega** (o CSV
-  que o `/catalogo` importa, o arquivo v1 que o "Importar impressões" da `/producao` lê) — o funcionamento
-  interno dele não é documentado aqui, e não se mexe nele a partir daqui.
+- **Última mudança (2026-09-25): lote 5c (S7) da 3a fechado** — o "Importar impressões" da
+  `/producao` abre a **revisão linha a linha** quando o arquivo v1 vem SEM `curadoria` (fase B):
+  produto+etapa, desfecho, unidades, consumo estimado, tabela máquina × cor → marca (com trocas no
+  tempo e "dividir"), "já registrado?", e grava no modo `real` (baixa encadeada, UMA transação),
+  aprendendo o apelido. "Criar produto a partir desta impressão" abre a calculadora preenchida.
+  Arquivo que mistura fase A e B é recusado. **O dono leva o pedido atualizado ao pipeline.**
+- ⚠ **Fora deste repo, e daqui não se mexe lá:** o site do designer e o pipeline de importação
+  (`LopoLabPrintPipeline`) — deste só se conhece o **formato que ele entrega** (o CSV do `/catalogo`
+  e o arquivo v1 do "Importar impressões"). Writeups no [`HISTORICO.md`](.claude/HISTORICO.md).
 - **PRÓXIMA TAREFA DESTE PROJETO — frente 3a (dados da impressora), depois frente 3 (uso real).**
   Código S1–S13 + os V/W abertos do `BACKLOG.md` + as mudanças do pipeline, TUDO antes do marco (o
   marco pode atrasar um pouco, não muito). **Um chat por lote, na tabela "Ordem de execução do
-  código" da seção 3a do `BACKLOG.md`** (✅ lotes 1–4, 5a, 5b; **próximo = lote 5c, S7: a revisão do modo `real`, em chat
-  novo**). Depois, a carga pelo "Processo da fase A"
+  código" da seção 3a do `BACKLOG.md`** (✅ lotes 1–4, 5a, 5b, 5c; **próximo = lote 6: S12 + S13,
+  depois W8–W10 — o S12 pede o X% do dono**). Depois, a carga pelo "Processo da fase A"
   (que começa APAGANDO o teste) e o marco (Diretriz 6 expira).
   Frente 2 (Configurações) está inteira fechada.
 - 🔴 **QR (fechado em 2026-09-15):** impresso/duradouro é o DONO quem gera; de um orçamento só, o
@@ -34,19 +30,13 @@
   `BACKLOG.md` — ainda não codado.
 - ⚠ **Drive** (`G:\My Drive\Lopo Lab - Empresa\`, geral do outro agente) = marca, designer,
   planilhas, PDFs — **nunca código**. Ler é livre; escrever lá é compartilhar → só a pedido.
-- **Contexto macro:** **✅ TIER 1**, **✅ [FROTA] (fases 1 e 2)**, **✅ [AUD-17]**, **✅ [AUD-18]**,
-  **✅ [AUD-08]**, **✅ [TD-033]** e **✅ [FEAT-12]** — custo decomponível ponta a ponta, o PREÇO não
-  depende mais de quem estava livre nem de preço congelado de insumo, e mudança global de preço não
-  acontece mais calada. O que a 10ª varredura e as duas campanhas de prova acharam está corrigido.
 - **Branding:** cores **amarelo + preto** e **logo pronta** (2026-09-15) — o código do rebrand espera
   a entrega do designer (frente 1). Com o `--on-accent` já criado, a troca virou paleta.
 - ⚠ **NÃO REPROPOR (avaliadas e descartadas pelo dono):** `lifeHours` por máquina (**DEC-02**),
   `residualValue`, peso em **horas/dia** (D6.1), chutar a de maior peso na `/producao`, e a
   conversão **peso↔metragem**.
-- ⚠ **A frota real tem TRÊS máquinas** (A1 Combo 40% · X2D Combo 40% · A1 Mini 20%, medido em
-  2026-09-03) — o `DEFAULT_MACHINES` do código só tem duas, então não raciocine por ele. **Todo
-  produto anterior à fase entra SEM conjunto** → frota inteira + badge de órfão (Diretriz 6 — sem
-  migração; o dono recadastra).
+- ⚠ **A frota real tem TRÊS máquinas** (A1 Combo 40% · X2D Combo 40% · A1 Mini 20%) — o
+  `DEFAULT_MACHINES` do código só tem duas, então não raciocine por ele.
 - ⚠ **A `/producao` PERGUNTA a máquina** quando há 2+ candidatas (dono, 2026-09-01: *"vazia só
   quando há dúvida"*); sem escolher, o botão trava com o motivo na tela — não é bug. A VENDA não
   pergunta mais nada (S1): quem imprimiu sai das camadas do acabado.
@@ -103,7 +93,10 @@ src/features/pricing-calculator/
                   #   finishedGoods (camadas FIFO; SKU = subitem × cor) ·
                   #   productionPlan (produto/subitem→eventos) · productionImport (arquivo v1
                   #   do pipeline → submissões → eventos pelo caminho do manual; idempotente
-                  #   por `origemExterna`) ·
+                  #   por `origemExterna`; `assembleSubmission`/`costSubmissions` comuns
+                  #   às duas fases) · productionReview (S7: a revisão da fase B —
+                  #   linha efetiva, grupos, tabela de marcas, "já registrado?",
+                  #   apelidos a aprender, rascunho de produto) ·
                   #   printImages (S5: caminho no Storage, nome do arquivo exportado) ·
                   #   saleReconciliation (passo 8 +
                   #   reverse) · marginTier (régua DEC-04) · saleContext · filaments ·

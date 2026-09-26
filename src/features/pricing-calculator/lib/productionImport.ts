@@ -18,7 +18,12 @@ import {
   type FilRow,
   type PlannedRows,
 } from "./productionPlan";
-import { brandCandidates, maxCandidatePrice } from "./stock";
+import {
+  brandCandidates,
+  catalogPricePerKg,
+  filamentLabel,
+  maxCandidatePrice,
+} from "./stock";
 import { addProductionLayers, submissionEntries } from "./finishedGoods";
 import type {
   EventSource,
@@ -31,6 +36,7 @@ import type {
   PrintFactFilament,
   PrintFacts,
   PrintImages,
+  ProductionMode,
   ProductionOutcome,
   ProductionPayload,
   SavedPrintAlias,
@@ -55,8 +61,10 @@ import type {
 // · avisa, não engole (CSV-05/AUD-16): o que não dá pra ler é DESCARTADO com o
 //   motivo, nunca vira um valor plausível calado.
 //
-// 5b = só o modo `historico` (fase A: impressão com `curadoria`). Impressão sem
-// curadoria é do dia a dia (fase B) e espera a revisão linha a linha do 5c.
+// 5b = o modo `historico` (fase A: impressão com `curadoria`). 5c = o modo
+// `real` (fase B, impressão SEM curadoria): quem decide é a revisão linha a
+// linha (`productionReview.ts`), que monta as MESMAS `DecidedPrint` e passa pelo
+// mesmo `assembleSubmission`/`costSubmissions` daqui.
 //
 // Tudo PURO: quem toca Firestore/Storage é o componente.
 
@@ -406,48 +414,113 @@ export function numbersSourceOf(p: Pick<ImportPrint, "status">): NumbersSource {
   return naoTerminou(p.status) ? "estimativa" : "impressora";
 }
 
-// As cores da impressão → linhas de filamento do evento. Soma por cor do SITE
-// (3 cores planejadas podem cair no mesmo slot carregado — 1081441249). Sem
-// tradução, a linha leva o hex carregado como nome (cor avulsa, que não casa
-// com prateleira nenhuma — por isso `estoque` a recusa). O preço é o do grupo
-// cor+material no Estoque (a maior entre as marcas, a regra da precificação);
-// sem grupo, o R$/kg padrão do lote.
+// A LINHA de cor de uma impressão: a cor do site (material + cor) quando o
+// pipeline traduziu, senão o hex carregado + material. É a chave da soma (3
+// cores planejadas no mesmo slot verde viram 1 linha) e a da tabela de marcas
+// da revisão (5c) — as duas precisam concordar, por isso é uma função só.
+export function printLineKey(f: PrintFactFilament, site: ImportSiteColor | null): string {
+  return site
+    ? `${normalizeText(site.material)}::${normalizeText(site.cor)}`
+    : `#${normalizeText(f.corCarregada ?? "")}::${normalizeText(f.material)}`;
+}
+
+export function printLineLabel(f: PrintFactFilament, site: ImportSiteColor | null): string {
+  if (site) return `${site.cor} ${site.material}`;
+  return `${f.corCarregada ? `#${f.corCarregada}` : "Sem cor"} ${f.material} (sem tradução)`.trim();
+}
+
+// 5c — a MARCA de uma linha no modo `real`: de qual `StockFilament` sai o rolo.
+// Uma linha pode sair de duas marcas ("dividir": o AMS trocou sozinho). `g`
+// numérico = aquelas gramas; `null` = o resto da linha. Sem escolha (mapa
+// ausente), a linha não tem rolo: custo pelo preço, sem baixa — o `historico`.
+export type BrandSplit = { filamentId: string; g: number | null };
+export type LinePicks = Map<string, BrandSplit[]>;
+
+// As cores da impressão → linhas de filamento do evento, somadas por
+// `printLineKey`. Sem tradução nem marca, a linha leva o hex carregado como
+// nome (cor avulsa, que não casa com prateleira nenhuma — por isso `estoque` a
+// recusa). O preço é o do grupo cor+material no Estoque (a maior entre as
+// marcas, a regra da precificação); sem grupo, o R$/kg padrão do lote. Com
+// marca escolhida (5c), a linha se liga ao rolo dela e o preço é o dela.
+// `fator` é a fração consumida (a revisão deixa o dono corrigir a estimativa).
 export function printFilRows(
   p: ImportPrint,
   stock: StockFilament[],
   defaultPricePerKg: number,
   stageKey: string,
+  fator: number = consumptionFactor(p),
+  marcas: LinePicks | null = null,
 ): { rows: FilRow[]; precoPadrao: number; semTraducao: number } {
-  const fator = consumptionFactor(p);
-  const porCor = new Map<string, { colorName: string; material: string; g: number }>();
-  let semTraducao = 0;
+  const porLinha = new Map<string, { colorName: string; material: string; g: number }>();
+  const semTraducaoKeys = new Set<string>();
   p.facts.filamentos.forEach((f, i) => {
     const g = num(f.g) * fator;
     if (g <= 0) return;
     const site = p.coresSite[i];
-    if (!site) semTraducao += 1;
+    const key = printLineKey(f, site);
+    if (!site) semTraducaoKeys.add(key);
     const colorName = site ? site.cor : f.corCarregada ? `#${f.corCarregada}` : "Sem cor";
     const material = site ? site.material : f.material;
-    const key = `${normalizeText(material)}::${normalizeText(colorName)}`;
-    const atual = porCor.get(key);
+    const atual = porLinha.get(key);
     if (atual) atual.g += g;
-    else porCor.set(key, { colorName, material, g });
+    else porLinha.set(key, { colorName, material, g });
   });
   let precoPadrao = 0;
-  const rows = [...porCor.values()].map((c) => {
-    if (maxCandidatePrice(brandCandidates(stock, c.colorName, c.material)) <= 0) precoPadrao += 1;
-    return resolveFilRow(
-      {
-        filamentId: null,
-        colorName: c.colorName,
-        material: c.material,
-        pricePerKg: num(defaultPricePerKg),
-        totalG: c.g,
-      },
-      stock,
-      stageKey,
-    );
-  });
+  let semTraducao = 0;
+  const rows: FilRow[] = [];
+  for (const [key, c] of porLinha) {
+    const escolhas = (marcas?.get(key) ?? [])
+      .map((split) => ({ split, color: stock.find((s) => s.id === split.filamentId) }))
+      .filter((x): x is { split: BrandSplit; color: StockFilament } => Boolean(x.color));
+    if (escolhas.length === 0) {
+      if (semTraducaoKeys.has(key)) semTraducao += 1;
+      if (maxCandidatePrice(brandCandidates(stock, c.colorName, c.material)) <= 0) precoPadrao += 1;
+      rows.push(
+        resolveFilRow(
+          {
+            filamentId: null,
+            colorName: c.colorName,
+            material: c.material,
+            pricePerKg: num(defaultPricePerKg),
+            totalG: c.g,
+          },
+          stock,
+          stageKey,
+        ),
+      );
+      continue;
+    }
+    // As gramas fixas primeiro (nunca além do que a linha tem); o `null` leva o
+    // resto. Sem `null`, o resto cai na última — a linha nunca perde grama.
+    let resto = c.g;
+    const partes = escolhas.map(({ split, color }) => {
+      const g = split.g === null ? null : Math.min(Math.max(0, num(split.g)), resto);
+      if (g !== null) resto -= g;
+      return { color, g };
+    });
+    const iResto = partes.findIndex((x) => x.g === null);
+    const alvo = iResto >= 0 ? iResto : partes.length - 1;
+    partes[alvo].g = (partes[alvo].g ?? 0) + resto;
+    for (const { color, g } of partes) {
+      if (!g || g <= 0) continue;
+      const vivo = catalogPricePerKg(color);
+      const candidatas = maxCandidatePrice(brandCandidates(stock, color.colorName, color.material));
+      const pricePerKg = vivo > 0 ? vivo : candidatas > 0 ? candidatas : num(defaultPricePerKg);
+      if (pricePerKg === num(defaultPricePerKg) && vivo <= 0 && candidatas <= 0) precoPadrao += 1;
+      const label = filamentLabel(color);
+      rows.push({
+        filamentId: color.id,
+        label,
+        colorName: color.colorName,
+        material: color.material,
+        brand: color.brand,
+        totalG: g,
+        pricePerKg,
+        stageKey,
+        origin: { filamentId: color.id, label, pricePerKg },
+      });
+    }
+  }
   return { rows, precoPadrao, semTraducao };
 }
 
@@ -488,6 +561,22 @@ export type ResolvedPrint = {
   machineFuzzyMatched: boolean;
   product: SavedProduct | null; // null = avulso
   stageKey: string | null;
+  // A fração do plano que de fato rodou (`consumptionFactor`, ou a do dono na
+  // revisão) — escala gramas E horas.
+  fator: number;
+  // A marca de cada linha de cor (5c, modo `real`). `null` = sem rolo.
+  marcas: LinePicks | null;
+};
+
+// Uma impressão com o SIGNIFICADO decidido — pela curadoria (fase A) ou pelo
+// dono na revisão (fase B). É o que o `assembleSubmission` junta.
+export type DecidedPrint = ResolvedPrint & {
+  outcome: ProductionOutcome;
+  mode: ProductionMode;
+  unidadesProduzidas: number;
+  unidadesCreditadas: number;
+  // Impressões com o mesmo valor formam UMA submissão. `null` = sozinha.
+  grupo: string | null;
 };
 
 // O que a submissão É, na linguagem do registro manual.
@@ -500,7 +589,8 @@ export type SubmissionSelection =
 
 export type ResolvedSubmission = {
   prints: ResolvedPrint[]; // em ordem de `at`
-  destino: ImportDestino;
+  outcome: ProductionOutcome;
+  mode: ProductionMode;
   product: SavedProduct | null;
   selection: SubmissionSelection;
   unidadesProduzidas: number;
@@ -517,37 +607,156 @@ const OUTCOME_OF: Record<ImportDestino, ProductionOutcome> = {
 
 // As chaves de etapa na ORDEM das linhas do `wholeEventRows` (que também passa
 // pelo `normalizeStages`) — a mesma função que valida o apelido.
-function productStageKeys(product: SavedProduct): string[] {
+export function productStageKeys(product: SavedProduct): string[] {
   return stageKeysOf(normalizeStages(product));
 }
 
 const mesmoConjunto = (a: string[], b: string[]) =>
   a.length === b.length && a.every((k) => b.includes(k));
 
-function resolvePrint(
-  p: ImportPrint,
-  ctx: ImportContext,
-): { ok: true; r: ResolvedPrint } | { ok: false; rej: RejectedPrint } {
-  const rej = (reason: RejectReason, detail: string) =>
-    ({ ok: false, rej: { taskId: p.taskId, reason, detail } }) as const;
-  if (!p.curadoria) {
-    return rej(
-      "sem-curadoria",
-      "Impressão do dia a dia (sem curadoria) — a revisão linha a linha chega no próximo lote",
+// A máquina pelo NOME que o pipeline mandou (o mesmo casamento do CSV).
+export function resolveMachine(
+  nome: string,
+  machines: Machine[],
+): { machine: Machine; fuzzy: boolean } | null {
+  let fuzzy = false;
+  const id = machineNameToId(nome, machines, undefined, () => {
+    fuzzy = true;
+  });
+  const machine = id ? machines.find((m) => m.id === id) : undefined;
+  return machine ? { machine, fuzzy } : null;
+}
+
+// Uma linha da impressão com grama > 0 que não tem cor do site nem marca
+// escolhida: não há prateleira onde ela caia.
+export function lineWithoutShelf(r: Pick<ResolvedPrint, "print" | "marcas">): boolean {
+  return r.print.facts.filamentos.some((f, i) => {
+    if (num(f.g) <= 0) return false;
+    const site = r.print.coresSite[i];
+    if (site) return false;
+    return !(r.marcas?.get(printLineKey(f, site))?.length ?? 0);
+  });
+}
+
+// O conjunto de impressões de UMA submissão → a submissão, ou o motivo de
+// recusá-la INTEIRA (gravar meia submissão credita o que não existe). Comum às
+// duas fases: a curadoria (fase A) e a revisão (fase B) chegam aqui com as
+// decisões já tomadas.
+export function assembleSubmission(
+  decididas: DecidedPrint[],
+  ctx: Pick<ImportContext, "subitemPrices">,
+): { ok: true; sub: ResolvedSubmission } | { ok: false; reason: RejectReason; detail: string } {
+  const recusa = (reason: RejectReason, detail: string) => ({ ok: false, reason, detail }) as const;
+  const primeira = decididas[0];
+  const incoerente = decididas.some(
+    (r) =>
+      r.outcome !== primeira.outcome ||
+      r.mode !== primeira.mode ||
+      r.product?.id !== primeira.product?.id ||
+      r.unidadesProduzidas !== primeira.unidadesProduzidas ||
+      r.unidadesCreditadas !== primeira.unidadesCreditadas,
+  );
+  if (incoerente) {
+    return recusa(
+      "submissao-incoerente",
+      `Impressões da submissão "${primeira.grupo}" com produto, desfecho ou unidades diferentes`,
     );
   }
-  let machineFuzzyMatched = false;
-  const machineId = machineNameToId(p.facts.maquina, ctx.machines, undefined, () => {
-    machineFuzzyMatched = true;
-  });
-  const machine = machineId ? ctx.machines.find((m) => m.id === machineId) : undefined;
-  if (!machine) {
+  const product = primeira.product;
+  if (!product && decididas.length > 1) {
+    return recusa("submissao-incoerente", "Avulso não se junta em submissão");
+  }
+
+  let selection: SubmissionSelection = { kind: "avulso" };
+  if (product) {
+    const keys = decididas.map((r) => r.stageKey!);
+    if (new Set(keys).size !== keys.length) {
+      return recusa("etapa-repetida", "A mesma etapa aparece duas vezes na submissão");
+    }
+    const sub = (product.subitems ?? []).find((s) => mesmoConjunto(s.stageKeys ?? [], keys));
+    const subPrice = sub ? ctx.subitemPrices(product.id).find((s) => s.id === sub.id) : undefined;
+    if (mesmoConjunto(productStageKeys(product), keys)) selection = { kind: "whole" };
+    else if (subPrice) selection = { kind: "subitem", subitem: subPrice };
+    else selection = { kind: "partial" };
+  }
+
+  const credita = primeira.outcome === "estoque";
+  if (credita) {
+    if (!product) {
+      return recusa("estoque-sem-produto", "Peça pronta sem produto (avulso não vira peça pronta)");
+    }
+    if (selection.kind === "partial") {
+      return recusa(
+        "estoque-nao-forma-produto",
+        "As etapas não formam o produto nem uma parte — junte as mesas numa submissão, " +
+          "ou registre sem crédito",
+      );
+    }
+    if (decididas.some(lineWithoutShelf)) {
+      return recusa(
+        "cor-sem-traducao",
+        "Peça pronta precisa da cor do site em todo filamento (a prateleira é material + cor)",
+      );
+    }
+  }
+
+  const ordenadas = [...decididas].sort((a, b) => a.print.at - b.print.at);
+  return {
+    ok: true,
+    sub: {
+      prints: ordenadas.map(
+        ({ print, machine, machineFuzzyMatched, product: p, stageKey, fator, marcas }) => ({
+          print,
+          machine,
+          machineFuzzyMatched,
+          product: p,
+          stageKey,
+          fator,
+          marcas,
+        }),
+      ),
+      outcome: primeira.outcome,
+      mode: primeira.mode,
+      product,
+      selection,
+      unidadesProduzidas: primeira.unidadesProduzidas,
+      unidadesCreditadas: credita ? primeira.unidadesCreditadas : 0,
+      at: ordenadas[ordenadas.length - 1].print.at,
+    },
+  };
+}
+
+// Fase A: a curadoria → a impressão decidida.
+function resolveCurated(
+  p: ImportPrint,
+  ctx: ImportContext,
+): { ok: true; r: DecidedPrint } | { ok: false; rej: RejectedPrint } {
+  const rej = (reason: RejectReason, detail: string) =>
+    ({ ok: false, rej: { taskId: p.taskId, reason, detail } }) as const;
+  const cur = p.curadoria;
+  if (!cur) {
+    return rej("sem-curadoria", "Impressão do dia a dia (sem curadoria) — vai pela revisão");
+  }
+  const maquina = resolveMachine(p.facts.maquina, ctx.machines);
+  if (!maquina) {
     return rej("maquina-nao-reconhecida", `Máquina "${p.facts.maquina}" não bate com o cadastro`);
   }
-  const key = p.curadoria.apelidoProduto;
-  if (!key) {
-    return { ok: true, r: { print: p, machine, machineFuzzyMatched, product: null, stageKey: null } };
-  }
+  const decidida = (product: SavedProduct | null, stageKey: string | null): DecidedPrint => ({
+    print: p,
+    machine: maquina.machine,
+    machineFuzzyMatched: maquina.fuzzy,
+    product,
+    stageKey,
+    fator: consumptionFactor(p),
+    marcas: null,
+    outcome: OUTCOME_OF[cur.destino],
+    mode: "historico",
+    unidadesProduzidas: cur.unidadesProduzidas,
+    unidadesCreditadas: cur.destino === "estoque" ? cur.unidadesCreditadas : 0,
+    grupo: cur.submissao,
+  });
+  const key = cur.apelidoProduto;
+  if (!key) return { ok: true, r: decidida(null, null) };
   // Só a EXATA preenche (regra do S3): sugestão aqui seria palpite gravado.
   const { exata } = lookupPrintAlias(key, ctx.aliases, ctx.products);
   const product = exata ? ctx.products.find((pr) => pr.id === exata.productId) : undefined;
@@ -558,10 +767,7 @@ function resolvePrint(
         `${key.plate !== null ? ` mesa ${key.plate}` : ""} não está no catálogo — importe o CSV do catálogo antes`,
     );
   }
-  return {
-    ok: true,
-    r: { print: p, machine, machineFuzzyMatched, product, stageKey: exata.stageKey },
-  };
+  return { ok: true, r: decidida(product, exata.stageKey) };
 }
 
 // Agrupa por `submissao` e confere a coerência do grupo. Rejeição de grupo
@@ -592,10 +798,10 @@ export function resolveSubmissions(
       continue;
     }
 
-    const resolvidas: ResolvedPrint[] = [];
+    const resolvidas: DecidedPrint[] = [];
     const falhas: RejectedPrint[] = [];
     for (const p of grupo) {
-      const res = resolvePrint(p, ctx);
+      const res = resolveCurated(p, ctx);
       if (res.ok) resolvidas.push(res.r);
       else falhas.push(res.rej);
     }
@@ -612,79 +818,9 @@ export function resolveSubmissions(
       continue;
     }
 
-    const primeira = resolvidas[0];
-    const cur = primeira.print.curadoria!;
-    const incoerente = resolvidas.some(
-      (r) =>
-        r.print.curadoria!.destino !== cur.destino ||
-        r.product?.id !== primeira.product?.id ||
-        r.print.curadoria!.unidadesProduzidas !== cur.unidadesProduzidas ||
-        r.print.curadoria!.unidadesCreditadas !== cur.unidadesCreditadas,
-    );
-    if (incoerente) {
-      rejeitaGrupo(
-        "submissao-incoerente",
-        `Impressões da submissão "${cur.submissao}" com produto, destino ou unidades diferentes`,
-      );
-      continue;
-    }
-    const product = primeira.product;
-    if (!product && resolvidas.length > 1) {
-      rejeitaGrupo("submissao-incoerente", "Avulso não se junta em submissão");
-      continue;
-    }
-
-    let selection: SubmissionSelection = { kind: "avulso" };
-    if (product) {
-      const keys = resolvidas.map((r) => r.stageKey!);
-      if (new Set(keys).size !== keys.length) {
-        rejeitaGrupo("etapa-repetida", "A mesma etapa aparece duas vezes na submissão");
-        continue;
-      }
-      const sub = (product.subitems ?? []).find((s) => mesmoConjunto(s.stageKeys ?? [], keys));
-      const subPrice = sub
-        ? ctx.subitemPrices(product.id).find((s) => s.id === sub.id)
-        : undefined;
-      if (mesmoConjunto(productStageKeys(product), keys)) selection = { kind: "whole" };
-      else if (subPrice) selection = { kind: "subitem", subitem: subPrice };
-      else selection = { kind: "partial" };
-    }
-
-    if (cur.destino === "estoque") {
-      if (!product) {
-        rejeitaGrupo("estoque-sem-produto", 'Destino "estoque" sem produto (avulso não vira peça pronta)');
-        continue;
-      }
-      if (selection.kind === "partial") {
-        rejeitaGrupo(
-          "estoque-nao-forma-produto",
-          "As etapas não formam o produto nem uma parte — junte as mesas numa submissão, " +
-            'ou marque como "historico"',
-        );
-        continue;
-      }
-      const semCor = resolvidas.some((r) =>
-        r.print.facts.filamentos.some((f, i) => num(f.g) > 0 && !r.print.coresSite[i]),
-      );
-      if (semCor) {
-        rejeitaGrupo(
-          "cor-sem-traducao",
-          "Peça pronta precisa da cor do site em todo filamento (a prateleira é material + cor)",
-        );
-        continue;
-      }
-    }
-
-    const ordenadas = [...resolvidas].sort((a, b) => a.print.at - b.print.at);
-    submissions.push({
-      prints: ordenadas,
-      destino: cur.destino,
-      product,
-      selection,
-      unidadesProduzidas: cur.unidadesProduzidas,
-      unidadesCreditadas: cur.destino === "estoque" ? cur.unidadesCreditadas : 0,
-      at: ordenadas[ordenadas.length - 1].print.at,
-    });
+    const res = assembleSubmission(resolvidas, ctx);
+    if (res.ok) submissions.push(res.sub);
+    else rejeitaGrupo(res.reason, res.detail);
   }
   submissions.sort((a, b) => a.at - b.at);
   return { submissions, rejected };
@@ -753,11 +889,17 @@ export function costSubmission(
 
   const rows: EventRow[] = sub.prints.map((r) => {
     const stageKey = r.stageKey ?? "";
-    const fil = printFilRows(r.print, ctx.stock, ctx.defaultPricePerKg, stageKey);
+    const fil = printFilRows(r.print, ctx.stock, ctx.defaultPricePerKg, stageKey, r.fator, r.marcas);
     precoPadrao += fil.precoPadrao;
     semTraducao += fil.semTraducao;
-    const printHours = (num(r.print.facts.duracaoPlanoS) * consumptionFactor(r.print)) / 3600;
-    const row = base?.get(stageKey);
+    const printHours = (num(r.print.facts.duracaoPlanoS) * r.fator) / 3600;
+    const cheia = base?.get(stageKey);
+    // 5c (modo `real`) — impressão que NÃO terminou nunca chegou à montagem: o
+    // acessório (ímã, argola) não sai da gaveta. A "concluída mas descartada"
+    // pode ter saído — essa segue o cadastro, como no registro manual. O
+    // `historico` (fase A, sem baixa) fica como o 5b gravava.
+    const row =
+      cheia && sub.mode === "real" && naoTerminou(r.print.status) ? { ...cheia, supplies: [] } : cheia;
     if (!row) {
       return {
         key: nextRowKey(),
@@ -774,13 +916,13 @@ export function costSubmission(
     return { ...scaleRow(row, fator), machineId: r.machine.id, printHours, filaments: fil.rows };
   });
 
-  const planned = planEventRows(rows, "historico", ctx.stock, ctx.supplies, ctx.machines, genId, sub.at);
+  const planned = planEventRows(rows, sub.mode, ctx.stock, ctx.supplies, ctx.machines, genId, sub.at);
 
   const herdado = rows.some((row) => row.laborCost > 0 || row.supplies.length > 0);
   const built = buildProductionPayloads(planned.built, {
     at: sub.at,
-    outcome: OUTCOME_OF[sub.destino],
-    mode: "historico",
+    outcome: sub.outcome,
+    mode: sub.mode,
     notes: herdado
       ? "mão de obra e acessórios herdados do cadastro atual do produto, não confirmados para esta impressão"
       : undefined,
@@ -802,7 +944,7 @@ export function costSubmission(
   });
 
   let finishedEntries: CostedSubmission["finishedEntries"] = null;
-  if (sub.destino === "estoque" && product && sub.unidadesCreditadas > 0) {
+  if (sub.outcome === "estoque" && product && sub.unidadesCreditadas > 0) {
     const name = product.name || product.mainStageName || "(sem nome)";
     const whole = sub.selection.kind === "whole";
     const subitems = whole ? ctx.subitemPrices(product.id) : [];
@@ -831,6 +973,51 @@ export function costSubmission(
   return { sub, planned, events, finishedEntries, precoPadrao, semTraducao };
 }
 
+// Todas as submissões, em ordem de data, com a baixa ENCADEADA entre elas (5c):
+// no modo `real` duas submissões na mesma cor deduzem do rolo já mexido pela
+// anterior — sem isto, a segunda partiria do saldo cheio e a gravação de uma
+// apagaria a baixa da outra. `colorUpdates`/`supplyUpdates` são o estado FINAL
+// de tudo que foi tocado (com a `rev` lida, para a trava da transação). No
+// `historico` não há rolo: os dois voltam vazios.
+export function costSubmissions(
+  subs: ResolvedSubmission[],
+  ctx: ImportContext,
+  fonte: string,
+  genId: () => string,
+  now: number,
+  imagesOf: (p: ImportPrint) => PrintImages | null,
+): { costed: CostedSubmission[]; colorUpdates: StockFilament[]; supplyUpdates: Supply[] } {
+  const cores = new Map(ctx.stock.map((c) => [c.id, c]));
+  const insumos = new Map(ctx.supplies.map((s) => [s.id, s]));
+  const tocadasCor = new Set<string>();
+  const tocadosInsumo = new Set<string>();
+  const ordenadas = [...subs].sort((a, b) => a.at - b.at);
+  const costed = ordenadas.map((sub) => {
+    const c = costSubmission(
+      sub,
+      { ...ctx, stock: [...cores.values()], supplies: [...insumos.values()] },
+      fonte,
+      genId,
+      now,
+      imagesOf,
+    );
+    for (const cor of c.planned.colorUpdates) {
+      cores.set(cor.id, cor);
+      tocadasCor.add(cor.id);
+    }
+    for (const insumo of c.planned.supplyUpdates) {
+      insumos.set(insumo.id, insumo);
+      tocadosInsumo.add(insumo.id);
+    }
+    return c;
+  });
+  return {
+    costed,
+    colorUpdates: [...tocadasCor].map((id) => cores.get(id)!),
+    supplyUpdates: [...tocadosInsumo].map((id) => insumos.get(id)!),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Gravação: o agrupamento em transações.
 // ---------------------------------------------------------------------------
@@ -842,24 +1029,19 @@ export type ImportBatch = {
   finished: ImportFinishedUpdate | null;
 };
 
-// Uma transação por PRODUTO com crédito (o `saveProduction` grava no máximo UM
-// acabado por vez): todos os eventos dele + o acabado com as camadas empilhadas
-// em ordem de data (FIFO), partindo do acabado VIVO. Reusa `addProductionLayers`
-// — a mesma função da tela manual. O resto (sem crédito) vai em lotes de até
-// `max` eventos, e uma submissão NUNCA se parte entre transações (o lote é a
-// unidade de exclusão).
-export function importBatches(
+// O acabado de cada produto com crédito, com as camadas empilhadas em ordem de
+// data (FIFO), partindo do acabado VIVO. Reusa `addProductionLayers` — a mesma
+// função da tela manual. Comum às duas fases.
+export function stackFinished(
   costed: CostedSubmission[],
   goods: FinishedGood[],
-  max = 300,
-): ImportBatch[] {
-  const batches: ImportBatch[] = [];
+): { productId: string; costed: CostedSubmission[]; payload: FinishedGoodPayload }[] {
   const porProduto = new Map<string, CostedSubmission[]>();
   for (const c of costed) {
     if (!c.finishedEntries || !c.sub.product) continue;
     porProduto.set(c.sub.product.id, [...(porProduto.get(c.sub.product.id) ?? []), c]);
   }
-  for (const [productId, lista] of porProduto) {
+  return [...porProduto].map(([productId, lista]) => {
     const ordenada = [...lista].sort((a, b) => a.sub.at - b.sub.at);
     const product = ordenada[0].sub.product!;
     const name = product.name || product.mainStageName || "(sem nome)";
@@ -869,11 +1051,25 @@ export function importBatches(
       payload = addProductionLayers(good, productId, name, c.finishedEntries!, c.events[0].id, c.sub.at);
       good = { ...payload, id: productId };
     }
-    batches.push({
-      events: ordenada.flatMap((c) => c.events),
-      finished: { productId, payload: payload! },
-    });
-  }
+    return { productId, costed: ordenada, payload: payload! };
+  });
+}
+
+// Fase A (`historico`, sem rolo): uma transação por PRODUTO com crédito (o
+// `saveProduction` grava no máximo UM acabado por vez) com todos os eventos
+// dele; o resto (sem crédito) em lotes de até `max` eventos, e uma submissão
+// NUNCA se parte entre transações (o lote é a unidade de exclusão). O modo
+// `real` NÃO passa por aqui: a baixa encadeada exige uma transação só
+// (`saveProductionReview`).
+export function importBatches(
+  costed: CostedSubmission[],
+  goods: FinishedGood[],
+  max = 300,
+): ImportBatch[] {
+  const batches: ImportBatch[] = stackFinished(costed, goods).map((f) => ({
+    events: f.costed.flatMap((c) => c.events),
+    finished: { productId: f.productId, payload: f.payload },
+  }));
 
   let atual: CostedSubmission["events"] = [];
   for (const c of costed) {
@@ -900,7 +1096,7 @@ export type ImportPreview = {
   rejeitadas: RejectedPrint[];
   aImportar: number; // impressões
   submissoes: number;
-  porDestino: Record<ImportDestino, number>;
+  porDestino: Record<ProductionOutcome, number>;
   porMaquina: { machineId: string; machineName: string; impressoes: number; horas: number }[];
   maquinaAproximada: number;
   comProduto: number;
@@ -922,7 +1118,13 @@ export function buildImportPreview(args: {
   costed: CostedSubmission[];
   imagensEscolhidas: Set<string>; // `${taskId}:${kind}`
 }): ImportPreview {
-  const porDestino: Record<ImportDestino, number> = { historico: 0, estoque: 0, falha: 0, teste: 0 };
+  const porDestino: Record<ProductionOutcome, number> = {
+    historico: 0,
+    estoque: 0,
+    falha: 0,
+    teste: 0,
+    brinde: 0,
+  };
   const porMaquina = new Map<string, ImportPreview["porMaquina"][number]>();
   let maquinaAproximada = 0;
   let comProduto = 0;
@@ -935,7 +1137,7 @@ export function buildImportPreview(args: {
   for (const c of args.costed) {
     c.sub.prints.forEach((r, i) => {
       aImportar += 1;
-      porDestino[c.sub.destino] += 1;
+      porDestino[c.sub.outcome] += 1;
       if (r.machineFuzzyMatched) maquinaAproximada += 1;
       if (c.sub.product) comProduto += 1;
       if (r.print.status === "cancelada") estimadas += 1;

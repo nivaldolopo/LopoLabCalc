@@ -159,7 +159,11 @@ não leu e por quê. Referência do código: `src/features/pricing-calculator/li
 - `apelido`: fato cru, `{fonte, chave, variante, plate}` sem normalizar (ou `null`).
 - `imagens`: o **nome do arquivo** ao lado do JSON (`{task_id}_capa.png`, `{task_id}_foto.jpg`),
   ou `null`. O dono seleciona os arquivos junto no site; o site casa pelo nome citado aqui.
-- `curadoria` (**só na fase A**; `null`/ausente = fase B, que espera a revisão do próximo lote):
+- **Um arquivo é de UMA fase:** todas as impressões com `curadoria` (fase A) ou todas sem (fase B —
+  o site abre a revisão linha a linha e grava com baixa de rolo). Arquivo que mistura é recusado.
+  Na fase B mandem só os fatos (`curadoria: null`); `cor_site` continua valendo (sem ela, o dono
+  escolhe a marca no site, e isso traduz a cor).
+- `curadoria` (**só na fase A**; `null`/ausente = fase B):
   - `destino`: `historico` | `estoque` | `falha` | `teste`.
   - `apelido_produto`: o MESMO apelido que foi no CSV do catálogo (`fonte` `mw` ou `arquivo`),
     ou `null` = avulso. O site só aceita apelido **exato** que já exista (importe o CSV antes).

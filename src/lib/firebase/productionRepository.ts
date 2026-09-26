@@ -20,12 +20,15 @@ import { lerEConferirRevs } from "./revGuard";
 import { serializeRolls } from "./stockRepository";
 import { serializeLots } from "./suppliesRepository";
 import { finishedGoodToDocument } from "./finishedGoodsRepository";
+import { aliasesCollection, aliasPayload } from "./printAliasesRepository";
+import { aliasDocId } from "@/features/pricing-calculator/lib/printAliases";
 import { frozenFromDocument, frozenToDocument } from "./frozenCost";
 import type {
   EventSource,
   ExternalOrigin,
   FinishedGoodPayload,
   NumbersSource,
+  PrintAliasDraft,
   PrintFactAlias,
   PrintFactFilament,
   PrintFacts,
@@ -540,6 +543,57 @@ export async function saveProduction(
   await withWriteTimeout(gravacao);
 }
 
+// 5c (S7) — a revisão do modo `real` grava TUDO numa transação: os eventos, o
+// estado final dos rolos e insumos (a baixa ENCADEADA entre as impressões só é
+// verdade se for gravada de uma vez — duas transações bateriam na `rev` uma da
+// outra), um acabado por produto creditado e os apelidos aprendidos. Tudo ou
+// nada. Apelido que outra aba gravou nesse meio-tempo NÃO é sobrescrito (é
+// lido antes e pulado): a ligação que já existe vale.
+export const REVIEW_WRITE_LIMIT = 450;
+
+export async function saveProductionReview(
+  events: { id: string; payload: ProductionPayload }[],
+  colorUpdates: StockFilament[],
+  supplyUpdates: Supply[],
+  finished: FinishedUpdate[],
+  aliases: { productId: string; alias: PrintAliasDraft }[],
+): Promise<void> {
+  const escritas =
+    events.length + colorUpdates.length + supplyUpdates.length + finished.length + aliases.length;
+  if (escritas > REVIEW_WRITE_LIMIT) {
+    throw new Error(
+      `A revisão gravaria ${escritas} documentos de uma vez (limite ${REVIEW_WRITE_LIMIT}). ` +
+        "Desmarque parte das impressões, grave, e importe o mesmo arquivo de novo para o resto.",
+    );
+  }
+  const gravacao = runTransaction(db, async (tx) => {
+    const escrever = await escreverEstoqueNaTransacao(tx, colorUpdates, supplyUpdates, finished);
+    const aliasRefs = aliases.map((a) => ({ ...a, ref: doc(aliasesCollection, aliasDocId(a.alias)) }));
+    const lidos = await Promise.all(aliasRefs.map(({ ref }) => tx.get(ref)));
+    for (const { id, payload } of events) {
+      tx.set(doc(productionCollection, id), productionToDocument(payload));
+    }
+    const agora = Date.now();
+    aliasRefs.forEach(({ ref, alias, productId }, i) => {
+      if (!lidos[i].exists()) tx.set(ref, aliasPayload(alias, productId, agora));
+    });
+    escrever();
+  });
+  await withWriteTimeout(gravacao);
+}
+
+// 5c — os eventos de um período (o "já registrado?" da revisão). Range só no
+// `at`, sem índice composto.
+export async function fetchProductionInPeriod(
+  start: number,
+  end: number,
+): Promise<ProductionEvent[]> {
+  const snap = await getDocs(
+    query(productionCollection, ...periodConstraints({ start, end })),
+  );
+  return snap.docs.map((item) => toProduction(item.id, item.data()));
+}
+
 // A leitura+conferência e a escrita da trinca (cores, insumos, acabado), que é
 // idêntica na criação e na exclusão do evento. Devolve a função que ESCREVE, e
 // não escreve sozinha, porque a transação exige toda leitura antes de qualquer
@@ -548,8 +602,12 @@ async function escreverEstoqueNaTransacao(
   tx: Parameters<Parameters<typeof runTransaction>[1]>[0],
   colorUpdates: StockFilament[],
   supplyUpdates: Supply[],
-  finished?: FinishedUpdate | null,
+  finished?: FinishedUpdate | FinishedUpdate[] | null,
 ): Promise<() => void> {
+  // 5c — a revisão grava N acabados (um por produto) na mesma transação.
+  const acabados = (Array.isArray(finished) ? finished : finished ? [finished] : []).map(
+    (f) => ({ f, ref: doc(db, "acabados", f.productId) }),
+  );
   const cores = colorUpdates.map((color) => ({
     color,
     ref: doc(db, "estoque", color.id),
@@ -558,9 +616,6 @@ async function escreverEstoqueNaTransacao(
     supply,
     ref: doc(db, "insumos", supply.id),
   }));
-  const acabadoRef = finished
-    ? doc(db, "acabados", finished.productId)
-    : null;
 
   const revs = await lerEConferirRevs(tx, [
     ...cores.map(({ color, ref }) => ({
@@ -573,16 +628,12 @@ async function escreverEstoqueNaTransacao(
       esperado: supply.rev ?? 0,
       nome: `O insumo "${supply.name}"`,
     })),
-    ...(finished && acabadoRef
-      ? [
-          {
-            ref: acabadoRef,
-            esperado: finished.payload.rev ?? 0,
-            nome: `As peças prontas de "${finished.payload.productName ?? finished.productId}"`,
-            podeNaoExistir: true,
-          },
-        ]
-      : []),
+    ...acabados.map(({ f, ref }) => ({
+      ref,
+      esperado: f.payload.rev ?? 0,
+      nome: `As peças prontas de "${f.payload.productName ?? f.productId}"`,
+      podeNaoExistir: true,
+    })),
   ]);
 
   return () => {
@@ -600,12 +651,12 @@ async function escreverEstoqueNaTransacao(
         rev: revs[cores.length + i] + 1,
       });
     });
-    if (finished && acabadoRef) {
-      tx.set(acabadoRef, {
-        ...finishedGoodToDocument(finished.payload),
-        rev: revs[cores.length + insumos.length] + 1,
+    acabados.forEach(({ f, ref }, i) => {
+      tx.set(ref, {
+        ...finishedGoodToDocument(f.payload),
+        rev: revs[cores.length + insumos.length + i] + 1,
       });
-    }
+    });
   };
 }
 

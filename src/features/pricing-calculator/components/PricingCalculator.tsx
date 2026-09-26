@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { errorMessage, guardOnline } from "@/lib/errors";
 import { DEFAULT_FIXED_COSTS } from "../constants";
 import type {
   CapacitySettings,
   FixedCostSettings,
+  PrintAliasDraft,
   ProductPayload,
   SavedProduct,
 } from "../types";
@@ -23,6 +24,10 @@ import { calculatePricing } from "../lib/calculatePricing";
 import { calculateCapacity } from "../lib/calculateCapacity";
 import { buildProductPayload } from "../lib/productPayload";
 import { validateProduct } from "../lib/validateProduct";
+import {
+  parseProductDraft,
+  productDraftStorageKey,
+} from "../lib/productionReview";
 import { FixedCostsPanel } from "./FixedCostsPanel";
 import { Header } from "./Header";
 import { MobilePriceBar } from "./MobilePriceBar";
@@ -35,6 +40,10 @@ import {
   saleContextFromResult,
   type SaleModalContext,
 } from "../lib/saleContext";
+
+// `useSyncExternalStore` sem loja: só distingue servidor/hidratação (false) de
+// navegador (true).
+const semAssinatura = () => () => {};
 
 export function PricingCalculator() {
   const { theme, toggleTheme } = useTheme();
@@ -161,6 +170,7 @@ export function PricingCalculator() {
   function resetFormKeepingFixedCosts() {
     setSaveError(null);
     setMachinesTouched(false);
+    setFromPrint(null);
     form.resetForm(allMachineIds);
     form.updateProduct({
       includeFixed: fixedCosts.enabled,
@@ -243,7 +253,7 @@ export function PricingCalculator() {
           form.editingProductRev,
         );
       } else {
-        await productsApi.addProduct(buildPayload(true));
+        await productsApi.addProduct(buildPayload(true), fromPrint?.aliases ?? []);
       }
     } catch (err) {
       // O formulário NÃO é limpo aqui: o `withWriteTimeout` desiste da espera,
@@ -273,7 +283,12 @@ export function PricingCalculator() {
     // rejeição não tratada no console, e o dono via só o botão parado.
     setSaving(true);
     try {
-      await productsApi.addProduct(buildPayload(true));
+      // O apelido da impressão vai só com o PRIMEIRO produto criado dela (o
+      // "salvar como novo" de um produto já salvo não o herda — S3).
+      await productsApi.addProduct(
+        buildPayload(true),
+        form.editingProductId ? [] : (fromPrint?.aliases ?? []),
+      );
     } catch (err) {
       setSaveError(errorMessage(err));
       return;
@@ -312,6 +327,54 @@ export function PricingCalculator() {
   useEffect(() => {
     if (handledLoad) window.history.replaceState(null, "", "/");
   }, [handledLoad]);
+
+  // S7 — "criar produto a partir desta impressão" (revisão da /producao, em
+  // outra aba) manda pra cá com `?daImpressao=<task_id>` e o rascunho no
+  // `localStorage` do aparelho. O formulário NORMAL abre preenchido com os
+  // fatos; o apelido da impressão nasce junto com o produto (mesma transação do
+  // código). Mesmo padrão do `?load=`: ajuste durante o render, uma vez por id.
+  const draftTaskId = searchParams.get("daImpressao");
+  const [handledDraft, setHandledDraft] = useState<string | null>(null);
+  const [fromPrint, setFromPrint] = useState<{
+    taskId: string;
+    aliases: PrintAliasDraft[];
+  } | null>(null);
+  // Só no NAVEGADOR: na renderização do servidor (e na hidratação) não há
+  // `localStorage`, e marcar o id como tratado ali perdia o rascunho.
+  const noNavegador = useSyncExternalStore(
+    semAssinatura,
+    () => true,
+    () => false,
+  );
+  if (draftTaskId && handledDraft !== draftTaskId && noNavegador) {
+    setHandledDraft(draftTaskId);
+    let raw: string | null = null;
+    try {
+      raw = window.localStorage.getItem(productDraftStorageKey(draftTaskId));
+    } catch {
+      raw = null;
+    }
+    const draft = parseProductDraft(raw, draftTaskId);
+    if (draft) {
+      setSaveError(null);
+      form.resetForm(allMachineIds);
+      form.updateProduct({ ...draft.product, includeFixed: fixedCosts.enabled });
+      // A máquina da impressão É a escolha: a frota viva não a sobrescreve.
+      if (draft.product.machineIds) setMachinesTouched(true);
+      setFromPrint({ taskId: draft.taskId, aliases: draft.aliases });
+    }
+  }
+  // Limpar é EFEITO, não render: o modo estrito renderiza duas vezes e descarta
+  // uma — apagar o rascunho no render o perdia antes de a tela usá-lo.
+  useEffect(() => {
+    if (!handledDraft) return;
+    window.history.replaceState(null, "", "/");
+    try {
+      window.localStorage.removeItem(productDraftStorageKey(handledDraft));
+    } catch {
+      // Sem armazenamento, não há o que limpar.
+    }
+  }, [handledDraft]);
 
   // [FROTA] Fase 2 — máquina REMOVIDA some do conjunto do produto e de cada
   // etapa; o que sobra continua valendo. Sem isto o escalar cairia no fallback
@@ -379,7 +442,8 @@ export function PricingCalculator() {
         form.setEditingProductRev(rev);
         return form.editingProductId;
       }
-      const newId = await productsApi.addProduct(buildPayload(true));
+      const newId = await productsApi.addProduct(buildPayload(true), fromPrint?.aliases ?? []);
+      setFromPrint(null);
       form.setEditingProductId(newId);
       form.setEditingProductRev(1);
       return newId;
@@ -429,6 +493,16 @@ export function PricingCalculator() {
       {aliasesApi.error ? (
         <div className="app-error">
           Apelidos de impressão indisponíveis: {aliasesApi.error}
+        </div>
+      ) : null}
+
+      {fromPrint && !form.editingProductId ? (
+        <div className="from-print-note" role="status">
+          Produto a partir da impressão <strong>{fromPrint.taskId}</strong> — confira peso, tempo
+          e cores, complete mão de obra, markup e acessórios.
+          {fromPrint.aliases.length > 0
+            ? " O apelido da impressão é gravado junto; depois de salvar, volte à revisão: a linha se preenche sozinha."
+            : " Depois de salvar, volte à revisão e escolha o produto na linha."}
         </div>
       ) : null}
 

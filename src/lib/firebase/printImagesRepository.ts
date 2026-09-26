@@ -29,6 +29,29 @@ export async function uploadPrintImage(
   return path;
 }
 
+// As imagens escolhidas de um lote (S6 e S7): poucas de cada vez — são arquivos
+// de ~20 KB, e o limite é o navegador, não a banda. Devolve o conjunto
+// `${taskId}:${kind}` do que SUBIU (é ele que decide as `imagens` do evento: o
+// evento nunca aponta pra imagem que não existe). Falha de uma = rejeita.
+export async function uploadPrintImages(
+  tarefas: { taskId: string; kind: PrintImageKind; file: Blob }[],
+  onProgress: (feitas: number, total: number) => void,
+  paralelo = 6,
+): Promise<Set<string>> {
+  const subiram = new Set<string>();
+  let i = 0;
+  const workers = Array.from({ length: Math.min(paralelo, tarefas.length) }, async () => {
+    while (i < tarefas.length) {
+      const t = tarefas[i++];
+      await uploadPrintImage(t.taskId, t.kind, t.file);
+      subiram.add(`${t.taskId}:${t.kind}`);
+      onProgress(subiram.size, tarefas.length);
+    }
+  });
+  await Promise.all(workers);
+  return subiram;
+}
+
 // A URL para `<img src>` a partir do caminho gravado no evento.
 export function printImageUrl(path: string): Promise<string> {
   return getDownloadURL(ref(storage, path));

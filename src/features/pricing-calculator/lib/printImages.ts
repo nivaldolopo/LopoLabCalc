@@ -46,3 +46,21 @@ export function eventImages(
     foto: has.foto ? printImagePath(taskId, "foto") : null,
   };
 }
+
+// O que subir: a imagem que o arquivo CITA para cada impressão, entre as
+// escolhidas pelo dono (pelo NOME do arquivo — nunca por convenção de nome: o
+// que o JSON diz é o que vale). Comum ao import (S6) e à revisão (S7).
+export function imageTasks<F>(
+  prints: { taskId: string; imagens: { capa: string | null; foto: string | null } }[],
+  escolhidas: Map<string, F>,
+): { taskId: string; kind: PrintImageKind; file: F }[] {
+  const out: { taskId: string; kind: PrintImageKind; file: F }[] = [];
+  for (const p of prints) {
+    for (const kind of ["capa", "foto"] as PrintImageKind[]) {
+      const nome = p.imagens[kind];
+      const file = nome ? escolhidas.get(nome) : undefined;
+      if (file) out.push({ taskId: p.taskId, kind, file });
+    }
+  }
+  return out;
+}

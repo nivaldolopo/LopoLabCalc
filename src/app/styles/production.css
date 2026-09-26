@@ -324,3 +324,133 @@
     justify-content: space-between;
   }
 }
+
+/* S7 (lote 5c) — a revisão do modo `real`. O modal é mais largo que os outros
+   (cartões de impressão com 4–6 campos); no celular os campos empilham e o
+   cartão vira coluna (UX-38: fileira que não cabe vira cartão, não rolagem). */
+.modal-box.import-review-modal {
+  max-width: 960px;
+}
+
+.review-list,
+.review-brands {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  margin-bottom: var(--space-16);
+}
+
+.review-card,
+.review-brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-12);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+/* Desmarcada: só o cabeçalho, apagado — ela continua ali pra ser remarcada. */
+.review-card.is-off {
+  opacity: 0.6;
+}
+
+.review-card-head,
+.review-brand-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-12);
+}
+
+.review-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+  min-height: 32px;
+}
+
+.review-title,
+.review-brand-name {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  gap: var(--space-10) var(--space-12);
+}
+
+.review-grid .field-block {
+  min-width: 0;
+}
+
+.review-fils {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.review-fil,
+.review-split,
+.review-brand-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6) var(--space-8);
+}
+
+.review-split .field-input {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 120px;
+}
+
+.review-brand-switch .field-input {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.review-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.review-problem {
+  margin: 0;
+  padding: var(--space-6) var(--space-10);
+  border-radius: var(--radius-md);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* A calculadora aberta por "criar produto a partir desta impressão". */
+.from-print-note {
+  margin-bottom: var(--space-14);
+  padding: var(--space-10) var(--space-14);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+  font-size: var(--text-sm);
+}
+
+/* UX-28: no dedo o alvo do "marcar" é de 44px. */
+@media (max-width: 760px) {
+  .review-check {
+    min-height: 44px;
+  }
+}

@@ -7,10 +7,11 @@ import { formatDecimal } from "@/lib/formatting/currency";
 import { formatDate } from "@/lib/formatting/date";
 import {
   fetchImportedExternalIds,
+  fetchProductionInPeriod,
   newProductionId,
   saveProduction,
 } from "@/lib/firebase/productionRepository";
-import { uploadPrintImage } from "@/lib/firebase/printImagesRepository";
+import { uploadPrintImages } from "@/lib/firebase/printImagesRepository";
 import {
   buildImportPreview,
   costSubmission,
@@ -19,21 +20,25 @@ import {
   parseImportFile,
   resolveSubmissions,
   type ImportContext,
+  type ImportDiscard,
   type ImportPreview,
   type ImportPrint,
   type RejectReason,
   type ResolvedSubmission,
 } from "../lib/productionImport";
-import { eventImages, type PrintImageKind } from "../lib/printImages";
+import { eventImages, imageTasks, type PrintImageKind } from "../lib/printImages";
+import { initialRows, type ReviewRow } from "../lib/productionReview";
 import { usePrintAliases } from "../hooks/usePrintAliases";
 import type {
   FinishedGood,
   Machine,
   PricingResult,
+  ProductionEvent,
   SavedProduct,
   StockFilament,
   Supply,
 } from "../types";
+import { ImportReviewModal } from "./ImportReviewModal";
 import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
 
@@ -70,12 +75,24 @@ type Step =
       fonte: string;
       defaultPricePerKg: number;
     }
+  // 5c — arquivo SEM curadoria (fase B): a revisão linha a linha, modo `real`.
+  | {
+      kind: "review";
+      prints: ImportPrint[];
+      fonte: string;
+      manual: ProductionEvent[];
+      rows: ReviewRow[];
+      descartadas: ImportDiscard[];
+      jaImportadas: number;
+      duplicadasNoArquivo: number;
+      defaultPricePerKg: number;
+    }
   | { kind: "imagens"; total: number; feitas: number }
   | { kind: "gravando"; total: number; feitos: number }
   | { kind: "erro"; mensagem: string };
 
 const REASON_LABEL: Record<RejectReason, string> = {
-  "sem-curadoria": "sem curadoria (dia a dia — revisão no próximo lote)",
+  "sem-curadoria": "sem curadoria (dia a dia — vai pela revisão)",
   "maquina-nao-reconhecida": "máquina não reconhecida",
   "apelido-desconhecido": "apelido fora do catálogo",
   "submissao-incoerente": "submissão incoerente",
@@ -85,16 +102,6 @@ const REASON_LABEL: Record<RejectReason, string> = {
   "estoque-nao-forma-produto": '"estoque" que não forma o produto nem uma parte',
   "cor-sem-traducao": '"estoque" com cor sem tradução pro site',
 };
-
-// Poucas de cada vez: são arquivos de ~20 KB, e o limite é o navegador, não a
-// banda.
-async function emParalelo<T>(itens: T[], n: number, fn: (item: T) => Promise<void>) {
-  let i = 0;
-  const workers = Array.from({ length: Math.min(n, itens.length) }, async () => {
-    while (i < itens.length) await fn(itens[i++]);
-  });
-  await Promise.all(workers);
-}
 
 export function ImportProductionModal({
   machines,
@@ -170,6 +177,42 @@ export function ImportProductionModal({
       // E a de DENTRO do arquivo.
       const { unicas, duplicadasNoArquivo } = dedupeByTaskId(parsed.file.impressoes);
       const ctx = contexto(defaultPricePerKg);
+
+      // Um arquivo é de UMA fase: com curadoria (A, `historico`) ou sem (B,
+      // revisão no modo `real`). Misturar seria gravar metade sem rolo e metade
+      // com — o pipeline exporta as duas separadas.
+      const semCuradoria = unicas.filter((p) => !p.curadoria).length;
+      if (semCuradoria > 0 && semCuradoria < unicas.length) {
+        setStep({
+          kind: "erro",
+          mensagem:
+            `O arquivo mistura ${unicas.length - semCuradoria} impressão(ões) com curadoria (carga, fase A) ` +
+            `e ${semCuradoria} sem (dia a dia, fase B). Exporte as duas separadas.`,
+        });
+        return;
+      }
+      if (unicas.length > 0 && semCuradoria === unicas.length) {
+        const novas = unicas.filter((p) => !jaImportados.has(p.taskId));
+        const ats = novas.map((p) => p.at);
+        const DIA = 24 * 3600 * 1000;
+        // "Já registrado?" compara com o que foi lançado à mão no mesmo dia.
+        const manual =
+          novas.length > 0
+            ? await fetchProductionInPeriod(Math.min(...ats) - DIA, Math.max(...ats) + DIA)
+            : [];
+        setStep({
+          kind: "review",
+          prints: [...novas].sort((a, b) => a.at - b.at),
+          fonte: parsed.file.fonte,
+          manual,
+          rows: initialRows([...novas].sort((a, b) => a.at - b.at), ctx, manual),
+          descartadas: parsed.descartadas,
+          jaImportadas: unicas.length - novas.length,
+          duplicadasNoArquivo,
+          defaultPricePerKg,
+        });
+        return;
+      }
       const { submissions, rejected } = resolveSubmissions(unicas, ctx, jaImportados);
       const now = Date.now();
       // Custo pra prévia (ids provisórios; a gravação recalcula com os finais e
@@ -215,24 +258,14 @@ export function ImportProductionModal({
       guardOnline();
 
       // 1) Imagens: sobem as escolhidas que o arquivo cita.
-      const tarefas: { print: ImportPrint; kind: PrintImageKind; file: File }[] = [];
-      for (const sub of submissions) {
-        for (const { print } of sub.prints) {
-          for (const kind of ["capa", "foto"] as PrintImageKind[]) {
-            const file = imagemDe(print, kind);
-            if (file) tarefas.push({ print, kind, file });
-          }
-        }
-      }
-      const existe = new Set<string>();
-      let feitas = 0;
-      setStep({ kind: "imagens", total: tarefas.length, feitas });
-      await emParalelo(tarefas, 6, async ({ print, kind, file }) => {
-        await uploadPrintImage(print.taskId, kind, file);
-        existe.add(`${print.taskId}:${kind}`);
-        feitas += 1;
-        setStep({ kind: "imagens", total: tarefas.length, feitas });
-      });
+      const tarefas = imageTasks(
+        submissions.flatMap((sub) => sub.prints.map((r) => r.print)),
+        imagens,
+      );
+      setStep({ kind: "imagens", total: tarefas.length, feitas: 0 });
+      const existe = await uploadPrintImages(tarefas, (feitas, total) =>
+        setStep({ kind: "imagens", total, feitas }),
+      );
 
       // 2) Custo final, com ids reais e as imagens que existem.
       const ctx = contexto(preco);
@@ -272,10 +305,37 @@ export function ImportProductionModal({
 
   const editando = step.kind === "input" || step.kind === "analisando";
 
+  if (step.kind === "review") {
+    return (
+      <ImportReviewModal
+        prints={step.prints}
+        fonte={step.fonte}
+        manual={step.manual}
+        descartadas={step.descartadas}
+        jaImportadas={step.jaImportadas}
+        duplicadasNoArquivo={step.duplicadasNoArquivo}
+        imagens={imagens}
+        defaultPricePerKg={step.defaultPricePerKg}
+        machines={machines}
+        products={products}
+        aliases={aliases}
+        stock={stock}
+        supplies={supplies}
+        energyTariff={energyTariff}
+        goods={goods}
+        pricingByProduct={pricingByProduct}
+        initialRows={step.rows}
+        onBack={() => setStep({ kind: "input" })}
+        onClose={onClose}
+        onImported={onImported}
+      />
+    );
+  }
+
   return (
     <Modal
       title="Importar impressões"
-      sub="Arquivo de produção exportado pelo pipeline (com as imagens ao lado). Cada impressão vira um evento — reimportar o mesmo arquivo não duplica."
+      sub="Arquivo de produção exportado pelo pipeline (com as imagens ao lado). Com curadoria (carga) entra como histórico; sem curadoria (dia a dia) abre a revisão linha a linha. Reimportar o mesmo arquivo não duplica."
       onClose={onClose}
       footer={
         editando ? (

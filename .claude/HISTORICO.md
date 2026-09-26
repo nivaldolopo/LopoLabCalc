@@ -9,6 +9,61 @@
 > [`.claude/BACKLOG.md`](BACKLOG.md) (a-fazer, curto). E a foto do AGORA vive no `CLAUDE.md`.
 > Referências a "item 3", "FEAT-04", etc. resolvem dentro deste arquivo.
 
+## ✅ Lote 5c da frente 3a — S7: a revisão do modo `real` (2026-09-25)
+
+O "Importar impressões" da `/producao` agora tem as duas fases: arquivo **com** `curadoria` → o
+histórico do 5b; **sem** `curadoria` (fase B, o dia a dia) → a **revisão linha a linha**
+(`ImportReviewModal`), que grava no modo `real`, com baixa de rolo. Arquivo que mistura as duas é
+recusado (seria metade sem rolo, metade com). Testes: 1129 → 1153 (`productionReview.test.ts`).
+
+- **O mesmo caminho da fase A, refatorado pra ser um só:** a curadoria (A) e a revisão (B) montam
+  as mesmas `DecidedPrint` (produto, etapa, desfecho, modo, unidades, grupo, fator, marcas) e passam
+  pelo mesmo `assembleSubmission` (coerência do grupo, etapa repetida, whole/subitem/partial, as
+  recusas de peça pronta) e pelo `costSubmissions`. `ResolvedSubmission` trocou `destino` por
+  `outcome` + `mode`; a prévia do 5b conta por `outcome` (ganhou `brinde`).
+- **A baixa é ENCADEADA entre impressões** (`costSubmissions`): a 2ª parte do rolo já mexido pela 1ª,
+  e o estado final de cada cor/insumo é gravado UMA vez. Por isso a revisão grava tudo numa
+  transação só (`saveProductionReview`: eventos + rolos + insumos + N acabados + apelidos, teto de
+  450 escritas com a frase de "desmarque parte"). O 5b continua em lotes (sem rolo, sem trava).
+- **Cada linha decide** (tudo calculado de `ReviewRow` + tabela; `null` = sugestão do site): produto
+  + etapa (só o apelido EXATO preenche — o código `LL-…` no título entra como sugestão; linha
+  "automática" se preenche sozinha quando o apelido nasce noutra aba) · desfecho (concluída → peça
+  pronta; cancelada/falha → falha; avulso só teste/brinde/falha) · unidades feitas (objetos ÷
+  objetos por unidade do apelido) e as que vão pra prateleira · consumo % do plano (só não
+  concluída) · submissão (automático junta as mesas de etapas diferentes do mesmo produto até
+  formar o conjunto; "sozinha"; "junto com X", que segue a corrente).
+- **Tabela máquina × cor → marca:** palpite = a marca do cadastro do produto, senão a com mais
+  saldo; sem tradução de cor não há palpite (escolher a marca É traduzir). "A partir de uma
+  impressão, outra marca" (troca no tempo, por máquina) e, por impressão, "dividir entre marcas" (X g
+  de outra da mesma cor + material; o resto da tabela — sem marca na tabela não divide). Sem marca =
+  só custo, sem baixa (o resumo diz quantos gramas).
+- **"Já registrado?"** = evento MANUAL, mesma máquina, mesmo dia, mesmo produto quando os dois têm →
+  vem desmarcada, com o nome do evento. A busca é `fetchProductionInPeriod` (range só no `at`).
+- **Aprende o apelido** (S3): produto escolhido à mão + apelido nos fatos que não existe →
+  `objetosPorUnidade = objetos ÷ unidades`, gravado na mesma transação; apelido já existente não é
+  sobrescrito.
+- **Cancelada no modo `real` não baixa acessório** (não chegou à montagem); a "concluída mas
+  descartada" segue o cadastro. O `historico` ficou como no 5b.
+- **"Criar produto a partir desta impressão"** abre a calculadora em outra aba com
+  `?daImpressao=<task_id>` e o rascunho no `localStorage` (uma chave por impressão): nome sem o
+  código, horas do plano, cores somadas, peças = objetos, a máquina, Link Modelo do MakerWorld; o
+  apelido nasce na transação que gera o código (`createProduct(payload, aliases)`), sem os que já
+  têm dono. ⚠ **Duas armadilhas medidas no navegador:** ler o rascunho no RENDER exige saber que se
+  está no navegador (`useSyncExternalStore` — no servidor não há `localStorage`), e APAGAR o
+  rascunho tem que ser no efeito: o modo estrito renderiza duas vezes e descarta uma, e a remoção
+  no render perdia o rascunho antes de a tela usá-lo.
+- **`/code-review --high`: 10 achados, os 10 corrigidos** — corrente do "junto com", dividir sem
+  marca virava a linha inteira, apelido em uso travava a criação, chave única do rascunho, alvo de
+  44px, upload de imagens compartilhado (`uploadPrintImages` + `imageTasks`), rótulo de linha
+  único, cache da busca por catálogo, tabela viva numa função só (`fillBrandTable`) e o acessório
+  da cancelada restrito ao `real`.
+- **Verificado no navegador (banco de TESTE):** arquivo de 2 → revisão com a tabela (X2D Preto sem
+  candidata; #FFFFFF → Bege traduz); gravou peça pronta (4) + falha estimada (40 g → **10 g** com
+  baixa do Bege, 0,25 h); reimportar = "1 já importada"; a impressão nova com o mesmo arquivo
+  (`ZZ_teste_5c.gcode.3mf`) veio preenchida **pelo apelido aprendido**; a calculadora abriu
+  preenchida pelo rascunho. Tudo apagado depois (eventos estornados, apelido removido). ⚠ O painel
+  embutido em segundo plano NÃO hidrata a página — "não aplicou" pode ser só isso.
+
 ## ✅ Lote 5b da frente 3a — S6: o import de impressões, modo `historico` + formato v1 (2026-09-25)
 
 O "Importar histórico" da `/producao` virou **"Importar impressões"** e foi reescrito: um formato,

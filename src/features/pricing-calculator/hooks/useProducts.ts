@@ -13,6 +13,7 @@ import { cloudStatusOf } from "@/lib/cloudStatus";
 import type {
   CloudStatus,
   NewProductRow,
+  PrintAliasDraft,
   ProductPayload,
   SavedProduct,
 } from "../types";
@@ -40,8 +41,11 @@ export function useProducts() {
   }, []);
 
   // Repassa o id do produto criado (UX-11: salvar e já vender/produzir/orçar).
-  async function addProduct(payload: ProductPayload): Promise<string> {
-    return createProduct(payload);
+  async function addProduct(
+    payload: ProductPayload,
+    aliases: PrintAliasDraft[] = [],
+  ): Promise<string> {
+    return createProduct(payload, aliases);
   }
 
   // TD-022: devolve a versão NOVA do documento. Quem continua editando o mesmo

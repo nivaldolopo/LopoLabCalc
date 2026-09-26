@@ -6,7 +6,7 @@
 > do AGORA fica no `CLAUDE.md`.
 >
 > **Estado em 2026-09-25: frentes 1 (designer) e 2 (Configurações) fechadas; a frente 3a (dados da
-> impressora) anda por lotes — ✅ lotes 1–4, 5a e 5b, próximo = lote 5c (S7: revisão do modo real)**, na
+> impressora) anda por lotes — ✅ lotes 1–4, 5a, 5b e 5c, próximo = lote 6 (S12 + S13, depois W8–W10)**, na
 > tabela "Ordem de execução do código" da seção 3a. Depois vem a fase A e o marco (frente 3). O plano
 > de frentes nasceu em 2026-09-15, com a logo pronta — ela destrava a metade da [FEAT-03] que
 > esperava marca, o [branding/rebrand] e o [DEC-05]. Antes disso: [FEAT-12] (2026-09-09), [TD-033],
@@ -34,7 +34,7 @@
 | 1 | ✅ **Designer: pedido do PDF + checklist da marca** | conversa, sem código | os dois no Drive |
 | 2 | ✅ **Aba de Configurações** | desenho → código (2 chats se crescer) | tudo de config num lugar |
 | 3 | **Checklist + uso real** | checklist → limpeza do dado de teste | site pronto pro cadastro de verdade |
-| 3a | **Dados da impressora** (2026-09-23) | código S7, S12, S13 + pipeline → fase A (S1–S6, S11 ✅) | tudo antes do marco |
+| 3a | **Dados da impressora** (2026-09-23) | código S12, S13 + pipeline → fase A (S1–S7, S11 ✅) | tudo antes do marco |
 | 3c | **Varredura geral** (2026-09-23) | W8–W10 (código) | antes do marco |
 | — | **Airtable (LopoLabCalc)** | encaixe na base do outro agente | backlog aberto espelhado como Kanban |
 | — | **Drive (LopoLabCalc)** | organização da pasta do projeto | só o que é do projeto, sem código |
@@ -199,24 +199,11 @@ código, a coluna que saiu do CSV) no `HISTORICO.md`.
 - ✅ **S2 · Código do produto** e ✅ **S3 · Apelidos** — lote 4 (2026-09-24), writeup no
   `HISTORICO.md`. ⚠ Ao codar o **S12**: "salvar como novo" já nasce sem apelidos (coleção própria);
   o `conferidoEm` novo precisa ser apagado no `buildProductPayload` do mesmo jeito que o `codigo`.
-  A busca em camadas (`lookupPrintAlias`) está pronta e sem tela — o consumidor é o S7.
 - ✅ **S4 · Evento de produção** e ✅ **S5 · Storage** — lote 5a (2026-09-25), writeup no
   `HISTORICO.md`. O evento já tem `origemExterna`/`fonteDosNumeros`/unidades/`imagens`/`impressao`
   e o Storage (`printImagesRepository`) está pronto e SEM tela — os consumidores são o S6 e o S7.
-- ✅ **S6 · Import de impressões, modo `historico` + formato v1** — lote 5b (2026-09-25), writeup
-  no `HISTORICO.md`. Impressão SEM `curadoria` (fase B) sai com o motivo `sem-curadoria`: o modo
-  `real` é o S7. Pro S7 reusar: `parseImportFile`, `printFilRows`, `consumptionFactor`,
-  `costSubmission` (hoje fixo em `mode: "historico"`) e `importBatches`.
-- **Decisões do dono p/ S6/S7 (2026-09-25):** produto de várias mesas vendido INTEIRO → as linhas
-  do mesmo produto se **juntam numa submissão** (credita o que as etapas juntas formam; etapa
-  sozinha = custo + hora, sem crédito) · "já registrado?" = mesma máquina + mesmo dia + mesmo
-  produto quando os dois têm · tabela de marcas **não** é guardada entre importações (palpite:
-  marca do cadastro ou a com saldo).
-- **S7 · Revisão do modo `real`, linha a linha** (o arquivo é o MESMO v1, sem `curadoria`): produto+etapa · unidades (sempre editáveis) ·
-  desfecho (cancelada → falha com consumo ≈ estimado `plano × min(1, relógio ÷ plano)`, editável) ·
-  **tabela máquina × cor+material → marca** com "a partir desta impressão, marca B" e "dividir entre
-  marcas" · **"já registrado?"** (máquina + horário batendo com evento manual → desmarcada) ·
-  **"criar produto a partir desta impressão"** (formulário normal preenchido; gera código e apelido).
+- ✅ **S6 · Import de impressões, modo `historico` + formato v1** — lote 5b (2026-09-25) e ✅ **S7 ·
+  Revisão do modo `real`** — lote 5c (2026-09-25), writeups no `HISTORICO.md`.
 - **S12 · "Conferido" + pendências no `/catalogo`.** `conferidoEm` no produto; pendências
   calculadas (sem mão de obra, acessório não ligado, cor fora do Estoque, sem máquina, sem código, e
   **"real diverge > X% do cadastro depois da conferência"**, no mesmo tamanho de mesa). ⚠ **X% ainda
@@ -244,7 +231,7 @@ a fase A: corrigir o `repetitions`, o formato de export definitivo e a contagem 
 | 4 | ✅ Código + apelidos (2026-09-24) | S2 + S3 + colunas do CSV | fechado — writeup no `HISTORICO.md` |
 | 5a | ✅ Evento + Storage (2026-09-25) | W7 + S4 + S5 | fechado — writeup no `HISTORICO.md` |
 | 5b | ✅ Import + formato (2026-09-25) | S6 (modo `historico` + formato v1) | fechado — seção 3 do pedido fechada |
-| 5c | Revisão (chat novo) | S7 (modo `real`) | a maior tela do lote |
+| 5c | ✅ Revisão (2026-09-25) | S7 (modo `real`) | fechado — writeup no `HISTORICO.md` |
 | 6 | Fechamento | S12 + S13, depois W8–W10 | S12 pede o X% do dono |
 | — | Depois do marco, se quiser | S8 · S9 · S10 | só leem/mostram |
 

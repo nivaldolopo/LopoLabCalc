@@ -572,7 +572,7 @@ describe("buildImportPreview", () => {
       imagensEscolhidas: new Set(["e:capa"]),
     });
     expect(preview.aImportar).toBe(2);
-    expect(preview.porDestino).toEqual({ historico: 0, estoque: 1, falha: 1, teste: 0 });
+    expect(preview.porDestino).toEqual({ historico: 0, estoque: 1, falha: 1, teste: 0, brinde: 0 });
     expect(preview.estimadas).toBe(1);
     expect(preview.unidadesCreditadas).toBe(4);
     expect(preview.imagens).toEqual({ citadas: 2, escolhidas: 1 });

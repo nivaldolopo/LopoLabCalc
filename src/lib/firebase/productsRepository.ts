@@ -14,6 +14,7 @@ import { COM_METADATA, type SnapshotOrigin } from "@/lib/cloudStatus";
 import { BATCH_TIMEOUT_SECONDS, withWriteTimeout } from "@/lib/errors";
 import type {
   NewProductRow,
+  PrintAliasDraft,
   ProductPayload,
   SavedProduct,
 } from "@/features/pricing-calculator/types";
@@ -183,9 +184,14 @@ async function createProductsTx(rows: NewProductRow[]): Promise<string[]> {
 // Devolve o id do documento criado: o UX-11 ("salvar e vender/produzir/orçar"
 // num clique) precisa dele imediatamente para semear a venda ou a rota, sem
 // esperar o produto voltar pela assinatura.
-export async function createProduct(payload: ProductPayload): Promise<string> {
+// S7 — `aliases`: o "criar produto a partir desta impressão" leva o apelido da
+// impressão junto, na mesma transação que gera o código.
+export async function createProduct(
+  payload: ProductPayload,
+  aliases: PrintAliasDraft[] = [],
+): Promise<string> {
   const [id] = await withWriteTimeout(
-    createProductsTx([{ payload, aliases: [] }]),
+    createProductsTx([{ payload, aliases }]),
   );
   return id;
 }
